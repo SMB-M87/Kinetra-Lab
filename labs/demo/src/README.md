@@ -21,3 +21,5 @@ Sources in this directory belong to `kinetra_sandbox_application and kinetra_dem
 ## Architecture and build
 
 See the [architecture guide](../../../docs/demo-architecture.md) for ownership and dependency contracts. Build through the repository root; the containing application or launcher CMake file defines these targets.
+
+Path and steering-probe strokes use three logical screen pixels at every camera zoom.

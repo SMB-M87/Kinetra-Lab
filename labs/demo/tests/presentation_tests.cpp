@@ -60,6 +60,31 @@ int main() {
         require(glGetError() == GL_NO_ERROR, "Sandbox renderer reported an OpenGL error");
         require(sandbox::window_title(application).find("CTRL settings") != std::string::npos,
                 "Sandbox title lost help controls");
+        sandbox::FrameCommands probes;
+        probes.probes = true;
+        probes.toggle_paths = probes.toggle_vectors = true;
+        application.advance(0, probes, reopened.camera);
+        const auto &player = application.scene().world.body(application.scene().player);
+        for (float zoom : {5.f, 73.f}) {
+            reopened.camera.pixels_per_unit = zoom;
+            reopened.camera.position = player.position + rotated(Vec2{3, 0}, player.angle);
+            sandbox::render(reopened, application);
+            glFinish();
+            unsigned char pixel[4]{};
+            int width, height;
+            SDL_GL_GetDrawableSize(SDL_GL_GetCurrentWindow(), &width, &height);
+            auto read_probe = [&] {
+                glReadPixels(width / 2, height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+            };
+            glReadBuffer(GL_FRONT);
+            read_probe();
+            if (pixel[0] < 240 || pixel[1] < 150 || pixel[1] > 180) {
+                glReadBuffer(GL_BACK);
+                read_probe();
+            }
+            require(pixel[0] > 240 && pixel[1] >= 150 && pixel[1] <= 180,
+                    "Steering probe disappeared at camera zoom");
+        }
         std::cout << "PASS Demo help, routes and renderer\n";
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

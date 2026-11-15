@@ -14,7 +14,7 @@ Regression tests for Dotio game logic, application commands and presentation.
 | Source | CTest name | Coverage |
 | --- | --- | --- |
 | [dotio_tests.cpp](dotio_tests.cpp) | `kinetra_dotio` | Geometry, routing, streaming, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands |
-| [presentation_tests.cpp](presentation_tests.cpp) | `kinetra_dotio_graphics` | Wall colors, rendering resources, statistics and Ghost marker presentation |
+| [presentation_tests.cpp](presentation_tests.cpp) | `kinetra_dotio_graphics` | Wall colors, rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation |
 
 ## Build and run
 

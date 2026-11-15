@@ -49,6 +49,62 @@ int ghost_marker_pixels() {
     }
     return count;
 }
+std::vector<unsigned char> frame_pixels() {
+    glFinish();
+    int viewport[4]{};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    std::vector<unsigned char> pixels(viewport[2] * viewport[3] * 4);
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, viewport[2], viewport[3], GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    return pixels;
+}
+void ai_label_placement(Runtime &runtime, dotio::Application &application) {
+    auto &enemy = application.world().GetEnemies()[0];
+    enemy.IsActive = true;
+    enemy.Position = dotio::from_world(runtime.camera.position);
+    application.debug = true;
+    for (const float zoom : {2.5f, 25.f, 60.f}) {
+        runtime.camera.pixels_per_unit = zoom;
+        for (const bool kamikaze : {false, true}) {
+            if (kamikaze)
+                enemy.SetState(enemy.GetKamikazeState());
+            else
+                enemy.SetState(enemy.GetWanderState());
+            application.ai = false;
+            dotio::render(runtime, application);
+            dotio::render(runtime, application);
+            const auto without_label = frame_pixels();
+            application.ai = true;
+            dotio::render(runtime, application);
+            dotio::render(runtime, application);
+            const auto with_label = frame_pixels();
+            const int width = int(runtime.camera.viewport.x), height = int(runtime.camera.viewport.y);
+            int left = width, right = -1, top = height, bottom = -1;
+            for (int y = 0; y < height; ++y)
+                for (int x = 0; x < width; ++x) {
+                    const int offset = ((height - 1 - y) * width + x) * 4;
+                    if (with_label[offset] != without_label[offset] ||
+                        with_label[offset + 1] != without_label[offset + 1] ||
+                        with_label[offset + 2] != without_label[offset + 2]) {
+                        left = std::min(left, x);
+                        right = std::max(right, x);
+                        top = std::min(top, y);
+                        bottom = std::max(bottom, y);
+                    }
+                }
+            require(right >= left && std::abs((left + right + 1) / 2.f - width / 2.f) <= 1,
+                    "AI label is missing or not centered above the agent");
+            require(bottom - top == 6 && right - left == (kamikaze ? 46 : 34),
+                    "AI label size changed with camera zoom");
+            const float body_top = height / 2.f - enemy.Radius / 25 * zoom;
+            require(std::abs(body_top - (bottom + 1) - 6) <= 1,
+                    "AI label lost its screen-pixel clearance above the projected body");
+        }
+    }
+    enemy.IsActive = false;
+    application.debug = application.ai = false;
+    runtime.camera.pixels_per_unit = 25;
+}
 int statistics_bands() {
     std::vector<bool> rows;
     statistics_pixels(&rows);
@@ -119,6 +175,8 @@ int main() {
         arrow.Position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
         require(geometry_bytes() > baseline_bytes, "Culling removed an edge-crossing arrow segment");
         arrow.IsActive = false;
+
+        ai_label_placement(reopened, application);
 
         application.statistics = true;
         dotio::render(reopened, application);

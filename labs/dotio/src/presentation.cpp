@@ -113,15 +113,20 @@ void render(Runtime &runtime, Application &application) {
             if (application.collisions)
                 draw_debug_circle(runtime, position, enemy.Radius / 25, {0.6f, 0.8f, 1});
             if (application.ai) {
-                const char *label = enemy.IsKamikazing()   ? "KAMIKAZE"
+                const std::string_view label = enemy.IsKamikazing()   ? "KAMIKAZE"
                                     : enemy.IsRecovering() ? "RECOVER"
                                     : enemy.IsPursueing()  ? "PURSUE"
                                     : enemy.IsAttacking()  ? "ATTACK"
                                                            : "WANDER";
                 const auto screen = runtime.camera.world_to_screen(position);
                 if (screen.x >= 0 && screen.y >= 0 && screen.x < runtime.camera.viewport.x &&
-                    screen.y < runtime.camera.viewport.y)
-                    draw_text(runtime, label, screen + Vec2{8, -10}, 1, state_color(enemy));
+                    screen.y < runtime.camera.viewport.y) {
+                    // Match the projected body size while keeping text and clearance in screen pixels.
+                    const float radius = enemy.Radius / 25 * runtime.camera.pixels_per_unit;
+                    const float width = float(label.size() * 6 - 1);
+                    const Vec2 origin = screen + Vec2{-width / 2, -radius - 6 - 7};
+                    draw_text(runtime, label, origin, 1, state_color(enemy));
+                }
             }
         }
         if (application.vectors)

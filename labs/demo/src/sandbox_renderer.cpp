@@ -8,7 +8,7 @@ namespace {
 
 void draw_route(Runtime &runtime, Vec2 start, std::span<const Vec2> route, Color color) {
     for (const auto waypoint : route) {
-        runtime.line(start, waypoint, 0.07f, color);
+        runtime.line(start, waypoint, 3.f / runtime.camera.pixels_per_unit, color);
         start = waypoint;
     }
     if (!route.empty())
@@ -29,14 +29,6 @@ void draw_body(Runtime &runtime, const Body &body, bool is_player, const Present
         const float size = body.shape == Shape::circle ? body.radius : body.half_extents.x;
         runtime.line(body.position, body.position + rotated({size, 0}, body.angle), 0.05f,
                      {0.03f, 0.08f, 0.1f});
-        if (options.probes) {
-            const auto direction =
-                length(body.velocity) > 0.01f ? normalized(body.velocity) : rotated(Vec2{1, 0}, body.angle);
-            for (float angle : {0.f, 2.35619449f, -2.35619449f})
-                runtime.line(body.position,
-                             body.position + rotated(direction, angle) * (angle == 0 ? 4.f : 2.f),
-                             2.f / runtime.camera.pixels_per_unit, {1, 0.65f, 0.2f});
-        }
         if (options.vectors)
             draw_debug_vector(runtime, body.position, body.velocity * 0.3f, {0.8f, 0.95f, 0.4f});
     }
@@ -96,6 +88,18 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
         }
         ++id;
     }
+    // Draw probes after every body so later terrain cannot overwrite the debug strokes.
+    if (options.probes)
+        for (const auto &body : scene.world.bodies()) {
+            if (body.motion == Motion::fixed || !scene.view.overlaps(bounds(body)))
+                continue;
+            const auto direction =
+                length(body.velocity) > 0.01f ? normalized(body.velocity) : rotated(Vec2{1, 0}, body.angle);
+            for (float angle : {0.f, 2.35619449f, -2.35619449f})
+                runtime.line(body.position,
+                             body.position + rotated(direction, angle) * (angle == 0 ? 4.f : 2.f),
+                             3.f / runtime.camera.pixels_per_unit, {1, 0.65f, 0.2f});
+        }
     if (options.paths) {
         draw_route(runtime, scene.world.body(scene.player).position, scene.player_path, {0.6f, 1, 0.3f});
         for (const auto &agent : scene.agents())
