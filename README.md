@@ -6,6 +6,7 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 
 - [Applications](#applications)
 - [Quick start](#quick-start)
+- [Kinetra development workflow](#kinetra-development-workflow)
 - [Tests and resources](#tests-and-resources)
 - [License](#license)
 
@@ -35,7 +36,14 @@ Kinetra-Lab/
     └── Kinetra/    # expected submodule checkout
 ```
 
-The build defaults to `external/Kinetra`. Submodule registration is still pending; until it is registered, use an existing checkout with `-DKINETRA_SOURCE_DIR=../Kinetra` on the first configure command below. No package installation is needed.
+The build uses the Git submodule at `external/Kinetra`. Clone with its sources:
+
+```sh
+git clone --recurse-submodules https://github.com/SMB-M87/Kinetra-Lab.git
+cd Kinetra-Lab
+```
+
+For an existing clone, run `git submodule update --init --recursive` from Kinetra-Lab before configuring. `external/Kinetra/CMakeLists.txt` must exist. No separate Kinetra installation or build is needed.
 
 Run from Kinetra-Lab:
 
@@ -53,6 +61,105 @@ ctest --test-dir build --output-on-failure
 Select with arrows/Enter or click; M returns to the menu, H toggles help, Backquote toggles debug controls. Each launch creates a fresh session. Detailed controls are in the application guides.
 
 When Kinetra source changes, rebuild Lab; CMake rebuilds the affected core targets automatically. Run core tests separately in Kinetra. Use a fresh build directory when switching source checkouts.
+
+## Kinetra development workflow
+
+Kinetra-Lab and Kinetra have separate Git histories. Lab records one exact Kinetra commit, not a live branch. Editing `external/Kinetra` changes the engine checkout; it does not automatically publish those edits or update Lab's recorded commit. A sibling `../Kinetra` checkout is independent and does not synchronize automatically.
+
+The Git commands below are manual developer steps. Inspect `git status` in both repositories before changing branches or updating submodules; commit or otherwise preserve local work first. Examples use `main`; use your feature branch and the normal review process when appropriate. Publish the Kinetra commit before publishing a Lab commit that references it, so other developers can fetch it.
+
+### Change Kinetra from inside Lab
+
+Submodules normally start with a detached HEAD. From Kinetra-Lab, create a branch before editing engine code:
+
+```sh
+git -C external/Kinetra switch -c my-engine-change
+```
+
+Edit reusable engine code in `external/Kinetra`; keep application changes in Lab. Build and test the engine independently, then build Lab against those same sources:
+
+```sh
+cmake -S external/Kinetra -B build-core -DCMAKE_BUILD_TYPE=Release
+cmake --build build-core -j2
+ctest --test-dir build-core --output-on-failure
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j2
+ctest --test-dir build --output-on-failure
+```
+
+The core build above tests the default headless configuration. For runtime changes, also run the runtime/graphics checks in [Kinetra development](external/Kinetra/docs/development.md#graphics-execution) and Lab's [graphics checks](#tests-and-resources).
+
+Commit the intended engine files inside `external/Kinetra`, then publish that branch:
+
+```sh
+cd external/Kinetra
+git diff
+# Stage only the intended engine files, then:
+git commit -m "Describe the engine change"
+git push -u origin my-engine-change
+cd ../..
+```
+
+After the Kinetra change is reviewed and merged, select its published upstream commit and rebuild Lab:
+
+```sh
+git -C external/Kinetra fetch origin
+git -C external/Kinetra switch --detach origin/main
+cmake --build build -j2
+ctest --test-dir build --output-on-failure
+```
+
+If merging changed the engine code, repeat the core checks too. Review and publish Lab's updated pointer, together with any required application changes:
+
+```sh
+git diff --submodule=log
+git add external/Kinetra
+# Stage any intended Lab source changes separately.
+git commit -m "Update Kinetra dependency"
+git push origin HEAD
+```
+
+When initially registering the submodule, also stage `.gitmodules` in the Lab commit. If the workflow uses pull requests, push to your Lab feature branch and open the normal review instead of updating a protected branch directly.
+
+### Change Kinetra in the standalone checkout
+
+Develop, test, commit and publish the engine change from the standalone Kinetra repository first. After it is merged into Kinetra's `main`, run from Kinetra-Lab with a clean submodule checkout:
+
+```sh
+git -C external/Kinetra fetch origin
+git -C external/Kinetra switch --detach origin/main
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j2
+ctest --test-dir build --output-on-failure
+git diff --submodule=log
+```
+
+Then commit and publish `external/Kinetra` in Lab using the pointer update steps above. Fetching alone does not change the checked-out engine version, and pushing Kinetra alone does not update Lab.
+
+To test unpublished changes from a sibling checkout, use a separate build directory:
+
+```sh
+cmake -S . -B build-local-core -DCMAKE_BUILD_TYPE=Release -DKINETRA_SOURCE_DIR=../Kinetra
+cmake --build build-local-core -j2
+ctest --test-dir build-local-core --output-on-failure
+```
+
+This override does not update the submodule pointer. Before publishing Lab, select the published engine commit in `external/Kinetra` and verify the normal submodule build too. If `build` previously used an override, restore it explicitly with `-DKINETRA_SOURCE_DIR="$PWD/external/Kinetra"` when configuring.
+
+### Receive published Lab changes
+
+From Kinetra-Lab, preserve local changes before pulling, then restore the engine commit recorded by Lab:
+
+```sh
+git pull --ff-only
+git submodule update --init --recursive
+git submodule status
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j2
+ctest --test-dir build --output-on-failure
+```
+
+In `git submodule status`, a leading space means the checkout matches Lab's recorded commit; `-` means uninitialized, and `+` means a different commit is checked out. `git submodule update` selects Lab's recorded commit, not the latest upstream Kinetra commit. Lab application changes never flow into Kinetra automatically; make reusable engine changes in the engine repository and publish them separately.
 
 ## Tests and resources
 

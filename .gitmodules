@@ -1,0 +1,3 @@
+[submodule "external/Kinetra"]
+	path = external/Kinetra
+	url = https://github.com/SMB-M87/Kinetra.git
