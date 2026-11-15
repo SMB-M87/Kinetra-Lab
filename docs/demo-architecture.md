@@ -4,10 +4,15 @@ Application ownership and its boundary with the public Kinetra engine.
 
 ## Table of contents
 
+**Navigation:**
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
+
+**On this page:**
+
 - [Components](#components)
 - [Lifecycle and constraints](#lifecycle-and-constraints)
 - [Source navigation](#source-navigation)
-- [Navigation](#navigation)
 
 ## Components
 
@@ -33,7 +38,3 @@ The application orders commands, camera updates and pointer interpretation befor
 ## Source navigation
 
 Start with the [application guide](../labs/demo/README.md), [headers](../labs/demo/include/README.md) and [presentation sources](../labs/demo/src/README.md). See the [system architecture](architecture.md) for target dependencies and shared session flow.
-
-## Navigation
-
-[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)

@@ -4,9 +4,14 @@ Tests for the bundled Demo/Dotio menu adapter and application integration. Gener
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
+
+**On this page:**
+
 - [Coverage](#coverage)
 - [Build and run](#build-and-run)
-- [Navigation](#navigation)
 
 ## Coverage
 
@@ -26,7 +31,3 @@ ctest --test-dir build -R '^kinetra_menu$' --output-on-failure
 ```
 
 For `kinetra_graphics`, enable `KINETRA_TEST_GRAPHICS=ON`, build `kinetra_runtime_tests` and provide an OpenGL context as described in [Tests and resources](../../README.md#tests-and-resources). Filter that build's CTest run with `-R '^kinetra_graphics$'`.
-
-## Navigation
-
-[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)

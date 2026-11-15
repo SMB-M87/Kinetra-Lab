@@ -4,9 +4,14 @@ Sources in this directory belong to `kinetra_dotio_presentation`. These are Lab-
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+**On this page:**
+
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
-- [Navigation](#navigation)
 
 ## File map
 
@@ -19,7 +24,3 @@ Sources in this directory belong to `kinetra_dotio_presentation`. These are Lab-
 ## Architecture and build
 
 See the [architecture guide](../../../docs/dotio-architecture.md) for ownership and dependency contracts. Build through the repository root; the containing application or launcher CMake file defines these targets.
-
-## Navigation
-
-[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)

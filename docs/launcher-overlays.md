@@ -4,11 +4,16 @@ Optional public infrastructure owns shared menu behavior, session transitions an
 
 ## Table of contents
 
+**Navigation:**
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
+
+**On this page:**
+
 - [Registration](#registration)
 - [Launcher transitions](#launcher-transitions)
 - [Debug and help interaction](#debug-and-help-interaction)
 - [Contracts and verification](#contracts-and-verification)
-- [Navigation](#navigation)
 
 ## Registration
 
@@ -86,7 +91,3 @@ Help content is registered as a span of text lines, including category headings 
 Public headers: [launcher.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/launcher.h), [session.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/session.h), [debug_view.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/debug_view.h), [help_view.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/help_view.h), [bitmap_text.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/bitmap_text.h).
 
 [Generic launcher tests](https://github.com/SMB-M87/Kinetra/blob/main/tests/launcher_tests.cpp) cover registration, configuration, factory failure, cleanup, input/time isolation and debug actions. [Bundled menu tests](../launcher/tests/menu_tests.cpp) cover difficulty and resized picking. [Integration tests](../launcher/tests/runtime_tests.cpp) and both application presentation suites cover actual rendering and pointer capture.
-
-## Navigation
-
-[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)

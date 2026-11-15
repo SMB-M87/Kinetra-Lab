@@ -4,10 +4,15 @@ Application ownership and its boundary with the public Kinetra engine.
 
 ## Table of contents
 
+**Navigation:**
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
+
+**On this page:**
+
 - [Components](#components)
 - [Lifecycle and constraints](#lifecycle-and-constraints)
 - [Source navigation](#source-navigation)
-- [Navigation](#navigation)
 
 ## Components
 
@@ -34,7 +39,3 @@ Streaming rebases actors, projectiles, props and the camera together; routes and
 ## Source navigation
 
 Start with the [application guide](../labs/dotio/README.md), [headers](../labs/dotio/include/README.md) and [presentation sources](../labs/dotio/src/README.md). The [logic headers](../labs/dotio/logic/include/README.md) and [math adapter](../labs/dotio/gmath/include/README.md) describe the retained port boundary. See the [system architecture](architecture.md) for target dependencies and shared session flow.
-
-## Navigation
-
-[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)

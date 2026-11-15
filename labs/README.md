@@ -9,9 +9,16 @@ Applications and experiments built on the public Kinetra APIs. Each lab owns its
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Documentation index](../docs/README.md)
+
+Directory guides: [demo](demo/README.md), [dotio](dotio/README.md).
+
+**On this page:**
+
 - [Build and run](#build-and-run)
 - [Verification](#verification)
-- [Navigation](#navigation)
 
 ## Build and run
 
@@ -37,9 +44,3 @@ ctest --test-dir build-headless --output-on-failure
 ```
 
 See [tests and resources](../README.md#tests-and-resources) for graphics checks. Application-specific behavior and verification are documented in the guides above.
-
-## Navigation
-
-[Parent guide](../README.md) · [Documentation index](../docs/README.md)
-
-Directory guides: [demo](demo/README.md), [dotio](dotio/README.md).

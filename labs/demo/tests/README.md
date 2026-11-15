@@ -4,9 +4,14 @@ Regression tests for the Demo simulation, application commands and presentation.
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+**On this page:**
+
 - [Coverage](#coverage)
 - [Build and run](#build-and-run)
-- [Navigation](#navigation)
 
 ## Coverage
 
@@ -27,7 +32,3 @@ ctest --test-dir build-headless -R '^kinetra_(terrain|sandbox_application)$' --o
 ```
 
 For `kinetra_demo_graphics`, use a runtime build with `KINETRA_TEST_GRAPHICS=ON` and an OpenGL context as described in [Tests and resources](../../../README.md#tests-and-resources). Filter that build's CTest run with `-R '^kinetra_demo_graphics$'`.
-
-## Navigation
-
-[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)

@@ -4,6 +4,14 @@ Portable local survival game in Kinetra-Lab. Build/run instructions are in [Quic
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
+
+Directory guides: [gmath](gmath/README.md), [include](include/README.md), [logic](logic/README.md), [src](src/README.md), [tests](tests/README.md).
+
+**On this page:**
+
 - [Launch and controls](#launch-and-controls)
 - [Application boundary](#application-boundary)
 - [World and residency](#world-and-residency)
@@ -14,7 +22,6 @@ Portable local survival game in Kinetra-Lab. Build/run instructions are in [Quic
 - [Extraction](#extraction)
 - [Provenance](#provenance)
 - [Source navigation](#source-navigation)
-- [Navigation](#navigation)
 
 ## Launch and controls
 
@@ -124,9 +131,3 @@ The `logic/` and `gmath/` sources originate from the independent local Dotio rep
 ## Source navigation
 
 [Headers](include/README.md) and [implementation](src/README.md) describe the local source layout.
-
-## Navigation
-
-[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
-
-Directory guides: [gmath](gmath/README.md), [include](include/README.md), [logic](logic/README.md), [src](src/README.md), [tests](tests/README.md).

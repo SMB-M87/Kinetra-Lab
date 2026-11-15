@@ -4,9 +4,14 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
+
+**On this page:**
+
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
-- [Navigation](#navigation)
 
 ## File map
 
@@ -18,7 +23,3 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 ## Architecture and build
 
 See the [architecture guide](../../docs/launcher-overlays.md) for ownership and dependency contracts. Build through the repository root; the containing application or launcher CMake file defines these targets.
-
-## Navigation
-
-[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)

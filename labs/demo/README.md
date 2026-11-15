@@ -4,12 +4,19 @@ Reference application for public Kinetra physics, navigation, camera, runtime an
 
 ## Table of contents
 
+**Navigation:**
+
+[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
+
+Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).
+
+**On this page:**
+
 - [Controls](#controls)
 - [Scene ownership and streaming](#scene-ownership-and-streaming)
 - [Navigation and agents](#navigation-and-agents)
 - [Verification and limits](#verification-and-limits)
 - [Source navigation](#source-navigation)
-- [Navigation](#navigation)
 
 ## Controls
 
@@ -73,9 +80,3 @@ The circular planning envelope can reject narrow gaps; moving crowds may prevent
 ## Source navigation
 
 [Headers](include/README.md) and [implementation](src/README.md) describe the local source layout.
-
-## Navigation
-
-[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
-
-Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).
