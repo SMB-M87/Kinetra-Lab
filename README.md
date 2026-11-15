@@ -56,9 +56,9 @@ Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header;
 
 [Watch or download the 23-second tour](docs/media/kinetra-lab-tour.mp4) (MP4, 1280 × 800, 30 fps, no audio): launcher, Demo, Dotio and their debug views.
 
-| Launcher | Dotio difficulty selection |
-| --- | --- |
-| ![Launcher with Demo and Dotio](docs/media/launcher.png) | ![Dotio difficulty selection with Medium selected](docs/media/launcher-difficulty.png) |
+| Launcher | Dotio difficulty selection | i4sim loadscreen |
+| --- | --- | --- |
+| ![Launcher with Demo, Dotio and i4sim](docs/media/launcher.png) | ![Dotio difficulty selection with Medium selected](docs/media/launcher-difficulty.png) | ![i4sim loadscreen with blueprint selection](docs/media/launcher-loadscreen.png) |
 
 | Application | Normal view | Debug view |
 | --- | --- | --- |

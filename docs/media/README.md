@@ -29,6 +29,7 @@ flowchart LR
 | Files | Contents |
 | --- | --- |
 | [launcher.png](launcher.png), [launcher-difficulty.png](launcher-difficulty.png) | Application menu and Dotio difficulty selection |
+| [launcher-loadscreen.png](launcher-loadscreen.png) | i4sim loadscreen with blueprint selection |
 | [demo.png](demo.png), [demo-debug.png](demo-debug.png) | Demo with debug layers disabled and enabled |
 | [dotio.png](dotio.png), [dotio-debug.png](dotio-debug.png) | Dotio with debug layers disabled and enabled |
 | [dotio-settings.png](dotio-settings.png) | Dotio settings with both control sections expanded |
@@ -37,11 +38,11 @@ flowchart LR
 
 ## Capture details
 
-Captured from the Lab launcher and session renderers using the bundled `external/Kinetra` checkout, an SDL offscreen OpenGL context and Mesa software rendering. PNG files preserve the original 1280 × 800 framebuffer. The video advances the real simulations at 60 Hz and records every second update; timing is simulated rather than a performance measurement.
+The original captures use the Lab launcher and session renderers with the bundled `external/Kinetra` checkout, an SDL offscreen OpenGL context and Mesa software rendering at 1280 × 800. Updated launcher screenshots preserve their supplied dimensions. The video advances the real simulations at 60 Hz and records every second update; timing is simulated rather than a performance measurement.
 
 Sessions use seed 42, 36 Demo agents and Medium Dotio difficulty. Each screenshot pair shows the same scene with debug mode enabled or disabled. The debug views enable vectors, steering probes, paths, collision shapes and active-agent markers; Dotio also shows AI states and uses Invulnerable during the debug portion. The normal screenshots have Debug Mode disabled.
 
-The launcher capture shows Dotio preselected by hover and Exit highlighted blue. The tour starts with Demo selected, hovers Dotio at 0:00.5 and Exit at 0:01.
+The i4sim loadscreen capture shows blueprint selection with Previous, Exit and Next actions. The tour starts with Demo selected, hovers Dotio at 0:00.5 and Exit at 0:01.
 
 The tour shows the launcher at 0:00, difficulty selection at 0:01.5, Demo at 0:03, Demo debug at 0:07, Dotio at 0:12, Dotio debug at 0:16 and expanded Dotio settings at 0:21. PNG screenshots are linked separately so readers can inspect full-resolution details.
 
