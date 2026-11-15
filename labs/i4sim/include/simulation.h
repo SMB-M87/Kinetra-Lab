@@ -13,7 +13,7 @@ enum class SteeringProfile { improved, original, experimental_rvo };
 struct MotionSettings {
     SteeringProfile profile{SteeringProfile::improved};
     bool heatmap{true}, recovery{};
-    float speed{2}, force{0.6f}, horizon{8};
+    float speed{2}, force{0.6f}, horizon{32};
 };
 enum class ProductKind { trimmer, personalized };
 enum class ProductState { waiting, transporting, queued, processing, completed };

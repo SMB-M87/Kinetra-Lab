@@ -77,11 +77,18 @@ Enable Debug Mode and press backquote to open the paged debug menu.
 Debug View offers grid, heatmap, routes, force vectors, boundaries, detection and contact contours,
 pause, single tick, workload, framing and blueprint selection. Debug Motion offers Improved,
 Original Basic and experimental RVO steering, A*/heatmap A*, optional geometric route recovery,
-speed, acceleration and lookahead adjustments with parameter reset. Pause before changing motion
-configuration. Factory assignments and positions survive configuration changes; routes are rebuilt.
+speed, acceleration and lookahead adjustments with parameter reset (default lookahead: 32 ticks).
+Pause before changing motion configuration. Factory assignments and positions survive configuration changes; routes are rebuilt.
 
 Manual goals reserve only their mover until arrival; busy movers reject them. Invalid goals
 leave the current goal intact. Other movers continue their factory work.
+
+Improved steering uses exact rectangular clearance between axis-aligned movers rather than
+inflating each mover to a circle. Routes are reconsidered after 100 ticks without progress
+along the remaining route, rather than reacting to the mover's own heatmap footprint.
+Parked and processing movers remain stationary during mover contact correction.
+Geometric route recovery remains optional and disabled by default.
+
 Contacts count new unordered mover-pair or mover-boundary contacts before correction. Duration
 counts pair/segment contact ticks, not seconds. Ongoing contact is not a new event every tick.
 Inspection reports mover contact ticks and marks lack of goal progress as STALLED, not a proven deadlock.

@@ -6,6 +6,16 @@
 
 namespace i4sim {
 using namespace kinetra;
+namespace {
+float route_remaining(Vec2 position, const std::vector<Vec2> &route) {
+    float remaining = 0;
+    for (const auto point : route) {
+        remaining += distance(position, point);
+        position = point;
+    }
+    return remaining;
+}
+} // namespace
 std::vector<Interaction> recipe(ProductKind kind) {
     using enum Interaction;
     if (kind == ProductKind::personalized)
@@ -109,7 +119,7 @@ void Simulation::set_goal(Mover &m, Vec2 target) {
     m.unreachable = m.route.empty();
     m.moving = !m.unreachable;
     m.stalled = m.replan = m.no_progress = 0;
-    m.best_remaining = distance(m.body.position, target);
+    m.best_remaining = route_remaining(m.body.position, m.route);
     m.detour = false;
     m.recovery_attempts = 0;
 }
@@ -265,13 +275,17 @@ void Simulation::recover_route(Mover &m) {
         m.detour = true;
     }
     m.no_progress = 0;
-    m.best_remaining = distance(m.body.position, m.destination);
+    m.best_remaining = route_remaining(m.body.position, m.route);
 }
 void Simulation::move_agents() {
     std::vector<Body> snapshot;
     std::vector<Aabb> boxes;
     for (const auto &m : movers_) {
         snapshot.push_back(m.body);
+        if (m.blocked || !m.moving) {
+            snapshot.back().motion = Motion::fixed;
+            snapshot.back().velocity = {};
+        }
         boxes.push_back(bounds(m.body));
     }
     SpatialGrid index(std::max(blueprint_.cell_size.x, blueprint_.cell_size.y));
@@ -282,11 +296,14 @@ void Simulation::move_agents() {
             ++m.idle_ticks;
         if (m.blocked || !m.moving)
             continue;
-        if (!m.detour && ++m.replan >= 10 &&
-            (m.stalled > 10 || grid_.weight(grid_.cell(m.body.position)) > 3)) {
+        // Congestion includes this mover's footprint; it is not evidence that
+        // its route is obstructed. Replan only after sustained lack of progress.
+        if (!m.detour && ++m.replan >= 100 && m.no_progress >= 100) {
             auto route = grid_.path(m.body.position, m.destination);
-            if (!route.empty())
+            if (!route.empty()) {
                 m.route = std::move(route);
+                m.best_remaining = route_remaining(m.body.position, m.route);
+            }
             m.replan = 0;
         }
         if (m.route.empty()) {
@@ -326,6 +343,7 @@ void Simulation::move_agents() {
             recovery.stop_radius = 0.01f;
             recovery.lookahead = motion_.horizon;
             recovery.clearance = 2;
+            recovery.rectangular_clearance = true;
             m.forces.acceleration = motion_.profile == SteeringProfile::experimental_rvo
                 ? tangent_steer(m.body, m.route.front(), neighbors, motion_.speed, motion_.force,
                                 motion_.horizon, m.route.size() == 1)
@@ -345,8 +363,11 @@ void Simulation::move_agents() {
                     product.distance += moved;
                     break;
                 }
-        const float remaining = distance(m.body.position, m.destination);
-        if (remaining + 2 < m.best_remaining) {
+        const float remaining = route_remaining(m.body.position, m.route);
+        // Arrival slows continuously; a fixed 2 mm threshold would classify
+        // the final approach as stalled even while it is still converging.
+        const float progress_step = std::clamp(remaining * 0.05f, 0.001f, 2.f);
+        if (remaining + progress_step < m.best_remaining) {
             m.best_remaining = remaining;
             m.no_progress = 0;
         }
@@ -382,8 +403,8 @@ void Simulation::move_agents() {
                 ++movers_[j].collision_ticks;
                 auto &a = movers_[i].body;
                 auto &b = movers_[j].body;
-                if (movers_[i].blocked) a.motion = Motion::fixed;
-                if (movers_[j].blocked) b.motion = Motion::fixed;
+                if (movers_[i].blocked || !movers_[i].moving) a.motion = Motion::fixed;
+                if (movers_[j].blocked || !movers_[j].moving) b.motion = Motion::fixed;
                 resolve_contact(a, b, *c);
                 a.motion = b.motion = Motion::controlled;
             }

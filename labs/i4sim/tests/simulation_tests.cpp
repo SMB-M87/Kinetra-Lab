@@ -69,6 +69,55 @@ int main(int argc, char **argv) {
             require(contacts.movers()[0].collision_ticks == 2 && contacts.movers()[1].collision_ticks == 2,
                     "Per-mover contact duration is inconsistent");
         }
+        {
+            auto b = fixture();
+            b.producers.clear();
+            b.movers[0].position = {300, 700};
+            Simulation solo(b);
+            solo.workload = false;
+            require(solo.move_to(0, {1900, 750}), "Solo goal rejected");
+            solo.paused = false;
+            for (int tick = 0; tick < 80; ++tick) solo.tick();
+            require(solo.movers()[0].replan == 80,
+                    "A mover replanned because of its own heatmap footprint");
+            for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick) solo.tick();
+            require(!solo.movers()[0].moving && solo.collisions() == 0,
+                    "Solo route failed to arrive without contact");
+        }
+        {
+            auto b = fixture();
+            b.producers.clear();
+            b.movers = {{"moving", Model::APM4220, {500, 700}},
+                        {"parked", Model::APM4220, {510, 700}}};
+            Simulation parked(b);
+            parked.workload = false;
+            const auto position = parked.movers()[1].body.position;
+            require(parked.move_to(0, {1700, 700}), "Departure goal rejected");
+            parked.paused = false;
+            for (int tick = 0; tick < 1000; ++tick) {
+                parked.tick();
+                require(kinetra::distance(parked.movers()[1].body.position, position) == 0 &&
+                            kinetra::length(parked.movers()[1].body.velocity) == 0,
+                        "Contact displaced a parked mover");
+            }
+        }
+        {
+            auto b = fixture();
+            b.producers.clear();
+            b.movers[0].position = {650, 700};
+            b.zones.push_back({"wall", {1000, 400}, {200, 800}});
+            Simulation detour(b);
+            detour.workload = false;
+            require(detour.move_to(0, {1300, 750}), "Detour goal rejected");
+            detour.paused = false;
+            for (int tick = 0; tick < 5000 && detour.movers()[0].moving; ++tick) {
+                detour.tick();
+                require(detour.movers()[0].no_progress < 100,
+                        "A valid detour was classified as lack of route progress");
+            }
+            require(!detour.movers()[0].moving && detour.collisions() == 0,
+                    "Detour failed to reach its goal without contact");
+        }
         for (bool crossing : {false, true}) {
             std::uint64_t reference_contacts{};
             for (auto profile : {SteeringProfile::original, SteeringProfile::improved}) {
@@ -94,7 +143,7 @@ int main(int argc, char **argv) {
                 else {
                     require(!trial.movers()[0].moving && !trial.movers()[1].moving,
                             "Improved encounter did not reach both goals");
-                    require(trial.collisions() <= reference_contacts,
+                    require(trial.collisions() == 0 && trial.collisions() <= reference_contacts,
                             "Improved encounter increased contacts");
                 }
             }
