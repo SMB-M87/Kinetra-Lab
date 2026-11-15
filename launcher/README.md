@@ -1,6 +1,6 @@
 # Bundled application launcher
 
-Composition root for Demo and Dotio; menu/session infrastructure and its tests also live here.
+Composition root for Demo and Dotio; generic menu/session infrastructure and tests belong to Kinetra.
 
 ## Table of contents
 

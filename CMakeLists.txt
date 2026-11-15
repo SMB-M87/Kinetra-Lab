@@ -18,4 +18,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Application CMake uses this local switch for its existing presentation targets.
 set(KINETRA_BUILD_RUNTIME ${KINETRA_LAB_BUILD_RUNTIME})
 add_subdirectory(labs)
+if(KINETRA_LAB_BUILD_RUNTIME AND NOT TARGET Kinetra::Launcher)
+    message(FATAL_ERROR "Kinetra checkout must supply Kinetra::Launcher; update external/Kinetra or set KINETRA_SOURCE_DIR to an updated checkout")
+endif()
 add_subdirectory(launcher)

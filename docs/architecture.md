@@ -27,7 +27,7 @@ flowchart TD
     Dotio --> Runtime
 ```
 
-Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define the actual build. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure.
+Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define application targets. Kinetra defines `Kinetra::Launcher` and `Kinetra::Runtime`. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure.
 
 With `KINETRA_LAB_BUILD_RUNTIME=OFF`, only application logic and its headless tests are built. Core tests are disabled in the embedded engine build and run independently in Kinetra. `KINETRA_SOURCE_DIR` selects the recorded `external/Kinetra` submodule by default or an explicit development checkout; no installed package is required.
 
@@ -60,6 +60,6 @@ Runtime outlives hosted sessions. Registrations own factories; sessions own appl
 
 ## Verification boundaries
 
-Headless tests exercise terrain, application command ordering and ported game logic. Launcher registry/menu tests run in runtime-enabled builds without opening a window. With `KINETRA_TEST_GRAPHICS=ON`, presentation and launcher integration tests require an actual OpenGL context.
+Headless tests exercise terrain, application command ordering and ported game logic. Generic launcher registry tests run in Kinetra; Lab menu adapter tests run in runtime-enabled builds without opening a window. With `KINETRA_TEST_GRAPHICS=ON`, presentation and launcher integration tests require an actual OpenGL context.
 
 See [Labs verification](../labs/README.md#verification) and [graphics commands](../README.md#tests-and-resources). Engine changes are tested independently; Lab tests validate application integration with the selected engine checkout.

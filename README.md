@@ -17,11 +17,11 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 
 | Directory | Targets | Purpose |
 | --- | --- | --- |
-| [launcher](launcher/README.md) | `kinetra`, `kinetra_sandbox`, `kinetra_launcher` | Menu, registration and application switching |
+| [launcher](launcher/README.md) | `kinetra`, `kinetra_sandbox` | Menu, registration and application switching |
 | [labs/demo](labs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
 | [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
-The library target `Kinetra::Launcher` remains available inside Lab; its header is `launcher/include/kinetra/launcher.h`.
+Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header; Lab consumes that target. The engine checkout must include this target. During local development, configure with `-DKINETRA_SOURCE_DIR=/workspace/Kinetra` until the recorded submodule revision is updated.
 
 ## Quick start
 
