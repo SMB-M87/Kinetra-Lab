@@ -55,6 +55,73 @@ int main(int argc, char **argv) {
             require(rejected, "Unbounded horizon accepted");
         }
         {
+            // Return to an actual reservation after departing into the aisle.
+            // Include walls, a corner and a slot between two parked movers.
+            for (auto profile : {SteeringProfile::improved, SteeringProfile::original})
+                for (int scenario = 0; scenario < 3; ++scenario) {
+                    auto b = fixture();
+                    b.producers.clear();
+                    const Vec2 size = mover_spec(Model::APM4220).dimension;
+                    const Vec2 home = scenario == 0 ? Vec2{0, 500}
+                                    : scenario == 1 ? Vec2{.25f, .25f} : Vec2{800, 500};
+                    b.movers = {{"returning", Model::APM4220, home}};
+                    if (scenario == 2) {
+                        b.movers.push_back({"left", Model::APM4220, home - Vec2{size.x + 8, 0}});
+                        b.movers.push_back({"right", Model::APM4220, home + Vec2{size.x + 8, 0}});
+                    }
+                    Simulation parking(b);
+                    parking.workload = false;
+                    auto config = parking.motion_settings();
+                    config.profile = profile;
+                    parking.configure_motion(config);
+                    const auto reserved = parking.movers()[0].parking;
+                    require(!parking.move_to(0, {size.x / 2 - 1, 700}),
+                            "Manual goal accepted a footprint outside the world");
+                    for (const auto goal : {Vec2{800, 950} + size / 2, reserved}) {
+                        require(parking.move_to(0, goal), "Parking approach rejected");
+                        parking.paused = false;
+                        for (int tick = 0; tick < 8000 && parking.movers()[0].moving; ++tick) {
+                            parking.tick();
+                            const auto &m = parking.movers()[0];
+                            require(kinetra::finite(m.forces.border) &&
+                                        kinetra::length(m.body.acceleration) <= config.force + 1e-5f,
+                                    "Parking produced an invalid acceleration");
+                        }
+                        if (parking.movers()[0].moving) {
+                            const auto &m = parking.movers()[0];
+                            std::cerr << "parking profile=" << int(profile) << " scenario=" << scenario
+                                      << " pos=" << m.body.position.x << ',' << m.body.position.y
+                                      << " goal=" << goal.x << ',' << goal.y << " route=" << m.route.size()
+                                      << " velocity=" << m.body.velocity.x << ',' << m.body.velocity.y << '\n';
+                        }
+                        require(!parking.movers()[0].moving, "Parking approach failed to settle");
+                        require(parking.collisions() == 0, "Parking approach contacted a wall or neighbor");
+                    }
+                    require(kinetra::distance(parking.movers()[0].body.position, reserved) == 0 &&
+                                kinetra::length(parking.movers()[0].body.velocity) == 0,
+                            "Mover failed to park at its reservation");
+                    for (int tick = 0; tick < 200; ++tick) parking.tick();
+                    require(kinetra::distance(parking.movers()[0].body.position, reserved) == 0,
+                            "Parked mover drifted after arrival");
+                }
+        }
+        {
+            auto b = fixture();
+            b.producers = {{"Kuka", Model::Kuka, {2300, 100}, {300, 250}}};
+            b.movers = {{"trapped", Model::APM4220, {5, 5}},
+                        {"front", Model::APM4220, {5, 123}},
+                        {"side", Model::APM4220, {123, 5}},
+                        {"available", Model::APM4220, {800, 500}}};
+            Simulation departure(b);
+            departure.workload = false;
+            departure.toggle_mover(1);
+            departure.toggle_mover(2);
+            departure.add_product(ProductKind::trimmer);
+            departure.single_step();
+            require(!departure.movers()[0].product && departure.movers()[3].product.has_value(),
+                    "Factory assigned a mover trapped behind parked neighbors");
+        }
+        {
             auto b = fixture();
             b.producers.clear();
             b.movers.push_back({"overlap", Model::APM4220, b.movers[0].position + Vec2{10,0}});
@@ -206,6 +273,15 @@ int main(int argc, char **argv) {
         factory.paused = false;
         for (int i = 0; i < 50000; ++i)
             factory.tick();
+        if (factory.completed() < 5) {
+            std::cerr << "MAS completed=" << factory.completed() << '\n';
+            for (const auto &m : factory.movers())
+                std::cerr << m.definition.id << " pos=" << m.body.position.x << ',' << m.body.position.y
+                          << " goal=" << m.destination.x << ',' << m.destination.y << " moving=" << m.moving
+                          << " unreachable=" << m.unreachable << " route=" << m.route.size()
+                          << " blocked-start=" << !factory.grid().clear(m.body.position, m.body.position, m.body.half_extents)
+                          << '\n';
+        }
         require(factory.completed() >= 5, "Original MAS workload deadlocked instead of completing recipes");
         for (const auto &producer : factory.producers())
             require(producer.queue.size() <= mas.producer_max_queue, "Producer queue capacity exceeded");

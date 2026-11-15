@@ -95,6 +95,7 @@ class Simulation {
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
     std::uint64_t ticks_{}, completed_{}, collisions_{}, next_product_{1};
+    std::vector<Vec2> plan_route(const Mover &mover, Vec2 destination, bool require_departure = false) const;
     void set_goal(Mover &mover, Vec2 destination);
     Vec2 holding_position(const Mover &mover, Vec2 destination) const;
     void update_heatmap();

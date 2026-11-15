@@ -26,4 +26,4 @@ flowchart TD
 
 ## Contents and use
 
-`blueprint.cpp` loads and expands original JSON. `simulation.cpp` owns deterministic product/transport/production policy. `session.cpp` provides the Loadscreen, interaction and rendering. `main.cpp` provides graphical and batch entry points.
+`blueprint.cpp` loads and expands original JSON. `simulation.cpp` owns deterministic product/transport/production policy, footprint-aware route requests, parking approach refinement and arrival checks. See the [simulation contract](../../../docs/factory-simulation-architecture.md) for wall constraints and stalled-route handling. `session.cpp` provides the Loadscreen, interaction and rendering. `main.cpp` provides graphical and batch entry points.

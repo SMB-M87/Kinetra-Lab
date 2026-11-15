@@ -41,7 +41,12 @@ Run `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --tic
 
 Motion regressions cover manual reservation against factory allocation, paused single-step, all steering profiles, invalid horizons, and frontal/crossing encounters with goal completion and contact comparison. Regressions also verify that a mover does not replan due to its own heatmap footprint,
 that a valid geometric detour counts as progress, and that contact cannot displace a
-parked mover. Improved frontal/crossing encounters require zero contacts.
+parked mover. Parking regressions depart and return beside a wall, in a corner
+and between parked neighbors under Improved and Original steering. They require
+zero contacts (including a flush wall reservation), bounded acceleration, exact
+final reservations and no drift after arrival; footprint-invalid manual goals must
+fail. Allocation must skip a mover trapped behind blocked neighbors. Improved frontal/crossing
+encounters require zero contacts.
 Large-factory recovery is explicitly enabled in its regression.
 
 ## Motion benchmark
@@ -61,22 +66,21 @@ contact impulses are not included. Elapsed time depends on the machine and load.
 The benchmark is deliberately outside CTest. See the
 [simulation contract](../../../docs/factory-simulation-architecture.md).
 
-Measured comparison against the preceding default Improved implementation, using
-identical seeds, 50000 ticks and recovery disabled in both versions:
+Current wall/parking implementation, default Improved profile, recovery disabled,
+50000 ticks per run:
 
-| Blueprint | Seed | Products before → after | Contacts before → after | Contact ticks before → after |
+| Blueprint | Seed | Completed products | Contact episodes | Contact ticks |
 | --- | --- | --- | --- | --- |
-| MAS-demonstrator | 42 | 10 → 14 | 1744 → 865 | 137057 → 868 |
-| MAS-demonstrator | 915839214 | 8 → 15 | 2884 → 1645 | 139265 → 1662 |
-| 3840x2400 | 42 | 53 → 56 | 6 → 16 | 9 → 16 |
-| 3840x2400 | 915839214 | 44 → 56 | 44 → 29 | 81 → 29 |
-| 8640x4800 | 42 | 82 → 92 | 12923 → 507 | 354339 → 516 |
-| 8640x4800 | 915839214 | 87 → 97 | 12780 → 1339 | 248428 → 1606 |
+| MAS-demonstrator | 42 | 16 | 53 | 71 |
+| MAS-demonstrator | 915839214 | 16 | 204 | 214 |
+| 3840x2400 | 42 | 59 | 3 | 3 |
+| 3840x2400 | 915839214 | 59 | 0 | 0 |
+| 8640x4800 | 42 | 98 | 384 | 395 |
+| 8640x4800 | 915839214 | 99 | 726 | 773 |
 
-The medium factory with seed 42 increases from 6 to 16 contact episodes/ticks
-(from 9 contact ticks), while completing 56 rather than 53 products. The improvement
-is aggregate, not a guarantee that every configuration has fewer contacts.
-Contacts remain in crowded factories. These results do not establish general
-collision freedom or verify desktop animation smoothness. Reducing replanning
-alone regressed MAS throughput; shortening corners also regressed the medium
-factory's contact count. Neither shortcutting nor a new velocity sampler is enabled.
+Contact identities now use merged wall segments and exclude their artificial
+0.001 mm collision skin. Counts are therefore not directly comparable to older
+runs that counted raster seams and proxy-only touching. Crowded factories still
+have physical contacts; these runs do not establish general collision freedom or
+verify desktop animation smoothness. The focused parking tests independently
+require zero contacts and exact settled reservations.

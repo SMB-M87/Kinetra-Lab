@@ -1,5 +1,6 @@
 #include "simulation.h"
 #include <fstream>
+#include <limits>
 #include <kinetra/navigation.h>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -14,6 +15,32 @@ float route_remaining(Vec2 position, const std::vector<Vec2> &route) {
         position = point;
     }
     return remaining;
+}
+// Strict interior slab test against the Minkowski box of two movers.
+bool crosses_mover(Vec2 start, Vec2 end, Vec2 extent, const Body &other) {
+    const Vec2 low = other.position - other.half_extents - extent;
+    const Vec2 high = other.position + other.half_extents + extent;
+    const Vec2 travel = end - start;
+    float enter = 0, exit = 1;
+    for (int axis = 0; axis < 2; ++axis) {
+        const float p = axis == 0 ? start.x : start.y;
+        const float v = axis == 0 ? travel.x : travel.y;
+        const float lo = axis == 0 ? low.x : low.y;
+        const float hi = axis == 0 ? high.x : high.y;
+        if (v == 0) {
+            if (p <= lo || p >= hi)
+                return false;
+        } else {
+            float near = (lo - p) / v, far = (hi - p) / v;
+            if (near > far)
+                std::swap(near, far);
+            enter = std::max(enter, near);
+            exit = std::min(exit, far);
+            if (enter >= exit)
+                return false;
+        }
+    }
+    return true;
 }
 } // namespace
 std::vector<Interaction> recipe(ProductKind kind) {
@@ -74,7 +101,8 @@ void Simulation::configure_motion(MotionSettings settings) {
     }
 }
 void Simulation::single_step() {
-    if (!paused) return;
+    if (!paused)
+        return;
     paused = false;
     tick();
     paused = true;
@@ -113,9 +141,92 @@ void Simulation::toggle_producer(std::size_t index) {
     auto &p = producers_.at(index);
     p.blocked = !p.blocked;
 }
+std::vector<Vec2> Simulation::plan_route(const Mover &m, Vec2 target, bool require_departure) const {
+    auto route = grid_.path(m.body.position, target, m.body.half_extents);
+    if (route.empty() || (!require_departure && distance(target, m.parking) > .05f && m.no_progress < 100))
+        return route;
+    std::vector<const Body *> obstacles;
+    for (const auto &other : movers_)
+        if (&other != &m && (!other.moving || other.blocked || other.no_progress >= 100))
+            obstacles.push_back(&other.body);
+    auto clear = [&](Vec2 from, Vec2 to) {
+        if (!grid_.clear(from, to, m.body.half_extents))
+            return false;
+        for (const auto *other : obstacles)
+            if (crosses_mover(from, to, m.body.half_extents + Vec2{2, 2}, *other))
+                return false;
+        return true;
+    };
+    Vec2 previous = m.body.position;
+    bool obstructed = false;
+    for (const auto point : route) {
+        obstructed = obstructed || !clear(previous, point);
+        previous = point;
+    }
+    if (!obstructed)
+        return route;
+    // Refine parking/stalled routes around rectangular stationary footprints.
+    // Grid waypoints retain topology; obstacle corners allow tight aisle entries
+    // that a cell center or a conservative circular recovery envelope cannot fit.
+    std::vector<Vec2> nodes{m.body.position, target};
+    nodes.insert(nodes.end(), route.begin(), route.end());
+    for (const auto *other : obstacles) {
+        const Vec2 extent = m.body.half_extents + other->half_extents + Vec2{3, 3};
+        bool nearby = false;
+        Vec2 from = m.body.position;
+        for (const auto to : route) {
+            nearby = nearby || distance_to_segment(other->position, from, to) <
+                                   length(extent) + std::max(blueprint_.cell_size.x, blueprint_.cell_size.y);
+            from = to;
+        }
+        if (!nearby)
+            continue;
+        for (float x : {-extent.x, extent.x})
+            for (float y : {-extent.y, extent.y}) {
+                const Vec2 corner = other->position + Vec2{x, y};
+                if (clear(corner, corner))
+                    nodes.push_back(corner);
+            }
+        // Keep pathological dense blueprints from creating an unbounded graph.
+        if (nodes.size() > 256)
+            return require_departure ? std::vector<Vec2>{} : route;
+    }
+    const float infinity = std::numeric_limits<float>::infinity();
+    std::vector<float> costs(nodes.size(), infinity);
+    std::vector<std::size_t> parent(nodes.size(), nodes.size());
+    std::vector<bool> visited(nodes.size());
+    costs[0] = 0;
+    for (std::size_t count = 0; count < nodes.size(); ++count) {
+        std::size_t current = nodes.size();
+        float nearest = infinity;
+        for (std::size_t i = 0; i < nodes.size(); ++i)
+            if (!visited[i] && costs[i] < nearest) {
+                current = i;
+                nearest = costs[i];
+            }
+        if (current == nodes.size())
+            break;
+        if (current == 1) {
+            std::vector<Vec2> refined;
+            for (std::size_t i = 1; i != 0; i = parent[i])
+                refined.push_back(nodes[i]);
+            std::reverse(refined.begin(), refined.end());
+            return refined;
+        }
+        visited[current] = true;
+        for (std::size_t next = 1; next < nodes.size(); ++next) {
+            const float candidate = nearest + distance(nodes[current], nodes[next]);
+            if (!visited[next] && candidate < costs[next] && clear(nodes[current], nodes[next])) {
+                costs[next] = candidate;
+                parent[next] = current;
+            }
+        }
+    }
+    return require_departure ? std::vector<Vec2>{} : route;
+}
 void Simulation::set_goal(Mover &m, Vec2 target) {
     m.destination = target;
-    m.route = grid_.path(m.body.position, target);
+    m.route = plan_route(m, target);
     m.unreachable = m.route.empty();
     m.moving = !m.unreachable;
     m.stalled = m.replan = m.no_progress = 0;
@@ -127,7 +238,7 @@ bool Simulation::move_to(std::size_t index, Vec2 target) {
     auto &m = movers_.at(index);
     if (m.blocked || m.product || grid_.blocked(grid_.cell(target)))
         return false;
-    auto route = grid_.path(m.body.position, target);
+    auto route = grid_.path(m.body.position, target, m.body.half_extents);
     if (route.empty())
         return false;
     set_goal(m, target);
@@ -139,7 +250,7 @@ Vec2 Simulation::holding_position(const Mover &m, Vec2 target) const {
     // known safe waiting area over filling a narrow factory aisle with queues.
     if (grid_.cell(m.parking) != grid_.cell(target) &&
         distance(m.parking, target) > length(m.body.half_extents) * 2 &&
-        !grid_.path(m.body.position, m.parking).empty())
+        !grid_.path(m.body.position, m.parking, m.body.half_extents).empty())
         return m.parking;
     float best = std::numeric_limits<float>::infinity();
     Vec2 result = m.parking;
@@ -165,7 +276,7 @@ Vec2 Simulation::holding_position(const Mover &m, Vec2 target) const {
             continue;
         const float score = distance(candidate, target) +
                             grid_.weight(id) * std::max(blueprint_.cell_size.x, blueprint_.cell_size.y);
-        if (score < best && !grid_.path(m.body.position, candidate).empty()) {
+        if (score < best && !grid_.path(m.body.position, candidate, m.body.half_extents).empty()) {
             best = score;
             result = candidate;
         }
@@ -217,6 +328,7 @@ void Simulation::schedule(Product &product) {
     }
     const auto goal = producers_[*product.producer].definition.processing_position +
                       Vec2{blueprint_.mover_max_extent, blueprint_.mover_max_extent} / 2;
+    std::vector<Vec2> departure;
     if (!product.mover) {
         float best = std::numeric_limits<float>::infinity();
         for (std::size_t i = 0; i < movers_.size(); ++i) {
@@ -224,9 +336,13 @@ void Simulation::schedule(Product &product) {
             if (m.blocked || m.product || m.manual)
                 continue;
             const float cost = distance(m.body.position, goal);
-            if (cost < best && !grid_.path(m.body.position, goal).empty()) {
-                best = cost;
-                product.mover = i;
+            if (cost < best) {
+                auto candidate = plan_route(m, goal, true);
+                if (!candidate.empty()) {
+                    best = cost;
+                    product.mover = i;
+                    departure = std::move(candidate);
+                }
             }
         }
         if (!product.mover)
@@ -237,6 +353,10 @@ void Simulation::schedule(Product &product) {
     if (m.blocked)
         return;
     set_goal(m, goal);
+    if (!departure.empty()) {
+        m.route = std::move(departure);
+        m.best_remaining = route_remaining(m.body.position, m.route);
+    }
     product.state = ProductState::transporting;
 }
 void Simulation::recover_route(Mover &m) {
@@ -299,7 +419,7 @@ void Simulation::move_agents() {
         // Congestion includes this mover's footprint; it is not evidence that
         // its route is obstructed. Replan only after sustained lack of progress.
         if (!m.detour && ++m.replan >= 100 && m.no_progress >= 100) {
-            auto route = grid_.path(m.body.position, m.destination);
+            auto route = plan_route(m, m.destination);
             if (!route.empty()) {
                 m.route = std::move(route);
                 m.best_remaining = route_remaining(m.body.position, m.route);
@@ -315,7 +435,8 @@ void Simulation::move_agents() {
             recover_route(m);
             ++m.recovery_attempts;
         }
-        while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < 3)
+        while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < 3 &&
+               grid_.clear(m.body.position, m.route[1], m.body.half_extents))
             m.route.erase(m.route.begin());
         std::vector<Body> neighbors;
         const float reach = length(m.body.half_extents) + blueprint_.mover_max_extent * 2 + 2 * motion_.speed * motion_.horizon;
@@ -348,8 +469,11 @@ void Simulation::move_agents() {
                 ? tangent_steer(m.body, m.route.front(), neighbors, motion_.speed, motion_.force,
                                 motion_.horizon, m.route.size() == 1)
                 : steer(m.body, m.route.front(), neighbors, recovery);
-            if (length(m.forces.border) > 0 || length(m.forces.collision) > 0)
-                m.forces.acceleration = limited(m.forces.border + m.forces.collision, motion_.force);
+            if (length(m.forces.collision) > 0)
+                m.forces.acceleration = limited(m.forces.collision, motion_.force);
+            const auto acceleration = m.forces.acceleration;
+            m.forces.acceleration = constrain_borders(m.body, acceleration, edges, settings);
+            m.forces.border = m.forces.acceleration - acceleration;
         }
         m.body.acceleration = m.forces.acceleration;
         m.body.velocity = limited(m.body.velocity + m.body.acceleration, settings.max_speed);
@@ -374,9 +498,18 @@ void Simulation::move_agents() {
         m.stalled = moved < 0.1f ? m.stalled + 1 : 0;
         if (m.product)
             ++m.transport_ticks;
-        if (m.route.size() == 1 && distance(m.body.position, m.destination) < 0.05f) {
+        if (m.route.size() == 1 && distance(m.body.position, m.destination) < 0.1f &&
+            length(m.body.velocity) < 0.05f &&
+            grid_.clear(m.body.position, m.destination, m.body.half_extents) &&
+            std::none_of(neighbors.begin(), neighbors.end(), [&](const Body &other) {
+                Body parked = m.body;
+                parked.position = m.destination;
+                const auto contact = collide(parked, other);
+                return contact && contact->penetration > 0;
+            })) {
             m.body.position = m.destination;
             m.body.velocity = {};
+            m.body.acceleration = {};
             m.moving = false;
             m.manual = false;
             m.route.clear();
@@ -418,7 +551,10 @@ void Simulation::move_agents() {
             wall.position = (edge.start + edge.end) / 2;
             wall.half_extents = {std::max(0.001f, std::abs(edge.end.x-edge.start.x)/2),
                                  std::max(0.001f, std::abs(edge.end.y-edge.start.y)/2)};
-            if (auto c = collide(integrated[i], wall); c && c->penetration > 0) {
+            if (auto c = collide(integrated[i], wall); c && c->penetration > 0.0011f) {
+                // The thin collision proxy extends 0.001 mm into free space;
+                // touching that artificial skin is not a physical wall contact.
+                c->penetration -= 0.001f;
                 contact(i, movers_.size() + j);
                 if (!movers_[i].blocked) resolve_contact(movers_[i].body, wall, *c);
             }
