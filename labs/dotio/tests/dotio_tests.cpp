@@ -432,9 +432,8 @@ void debug_menu_and_teleport() {
         }
     require(teleported, "No free distant Ghost destination found");
     const auto closed = application.debug_options();
-    require(closed[1].label == "DEBUG MODE" && closed[2].label == "GHOST CAMERA" &&
-                closed[2].enabled == &application.ghost,
-            "Ghost Camera must directly follow Debug Mode");
+    require(closed[0].label == "GHOST CAMERA" && closed[0].enabled == &application.ghost,
+            "Ghost Camera must be the first debug option");
     application.paths[0] = true;
     const auto expanded = application.debug_options();
     require(expanded.size() == closed.size() + 4 && !application.paths[1] && !application.paths[2],

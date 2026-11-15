@@ -48,22 +48,7 @@ int main(int argc, char **argv) {
         runtime.camera.pixels_per_unit = 17;
         const std::uint32_t seed = std::random_device{}();
         std::cout << "World seed: " << seed << '\n';
-        const auto choices = launcher::choices(difficulty);
-        std::vector<kinetra::ApplicationRegistration> applications{
-            {choices[0],
-             [=](Camera2D &camera, std::size_t) {
-                 return launcher::start(launcher::Variant::demo, count, seed, camera);
-             }},
-            {choices[1], [=](Camera2D &camera, std::size_t config) {
-                 return launcher::start(launcher::Variant::dotio, count, seed, camera,
-                                        static_cast<logic::Difficulty>(config));
-             }}};
-        std::optional<kinetra::LaunchSelection> initial;
-        if (initial_variant)
-            initial = kinetra::LaunchSelection{
-                std::size_t(*initial_variant),
-                *initial_variant == launcher::Variant::dotio ? std::size_t(difficulty) : 0};
-        const int frames = kinetra::run_launcher(runtime, std::move(applications), initial, frame_limit);
+        const int frames = launcher::run(runtime, count, seed, difficulty, initial_variant, frame_limit);
         std::cout << frames << " frames\n";
     } catch (const std::exception &error) {
         std::cerr << "Kinetra: " << error.what() << '\n';

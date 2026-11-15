@@ -22,13 +22,17 @@ Directory guides: [include](include/README.md), [src](src/README.md), [tests](te
 | Q/E or Shift+Left/Right | Rotate; manual input cancels walking |
 | Click | Select agent, command selected agent, otherwise walk player |
 | Click selected agent again | Clear selection |
-| Click in Ghost | Teleport real player to free visible destination, including while paused |
-| Wheel | Zoom: 17–100 px/unit normally; 5–100 in debug |
-| Space | Pause/resume |
-| H / Backquote | Toggle initially collapsed help / initially closed debug menu |
-| M / Escape | Return to menu / exit |
+| Click in Ghost | Teleport real player to free visible destination, when settings is closed |
+| SETTINGS button / Ctrl | Open/close centered settings; pause while open |
+| Settings zoom buttons | Adjust camera scale: 17–100 px/unit normally; 5–100 in debug |
+| Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
+| Backquote | Toggle debug menu only in Debug Mode |
+| Wheel | Zoom during gameplay only in Debug Mode |
+| Settings Launcher / Exit | Return to bundled launcher / exit the application |
 
-Debug rows, in order: Statistics, Debug Mode, Ghost Camera, Vectors, Steering Probes, Paths, Collision Shapes, Active Agents, Agent Goal, Gravity. Debug Mode gates visualization/Ghost; leaving it restores player following. Gravity is last. Agent Goal makes clicks command all active agents; disable it for individual selection. F/P/R/G/Tab/C have no gameplay shortcuts.
+Settings reveals centered help controls only after clicking Show Controls and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
+
+Debug rows, in order: Ghost Camera, Vectors, Steering Probes, Paths, Collision Shapes, Active Agents, Agent Goal, Gravity. Debug Mode gates visualization/Ghost; leaving it restores player following. Gravity is last. Agent Goal makes clicks command all active agents; disable it for individual selection. F/P/R/G/Tab/C have no gameplay shortcuts.
 
 The camera follows the player by default. Ghost moves only the camera; clicking teleports the player and clears momentum/routes after validating destination clearance. No swept teleport path is required. A yellow outline identifies the selected agent. Overlay pointer capture precedes gameplay mapping.
 

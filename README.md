@@ -5,6 +5,7 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 ## Table of contents
 
 - [Applications](#applications)
+- [Screenshots and demo](#screenshots-and-demo)
 - [Quick start](#quick-start)
 - [Kinetra development workflow](#kinetra-development-workflow)
 - [Tests and resources](#tests-and-resources)
@@ -25,7 +26,22 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 | [labs/demo](labs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
 | [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
-Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header; Lab consumes that target. The engine checkout must include this target. During local development, configure with `-DKINETRA_SOURCE_DIR=/workspace/Kinetra` until the recorded submodule revision is updated.
+Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header; Lab consumes that target. The engine checkout must include this target. The bundled checkout supplies this target; verify the default source integration before delivery.
+
+## Screenshots and demo
+
+[Watch or download the 23-second tour](docs/media/kinetra-lab-tour.mp4) (MP4, 1280 × 800, 30 fps, no audio): launcher, Demo, Dotio and their debug views.
+
+| Launcher | Dotio difficulty selection |
+| --- | --- |
+| ![Launcher with Demo and Dotio](docs/media/launcher.png) | ![Dotio difficulty selection with Medium selected](docs/media/launcher-difficulty.png) |
+
+| Application | Normal view | Debug view |
+| --- | --- | --- |
+| **Demo** | ![Demo terrain, player and physics agents](docs/media/demo.png) | ![Demo with steering probes, paths, vectors and collision shapes](docs/media/demo-debug.png) |
+| **Dotio** | ![Dotio survival gameplay and player HUD](docs/media/dotio.png) | ![Dotio with AI states, paths, probes and collision shapes](docs/media/dotio-debug.png) |
+
+Debug layers are optional; enable Debug Mode in settings and open the menu with Backquote. See the [Dotio settings screenshot](docs/media/dotio-settings.png) and [media guide](docs/media/README.md) for capture details.
 
 ## Quick start
 
@@ -66,7 +82,9 @@ ctest --test-dir build --output-on-failure
 ./build/kinetra_dotio --difficulty medium --frames 120
 ```
 
-Select with arrows/Enter or click; M returns to the menu, H toggles help, Backquote toggles debug controls. Each launch creates a fresh session. Detailed controls are in the application guides.
+Select with arrows/Enter or click; Ctrl or the SETTINGS button opens centered settings and pauses the run. Settings provides zoom, statistics, Debug Mode, controls and Launcher / Exit actions. Backquote and gameplay wheel zoom require Debug Mode; Space and M have no gameplay action. Each launch creates a fresh session. Detailed controls are in the application guides.
+
+`./build.sh` builds and tests both Kinetra and Lab. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
 When Kinetra source changes, rebuild Lab; CMake rebuilds the affected core targets automatically. Run core tests separately in Kinetra. Use a fresh build directory when switching source checkouts.
 

@@ -11,20 +11,103 @@ void require(bool value, const char *message) {
     if (!value)
         throw std::runtime_error(message);
 }
+void configure_debug(lab::Session &session, Runtime &runtime) {
+    Input settings;
+    settings.pressed[std::size_t(Key::control)] = true;
+    session.advance(0, settings, runtime.camera);
+    Input click;
+    click.clicked = true;
+    click.mouse = runtime.camera.viewport / 2 + (Vec2{50, 102} - lab::Settings{}.half_extent()) *
+                                                    lab::Settings::scale(runtime.camera.viewport);
+    session.advance(0, click, runtime.camera);
+    session.advance(0, settings, runtime.camera);
+}
+void settings_regression(Runtime &runtime) {
+    for (auto variant : {launcher::Variant::demo, launcher::Variant::dotio}) {
+        auto session = launcher::start(variant, 0, 42, runtime.camera);
+        const float initial_zoom = runtime.camera.pixels_per_unit;
+        Input input;
+        input.pressed[std::size_t(Key::space)] = true;
+        input.wheel = 2;
+        session->advance(0, input, runtime.camera);
+        require(session->title().find("PAUSED") == std::string::npos &&
+                    runtime.camera.pixels_per_unit == initial_zoom,
+                "Space or normal wheel still active");
+        input = {};
+        input.pressed[std::size_t(Key::control)] = true;
+        session->advance(0, input, runtime.camera);
+        require(session->title().find("PAUSED") != std::string::npos, "Settings did not pause");
+        session->render(runtime);
+        lab::Settings layout{.sim_controls_height = variant == launcher::Variant::dotio ? 28.f : 42.f};
+        auto click = [&](float x, float y) {
+            Input pointer;
+            pointer.clicked = pointer.mouse_down = true;
+            pointer.mouse = runtime.camera.viewport / 2 + (Vec2{x, y} - layout.half_extent()) *
+                                                              lab::Settings::scale(runtime.camera.viewport);
+            session->advance(0, pointer, runtime.camera);
+        };
+        click(56, 46);
+        require(runtime.camera.pixels_per_unit > initial_zoom, "Settings zoom failed");
+        click(50, 74);
+        click(50, 102);
+        click(92, 134);
+        layout.controls_visible = !layout.controls_visible;
+        click(92, layout.debug_toggle_y());
+        layout.debug_controls_visible = true;
+        session->render(runtime);
+        click(92, layout.debug_toggle_y());
+        layout.debug_controls_visible = false;
+        click(92, 134);
+        layout.controls_visible = !layout.controls_visible;
+        session->render(runtime);
+        click(106, layout.actions_y());
+        require(session->title().find("PAUSED") == std::string::npos, "Resume did not unpause");
+        input = {};
+        input.wheel = 1;
+        const float zoom = runtime.camera.pixels_per_unit;
+        session->advance(0, input, runtime.camera);
+        require(runtime.camera.pixels_per_unit > zoom, "Debug wheel unavailable");
+        input = {};
+        input.pressed[std::size_t(Key::backquote)] = true;
+        session->advance(0, input, runtime.camera);
+        session->render(runtime);
+        input = {};
+        input.pressed[std::size_t(Key::m)] = true;
+        session->advance(0, input, runtime.camera);
+        require(!session->return_to_menu(), "M still returns to menu");
+        input = {};
+        input.pressed[std::size_t(Key::control)] = true;
+        session->advance(0, input, runtime.camera);
+        click(50, layout.actions_y());
+        require(session->return_to_menu(), "Settings launcher action failed");
+        click(146, layout.actions_y());
+        require(session->exit_requested() && !session->close_on_escape(), "Settings exit policy failed");
+        require(glGetError() == GL_NO_ERROR, "Settings rendering reported GL error");
+    }
+}
 } // namespace
 int main() {
     try {
         Runtime reopened("Launcher integration", 160, 120);
+        SDL_Event escape{};
+        escape.type = SDL_KEYDOWN;
+        escape.key.keysym.sym = SDLK_ESCAPE;
+        require(SDL_PushEvent(&escape) == 1, "Cannot inject Escape");
+        require(reopened.poll(false) && reopened.input().hit(Key::escape),
+                "Escape still shuts down the Lab runtime");
+        escape.type = SDL_KEYUP;
+        require(SDL_PushEvent(&escape) == 1 && reopened.poll(false), "Cannot release Escape");
+        settings_regression(reopened);
         launcher::Menu menu;
         launcher::render_menu(reopened, menu);
         Input choose;
         choose.clicked = true;
-        choose.mouse = launcher::MenuLayout(reopened.camera.viewport).row_center(1);
+        choose.mouse = launcher::MenuLayout(reopened.camera.viewport, 2).row_center(1);
         menu.update(choose, reopened.camera.viewport);
         launcher::render_menu(reopened, menu);
         auto session = launcher::start(launcher::Variant::demo, 0, 42, reopened.camera);
         Input pause;
-        pause.pressed[std::size_t(Key::space)] = true;
+        pause.pressed[std::size_t(Key::control)] = true;
         session->advance(0, pause, reopened.camera);
         require(session->title().find("PAUSED") != std::string::npos,
                 "Demo session did not load its bindings");
@@ -37,6 +120,7 @@ int main() {
                     reopened.camera.pixels_per_unit == 25,
                 "Variant switch leaked pause/camera state");
         session->render(reopened);
+        configure_debug(*session, reopened);
         Input debug_input;
         debug_input.pressed[std::size_t(Key::backquote)] = true;
         session->advance(0, debug_input, reopened.camera);
@@ -44,12 +128,9 @@ int main() {
         const float menu_scale = DebugMenu::scale(reopened.camera.viewport);
         debug_input.clicked = true;
         debug_input.mouse_down = true;
-        debug_input.mouse = {reopened.camera.viewport.x - 180 * menu_scale, 52 * menu_scale};
-        session->advance(0, debug_input, reopened.camera);
-        require(session->title().find("DEBUG") != std::string::npos,
-                "Dotio debug menu did not enable debug mode");
+        debug_input.mouse.x = reopened.camera.viewport.x - 180 * menu_scale;
         // Exercise every debug layer and ensure the panel consumes held shooting.
-        for (int row = 2; row < 13; ++row) {
+        for (int row = 0; row < 11; ++row) {
             debug_input.mouse.y = (36 + row * 16) * menu_scale;
             session->advance(0, debug_input, reopened.camera);
         }
@@ -59,14 +140,13 @@ int main() {
         require(session->title().find("PAUSED") == std::string::npos && reopened.camera.pixels_per_unit == 17,
                 "Returning to Demo did not create a clean session");
         session->advance(0, {}, reopened.camera);
+        configure_debug(*session, reopened);
         Input demo_debug;
         demo_debug.pressed[std::size_t(Key::backquote)] = true;
         session->advance(0, demo_debug, reopened.camera);
         demo_debug = {};
         demo_debug.clicked = true;
-        demo_debug.mouse = {reopened.camera.viewport.x - 180 * menu_scale, 52 * menu_scale};
-        session->advance(0, demo_debug, reopened.camera);
-        demo_debug.mouse.y = (36 + 2 * 16) * menu_scale;
+        demo_debug.mouse = {reopened.camera.viewport.x - 180 * menu_scale, 36 * menu_scale};
         session->advance(0, demo_debug, reopened.camera);
         Input pan;
         pan.held[std::size_t(Key::right)] = true;

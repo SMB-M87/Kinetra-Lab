@@ -19,9 +19,6 @@ inline FrameCommands read_commands(const kinetra::Input &input) {
         commands.player.direction.x = float(input.down(Key::d)) - float(input.down(Key::a));
     commands.camera_pan = commands.player.direction;
     commands.zoom_steps = input.wheel;
-    commands.toggle_pause = input.hit(Key::space);
-
-    commands.toggle_help = input.hit(Key::h);
 
     if (input.clicked) {
         const auto action = PointerAction::walk;

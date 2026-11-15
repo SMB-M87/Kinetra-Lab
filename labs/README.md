@@ -27,7 +27,7 @@ cmake --build build --parallel
 ./build/kinetra_dotio --difficulty medium --frames 120
 ```
 
-The [launcher](../launcher/README.md) also provides a shared menu for both applications.
+The [launcher](../launcher/README.md) also provides a shared menu for both applications. [settings.h](settings.h) owns the shared modal settings layout, input capture and Lab session navigation request; see [launcher and overlays](../docs/launcher-overlays.md#debug-and-help-interaction).
 
 ## Verification
 

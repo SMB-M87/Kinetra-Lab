@@ -7,7 +7,7 @@ Design explanations live here; controls, gameplay and provenance live with the a
 - [Architecture guides](#architecture-guides)
 - [Source and usage guides](#source-and-usage-guides)
 
-[Parent guide](../README.md)
+[Parent guide / project overview](../README.md) · [Documentation index](README.md) · [Media guide](media/README.md)
 
 ## Architecture guides
 
@@ -23,4 +23,5 @@ Design explanations live here; controls, gameplay and provenance live with the a
 - [Labs](../labs/README.md), [Demo](../labs/demo/README.md) and [Dotio](../labs/dotio/README.md).
 - [Launcher](../launcher/README.md), [headers](../launcher/include/README.md) and [sources](../launcher/src/README.md).
 - [Build and verification](../README.md#tests-and-resources).
+- [Screenshots and demo video](media/README.md) used by the project overview.
 - [Core architecture](../external/Kinetra/docs/architecture.md) for reusable engine contracts.

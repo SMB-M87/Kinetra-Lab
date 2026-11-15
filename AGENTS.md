@@ -2,9 +2,18 @@
 
 ## Table of contents
 
+- [Verification](#verification)
 - [Documentation](#documentation)
 
 [Project overview](README.md) · [Documentation index](docs/README.md)
+
+## Verification
+
+- After every change, including documentation and configuration changes, reconfigure and rebuild the project before reporting completion. Run the relevant tests after the build.
+- Verify the normal root build against `external/Kinetra`: `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKINETRA_SOURCE_DIR="$PWD/external/Kinetra"`, `cmake --build build -j2`, and `ctest --test-dir build --output-on-failure`.
+- Core-only tests, headless builds, cached binaries, temporary engine copies and alternate `KINETRA_SOURCE_DIR` checkouts do not replace this integration check. Verify the supplied checkout contains every public target/header required by Lab.
+- After engine changes, also configure, build and test `external/Kinetra` independently. After runtime changes, enable graphics tests and smoke-test the launcher, Demo and Dotio with an actual graphics context.
+- Report the commands, results and any environment blockers explicitly. A failed configure/build means verification is incomplete; never report the task as fully verified.
 
 ## Documentation
 

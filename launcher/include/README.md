@@ -14,7 +14,7 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 | File | Responsibility |
 | --- | --- |
 | [menu.h](menu.h) | Bundled variant and difficulty menu adapter |
-| [session.h](session.h) | Bundled factory dispatch and initial camera configuration |
+| [session.h](session.h) | Lab session factory dispatch, camera configuration and launcher loop |
 
 ## Architecture and build
 

@@ -14,7 +14,7 @@ Directory guides: [include](include/README.md), [src](src/README.md), [tests](te
 
 ## Composition
 
-[main.cpp](src/main.cpp) parses arguments, registers factories and calls the public `run_launcher` event loop. [session.cpp](src/session.cpp) chooses application-owned factories and initializes cameras. [menu.h](include/menu.h) adapts application identities and Dotio difficulty to public LaunchMenu. Engine lifecycle/ownership is documented once in [launcher and overlays](../docs/launcher-overlays.md).
+[main.cpp](src/main.cpp) parses arguments and starts the Lab event loop. [session.cpp](src/session.cpp) chooses application-owned factories, initializes cameras and handles settings-driven navigation. The loop consumes `lab::Session::return_to_menu()` instead of binding M during a run. [menu.h](include/menu.h) adapts application identities and Dotio difficulty to public LaunchMenu. Engine lifecycle/ownership is documented once in [launcher and overlays](../docs/launcher-overlays.md).
 
 ## Arguments
 
@@ -29,4 +29,4 @@ Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A 
 
 ## Verification
 
-[Menu tests](tests/menu_tests.cpp) run without a window in a launcher-enabled build. [Integration tests](tests/runtime_tests.cpp) require an OpenGL context and cover rendering, difficulty, switching and debug capture. See [development](../README.md#tests-and-resources).
+[Menu tests](tests/menu_tests.cpp) run without a window in a launcher-enabled build. [Integration tests](tests/runtime_tests.cpp) require an OpenGL context and cover rendering, settings pause/resume, zoom, debug gating and settings-driven navigation. See [development](../README.md#tests-and-resources).

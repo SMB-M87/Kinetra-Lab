@@ -16,6 +16,7 @@ class Menu {
 
   public:
     explicit Menu(logic::Difficulty difficulty = logic::Difficulty::medium) : menu_(choices(difficulty)) {}
+    bool exit_requested() const { return menu_.exit_requested(); }
     std::size_t selected() const { return menu_.selected(); }
     bool choosing_difficulty() const { return menu_.configuring(); }
     logic::Difficulty difficulty() const { return static_cast<logic::Difficulty>(menu_.configuration()); }

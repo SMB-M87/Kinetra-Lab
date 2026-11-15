@@ -37,6 +37,10 @@ The bundled [composition root](../launcher/src/main.cpp) supplies CLI arguments 
 
 ## Launcher transitions
 
+The title is KINETRA LAUNCHER, without a Select Application subtitle. Moving the pointer over an application or configuration preselects it without confirming; a resting pointer preserves keyboard selection. Exit and page actions turn blue on hover, matching Settings.
+
+The menu is centered and shows at most six entries per page. Previous and Next buttons wrap between pages; keyboard selection keeps the selected entry visible. The footer contains Exit and, for longer lists, these page buttons.
+
 ```mermaid
 stateDiagram-v2
     direction TB
@@ -48,16 +52,16 @@ stateDiagram-v2
     Creating --> Running: factory succeeds
     Creating --> Shutdown: factory throws
     Running --> Menu: return_to_menu
-    Menu --> Shutdown: close / Escape
-    Running --> Shutdown: close / Escape
+    Menu --> Shutdown: close
+    Running --> Shutdown: close / Settings Exit
     Shutdown --> [*]
 ```
 
-This diagram shows the standard `run_launcher` loop. A successful factory call installs the new session and camera together. While running, each frame updates and then renders the session. Returning to the menu destroys the session; shutdown destroys the session before the Runtime.
+The bundled launcher uses its own [Lab event loop](../launcher/src/session.cpp) so the application-owned settings action controls return navigation; M has no action during a run. The diagram shows its navigation lifecycle. The selected application factory initializes the camera and creates a fresh session. While running, each frame updates and then renders the session. Returning to the menu destroys the session; shutdown destroys the session before the Runtime.
 
 Custom callers can request a replacement while a session is running. If the factory throws, the old session and camera remain active and the exception propagates to the caller. A caller can catch the exception and continue; this recovery path is separate from the standard loop shown above.
 
-The first update receives empty input and zero elapsed time. The standard Kinetra loop resets its wall-clock baseline after loading. Factory exceptions propagate; the bundled executable reports them and exits, while custom launchers can recover. The host preserves its old camera/session on failure, but cannot roll back arbitrary side effects inside application factories. Dotio's static raster forbids overlapping Dotio worlds; return to the menu before constructing another.
+The first update receives empty input and zero elapsed time. The Lab loop discards loading time with its first-update isolation. Factory exceptions propagate; the bundled executable reports them and exits, while custom launchers can recover. The host preserves its old camera/session on failure, but cannot roll back arbitrary side effects inside application factories. Dotio's static raster forbids overlapping Dotio worlds; return to the menu before constructing another.
 
 ## Debug and help interaction
 
@@ -80,7 +84,7 @@ sequenceDiagram
 
 Rows with no control/getter act as section labels. Numeric getters supply statistics; text getters supply formatted values. Actions execute once per captured click. A custom visualization draws at its row origin. Applications own referenced values and callback captures for the duration of update/draw. Keep getters observational and update/draw row collections consistent for that frame.
 
-Help content is registered as a span of text lines, including category headings if desired. Existing application command systems own their help boolean and H binding; consumers can instead use HelpOverlay's visibility controller. Help is informational and captures no gameplay input. DebugMenu consumes pointer input inside its visible panel, including held shooting; the session applies that capture before commands. Backquote is the default debug toggle; update accepts an alternate key.
+Demo and Dotio use the centered modal [Settings](../labs/settings.h) panel instead of an always-visible help legend. Ctrl or the compact SETTINGS button opens it; Resume or Ctrl closes it. While visible, the application is paused and every gameplay input is suppressed, including the click that closes the panel. The SETTINGS button, settings actions and actionable debug rows turn blue on hover, using their click regions. Zoom In and Zoom Out highlight independently. Launcher, Resume and Exit share a centered bottom row, followed by an always-visible CTRL Settings hint. The panel fits the text with a small margin and shrinks when controls are hidden. Zoom In and Zoom Out are centered together on a row with a tab-sized gap, followed by Statistics and Debug Mode. Show/Hide Sim Controls and Show/Hide Debug Controls independently expand their respective sections. Both start hidden. Expanded help starts one 14-pixel layout row below its toggle; the last simulation help row sits one row above the debug toggle. The launcher actions retain their 28-pixel spacing after the last debug help row. Escape has no exit action. Space no longer pauses and M no longer returns to the menu. Backquote opens debug tools only when Debug Mode is enabled and settings is closed. Wheel zoom is enabled only during debug gameplay. The reusable engine HelpOverlay remains available to other consumers. DebugMenu consumes pointer input inside its visible panel, including held shooting; the session applies that capture before commands. Backquote is the default debug toggle; update accepts an alternate key.
 
 ## Contracts and verification
 

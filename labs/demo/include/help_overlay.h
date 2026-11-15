@@ -11,16 +11,16 @@ namespace sandbox {
 /// Converting each rectangle through the camera keeps the HUD independent of zoom and pan.
 inline void draw_help(kinetra::Runtime &runtime, bool expanded) {
     using namespace kinetra;
-    constexpr std::array<std::string_view, 10> lines{"CONTROLS   H: HIDE HELP",
+    constexpr std::array<std::string_view, 10> lines{"CONTROLS   CTRL: SETTINGS",
                                                      "WASD / ARROWS  MOVE PLAYER",
                                                      "Q / E OR SHIFT + LEFT / RIGHT  ROTATE",
                                                      "CLICK  WALK / SELECT AGENT / SET GOAL",
                                                      "WHEEL  ZOOM",
-                                                     "SPACE  PAUSE / RESUME",
+                                                     "SETTINGS  PAUSE / RESUME",
                                                      "BACKQUOTE  DEBUG MENU",
                                                      "GHOST: CLICK  TELEPORT PLAYER",
-                                                     "M  START MENU",
-                                                     "ESC  EXIT"};
+                                                     "SETTINGS  LAUNCHER",
+                                                     "SETTINGS  EXIT"};
     kinetra::draw_help(runtime, lines, expanded);
 }
 

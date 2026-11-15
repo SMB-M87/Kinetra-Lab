@@ -13,7 +13,7 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 
 | File | Responsibility |
 | --- | --- |
-| [session.cpp](session.cpp) | Application factory selection and camera setup |
+| [session.cpp](session.cpp) | Application factories, camera setup and settings-driven launcher loop |
 | [main.cpp](main.cpp) | CLI validation, seed selection and bundled executable entry point |
 
 ## Architecture and build

@@ -58,7 +58,7 @@ int main() {
                 "Missing route for renderer check");
         sandbox::render(reopened, application);
         require(glGetError() == GL_NO_ERROR, "Sandbox renderer reported an OpenGL error");
-        require(sandbox::window_title(application).find("H help") != std::string::npos,
+        require(sandbox::window_title(application).find("CTRL settings") != std::string::npos,
                 "Sandbox title lost help controls");
         std::cout << "PASS Demo help, routes and renderer\n";
     } catch (const std::exception &error) {

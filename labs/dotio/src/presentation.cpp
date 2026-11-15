@@ -20,9 +20,6 @@ Commands read_commands(const Input &input, const Camera2D &camera) {
     commands.camera_pan = commands.direction;
     commands.aim = camera.screen_to_world(input.mouse);
     commands.shoot = input.mouse_down || input.clicked;
-    commands.pause = input.hit(Key::space);
-
-    commands.help = input.hit(Key::h);
 
     commands.teleport = input.clicked;
     commands.teleport_target = commands.aim;
@@ -175,26 +172,7 @@ void render(Runtime &runtime, Application &application) {
                 }
             }
         }
-    constexpr std::array<std::string_view, 9> help{"DOTIO CONTROLS   H: HIDE HELP",
-                                                   "WASD / ARROWS  MOVE PLAYER",
-                                                   "HOLD CLICK     SHOOT",
-                                                   "MOUSE WHEEL    ZOOM",
-                                                   "SPACE          PAUSE",
-                                                   "BACKQUOTE      DEBUG MENU",
-                                                   "GHOST: CLICK   TELEPORT PLAYER",
-                                                   "M              START MENU",
-                                                   "ESC            EXIT"};
     const float scale = std::min({2.f, runtime.camera.viewport.x / 270, runtime.camera.viewport.y / 240});
-    HelpStyle help_style;
-    help_style.reference_view = {270, 240};
-    help_style.width = help_style.collapsed_width = 260;
-    help_style.expanded_height = 156;
-    help_style.origin = {2, 2};
-    help_style.text_origin = {8, 8};
-    help_style.collapsed = "H: CONTROLS   M: MENU";
-    help_style.background = {0.02f, 0.02f, 0.04f};
-    help_style.heading = help_style.text = {0.85f, 0.85f, 1};
-    draw_help(runtime, help, application.help, help_style);
     auto &player = world.GetPlayer();
     const std::array values{player.Health / player.MaxHealth, player.Mana / player.MaxMana,
                             (player.Kills - 1) / player.MaxBulletKills};
@@ -235,6 +213,7 @@ void render(Runtime &runtime, Application &application) {
     }
     const auto options = application.debug_options();
     application.menu.draw(runtime, options);
+    application.settings.draw(runtime, application.statistics, application.debug, true);
     runtime.end();
 }
 
@@ -244,6 +223,6 @@ std::string window_title(Application &application) {
            std::string(application.paused ? "PAUSED" : "playing") + " | health " +
            std::to_string(int(player.Health)) + " | mana " + std::to_string(int(player.Mana)) + " | kills " +
            std::to_string(player.Kills - 1) + (application.debug ? " | DEBUG" : "") +
-           (application.ghost ? " | GHOST" : "") + " | H controls | M menu";
+           (application.ghost ? " | GHOST" : "") + " | CTRL settings";
 }
 } // namespace dotio

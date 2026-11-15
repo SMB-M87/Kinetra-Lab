@@ -87,7 +87,7 @@ int main() {
         controls.held[std::size_t(Key::right)] = true;
         controls.held[std::size_t(Key::w)] = true;
         const auto mapped = dotio::read_commands(controls, reopened.camera);
-        require(mapped.pause && mapped.teleport && mapped.shoot && mapped.zoom_steps == 2,
+        require(!mapped.pause && mapped.teleport && mapped.shoot && mapped.zoom_steps == 2,
                 "Dotio pause/teleport/shoot/wheel mapping failed");
         require(mapped.direction.x == 1 && mapped.direction.y == 1 && mapped.camera_pan.x == 1,
                 "Dotio WASD and arrows must share movement intent");

@@ -27,13 +27,17 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels di
 | --- | --- |
 | WASD / arrows | Move player; move only camera in Ghost |
 | Hold left click | Aim and shoot |
-| Click in Ghost | Teleport real player, including while paused; suppress shooting |
-| Wheel | Zoom: 25–50 px/unit normal; 2.5–50 debug |
-| Space | Pause/resume |
-| H / Backquote | Toggle initially collapsed help / initially closed debug menu |
-| M / Escape | Return to bundled menu / exit; standalone has no menu |
+| Click in Ghost | Teleport real player, when settings is closed; suppress shooting |
+| SETTINGS button / Ctrl | Open/close centered settings; pause while open |
+| Settings zoom buttons | Adjust camera scale: 25–50 px/unit normally; 2.5–50 in debug |
+| Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
+| Backquote | Toggle debug menu only in Debug Mode |
+| Wheel | Zoom during gameplay only in Debug Mode |
+| Settings Launcher / Exit | Return to bundled launcher / exit the application |
 
-No reset or click-navigation binding exists. F/P/R/G/Tab/C and V/Shift+V have no gameplay effects. Debug Mode gates vectors, shapes, AI labels, steering probes, active markers and paths. Ghost Camera is directly below Debug Mode; leaving either restores player following. Ghost has no purple player marker. Teleport checks walls, props and live enemies, then clears velocity.
+Settings reveals centered help controls only after clicking Show Controls and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
+
+No reset or click-navigation binding exists. F/P/R/G/Tab/C and V/Shift+V have no gameplay effects. Debug Mode gates vectors, shapes, AI labels, steering probes, active markers and paths. Ghost Camera is the first debug row; leaving either restores player following. Ghost has no purple player marker. Teleport checks walls, props and live enemies, then clears velocity.
 
 Paths expands into wander, pursue, kamikaze, recovery and hiding-intersection filters. Independent Invulnerability starts off, prevents damage and removes mana cost. Statistics remains visible whenever enabled, even without Debug Mode. It shows FPS/UPS/TPS; Debug Mode adds AGENTS (resident live enemies) and ACTIVE (simulated subset) on a row above. Narrow windows scale/reposition statistics above the health/mana/bullet-speed HUD. Debug pointer capture suppresses all gameplay pointer actions.
 

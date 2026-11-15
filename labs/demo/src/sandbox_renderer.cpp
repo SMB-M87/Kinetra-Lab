@@ -64,7 +64,7 @@ std::string_view action_text(ActionResult result) {
 
 void render(Runtime &runtime, const SandboxApplication &application, const DebugMenu *menu,
             std::span<const DebugOption> debug_options, bool collisions, bool agents, bool statistics,
-            double fps) {
+            double fps, const lab::Settings *settings, bool debug) {
     const auto &scene = application.scene();
     const auto &options = application.presentation();
     runtime.begin();
@@ -111,7 +111,7 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
         for (const auto &agent : scene.agents())
             if (agent.active())
                 runtime.circle(scene.world.body(agent.body_id()).position, 0.18f, {1, 1, 0});
-    draw_help(runtime, options.help);
+
     if (statistics) {
         const auto active = std::count_if(scene.agents().begin(), scene.agents().end(),
                                           [](const auto &agent) { return agent.active(); });
@@ -122,6 +122,8 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     }
     if (menu)
         menu->draw(runtime, debug_options);
+    if (settings)
+        settings->draw(runtime, statistics, debug, false);
     runtime.end();
 }
 
@@ -133,7 +135,7 @@ std::string window_title(const SandboxApplication &application) {
            (scene.following ? "camera FOLLOW" : "camera FREE") + " | paths " +
            (application.presentation().paths ? "ON" : "OFF") + " | " +
            std::string(action_text(application.last_action())) +
-           " | WASD/arrows move, ghost camera and layers in debug menu, H help";
+           " | WASD/arrows move, ghost camera and layers in debug menu, CTRL settings";
 }
 
 } // namespace sandbox

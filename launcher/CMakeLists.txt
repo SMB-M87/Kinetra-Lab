@@ -1,3 +1,8 @@
+if(BUILD_TESTING)
+    add_executable(kinetra_settings_tests tests/settings_tests.cpp)
+    target_link_libraries(kinetra_settings_tests PRIVATE Kinetra::Simulation)
+    add_test(NAME kinetra_settings COMMAND kinetra_settings_tests)
+endif()
 if(KINETRA_LAB_BUILD_RUNTIME)
     if(BUILD_TESTING)
         add_executable(kinetra_menu_tests tests/menu_tests.cpp)

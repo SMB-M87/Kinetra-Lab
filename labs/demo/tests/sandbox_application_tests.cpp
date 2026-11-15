@@ -138,7 +138,7 @@ void input_commands() {
     require(commands.player.direction.y == 1 && commands.player.turn_left && commands.player.turn_right &&
                 commands.camera_pan.x == 1 && commands.zoom_steps == -2,
             "Held controls lost in command adapter");
-    require(!commands.toggle_pause && commands.toggle_help && !commands.pointer,
+    require(!commands.toggle_pause && !commands.toggle_help && !commands.pointer,
             "Held keys became toggles or an unclicked pointer became a command");
     input.held[static_cast<std::size_t>(Key::shift)] = true;
     commands = sandbox::read_commands(input);
