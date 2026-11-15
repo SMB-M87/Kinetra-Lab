@@ -9,16 +9,12 @@ Applications and experiments built on the public Kinetra APIs. Each lab owns its
 
 ## Table of contents
 
-**Navigation:**
+- [Build and run](#build-and-run)
+- [Verification](#verification)
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
 Directory guides: [demo](demo/README.md), [dotio](dotio/README.md).
-
-**On this page:**
-
-- [Build and run](#build-and-run)
-- [Verification](#verification)
 
 ## Build and run
 

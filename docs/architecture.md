@@ -4,15 +4,11 @@ Kinetra-Lab owns runnable applications and their composition. The Kinetra source
 
 ## Table of contents
 
-**Navigation:**
-
-[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
-
-**On this page:**
-
 - [Build boundaries](#build-boundaries)
 - [Session ownership and frame flow](#session-ownership-and-frame-flow)
 - [Verification boundaries](#verification-boundaries)
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
 
 ## Build boundaries
 

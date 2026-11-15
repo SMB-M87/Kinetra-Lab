@@ -4,14 +4,10 @@ Regression tests for the Demo simulation, application commands and presentation.
 
 ## Table of contents
 
-**Navigation:**
-
-[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
-
-**On this page:**
-
 - [Coverage](#coverage)
 - [Build and run](#build-and-run)
+
+[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
 
 ## Coverage
 

@@ -4,15 +4,11 @@ Headless game rules compiled into `kinetra_dotio_logic`: world residency, enemie
 
 ## Table of contents
 
-**Navigation:**
+- [Structure and contracts](#structure-and-contracts)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
 
 Directory guides: [include](include/README.md), [src](src/README.md).
-
-**On this page:**
-
-- [Structure and contracts](#structure-and-contracts)
 
 ## Structure and contracts
 

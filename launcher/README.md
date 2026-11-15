@@ -4,17 +4,13 @@ Composition root for Demo and Dotio; generic menu/session infrastructure and tes
 
 ## Table of contents
 
-**Navigation:**
+- [Composition](#composition)
+- [Arguments](#arguments)
+- [Verification](#verification)
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
 Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).
-
-**On this page:**
-
-- [Composition](#composition)
-- [Arguments](#arguments)
-- [Verification](#verification)
 
 ## Composition
 

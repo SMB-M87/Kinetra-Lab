@@ -4,20 +4,16 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 
 ## Table of contents
 
-**Navigation:**
-
-[Documentation index](docs/README.md)
-
-Directory guides: [docs](docs/README.md), [external](external/README.md), [labs](labs/README.md), [launcher](launcher/README.md).
-
-**On this page:**
-
 - [Applications](#applications)
 - [Quick start](#quick-start)
 - [Kinetra development workflow](#kinetra-development-workflow)
 - [Tests and resources](#tests-and-resources)
 - [Architecture documentation](#architecture-documentation)
 - [License](#license)
+
+[Documentation index](docs/README.md)
+
+Directory guides: [docs](docs/README.md), [external](external/README.md), [labs](labs/README.md), [launcher](launcher/README.md).
 
 ## Applications
 

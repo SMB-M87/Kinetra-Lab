@@ -4,15 +4,11 @@ Application ownership and its boundary with the public Kinetra engine.
 
 ## Table of contents
 
-**Navigation:**
-
-[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
-
-**On this page:**
-
 - [Components](#components)
 - [Lifecycle and constraints](#lifecycle-and-constraints)
 - [Source navigation](#source-navigation)
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
 
 ## Components
 

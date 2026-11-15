@@ -4,15 +4,11 @@ Kinetra-Lab consumes the reusable Kinetra engine as a Git submodule in `Kinetra/
 
 ## Table of contents
 
-**Navigation:**
+- [Integration](#integration)
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
 Directory guides: [Kinetra](Kinetra/README.md).
-
-**On this page:**
-
-- [Integration](#integration)
 
 ## Integration
 

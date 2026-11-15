@@ -4,16 +4,12 @@ Optional public infrastructure owns shared menu behavior, session transitions an
 
 ## Table of contents
 
-**Navigation:**
-
-[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
-
-**On this page:**
-
 - [Registration](#registration)
 - [Launcher transitions](#launcher-transitions)
 - [Debug and help interaction](#debug-and-help-interaction)
 - [Contracts and verification](#contracts-and-verification)
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
 
 ## Registration
 

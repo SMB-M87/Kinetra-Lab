@@ -4,14 +4,10 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 
 ## Table of contents
 
-**Navigation:**
-
-[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
-
-**On this page:**
-
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
+
+[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
 ## File map
 

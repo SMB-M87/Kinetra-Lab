@@ -4,14 +4,10 @@ Design explanations live here; controls, gameplay and provenance live with the a
 
 ## Table of contents
 
-**Navigation:**
-
-[Parent guide](../README.md)
-
-**On this page:**
-
 - [Architecture guides](#architecture-guides)
 - [Source and usage guides](#source-and-usage-guides)
+
+[Parent guide](../README.md)
 
 ## Architecture guides
 

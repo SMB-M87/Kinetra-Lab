@@ -4,14 +4,10 @@ Tests for the bundled Demo/Dotio menu adapter and application integration. Gener
 
 ## Table of contents
 
-**Navigation:**
-
-[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
-
-**On this page:**
-
 - [Coverage](#coverage)
 - [Build and run](#build-and-run)
+
+[Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
 ## Coverage
 
