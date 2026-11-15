@@ -40,7 +40,7 @@ flowchart LR
     Render --> Runtime[Public Runtime and overlays]
 ```
 
-Session/presentation consume public engine APIs. World generation and agent decisions remain local. Source entry points: [application](../../launcher/demo/include/sandbox_application.h), [scene](../../launcher/demo/include/sandbox_scene.h), [agent](../../launcher/demo/include/agent.h), [terrain](../../launcher/demo/include/terrain.h), [session](../../launcher/demo/src/session.cpp).
+Session/presentation consume public engine APIs. World generation and agent decisions remain local. Source entry points: [application](../../labs/demo/include/sandbox_application.h), [scene](../../labs/demo/include/sandbox_scene.h), [agent](../../labs/demo/include/agent.h), [terrain](../../labs/demo/include/terrain.h), [session](../../labs/demo/src/session.cpp).
 
 Terrain uses 32-world-unit chunks with seeded static circles/rotated rectangles. Independent seed/coordinate streams regenerate identical geometry, including negative coordinates and revisits. Each process chooses and prints a new seed. Generation reserves the initial spawn area and rejects local overlaps; global navigability is not guaranteed.
 
@@ -75,6 +75,6 @@ Route following looks ahead around visible corners and brakes only at the final 
 
 ## Verification and limits
 
-[Terrain tests](../../launcher/demo/tests/terrain_tests.cpp) cover deterministic streaming, compaction, sleep/wake, wandering, commands, detours, clearance, recovery and arrival. [Application tests](../../launcher/demo/tests/sandbox_application_tests.cpp) cover pause, camera, pointer ordering and bindings. [Presentation tests](../../launcher/demo/tests/presentation_tests.cpp) cover rendered scene/debug/help behavior.
+[Terrain tests](../../labs/demo/tests/terrain_tests.cpp) cover deterministic streaming, compaction, sleep/wake, wandering, commands, detours, clearance, recovery and arrival. [Application tests](../../labs/demo/tests/sandbox_application_tests.cpp) cover pause, camera, pointer ordering and bindings. [Presentation tests](../../labs/demo/tests/presentation_tests.cpp) cover rendered scene/debug/help behavior.
 
 The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks. Design history: [terrain](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0002-camera-driven-terrain.md), [application boundary](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0005-sandbox-agent-lifecycle.md).

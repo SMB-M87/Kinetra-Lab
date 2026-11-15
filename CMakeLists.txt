@@ -17,4 +17,5 @@ set(BUILD_TESTING ${lab_testing})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Application CMake uses this local switch for its existing presentation targets.
 set(KINETRA_BUILD_RUNTIME ${KINETRA_LAB_BUILD_RUNTIME})
+add_subdirectory(labs)
 add_subdirectory(launcher)

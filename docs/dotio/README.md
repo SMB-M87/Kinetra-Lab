@@ -44,9 +44,9 @@ flowchart LR
     Rules --> Graph[Local graph and fear-biased HideStar]
 ```
 
-Movement consumes 60 Hz ticks; AI runs at 20 Hz, sequentially on the owning thread. Legacy Y-down pixels map to Kinetra Y-up world units at 25 pixels/unit. [physics_adapter.h](../../launcher/dotio/include/physics_adapter.h) converts state; engine integration, contacts, impulses, circle sweeps and raster queries perform reusable mechanics. Legacy field names and grid conversion policies stay local; canonical vector operations delegate to Kinetra.
+Movement consumes 60 Hz ticks; AI runs at 20 Hz, sequentially on the owning thread. Legacy Y-down pixels map to Kinetra Y-up world units at 25 pixels/unit. [physics_adapter.h](../../labs/dotio/include/physics_adapter.h) converts state; engine integration, contacts, impulses, circle sweeps and raster queries perform reusable mechanics. Legacy field names and grid conversion policies stay local; canonical vector operations delegate to Kinetra.
 
-Source: [Application](../../launcher/dotio/include/application.h), [session](../../launcher/dotio/src/session.cpp), [presentation](../../launcher/dotio/src/presentation.cpp), [logic](../../launcher/dotio/logic/). The engine imports none of these headers.
+Source: [Application](../../labs/dotio/include/application.h), [session](../../labs/dotio/src/session.cpp), [presentation](../../labs/dotio/src/presentation.cpp), [logic](../../labs/dotio/logic/). The engine imports none of these headers.
 
 ## World and residency
 
@@ -102,7 +102,7 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 ## Difficulty
 
-[Immutable presets](../../launcher/dotio/logic/include/difficulty.h) vary population and enemy behavior; player abilities, maze and spawn exclusion remain shared.
+[Immutable presets](../../labs/dotio/logic/include/difficulty.h) vary population and enemy behavior; player abilities, maze and spawn exclusion remain shared.
 
 | Setting | Easy | Medium (default) | Hard |
 | --- | --- | --- | --- |
@@ -119,7 +119,7 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 ## Verification and limits
 
-[Logic/application tests](../../launcher/dotio/tests/dotio_tests.cpp) cover AI, fuzzy pressure, A*/HideStar, collision/sweeps, rewards, durability, progression/reset, pause, streaming, props, difficulty and debug capture. [Presentation tests](../../launcher/dotio/tests/presentation_tests.cpp) cover bindings and normal/debug rendering. The [Lab build](../../CMakeLists.txt) links Dotio without engine-private headers. Commands: [development](../../README.md#tests-and-resources).
+[Logic/application tests](../../labs/dotio/tests/dotio_tests.cpp) cover AI, fuzzy pressure, A*/HideStar, collision/sweeps, rewards, durability, progression/reset, pause, streaming, props, difficulty and debug capture. [Presentation tests](../../labs/dotio/tests/presentation_tests.cpp) cover bindings and normal/debug rendering. The [Lab build](../../CMakeLists.txt) links Dotio without engine-private headers. Commands: [development](../../README.md#tests-and-resources).
 
 Static raster storage permits only one active Dotio world. Absolute district integers and local float precision remain finite. Cross-platform random sequences/timing are not promised. Teleport tests destination clearance, not a swept route. Gameplay balance and desktop feel require manual Artix checks.
 

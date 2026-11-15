@@ -1,5 +1,5 @@
 #pragma once
-#include "../dotio/logic/include/difficulty.h"
+#include "../../labs/dotio/logic/include/difficulty.h"
 #include <kinetra/launcher.h>
 
 namespace launcher {

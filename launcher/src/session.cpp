@@ -1,6 +1,6 @@
 #include "session.h"
-#include "../demo/include/session.h"
-#include "../dotio/include/session.h"
+#include "../../labs/demo/include/session.h"
+#include "../../labs/dotio/include/session.h"
 
 namespace launcher {
 std::unique_ptr<Session> start(Variant variant, int count, std::uint32_t seed, kinetra::Camera2D &camera,

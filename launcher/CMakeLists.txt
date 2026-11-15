@@ -1,5 +1,3 @@
-add_subdirectory(demo)
-add_subdirectory(dotio)
 if(KINETRA_LAB_BUILD_RUNTIME)
     add_library(kinetra_launcher src/launcher.cpp)
     add_library(Kinetra::Launcher ALIAS kinetra_launcher)

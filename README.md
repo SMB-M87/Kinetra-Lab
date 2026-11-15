@@ -15,8 +15,8 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 | Directory | Targets | Purpose |
 | --- | --- | --- |
 | [launcher](launcher/README.md) | `kinetra`, `kinetra_sandbox`, `kinetra_launcher` | Menu, registration and application switching |
-| [launcher/demo](docs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
-| [launcher/dotio](docs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
+| [labs/demo](docs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
+| [labs/dotio](docs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
 The library target `Kinetra::Launcher` remains available inside Lab; its header is `launcher/include/kinetra/launcher.h`.
 
@@ -30,6 +30,7 @@ Repository layout:
 Kinetra-Lab/
 ├── docs/
 ├── launcher/
+├── labs/
 │   ├── demo/
 │   └── dotio/
 └── external/
