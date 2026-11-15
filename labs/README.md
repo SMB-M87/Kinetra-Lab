@@ -7,6 +7,12 @@ Applications and experiments built on the public Kinetra APIs. Each lab owns its
 | [Demo](demo/README.md) | Reference application for terrain, navigation, agents and physics |
 | [Dotio](dotio/README.md) | Survival game and AI experiment |
 
+## Table of contents
+
+- [Build and run](#build-and-run)
+- [Verification](#verification)
+- [Navigation](#navigation)
+
 ## Build and run
 
 Build from the repository root; this directory is included by the top-level CMake project. See the [quick start](../README.md#quick-start) for dependencies and Kinetra setup.
@@ -31,3 +37,9 @@ ctest --test-dir build-headless --output-on-failure
 ```
 
 See [tests and resources](../README.md#tests-and-resources) for graphics checks. Application-specific behavior and verification are documented in the guides above.
+
+## Navigation
+
+[Parent guide](../README.md) · [Documentation index](../docs/README.md)
+
+Directory guides: [demo](demo/README.md), [dotio](dotio/README.md).

@@ -6,6 +6,7 @@ Design explanations live here; controls, gameplay and provenance live with the a
 
 - [Architecture guides](#architecture-guides)
 - [Source and usage guides](#source-and-usage-guides)
+- [Navigation](#navigation)
 
 ## Architecture guides
 
@@ -22,3 +23,7 @@ Design explanations live here; controls, gameplay and provenance live with the a
 - [Launcher](../launcher/README.md), [headers](../launcher/include/README.md) and [sources](../launcher/src/README.md).
 - [Build and verification](../README.md#tests-and-resources).
 - [Core architecture](../external/Kinetra/docs/architecture.md) for reusable engine contracts.
+
+## Navigation
+
+[Parent guide](../README.md)

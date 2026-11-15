@@ -7,6 +7,7 @@ Kinetra-Lab owns runnable applications and their composition. The Kinetra source
 - [Build boundaries](#build-boundaries)
 - [Session ownership and frame flow](#session-ownership-and-frame-flow)
 - [Verification boundaries](#verification-boundaries)
+- [Navigation](#navigation)
 
 ## Build boundaries
 
@@ -63,3 +64,7 @@ Runtime outlives hosted sessions. Registrations own factories; sessions own appl
 Headless tests exercise terrain, application command ordering and ported game logic. Generic launcher registry tests run in Kinetra; Lab menu adapter tests run in runtime-enabled builds without opening a window. With `KINETRA_TEST_GRAPHICS=ON`, presentation and launcher integration tests require an actual OpenGL context.
 
 See [Labs verification](../labs/README.md#verification) and [graphics commands](../README.md#tests-and-resources). Engine changes are tested independently; Lab tests validate application integration with the selected engine checkout.
+
+## Navigation
+
+[Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)

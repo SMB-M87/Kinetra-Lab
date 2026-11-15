@@ -10,6 +10,7 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 - [Tests and resources](#tests-and-resources)
 - [Architecture documentation](#architecture-documentation)
 - [License](#license)
+- [Navigation](#navigation)
 
 ## Applications
 
@@ -191,3 +192,9 @@ The [documentation index](docs/README.md) links system dependencies, application
 ## License
 
 MIT; see [LICENSE](LICENSE). Dotio attribution and port limits are documented in its [provenance](labs/dotio/README.md#provenance).
+
+## Navigation
+
+[Documentation index](docs/README.md)
+
+Directory guides: [docs](docs/README.md), [external](external/README.md), [labs](labs/README.md), [launcher](launcher/README.md).

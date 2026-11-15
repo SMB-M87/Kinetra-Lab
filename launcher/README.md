@@ -7,6 +7,7 @@ Composition root for Demo and Dotio; generic menu/session infrastructure and tes
 - [Composition](#composition)
 - [Arguments](#arguments)
 - [Verification](#verification)
+- [Navigation](#navigation)
 
 ## Composition
 
@@ -26,3 +27,9 @@ Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A 
 ## Verification
 
 [Menu tests](tests/menu_tests.cpp) run without a window in a launcher-enabled build. [Integration tests](tests/runtime_tests.cpp) require an OpenGL context and cover rendering, difficulty, switching and debug capture. See [development](../README.md#tests-and-resources).
+
+## Navigation
+
+[Parent guide](../README.md) · [Documentation index](../docs/README.md)
+
+Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).

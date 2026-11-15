@@ -6,6 +6,7 @@ Sources in this directory belong to `kinetra_sandbox_application and kinetra_dem
 
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
+- [Navigation](#navigation)
 
 ## File map
 
@@ -19,3 +20,7 @@ Sources in this directory belong to `kinetra_sandbox_application and kinetra_dem
 ## Architecture and build
 
 See the [architecture guide](../../../docs/demo-architecture.md) for ownership and dependency contracts. Build through the repository root; the containing application or launcher CMake file defines these targets.
+
+## Navigation
+
+[Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
