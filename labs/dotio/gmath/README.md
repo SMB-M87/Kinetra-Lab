@@ -4,11 +4,23 @@ Legacy coordinate and geometry adapters compiled into `kinetra_dotio_logic`. Can
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Structure and contracts](#structure-and-contracts)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
 
 Directory guides: [include](include/README.md), [src](src/README.md).
+
+## Visual overview
+
+Compatibility preserves legacy coordinates while canonical vector operations use Kinetra.
+
+```mermaid
+flowchart LR
+    Logic["Dotio logic"] --> Header["include/gmath.h: compatibility types"]
+    Header --> Impl["src/gmath.cpp: conversions and partitions"]
+    Header --> Math["Public Kinetra vector math"]
+```
 
 ## Structure and contracts
 

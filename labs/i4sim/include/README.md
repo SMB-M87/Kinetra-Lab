@@ -2,9 +2,28 @@
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Contents and use](#contents-and-use)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+## Visual overview
+
+Simulation owns model and runtime state; Session construction stays at the graphical boundary.
+
+```mermaid
+classDiagram
+    Simulation *-- Blueprint : blueprint_
+    Simulation *-- Mover : movers_
+    Simulation *-- Producer : producers_
+    Simulation *-- Product : products_
+    Simulation *-- WeightedGrid : grid_
+    Simulation *-- FixedClock : clock_
+    Simulation *-- MotionSettings : motion_
+    Mover *-- Body : body
+    Mover --> Product : optional product id
+    Producer --> Product : queue and optional product id
+```
 
 ## Contents and use
 

@@ -4,6 +4,7 @@ Reference application for public Kinetra physics, navigation, camera, runtime an
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Controls](#controls)
 - [Scene ownership and streaming](#scene-ownership-and-streaming)
 - [Navigation and agents](#navigation-and-agents)
@@ -13,6 +14,21 @@ Reference application for public Kinetra physics, navigation, camera, runtime an
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
 Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).
+
+## Visual overview
+
+The session adapts input and rendering; the headless application owns simulation policy.
+
+```mermaid
+flowchart LR
+    Input["Input and modal capture"] --> Session["Demo session"]
+    Session --> Commands["FrameCommands"]
+    Commands --> App["SandboxApplication"]
+    App --> Scene["Sandbox: terrain, agents, physics"]
+    Scene --> Engine["Kinetra navigation and simulation"]
+    Scene --> Renderer["Sandbox renderer"]
+    Renderer --> Runtime["Kinetra Runtime and overlays"]
+```
 
 ## Controls
 

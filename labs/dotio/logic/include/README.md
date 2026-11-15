@@ -4,10 +4,32 @@ Sources in this directory belong to `kinetra_dotio_logic`. These are Lab-owned i
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../../README.md) · [Documentation index](../../../../docs/README.md)
+
+## Visual overview
+
+This UML view focuses on the enemy contract; the file table lists the remaining game types.
+
+```mermaid
+classDiagram
+    PhysicsObject <|-- Enemy
+    Enemy *-- AttackState : embedded
+    Enemy *-- WanderState : embedded
+    Enemy *-- PursueState : embedded
+    Enemy *-- RecoverState : embedded
+    Enemy *-- KamikazeState : embedded
+    Enemy --> State : current state
+    Enemy --> World : borrowed world
+    State <|-- AttackState
+    State <|-- WanderState
+    State <|-- PursueState
+    State <|-- RecoverState
+    State <|-- KamikazeState
+```
 
 ## File map
 

@@ -4,11 +4,26 @@ Kinetra-Lab consumes the reusable Kinetra engine as a Git submodule in `Kinetra/
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Integration](#integration)
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
 Directory guides: [Kinetra](Kinetra/README.md).
+
+## Visual overview
+
+The root build consumes engine sources directly; the override is an alternative checkout.
+
+```mermaid
+flowchart TD
+    Root["Lab root CMake"] --> Choice{"KINETRA_SOURCE_DIR"}
+    Choice --> Default["external/Kinetra: recorded submodule"]
+    Choice --> Override["Explicit local checkout override"]
+    Default --> Targets["Public Kinetra targets and headers"]
+    Override --> Targets
+    Targets --> Labs["Lab applications and launcher"]
+```
 
 ## Integration
 

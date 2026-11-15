@@ -4,10 +4,25 @@ Sources in this directory belong to `kinetra_dotio_logic and kinetra_dotio_prese
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+## Visual overview
+
+Ownership stays in Application; presentation and physics adapters translate at engine boundaries.
+
+```mermaid
+flowchart LR
+    Session["session.h: factory"] --> Application["application.h: Application owns World"]
+    Presentation["presentation.h: drawing boundary"] --> Application
+    Presentation --> Runtime["Kinetra Runtime"]
+    World["Game logic World"] --> Adapter["physics_adapter.h: conversion helpers"]
+    Adapter --> Simulation["Kinetra bodies and simulation"]
+    Application --> World
+```
 
 ## File map
 

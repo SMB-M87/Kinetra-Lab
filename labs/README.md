@@ -10,12 +10,30 @@ Applications and experiments built on the public Kinetra APIs. Each lab owns its
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Build and run](#build-and-run)
 - [Verification](#verification)
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
 Directory guides: [demo](demo/README.md), [dotio](dotio/README.md), [i4sim](i4sim/README.md).
+
+## Visual overview
+
+Each application owns its policy and tests while consuming shared engine mechanisms.
+
+```mermaid
+flowchart TD
+    Launcher["Bundled launcher"] --> Demo["Demo: terrain and agents"]
+    Launcher --> Dotio["Dotio: survival and AI"]
+    Launcher --> Factory["i4sim: factory simulation"]
+    Demo --> Engine["Public Kinetra APIs"]
+    Dotio --> Engine
+    Factory --> Engine
+    Demo -.-> Settings["labs/settings.h"]
+    Dotio -.-> Settings
+    Factory -.-> FactorySettings["i4sim factory_settings.h"]
+```
 
 ## Build and run
 

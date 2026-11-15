@@ -4,6 +4,7 @@ Portable local survival game in Kinetra-Lab. Build/run instructions are in [Quic
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Launch and controls](#launch-and-controls)
 - [Application boundary](#application-boundary)
 - [World and residency](#world-and-residency)
@@ -18,6 +19,20 @@ Portable local survival game in Kinetra-Lab. Build/run instructions are in [Quic
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
 Directory guides: [gmath](gmath/README.md), [include](include/README.md), [logic](logic/README.md), [src](src/README.md), [tests](tests/README.md).
+
+## Visual overview
+
+The stable application-owned World separates game rules from input and drawing adapters.
+
+```mermaid
+flowchart LR
+    Session["Dotio session: capture and commands"] --> App["Application: clocks and World ownership"]
+    App --> World["World: residency, AI and combat"]
+    World --> Math["gmath compatibility"]
+    World --> Physics["Kinetra simulation through physics adapter"]
+    App --> Presentation["Presentation: coordinates, camera and drawing"]
+    Presentation --> Runtime["Kinetra Runtime"]
+```
 
 ## Launch and controls
 

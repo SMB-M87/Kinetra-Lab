@@ -4,6 +4,7 @@ Local C++20 Industry 4.0 factory simulation, migrated from the C# reference.
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Build and run](#build-and-run)
 - [Controls](#controls)
 - [Behavior and ownership](#behavior-and-ownership)
@@ -13,6 +14,23 @@ Local C++20 Industry 4.0 factory simulation, migrated from the C# reference.
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
 Directory guides: [headers](include/README.md), [sources](src/README.md), [tests](tests/README.md), [blueprints](blueprints/README.md).
+
+## Visual overview
+
+Graphical and batch entry paths share the same validated blueprint and deterministic simulation.
+
+```mermaid
+flowchart TD
+    JSON["Original JSON blueprints"] --> Loader["Blueprint loader and validation"]
+    Loader --> Sim["Simulation: products, movers and producers"]
+    Session["Graphical session: Loadscreen and controls"] --> Loader
+    Session --> Sim
+    Batch["Batch CLI: blueprint and tick limit"] --> Loader
+    Batch --> Sim
+    Sim --> Engine["Kinetra grid, steering and timing"]
+    Sim --> Metrics["Metrics export"]
+    Session --> Runtime["Kinetra Runtime and debug views"]
+```
 
 ## Build and run
 

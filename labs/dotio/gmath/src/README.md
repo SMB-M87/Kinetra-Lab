@@ -4,10 +4,23 @@ Sources in this directory belong to `kinetra_dotio_logic`. These are Lab-owned i
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../../README.md) · [Documentation index](../../../../docs/README.md)
+
+## Visual overview
+
+These operations translate legacy coordinates and maintain spatial partitions.
+
+```mermaid
+flowchart LR
+    Coordinates["Legacy positions and vectors"] --> Conversion["gmath.cpp: grid coordinate conversion"]
+    Conversion --> Grid["Grid entries"]
+    Grid --> Partitions["Neighbor partition queries"]
+    Partitions --> Logic["Dotio spatial queries"]
+```
 
 ## File map
 

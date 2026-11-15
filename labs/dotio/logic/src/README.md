@@ -4,10 +4,27 @@ Sources in this directory belong to `kinetra_dotio_logic`. These are Lab-owned i
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../../README.md) · [Documentation index](../../../../docs/README.md)
+
+## Visual overview
+
+Arrows show collaboration between implementations, rather than a complete tick ordering.
+
+```mermaid
+flowchart TD
+    World["world.cpp: streaming and progression"] --> Player["player.cpp: movement and shooting"]
+    World --> Enemy["enemy.cpp: active enemies"]
+    World --> Projectiles["arrow.cpp / bolt.cpp"]
+    Enemy --> State["state.cpp: behavior"]
+    State --> Fuzzy["fuzzy.cpp: decisions"]
+    State --> Graph["graph.cpp: routes and shelter"]
+    Graph --> Grid["grid.cpp: occupancy"]
+    Graph --> Storage["vertex / stack / priority_queue"]
+```
 
 ## File map
 

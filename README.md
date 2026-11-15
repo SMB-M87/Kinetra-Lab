@@ -4,6 +4,7 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Applications](#applications)
 - [Screenshots and demo](#screenshots-and-demo)
 - [Quick start](#quick-start)
@@ -15,6 +16,28 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 [Documentation index](docs/README.md)
 
 Directory guides: [docs](docs/README.md), [external](external/README.md), [labs](labs/README.md), [launcher](launcher/README.md).
+
+## Visual overview
+
+Arrows show which layer consumes another; application rules stay in Lab.
+
+```mermaid
+flowchart TD
+    Launcher["Bundled launcher"] --> Demo["Demo presentation"]
+    Launcher --> Dotio["Dotio presentation"]
+    Launcher --> Factory["i4sim presentation"]
+    Launcher --> Host["Kinetra::Launcher"]
+    Demo --> DemoLogic["Demo application"]
+    Dotio --> DotioLogic["Dotio logic and gmath"]
+    Factory --> FactoryLogic["i4sim simulation"]
+    DemoLogic --> Simulation["Kinetra::Simulation"]
+    DotioLogic --> Simulation
+    FactoryLogic --> Simulation
+    Demo --> Runtime["Kinetra::Runtime"]
+    Dotio --> Runtime
+    Factory --> Runtime
+    Host --> Runtime
+```
 
 ## Applications
 
@@ -41,6 +64,7 @@ Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header;
 | --- | --- | --- |
 | **Demo** | ![Demo terrain, player and physics agents](docs/media/demo.png) | ![Demo with steering probes, paths, vectors and collision shapes](docs/media/demo-debug.png) |
 | **Dotio** | ![Dotio survival gameplay and player HUD](docs/media/dotio.png) | ![Dotio with AI states, paths, probes and collision shapes](docs/media/dotio-debug.png) |
+| **i4sim** | ![i4sim factory simulation](docs/media/i4sim.png) | ![i4sim factory simulation with debug mode enabled](docs/media/i4sim-debug.png) |
 
 Debug layers are optional; enable Debug Mode in settings and open the menu with Backquote. See the [Dotio settings screenshot](docs/media/dotio-settings.png) and [media guide](docs/media/README.md) for capture details.
 

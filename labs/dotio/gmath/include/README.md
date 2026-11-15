@@ -4,10 +4,22 @@ Sources in this directory belong to `kinetra_dotio_logic`. These are Lab-owned i
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../../README.md) · [Documentation index](../../../../docs/README.md)
+
+## Visual overview
+
+The header is the coordinate boundary seen by game logic.
+
+```mermaid
+flowchart LR
+    Game["Game objects and paths"] --> Types["gmath.h: vectors, positions, segments and grid entries"]
+    Types --> Core["Kinetra canonical vector math"]
+    Types --> Impl["gmath.cpp: grid and compatibility operations"]
+```
 
 ## File map
 

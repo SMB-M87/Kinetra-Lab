@@ -4,10 +4,26 @@ Sources in this directory belong to `kinetra_sandbox_application and kinetra_dem
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+## Visual overview
+
+The same session implementation serves the direct executable and bundled launcher.
+
+```mermaid
+flowchart LR
+    Main["main.cpp: direct launch"] --> Session["session.cpp: input and lifecycle"]
+    Bundled["Bundled launcher factory"] --> Session
+    Session --> Application["sandbox_application.cpp: commands and fixed updates"]
+    Application --> Scene["Sandbox scene"]
+    Session --> Renderer["sandbox_renderer.cpp"]
+    Scene --> Renderer
+    Renderer --> Runtime["Kinetra Runtime"]
+```
 
 ## File map
 

@@ -4,10 +4,25 @@ Regression tests for Dotio game logic, application commands and presentation.
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Coverage](#coverage)
 - [Build and run](#build-and-run)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+## Visual overview
+
+The two test paths separate checks without a window from checks requiring a graphics context.
+
+```mermaid
+flowchart TD
+    Build["Root runtime build with BUILD_TESTING=ON"] --> Headless["Dotio game logic and compatibility regressions"]
+    Build --> Enabled{"KINETRA_TEST_GRAPHICS=ON"}
+    Enabled --> Context["Actual OpenGL context"]
+    Context --> Graphics["Dotio presentation regressions"]
+    Headless --> CTest["CTest results"]
+    Graphics --> CTest
+```
 
 ## Coverage
 

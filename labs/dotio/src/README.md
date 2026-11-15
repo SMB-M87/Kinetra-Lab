@@ -4,10 +4,25 @@ Sources in this directory belong to `kinetra_dotio_presentation`. These are Lab-
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+## Visual overview
+
+Both entry paths share input capture, game state and the presentation adapter.
+
+```mermaid
+flowchart LR
+    Main["main.cpp: difficulty and frame limit"] --> Session["session.cpp"]
+    Launcher["Bundled launcher"] --> Session
+    Session --> App["Application and World updates"]
+    Session --> Presentation["presentation.cpp"]
+    App --> Presentation
+    Presentation --> Runtime["Kinetra Runtime and overlays"]
+```
 
 ## File map
 

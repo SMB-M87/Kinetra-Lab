@@ -2,9 +2,25 @@
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Contents and use](#contents-and-use)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
+
+## Visual overview
+
+The two test paths separate checks without a window from checks requiring a graphics context.
+
+```mermaid
+flowchart TD
+    Build["Root runtime build with BUILD_TESTING=ON"] --> Headless["Blueprint, recipe and motion regressions"]
+    Build --> Enabled{"KINETRA_TEST_GRAPHICS=ON"}
+    Enabled --> Context["Actual OpenGL context"]
+    Context --> Graphics["i4sim presentation regressions"]
+    Build --> Relocation["Relocation test: executable and adjacent blueprints"]
+    Headless --> CTest["CTest results"]
+    Graphics --> CTest
+```
 
 ## Contents and use
 

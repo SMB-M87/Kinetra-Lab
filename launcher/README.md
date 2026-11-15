@@ -4,6 +4,7 @@ Composition root for Demo, Dotio and i4sim; generic menu/session infrastructure 
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Composition](#composition)
 - [Arguments](#arguments)
 - [Verification](#verification)
@@ -11,6 +12,25 @@ Composition root for Demo, Dotio and i4sim; generic menu/session infrastructure 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
 Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).
+
+## Visual overview
+
+Selection creates a fresh application session; returning to the menu releases it.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Menu
+    Menu --> Configuration: application with options
+    Configuration --> Menu: cancel
+    Menu --> Creating: application without options
+    Configuration --> Creating: confirm
+    Creating --> Running: factory succeeds
+    Creating --> Shutdown: factory throws
+    Running --> Menu: Settings Launcher
+    Running --> Shutdown: close or Settings Exit
+    Menu --> Shutdown: exit
+    Shutdown --> [*]
+```
 
 ## Composition
 

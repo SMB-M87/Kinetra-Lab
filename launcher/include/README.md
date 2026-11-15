@@ -4,10 +4,24 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [File map](#file-map)
 - [Architecture and build](#architecture-and-build)
 
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
+
+## Visual overview
+
+These adapters connect Lab identities and factories to generic engine infrastructure.
+
+```mermaid
+flowchart LR
+    Menu["menu.h: application choices"] --> LaunchMenu["kinetra::LaunchMenu"]
+    Session["session.h: Lab factory dispatch"] --> Factories["Demo / Dotio / i4sim factories"]
+    Session --> Host["kinetra::SessionHost"]
+    Factories --> Contract["kinetra::Session"]
+    Host --> Contract
+```
 
 ## File map
 

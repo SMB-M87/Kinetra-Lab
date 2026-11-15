@@ -4,10 +4,28 @@ Design explanations live here; controls, gameplay and provenance live with the a
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Architecture guides](#architecture-guides)
 - [Source and usage guides](#source-and-usage-guides)
 
 [Parent guide / project overview](../README.md) · [Documentation index](README.md) · [Media guide](media/README.md)
+
+## Visual overview
+
+Follow the system guide first, then the application or interaction contract you need.
+
+```mermaid
+flowchart TD
+    System["System architecture"] --> Demo["Demo architecture"]
+    System --> Dotio["Dotio architecture"]
+    System --> Factory["Factory simulation architecture"]
+    System --> Launcher["Launcher and overlays"]
+    Demo --> Sources["Lab source and test guides"]
+    Dotio --> Sources
+    Factory --> Sources
+    Launcher --> Sources
+    System --> Core["Kinetra core architecture"]
+```
 
 ## Architecture guides
 

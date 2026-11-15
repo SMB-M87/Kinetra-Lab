@@ -4,10 +4,25 @@ Real application captures used by the project's README gallery.
 
 ## Table of contents
 
+- [Visual overview](#visual-overview)
 - [Files](#files)
 - [Capture details](#capture-details)
 
 [Parent guide / documentation index](../README.md) · [Project overview](../../README.md#screenshots-and-demo)
+
+## Visual overview
+
+The media records real application output; the gallery consumes the resulting files.
+
+```mermaid
+flowchart LR
+    Sessions["Launcher, Demo and Dotio"] --> Context["SDL offscreen / Mesa OpenGL"]
+    Context --> Frames["1280 x 800 framebuffer captures"]
+    Frames --> PNG["Normal and debug PNG pairs"]
+    Frames --> Video["H.264 MP4 tour"]
+    PNG --> Gallery["Root README gallery"]
+    Video --> Gallery
+```
 
 ## Files
 
@@ -18,6 +33,7 @@ Real application captures used by the project's README gallery.
 | [dotio.png](dotio.png), [dotio-debug.png](dotio-debug.png) | Dotio with debug layers disabled and enabled |
 | [dotio-settings.png](dotio-settings.png) | Dotio settings with both control sections expanded |
 | [kinetra-lab-tour.mp4](kinetra-lab-tour.mp4) | 23-second tour, H.264, 1280 × 800, 30 fps, no audio |
+| [i4sim.png](i4sim.png), [i4sim-debug.png](i4sim-debug.png) | i4sim with debug mode disabled and enabled |
 
 ## Capture details
 
