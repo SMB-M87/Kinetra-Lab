@@ -37,21 +37,23 @@ The bundled [composition root](../launcher/src/main.cpp) supplies CLI arguments 
 
 ```mermaid
 stateDiagram-v2
+    direction TB
     [*] --> Menu
-    Menu --> Configuration: select registered app with options
-    Configuration --> Menu: M / cancel
-    Menu --> Creating: select app without options
-    Configuration --> Creating: confirm configuration
-    Creating --> Running: factory returns session; commit camera
-    Creating --> Menu: factory failure; caller handles exception
-    Running --> Running: update then render
-    Running --> Menu: return_to_menu destroys session
-    Running --> Creating: custom caller requests replacement
-    Creating --> Running: failed replacement preserves old session
+    Menu --> Configuration: app with options
+    Configuration --> Menu: cancel
+    Menu --> Creating: app without options
+    Configuration --> Creating: confirm
+    Creating --> Running: factory succeeds
+    Creating --> Shutdown: factory throws
+    Running --> Menu: return_to_menu
     Menu --> Shutdown: close / Escape
     Running --> Shutdown: close / Escape
-    Shutdown --> [*]: destroy session then Runtime
+    Shutdown --> [*]
 ```
+
+This diagram shows the standard `run_launcher` loop. A successful factory call installs the new session and camera together. While running, each frame updates and then renders the session. Returning to the menu destroys the session; shutdown destroys the session before the Runtime.
+
+Custom callers can request a replacement while a session is running. If the factory throws, the old session and camera remain active and the exception propagates to the caller. A caller can catch the exception and continue; this recovery path is separate from the standard loop shown above.
 
 The first update receives empty input and zero elapsed time. The standard Kinetra loop resets its wall-clock baseline after loading. Factory exceptions propagate; the bundled executable reports them and exits, while custom launchers can recover. The host preserves its old camera/session on failure, but cannot roll back arbitrary side effects inside application factories. Dotio's static raster forbids overlapping Dotio worlds; return to the menu before constructing another.
 
