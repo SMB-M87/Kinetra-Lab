@@ -8,15 +8,18 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 - [Quick start](#quick-start)
 - [Kinetra development workflow](#kinetra-development-workflow)
 - [Tests and resources](#tests-and-resources)
+- [Architecture documentation](#architecture-documentation)
 - [License](#license)
 
 ## Applications
 
+See the [Labs overview](labs/README.md) for application sources and headless test commands.
+
 | Directory | Targets | Purpose |
 | --- | --- | --- |
 | [launcher](launcher/README.md) | `kinetra`, `kinetra_sandbox`, `kinetra_launcher` | Menu, registration and application switching |
-| [labs/demo](docs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
-| [labs/dotio](docs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
+| [labs/demo](labs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
+| [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
 The library target `Kinetra::Launcher` remains available inside Lab; its header is `launcher/include/kinetra/launcher.h`.
 
@@ -181,6 +184,10 @@ For headless Demo/Dotio logic tests, configure a separate directory with `-DKINE
 Shaders, bitmap text, terrain and drawing data are embedded or generated in code. No working-directory-specific assets or resource copy step is required.
 Build directories and generated artifacts are ignored. Follow the included `.clang-format`; first-party C++ uses `.h` and `.cpp`.
 
+## Architecture documentation
+
+The [documentation index](docs/README.md) links system dependencies, application ownership and session/overlay interactions. Usage and controls live alongside each lab.
+
 ## License
 
-MIT; see [LICENSE](LICENSE). Dotio attribution and port limits are documented in its [provenance](docs/dotio/README.md#provenance).
+MIT; see [LICENSE](LICENSE). Dotio attribution and port limits are documented in its [provenance](labs/dotio/README.md#provenance).

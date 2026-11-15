@@ -21,7 +21,7 @@ Composition root for Demo and Dotio; menu/session infrastructure and its tests a
 | `--agents` | 0–300 initial Demo agents; default zero |
 | `--frames` | 1–100000 rendered frames; omit for unlimited |
 
-Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A process selects and prints one random world seed. Selecting an application creates a fresh session. Detailed controls live in the [Demo](../docs/demo/README.md) and [Dotio](../docs/dotio/README.md) guides. Build commands live in [Quick start](../README.md#quick-start).
+Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A process selects and prints one random world seed. Selecting an application creates a fresh session. Detailed controls live in the [Demo](../labs/demo/README.md) and [Dotio](../labs/dotio/README.md) guides. Build commands live in [Quick start](../README.md#quick-start).
 
 ## Verification
 
