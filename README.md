@@ -6,7 +6,6 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 
 - [Applications](#applications)
 - [Quick start](#quick-start)
-- [Installed Kinetra](#installed-kinetra)
 - [Tests and resources](#tests-and-resources)
 - [License](#license)
 
@@ -15,8 +14,8 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 | Directory | Targets | Purpose |
 | --- | --- | --- |
 | [launcher](launcher/README.md) | `kinetra`, `kinetra_sandbox`, `kinetra_launcher` | Menu, registration and application switching |
-| [demo](docs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
-| [dotio](docs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
+| [launcher/demo](docs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
+| [launcher/dotio](docs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
 The library target `Kinetra::Launcher` remains available inside Lab; its header is `launcher/include/kinetra/launcher.h`.
 
@@ -24,13 +23,19 @@ The library target `Kinetra::Launcher` remains available inside Lab; its header 
 
 Requires a C++20 compiler, CMake 3.16+, a build tool, SDL2 development files, OpenGL development files and an OpenGL 3.3 context. Linux is supported. On Artix/Arch use the normal `base-devel`, `cmake`, `sdl2` and `mesa` packages.
 
-With sibling checkouts:
+Repository layout:
 
 ```text
-Repositories/
-├── Kinetra/
-└── Kinetra-Lab/
+Kinetra-Lab/
+├── docs/
+├── launcher/
+│   ├── demo/
+│   └── dotio/
+└── external/
+    └── Kinetra/    # expected submodule checkout
 ```
+
+The build defaults to `external/Kinetra`. Submodule registration is still pending; until it is registered, use an existing checkout with `-DKINETRA_SOURCE_DIR=../Kinetra` on the first configure command below. No package installation is needed.
 
 Run from Kinetra-Lab:
 
@@ -47,22 +52,7 @@ ctest --test-dir build --output-on-failure
 
 Select with arrows/Enter or click; M returns to the menu, H toggles help, Backquote toggles debug controls. Each launch creates a fresh session. Detailed controls are in the application guides.
 
-Set `-DKINETRA_SOURCE_DIR=../Kinetra` to explicitly choose a source checkout. Otherwise CMake tries an installed package first, then the sibling. Core tests are built independently in the core repository.
-
-## Installed Kinetra
-
-From the parent directory:
-
-```sh
-cmake -S Kinetra -B Kinetra/build-install -DKINETRA_BUILD_RUNTIME=ON -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
-cmake --build Kinetra/build-install --parallel
-cmake --install Kinetra/build-install --prefix "$PWD/Kinetra/build-install/prefix"
-cmake -S Kinetra-Lab -B Kinetra-Lab/build-package -DCMAKE_PREFIX_PATH="$PWD/Kinetra/build-install/prefix"
-cmake --build Kinetra-Lab/build-package --parallel
-ctest --test-dir Kinetra-Lab/build-package --output-on-failure
-```
-
-Use a fresh Lab build directory when changing dependency selection. No submodule or network fetch is used. Package versions must be compatible with 0.1; binary ABI stability is not promised.
+When Kinetra source changes, rebuild Lab; CMake rebuilds the affected core targets automatically. Run core tests separately in Kinetra. Use a fresh build directory when switching source checkouts.
 
 ## Tests and resources
 
