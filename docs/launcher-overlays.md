@@ -64,9 +64,9 @@ sequenceDiagram
     participant G as Game commands
     participant R as Runtime
     S->>D: update(input, viewport, registered rows)
-    D->>D: toggle visibility; hit-test shared layout
+    D->>D: toggle visibility and hit-test shared layout
     D-->>S: pointer captured?
-    S->>G: map bindings; suppress captured pointer actions
+    S->>G: map bindings and suppress captured pointer actions
     S->>G: update application state
     S->>R: draw scene
     S->>R: draw_help(content, visibility, style)
