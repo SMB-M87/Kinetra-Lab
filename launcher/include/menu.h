@@ -3,12 +3,13 @@
 #include <kinetra/launcher.h>
 
 namespace launcher {
-enum class Variant { demo, dotio };
+enum class Variant { demo, dotio, i4sim };
 using MenuLayout = kinetra::MenuLayout;
 inline std::vector<kinetra::LaunchChoice> choices(logic::Difficulty difficulty) {
     logic::settings_for(difficulty);
     return {{"DEMO", "PHYSICS AND NAVIGATION", {}, 0},
-            {"DOTIO", "SURVIVAL", {"EASY", "MEDIUM", "HARD"}, std::size_t(difficulty)}};
+            {"DOTIO", "SURVIVAL", {"EASY", "MEDIUM", "HARD"}, std::size_t(difficulty)},
+            {"I4SIM", "LOCAL FACTORY SIMULATION", {}, 0}};
 }
 /// Application composition supplies difficulty semantics to the generic menu.
 class Menu {

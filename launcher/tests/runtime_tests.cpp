@@ -102,7 +102,7 @@ int main() {
         launcher::render_menu(reopened, menu);
         Input choose;
         choose.clicked = true;
-        choose.mouse = launcher::MenuLayout(reopened.camera.viewport, 2).row_center(1);
+        choose.mouse = launcher::MenuLayout(reopened.camera.viewport, 3).row_center(1);
         menu.update(choose, reopened.camera.viewport);
         launcher::render_menu(reopened, menu);
         auto session = launcher::start(launcher::Variant::demo, 0, 42, reopened.camera);
@@ -170,6 +170,21 @@ int main() {
             require(session->title().find(logic::settings_for(difficulty).name) != std::string::npos,
                     "Launcher lost difficulty when creating Dotio session");
         }
+        session.reset();
+        session = launcher::start(launcher::Variant::i4sim, 0, 42, reopened.camera);
+        session->advance(0, {}, reopened.camera);
+        session->render(reopened);
+        require(session->title().find("Loadscreen") != std::string::npos,
+                "Factory variant skipped loadscreen");
+        Input blueprint_choice;
+        blueprint_choice.pressed[std::size_t(Key::enter)] = true;
+        session->advance(0, blueprint_choice, reopened.camera);
+        session->render(reopened);
+        require(session->title().find("PAUSED") != std::string::npos,
+                "Factory blueprint did not start paused");
+        session = launcher::start(launcher::Variant::demo, 0, 42, reopened.camera);
+        require(reopened.camera.pixels_per_unit == 17 && session->title().find("PAUSED") == std::string::npos,
+                "Factory state leaked into Demo");
         session.reset();
         struct LoopSession final : Session {
             int &updates, &destroyed;

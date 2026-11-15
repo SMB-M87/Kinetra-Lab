@@ -32,8 +32,10 @@ int main(int argc, char **argv) {
                     initial_variant = launcher::Variant::demo;
                 else if (value == "dotio")
                     initial_variant = launcher::Variant::dotio;
+                else if (value == "i4sim")
+                    initial_variant = launcher::Variant::i4sim;
                 else
-                    throw std::invalid_argument("Variant must be demo or dotio");
+                    throw std::invalid_argument("Variant must be demo, dotio or i4sim");
             } else if (option == "--difficulty" && i + 1 < argc)
                 difficulty = logic::parse_difficulty(argv[++i]);
             else if (option == "--agents" && i + 1 < argc)
@@ -41,7 +43,7 @@ int main(int argc, char **argv) {
             else if (option == "--frames" && i + 1 < argc)
                 frame_limit = argument(argv[++i], 1, 100000);
             else
-                throw std::invalid_argument("Usage: kinetra [--variant demo|dotio] [--difficulty "
+                throw std::invalid_argument("Usage: kinetra [--variant demo|dotio|i4sim] [--difficulty "
                                             "easy|medium|hard] [--agents 0..300] [--frames 1..100000]");
         }
         Runtime runtime;

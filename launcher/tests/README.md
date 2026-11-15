@@ -1,6 +1,6 @@
 # Launcher tests
 
-Tests for the bundled Demo/Dotio menu adapter and application integration. Generic launcher contracts belong to Kinetra; see [Launcher and overlays](../../docs/launcher-overlays.md#contracts-and-verification).
+Tests for the bundled Demo/Dotio/i4sim menu adapter and application integration. Generic launcher contracts belong to Kinetra; see [Launcher and overlays](../../docs/launcher-overlays.md#contracts-and-verification).
 
 ## Table of contents
 

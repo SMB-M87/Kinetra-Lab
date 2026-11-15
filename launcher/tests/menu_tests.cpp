@@ -13,7 +13,7 @@ int main() {
         launcher::Menu menu;
         kinetra::Input input;
         const kinetra::Vec2 viewport{1280, 800};
-        input.mouse = launcher::MenuLayout(viewport, 2).row_center(1);
+        input.mouse = launcher::MenuLayout(viewport, 3).row_center(1);
         require(!menu.update(input, viewport) && menu.selected() == 1 && !menu.choosing_difficulty(),
                 "Hover must preselect Dotio without launching");
         input.pressed[std::size_t(kinetra::Key::up)] = true;
@@ -22,9 +22,9 @@ int main() {
         input.pressed = {};
         require(!menu.update(input, viewport) && menu.selected() == 0,
                 "Resting pointer must preserve keyboard selection");
-        input.mouse = launcher::MenuLayout(viewport, 2).row_center(0);
+        input.mouse = launcher::MenuLayout(viewport, 3).row_center(0);
         menu.update(input, viewport);
-        input.mouse = launcher::MenuLayout(viewport, 2).row_center(1);
+        input.mouse = launcher::MenuLayout(viewport, 3).row_center(1);
         require(!menu.update(input, viewport) && menu.selected() == 1,
                 "Moving back over Dotio must restore hover selection");
         input.mouse = {-1, -1};
@@ -50,7 +50,7 @@ int main() {
         for (const auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{200, 150}}) {
             input = {};
             input.clicked = true;
-            input.mouse = launcher::MenuLayout(viewport, 2).row_center(0);
+            input.mouse = launcher::MenuLayout(viewport, 3).row_center(0);
             require(menu.update(input, viewport) == launcher::Variant::demo,
                     "Resized Demo menu click missed");
         }
@@ -58,7 +58,7 @@ int main() {
             for (std::size_t difficulty = 0; difficulty < 3; ++difficulty) {
                 input = {};
                 input.clicked = true;
-                input.mouse = launcher::MenuLayout(viewport, 2).row_center(1);
+                input.mouse = launcher::MenuLayout(viewport, 3).row_center(1);
                 require(!menu.update(input, viewport) && menu.choosing_difficulty(),
                         "Dotio click skipped difficulty");
                 input.mouse = launcher::MenuLayout(viewport).row_center(difficulty);
@@ -84,6 +84,14 @@ int main() {
             rejected = true;
         }
         require(rejected, "Unknown difficulty was accepted");
+        for (const auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{200, 150}}) {
+            launcher::Menu factory_menu;
+            input = {};
+            input.clicked = true;
+            input.mouse = launcher::MenuLayout(viewport, 3).row_center(2);
+            require(factory_menu.update(input, viewport) == launcher::Variant::i4sim,
+                    "i4sim selection did not open its session");
+        }
         std::cout << "PASS launcher menu selection and resized picking\n";
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

@@ -1,6 +1,6 @@
 # Bundled application launcher
 
-Composition root for Demo and Dotio; generic menu/session infrastructure and tests belong to Kinetra.
+Composition root for Demo, Dotio and i4sim; generic menu/session infrastructure and tests belong to Kinetra.
 
 ## Table of contents
 
@@ -25,8 +25,10 @@ Directory guides: [include](include/README.md), [src](src/README.md), [tests](te
 | `--agents` | 0–300 initial Demo agents; default zero |
 | `--frames` | 1–100000 rendered frames; omit for unlimited |
 
-Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A process selects and prints one random world seed. Selecting an application creates a fresh session. Detailed controls live in the [Demo](../labs/demo/README.md) and [Dotio](../labs/dotio/README.md) guides. Build commands live in [Quick start](../README.md#quick-start).
+Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A process selects and prints one random world seed. Selecting an application creates a fresh session. Detailed controls live in the [Demo](../labs/demo/README.md) [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md) guides. Build commands live in [Quick start](../README.md#quick-start).
 
 ## Verification
 
 [Menu tests](tests/menu_tests.cpp) run without a window in a launcher-enabled build. [Integration tests](tests/runtime_tests.cpp) require an OpenGL context and cover rendering, settings pause/resume, zoom, debug gating and settings-driven navigation. See [development](../README.md#tests-and-resources).
+
+Select `--variant i4sim` to open the factory blueprint Loadscreen. Its application-owned controls and metrics export are described in the i4sim guide.

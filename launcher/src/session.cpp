@@ -1,6 +1,7 @@
 #include "session.h"
 #include "../../labs/demo/include/session.h"
 #include "../../labs/dotio/include/session.h"
+#include "../../labs/i4sim/include/session.h"
 #include <chrono>
 
 namespace launcher {
@@ -10,6 +11,8 @@ std::unique_ptr<Session> start(Variant variant, int count, std::uint32_t seed, k
     camera.pixels_per_unit = variant == Variant::demo ? 17 : 25;
     if (variant == Variant::demo)
         return sandbox::create_session(count, seed);
+    if (variant == Variant::i4sim)
+        return i4sim::create_session(seed);
     return dotio::create_session(seed, difficulty);
 }
 void render_menu(kinetra::Runtime &runtime, const Menu &menu) {

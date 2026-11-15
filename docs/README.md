@@ -16,6 +16,7 @@ Design explanations live here; controls, gameplay and provenance live with the a
 | How do Lab, the engine and build targets fit together? | [System architecture](architecture.md) |
 | Who owns Demo state, simulation and streamed terrain? | [Demo architecture](demo-architecture.md) |
 | How does the Dotio port isolate legacy coordinates and game rules? | [Dotio architecture](dotio-architecture.md) |
+| How does the local C++ factory simulation divide engine and application responsibilities? | [Factory simulation architecture](factory-simulation-architecture.md) |
 | How do registration, session transitions and overlay capture work? | [Launcher and overlays](launcher-overlays.md) |
 
 ## Source and usage guides

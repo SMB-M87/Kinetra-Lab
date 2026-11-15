@@ -1,6 +1,6 @@
 # Kinetra-Lab
 
-Applications and experiments using the reusable [Kinetra](https://github.com/SMB-M87/Kinetra) core library. Launcher, Demo and Dotio live here; engine implementation stays in Kinetra.
+Applications and experiments using the reusable [Kinetra](https://github.com/SMB-M87/Kinetra) core library. Launcher, Demo, Dotio and i4sim live here; engine implementation stays in Kinetra.
 
 ## Table of contents
 
@@ -24,6 +24,7 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 | --- | --- | --- |
 | [launcher](launcher/README.md) | `kinetra`, `kinetra_sandbox` | Menu, registration and application switching |
 | [labs/demo](labs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_sandbox_application` | Terrain, navigation and physics reference |
+| [labs/i4sim](labs/i4sim/README.md) | `kinetra_i4sim`, `kinetra_i4sim_application`, `kinetra_i4sim_presentation` | Local factory simulation and original JSON blueprints |
 | [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
 Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header; Lab consumes that target. The engine checkout must include this target. The bundled checkout supplies this target; verify the default source integration before delivery.
@@ -203,7 +204,7 @@ Software rendering does not establish desktop feel or performance.
 
 For headless Demo/Dotio logic tests, configure a separate directory with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`. Launcher and graphical executables are omitted in that configuration.
 
-Shaders, bitmap text, terrain and drawing data are embedded or generated in code. No working-directory-specific assets or resource copy step is required.
+i4sim additionally requires the header-only nlohmann JSON package (3.11+; Debian: `nlohmann-json3-dev`). Its blueprints are copied into the build tree; see [i4sim usage](labs/i4sim/README.md). Shaders, bitmap text, terrain and drawing data are embedded or generated in code.
 Build directories and generated artifacts are ignored. Follow the included `.clang-format`; first-party C++ uses `.h` and `.cpp`.
 
 ## Architecture documentation

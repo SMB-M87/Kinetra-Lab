@@ -18,6 +18,11 @@ flowchart TD
     Sessions --> Launcher[Kinetra::Launcher: registry, menu and host]
     Sessions --> Demo[kinetra_demo_presentation]
     Sessions --> Dotio[kinetra_dotio_presentation]
+    Sessions --> Factory[kinetra_i4sim_presentation]
+    FactoryExe[kinetra_i4sim] --> Factory
+    Factory --> FactoryLogic[kinetra_i4sim_application]
+    FactoryLogic --> Sim
+    Factory --> Runtime
     DemoExe[kinetra_demo] --> Demo
     DotioExe[kinetra_dotio] --> Dotio
     Demo --> Sandbox[kinetra_sandbox_application]
@@ -31,7 +36,7 @@ flowchart TD
 
 Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define application targets. Kinetra defines `Kinetra::Launcher` and `Kinetra::Runtime`. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure.
 
-With `KINETRA_LAB_BUILD_RUNTIME=OFF`, only application logic and its headless tests are built. Core tests are disabled in the embedded engine build and run independently in Kinetra. `KINETRA_SOURCE_DIR` selects the recorded `external/Kinetra` submodule by default or an explicit development checkout; no installed package is required.
+With `KINETRA_LAB_BUILD_RUNTIME=OFF`, application logic, its headless tests and the i4sim batch executable are built. Core tests are disabled in the embedded engine build and run independently in Kinetra. `KINETRA_SOURCE_DIR` selects the recorded `external/Kinetra` submodule by default or an explicit development checkout; no installed package is required.
 
 ## Session ownership and frame flow
 

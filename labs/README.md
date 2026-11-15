@@ -5,6 +5,7 @@ Applications and experiments built on the public Kinetra APIs. Each lab owns its
 | Guide | Purpose |
 | --- | --- |
 | [Demo](demo/README.md) | Reference application for terrain, navigation, agents and physics |
+| [i4sim](i4sim/README.md) | Local factory simulation, steering and JSON blueprint loading |
 | [Dotio](dotio/README.md) | Survival game and AI experiment |
 
 ## Table of contents
@@ -14,7 +15,7 @@ Applications and experiments built on the public Kinetra APIs. Each lab owns its
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md)
 
-Directory guides: [demo](demo/README.md), [dotio](dotio/README.md).
+Directory guides: [demo](demo/README.md), [dotio](dotio/README.md), [i4sim](i4sim/README.md).
 
 ## Build and run
 
@@ -27,7 +28,7 @@ cmake --build build --parallel
 ./build/kinetra_dotio --difficulty medium --frames 120
 ```
 
-The [launcher](../launcher/README.md) also provides a shared menu for both applications. [settings.h](settings.h) owns the shared modal settings layout, input capture and Lab session navigation request; see [launcher and overlays](../docs/launcher-overlays.md#debug-and-help-interaction).
+The [launcher](../launcher/README.md) also provides a shared menu for all applications. [settings.h](settings.h) owns the shared modal settings layout, input capture and Lab session navigation request; see [launcher and overlays](../docs/launcher-overlays.md#debug-and-help-interaction).
 
 ## Verification
 
