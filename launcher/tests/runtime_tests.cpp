@@ -68,7 +68,8 @@ void settings_regression(Runtime &runtime) {
         session->advance(0, input, runtime.camera);
         require(runtime.camera.pixels_per_unit > zoom, "Debug wheel unavailable");
         input = {};
-        input.pressed[std::size_t(Key::backquote)] = true;
+        input.clicked = input.mouse_down = true;
+        input.mouse = {80, 12};
         session->advance(0, input, runtime.camera);
         session->render(runtime);
         input = {};
@@ -128,10 +129,10 @@ int main() {
         const float menu_scale = DebugMenu::scale(reopened.camera.viewport);
         debug_input.clicked = true;
         debug_input.mouse_down = true;
-        debug_input.mouse.x = reopened.camera.viewport.x - 180 * menu_scale;
+        debug_input.mouse.x = 8 + 10 * menu_scale;
         // Exercise every debug layer and ensure the panel consumes held shooting.
         for (int row = 0; row < 11; ++row) {
-            debug_input.mouse.y = (36 + row * 16) * menu_scale;
+            debug_input.mouse.y = 32 + (28 + row * 16) * menu_scale;
             session->advance(0, debug_input, reopened.camera);
         }
         session->render(reopened);
@@ -146,7 +147,7 @@ int main() {
         session->advance(0, demo_debug, reopened.camera);
         demo_debug = {};
         demo_debug.clicked = true;
-        demo_debug.mouse = {reopened.camera.viewport.x - 180 * menu_scale, 36 * menu_scale};
+        demo_debug.mouse = {8 + 10 * menu_scale, 32 + 28 * menu_scale};
         session->advance(0, demo_debug, reopened.camera);
         Input pan;
         pan.held[std::size_t(Key::right)] = true;

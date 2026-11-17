@@ -39,6 +39,41 @@ int main() {
         }
         session->render(runtime);
         require(session->title().find("RUNNING") != std::string::npos, "Pause control failed");
+        Input debug_menu;
+        debug_menu.pressed[std::size_t(Key::backquote)] = true;
+        session->advance(0, debug_menu, runtime.camera);
+        auto click_row = [&](unsigned row) {
+            Input click;
+            click.clicked = true;
+            click.mouse = Vec2{8, 32} + Vec2{12, 30 + row * 16.f} * DebugMenu::scale(runtime.camera.viewport);
+            session->advance(0, click, runtime.camera);
+        };
+        click_row(0); // Motion page.
+        auto statistics_pixels = [&] {
+            session->render(runtime);
+            glFinish();
+            std::vector<unsigned char> pixels(640 * 40 * 3);
+            glReadBuffer(GL_FRONT);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glReadPixels(0, 0, 640, 40, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+            return pixels;
+        };
+        const auto before_motion = statistics_pixels();
+        click_row(4); // Speed + must apply while running.
+        require(statistics_pixels() != before_motion, "Running Motion edit did not update statistics");
+        click_row(5); // Speed - restores the initial speed.
+        require(statistics_pixels() == before_motion, "Inverse Motion edit did not restore speed");
+        for (unsigned row = 1; row <= 12; ++row) {
+            click_row(row);
+            require(session->title().find("RUNNING") != std::string::npos,
+                    "Motion edit did not preserve running state");
+        }
+        session->advance(0, run, runtime.camera);
+        click_row(1);
+        require(session->title().find("PAUSED") != std::string::npos,
+                "Motion edit resumed a paused simulation");
+        session->advance(0, run, runtime.camera);
+        session->advance(0, debug_menu, runtime.camera);
         SDL_Event event{};
         event.type = SDL_MOUSEBUTTONDOWN;
         event.button.button = SDL_BUTTON_RIGHT;

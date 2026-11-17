@@ -46,7 +46,7 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels di
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings zoom buttons | Adjust camera scale: 25–50 px/unit normally; 2.5–50 in debug |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
-| Backquote | Toggle debug menu only in Debug Mode |
+| Debu button (next to Settings) | Toggle the upper-left debug menu in Debug Mode |
 | Wheel | Zoom during gameplay only in Debug Mode |
 | Settings Launcher / Exit | Return to bundled launcher / exit the application |
 

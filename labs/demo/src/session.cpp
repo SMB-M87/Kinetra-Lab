@@ -38,7 +38,7 @@ class DemoSession final : public Session {
         const bool modal = settings_.update(input, camera, statistics_, debug_, debug_ ? 5.f : 17.f, 100.f);
         if (!debug_ || modal)
             menu_.visible = false;
-        const bool captured = debug_ && !modal && menu_.update(input, camera.viewport, entries);
+        const bool captured = debug_ && !modal && settings_.update_debug(input, camera, menu_, entries);
         auto commands = sandbox::read_commands(modal ? kinetra::Input{} : input);
         commands.zoom_steps = debug_ && !modal ? input.wheel : 0;
         commands.toggle_pause = application_.paused() != settings_.visible;

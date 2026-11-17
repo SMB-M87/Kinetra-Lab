@@ -10,7 +10,7 @@ struct FactorySettings {
         return std::min({2.f, viewport.x / 204.f, viewport.y / 418.f});
     }
     float debug_toggle_y() const { return 156 + (controls_visible ? sim_controls_height : 0.f); }
-    float actions_y() const { return debug_toggle_y() + 28 + (debug_controls_visible ? 42.f : 0.f); }
+    float actions_y() const { return debug_toggle_y() + 28 + (debug_controls_visible ? 28.f : 0.f); }
     kinetra::Vec2 half_extent() const { return {92, (actions_y() + 50) / 2}; }
     bool update(const kinetra::Input &input, kinetra::Camera2D &camera, bool &statistics, bool &debug,
                 float minimum, float maximum) {
@@ -48,11 +48,28 @@ struct FactorySettings {
         }
         return was_visible || visible;
     }
+    bool update_debug(const kinetra::Input &input, kinetra::Camera2D &camera, kinetra::DebugMenu &menu,
+                      std::span<kinetra::DebugOption> options) const {
+        menu.screen_origin = {8, 32};
+        const bool captured = menu.update(input, camera.viewport, options);
+        if (input.mouse.x >= 64 && input.mouse.x < 104 && input.mouse.y >= 0 && input.mouse.y < 24) {
+            if (input.clicked)
+                menu.visible = !menu.visible;
+            return true;
+        }
+        return captured;
+    }
     void draw(kinetra::Runtime &runtime, bool statistics, bool debug, bool) const {
         using namespace kinetra;
         if (!visible) {
             const bool hovered = pointer.x >= 0 && pointer.x < 64 && pointer.y >= 0 && pointer.y < 24;
             draw_text(runtime, "SETTINGS", {8, 8}, 1, hovered ? Color{0.25f, 0.65f, 1.f} : Color{1, 1, 1});
+            if (debug) {
+                const bool debug_hovered =
+                    pointer.x >= 64 && pointer.x < 104 && pointer.y >= 0 && pointer.y < 24;
+                draw_text(runtime, "DEBU", {72, 8}, 1,
+                          debug_hovered ? Color{0.25f, 0.65f, 1.f} : Color{1, 1, 1});
+            }
             return;
         }
         const float size = scale(runtime.camera.viewport);
@@ -86,9 +103,8 @@ struct FactorySettings {
         const float debug_y = debug_toggle_y();
         centered(debug_controls_visible ? "HIDE DEBUG CONTROLS" : "SHOW DEBUG CONTROLS", debug_y);
         if (debug_controls_visible) {
-            centered("BACKQUOTE  DEBUG MENU", debug_y + 14, false);
-            centered("WHEEL  ZOOM", debug_y + 28, false);
-            centered("DEBUG PAGES: VIEW / MOTION", debug_y + 42, false);
+            centered("WHEEL  ZOOM", debug_y + 14, false);
+            centered("DEBUG PAGES: VIEW / MOTION", debug_y + 28, false);
         }
         const float actions = actions_y();
         line("LAUNCHER", actions, true, 27.5f, 24.5f, 77.5f);

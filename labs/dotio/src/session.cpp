@@ -16,8 +16,8 @@ class DotioSession final : public Session {
                                          application_.debug ? 2.5f : 25.f, 50.f);
         if (!application_.debug || modal)
             application_.menu.visible = false;
-        const bool captured =
-            application_.debug && !modal && application_.menu.update(input, camera.viewport, options);
+        const bool captured = application_.debug && !modal &&
+                              application_.settings.update_debug(input, camera, application_.menu, options);
         if (!was_ghost && application_.ghost) {
             application_.world().GetGhost().Position = application_.world().GetPlayer().Position;
             application_.world().GetGhost().Velocity = {};

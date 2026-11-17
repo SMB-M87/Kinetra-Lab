@@ -38,16 +38,18 @@ class FactorySession final : public lab::Session {
     bool modal_before_{};
     bool paused_before_settings_{};
     void change_motion(const std::function<void(MotionSettings &)> &change) {
-        if (!simulation_->paused) {
-            error_ = "PAUSE BEFORE CHANGING MOTION";
-            return;
-        }
+        const bool was_paused = simulation_->paused;
         auto config = simulation_->motion_settings();
         change(config);
+        simulation_->paused = true;
         try {
             simulation_->configure_motion(config);
             error_.clear();
-        } catch (const std::exception &e) { error_ = e.what(); }
+        } catch (const std::exception &e) {
+            error_ = e.what();
+            error_remaining_ = 4;
+        }
+        simulation_->paused = was_paused;
     }
     std::vector<DebugOption> options() {
         std::vector<DebugOption> rows;
@@ -92,6 +94,7 @@ class FactorySession final : public lab::Session {
     bool grid_{}, heat_{}, paths_{}, vectors_{}, borders_{}, detection_{};
     std::optional<std::size_t> selected_mover_, selected_producer_;
     std::string error_;
+    double error_remaining_{};
     unsigned ups_;
     std::filesystem::path directory_;
     void report_error(const std::string &message) {
@@ -200,6 +203,11 @@ class FactorySession final : public lab::Session {
             back_to_blueprints_ = false;
             return;
         }
+        if (error_remaining_ > 0) {
+            error_remaining_ = std::max(0.0, error_remaining_ - elapsed);
+            if (error_remaining_ == 0)
+                error_.clear();
+        }
         const bool modal = settings_.update(input, camera, statistics_, debug_, .005f, 10.f);
         if (modal && !modal_before_) {
             paused_before_settings_ = simulation_->paused;
@@ -211,7 +219,7 @@ class FactorySession final : public lab::Session {
         if (modal) { menu_.visible = false; return; }
         if (!debug_) menu_.visible = false;
         auto rows = options();
-        const bool captured = debug_ && menu_.update(input, camera.viewport, rows);
+        const bool captured = debug_ && settings_.update_debug(input, camera, menu_, rows);
         if (!fitted_)
             fit(camera);
         if (input.hit(Key::p) || input.hit(Key::space))
@@ -220,6 +228,7 @@ class FactorySession final : public lab::Session {
             const auto config = simulation_->motion_settings();
             simulation_ = std::make_unique<Simulation>(simulation_->blueprint(), seed_);
             simulation_->configure_motion(config);
+            error_.clear();
             selected_mover_.reset();
             selected_producer_.reset();
 
@@ -255,7 +264,8 @@ class FactorySession final : public lab::Session {
             const auto point = world(camera.screen_to_world(input.mouse));
             if (input.down(Key::shift) && input.clicked && selected_mover_)
                 { if (!simulation_->move_to(*selected_mover_, point))
-                    error_ = "GOAL REJECTED: MOVER BUSY, BLOCKED OR GOAL UNREACHABLE";
+                    { error_ = "GOAL REJECTED: MOVER BUSY, BLOCKED OR GOAL UNREACHABLE";
+                      error_remaining_ = 4; }
                   else error_.clear(); }
             else
                 pick(point, input.right_clicked);
@@ -384,12 +394,12 @@ class FactorySession final : public lab::Session {
             std::ostringstream stats;
             stats << "TICK " << simulation_->ticks() << " UPS " << simulation_->updates_per_second()
                   << " CONTACTS " << simulation_->collisions() << " DURATION " << simulation_->contact_ticks();
-            factory_text(runtime, stats.str(), {12, 32}, 1, {1, 1, 1});
+            factory_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
             const auto &c = simulation_->motion_settings();
             std::ostringstream motion;
             motion << (simulation_->paused ? "PAUSED" : "RUNNING") << " SPEED " << c.speed
                    << " FORCE " << c.force << " HORIZON " << c.horizon;
-            factory_text(runtime, motion.str(), {12, 48}, 1, {1, 1, 1});
+            factory_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
         }
         if (selected_mover_) {
             const auto &m = simulation_->movers()[*selected_mover_];
@@ -400,19 +410,19 @@ class FactorySession final : public lab::Session {
                      : m.unreachable ? "UNREACHABLE"
                      : m.product     ? "ALLOCATED"
                                      : "IDLE - SHIFT CLICK GOAL");
-            factory_text(runtime, text.str(), {12, 80}, 1, {1, 1, 0.5f});
+            factory_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
                     << (m.no_progress >= 120 ? " STALLED" : "");
-            factory_text(runtime, details.str(), {12, 112}, 1, {1, 1, 1});
+            factory_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {
             const auto &p = simulation_->producers()[*selected_producer_];
             const auto text = p.definition.id + " | QUEUE " + std::to_string(p.queue.size()) +
                               " | REMAINING " + std::to_string(p.remaining) + " | TASKS " +
                               std::to_string(p.interactions) + (p.blocked ? " | BLOCKED" : "");
-            factory_text(runtime, text, {12, 80}, 1, {1, 1, 0.5f});
+            factory_text(runtime, text, {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (!error_.empty())
             factory_text(runtime, error_, {12, 98}, 0.8f, {1, 0.4f, 0.3f});

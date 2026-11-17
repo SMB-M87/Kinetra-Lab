@@ -61,7 +61,7 @@ A deterministic batch executable is available even with `KINETRA_LAB_BUILD_RUNTI
 
 Ctrl or SETTINGS opens the modal settings panel and suspends simulation and world input.
 Resume restores the previous pause state. Launcher and Exit are available there.
-Enable Debug Mode and press backquote to open the paged debug menu.
+Enable Debug Mode and click Debu next to Settings to open the paged debug menu below the buttons.
 
 | Input | Action |
 | --- | --- |

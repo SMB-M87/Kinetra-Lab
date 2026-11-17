@@ -42,7 +42,7 @@ flowchart LR
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings zoom buttons | Adjust camera scale: 17–100 px/unit normally; 5–100 in debug |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
-| Backquote | Toggle debug menu only in Debug Mode |
+| Debu button (next to Settings) | Toggle the upper-left debug menu in Debug Mode |
 | Wheel | Zoom during gameplay only in Debug Mode |
 | Settings Launcher / Exit | Return to bundled launcher / exit the application |
 

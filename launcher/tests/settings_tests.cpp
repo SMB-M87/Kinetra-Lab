@@ -1,3 +1,4 @@
+#include "../../labs/i4sim/include/factory_settings.h"
 #include "../../labs/settings.h"
 #include <iostream>
 #include <stdexcept>
@@ -7,9 +8,36 @@ void require(bool condition, const char *message) {
     if (!condition)
         throw std::runtime_error(message);
 }
+template <typename Settings> void debug_button_regression() {
+    Settings settings;
+    kinetra::Camera2D camera;
+    camera.viewport = {160, 120};
+    kinetra::DebugMenu menu;
+    bool enabled = false;
+    std::array<kinetra::DebugOption, 1> options{{{"TEST", &enabled}}};
+    kinetra::Input input;
+    input.clicked = input.mouse_down = true;
+    input.mouse = {80, 12};
+    require(settings.update_debug(input, camera, menu, options) && menu.visible && !enabled,
+            "Debu button did not open and capture the click");
+    require(menu.origin(camera.viewport).x == 8 && menu.origin(camera.viewport).y == 32,
+            "Debug panel must leave room for the top buttons");
+    input.clicked = false;
+    require(settings.update_debug(input, camera, menu, options) && menu.visible,
+            "Holding Debu repeated the toggle");
+    input.clicked = true;
+    input.mouse = menu.origin(camera.viewport) + kinetra::Vec2{10, 28} * menu.scale(camera.viewport);
+    require(settings.update_debug(input, camera, menu, options) && enabled,
+            "Debug picking did not follow the upper-left panel");
+    input.mouse = {80, 12};
+    require(settings.update_debug(input, camera, menu, options) && !menu.visible,
+            "Debu button did not close and capture the click");
+}
 } // namespace
 int main() {
     try {
+        debug_button_regression<lab::Settings>();
+        debug_button_regression<i4sim::FactorySettings>();
         for (float controls_height : {42.f, 28.f})
             for (auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{160, 120}}) {
                 lab::Settings settings{.sim_controls_height = controls_height};
@@ -59,7 +87,7 @@ int main() {
                 const float last_sim_y = controls_height == 42 ? 184.f : 170.f;
                 require(settings.debug_toggle_y() - last_sim_y == 14,
                         "Sim controls must end one row before the debug toggle");
-                require(settings.actions_y() - (settings.debug_toggle_y() + 42) == 28,
+                require(settings.actions_y() - (settings.debug_toggle_y() + 28) == 28,
                         "Debug controls changed the spacing before launcher actions");
                 click(92, settings.debug_toggle_y());
                 require(!settings.debug_controls_visible && settings.controls_visible,

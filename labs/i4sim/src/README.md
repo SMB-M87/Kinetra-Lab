@@ -27,3 +27,5 @@ flowchart TD
 ## Contents and use
 
 `blueprint.cpp` loads and expands original JSON. `simulation.cpp` owns deterministic product/transport/production policy, footprint-aware route requests, parking approach refinement and arrival checks. See the [simulation contract](../../../docs/factory-simulation-architecture.md) for wall constraints and stalled-route handling. `session.cpp` provides the Loadscreen, interaction and rendering. `main.cpp` provides graphical and batch entry points.
+
+Motion controls briefly pause configuration and restore the previous running state. Interaction errors expire after four seconds. Statistics use the shared yellow 1.5-scale style at the bottom of the viewport. Selected mover and producer information uses the same style and left alignment directly above the statistics and follows viewport resizing.
