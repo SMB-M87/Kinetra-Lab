@@ -28,8 +28,10 @@ flowchart TD
 
 | Source | CTest name | Coverage |
 | --- | --- | --- |
-| [terrain_tests.cpp](terrain_tests.cpp) | `kinetra_terrain` | Terrain streaming, obstacles, agent lifecycle, navigation and Ghost preview isolation |
-| [sandbox_application_tests.cpp](sandbox_application_tests.cpp) | `kinetra_sandbox_application` | Pause/resume, input commands, camera/pointer ordering and reset behavior |
+| [crowd_stability_tests.cpp](crowd_stability_tests.cpp) | `kinetra_demo_crowd_123`, `kinetra_demo_crowd_456` | 240 initial agents, 60 simulated seconds per seed; rejects swept-event starvation and nonfinite motion (soak label, 180-second timeout) |
+| [contact_tests.cpp](contact_tests.cpp) | `kinetra_demo_contacts` | Slow/fast head-on elastic moving contacts at 60/120 Hz, momentum/energy conservation, transformed circle/box contacts, off-center angular momentum and resting-wall stability; circle/box/polygon thin-wall translation regressions (rotation and avoidance remain outside this guarantee) |
+| [terrain_tests.cpp](terrain_tests.cpp) | `kinetra_terrain` | Terrain streaming, crowded polygon population near the initial camera, curved seeded wandering, obstacles, agent lifecycle, navigation and Ghost preview isolation |
+| [sandbox_application_tests.cpp](sandbox_application_tests.cpp) | `kinetra_sandbox_application` | Pause/resume, input commands, camera/pointer ordering, avoidance-mode switching and reset behavior |
 | [presentation_tests.cpp](presentation_tests.cpp) | `kinetra_demo_graphics` | Help overlay placement, camera preservation, routes and OpenGL rendering |
 
 ## Build and run
@@ -38,8 +40,8 @@ Run from the repository root for the tests that need no window:
 
 ```sh
 cmake -S . -B build-headless -DKINETRA_LAB_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON
-cmake --build build-headless --target kinetra_terrain_tests kinetra_sandbox_tests --parallel
-ctest --test-dir build-headless -R '^kinetra_(terrain|sandbox_application)$' --output-on-failure
+cmake --build build-headless --target kinetra_terrain_tests kinetra_sandbox_tests kinetra_demo_crowd_tests --parallel
+ctest --test-dir build-headless -R '^kinetra_(terrain|sandbox_application|demo_crowd_123|demo_crowd_456)$' --output-on-failure
 ```
 
 For `kinetra_demo_graphics`, use a runtime build with `KINETRA_TEST_GRAPHICS=ON` and an OpenGL context as described in [Tests and resources](../../../README.md#tests-and-resources). Filter that build's CTest run with `-R '^kinetra_demo_graphics$'`.

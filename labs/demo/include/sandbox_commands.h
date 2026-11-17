@@ -5,7 +5,7 @@
 
 namespace sandbox {
 
-enum class PointerAction { walk, teleport, target_agents };
+enum class PointerAction { walk, teleport, target_agents, clear_selection };
 struct PointerCommand {
     PointerAction action{PointerAction::walk};
     kinetra::Vec2 screen_position{};
@@ -19,6 +19,7 @@ struct FrameCommands {
     float zoom_steps{};
     bool toggle_pause{}, toggle_vectors{}, toggle_gravity{}, toggle_paths{}, toggle_help{};
     bool debug{}, ghost{}, probes{};
+    bool reciprocal_avoidance{true};
     std::optional<PointerCommand> pointer;
 };
 

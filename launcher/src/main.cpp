@@ -1,4 +1,5 @@
 #include "../include/session.h"
+#include "../../labs/demo/include/session.h"
 #include <cstdlib>
 #include <iostream>
 #include <kinetra/engine.h>
@@ -21,7 +22,7 @@ int argument(const char *value, int minimum, int maximum) {
 
 int main(int argc, char **argv) {
     try {
-        int count = 0, frame_limit = 0;
+        int count = sandbox::default_agent_count, frame_limit = 0;
         std::optional<launcher::Variant> initial_variant;
         auto difficulty = logic::Difficulty::medium;
         for (int i = 1; i < argc; ++i) {

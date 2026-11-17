@@ -74,15 +74,15 @@ class Agent {
     }
 
   private:
-    /// Sample forward-biased destinations around the current pose, accepting only
-    /// reachable routes. Bounded attempts and retries avoid spinning in enclosed terrain.
+    /// Evolve a seeded heading through short reachable legs. Bounded steering
+    /// acceleration smooths changing targets into curves. Bounded attempts and retries
+    /// avoid spinning in enclosed terrain.
     void choose_wander_goal(const kinetra::Body &body, const kinetra::Navigation &navigation) {
         route_.clear();
-        const float heading =
-            kinetra::length(body.velocity) > 0.2f ? std::atan2(body.velocity.y, body.velocity.x) : heading_;
+        const float heading = heading_;
         for (int attempt = 0; attempt < 12; ++attempt) {
-            const float turn = (unit() * 2 - 1) * (attempt < 6 ? 1.8f : 3.14159265f);
-            const float distance = 5 + unit() * 11;
+            const float turn = (unit() * 2 - 1) * (attempt < 6 ? 0.7f : 3.14159265f);
+            const float distance = 4 + unit() * 4;
             auto candidate = body.position + kinetra::rotated({distance, 0}, heading + turn);
             auto path = navigation.path(body.position, candidate);
             if (path.empty() || kinetra::length(path.back() - body.position) < 2)
@@ -90,7 +90,7 @@ class Agent {
             goal_ = path.back();
             route_ = std::move(path);
             heading_ = heading + turn;
-            wander_remaining_ = 10 + unit() * 8;
+            wander_remaining_ = 0.8f + unit() * 0.8f;
             break;
         }
         if (route_.empty()) {

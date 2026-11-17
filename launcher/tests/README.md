@@ -30,7 +30,7 @@ flowchart TD
 | --- | --- | --- |
 | [settings_tests.cpp](settings_tests.cpp) | `kinetra_settings` | Modal input capture, zoom bounds, toggles, navigation and resized picking without a graphics context |
 | [menu_tests.cpp](menu_tests.cpp) | `kinetra_menu` | Keyboard selection, Dotio difficulty, resized mouse picking, cancellation and difficulty parsing |
-| [runtime_tests.cpp](runtime_tests.cpp) | `kinetra_graphics` | Rendering, settings pause/resume, normal/debug wheel gating and settings-driven navigation |
+| [runtime_tests.cpp](runtime_tests.cpp) | `kinetra_graphics` | Rendering, settings pause/resume, normal/debug full DEBUG labels, default Demo/i4sim visual layers, wheel gating and settings-driven navigation |
 
 ## Build and run
 

@@ -63,7 +63,19 @@ int main() {
         require(statistics_pixels() != before_motion, "Running Motion edit did not update statistics");
         click_row(5); // Speed - restores the initial speed.
         require(statistics_pixels() == before_motion, "Inverse Motion edit did not restore speed");
-        for (unsigned row = 1; row <= 12; ++row) {
+        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        require(statistics_pixels() != before_motion, "Reciprocal profile did not expose avoidance limits");
+        click_row(1);
+        require(statistics_pixels() == before_motion, "Profile cycle did not restore Improved");
+        click_row(13); // Parking traffic is appended without moving existing controls.
+        require(statistics_pixels() != before_motion, "Parking traffic did not expose wait statistics");
+        click_row(13);
+        require(statistics_pixels() == before_motion, "Parking traffic did not restore disabled statistics");
+        click_row(14);
+        require(statistics_pixels() != before_motion, "Junction traffic did not expose wait statistics");
+        click_row(14);
+        require(statistics_pixels() == before_motion, "Junction traffic did not clear disabled statistics");
+        for (unsigned row = 1; row <= 14; ++row) {
             click_row(row);
             require(session->title().find("RUNNING") != std::string::npos,
                     "Motion edit did not preserve running state");
@@ -145,6 +157,41 @@ int main() {
                 "Repaired catalog did not load its blueprint");
         session->render(runtime);
         require(glGetError() == GL_NO_ERROR, "Catalog recovery rendering produced an OpenGL error");
+        const auto crossing_file = std::filesystem::path(__FILE__).parent_path() / "junction-crossing.json";
+        session = i4sim::create_session(42, repaired_catalog, crossing_file);
+        session->render(runtime);
+        session->advance(0, debug_menu, runtime.camera);
+        click_row(0);
+        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        click_row(14);
+        session->advance(0, debug_menu, runtime.camera);
+        Input no_workload;
+        no_workload.pressed[std::size_t(Key::g)] = true;
+        session->advance(0, no_workload, runtime.camera);
+        for (int i = 0; i < 2; ++i) {
+            Input select;
+            select.clicked = true;
+            select.mouse = runtime.camera.world_to_screen(i == 0 ? Vec2{300, -700} : Vec2{700, -300});
+            session->advance(0, select, runtime.camera);
+            select.held[std::size_t(Key::shift)] = true;
+            select.mouse = runtime.camera.world_to_screen(i == 0 ? Vec2{1100, -700} : Vec2{700, -1100});
+            session->advance(0, select, runtime.camera);
+        }
+        session->advance(0, run, runtime.camera);
+        for (int frame = 0; frame < 60; ++frame) {
+            session->advance(0.02, {}, runtime.camera);
+            session->render(runtime);
+        }
+        glFinish();
+        std::vector<unsigned char> crossing_pixels(640 * 480 * 3);
+        glReadBuffer(GL_FRONT);
+        glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+        unsigned cyan = 0;
+        for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
+            if (crossing_pixels[i] < 30 && crossing_pixels[i + 1] > 180 && crossing_pixels[i + 2] > 240)
+                ++cyan;
+        require(cyan > 100 && session->title().find("RUNNING") != std::string::npos &&
+                    glGetError() == GL_NO_ERROR, "Actual crossing/zone rendering failed");
         std::cout << "PASS loadscreen, simulation overlays, input and session lifecycle\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';

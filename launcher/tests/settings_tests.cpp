@@ -19,19 +19,19 @@ template <typename Settings> void debug_button_regression() {
     input.clicked = input.mouse_down = true;
     input.mouse = {80, 12};
     require(settings.update_debug(input, camera, menu, options) && menu.visible && !enabled,
-            "Debu button did not open and capture the click");
+            "Debug button did not open and capture the click");
     require(menu.origin(camera.viewport).x == 8 && menu.origin(camera.viewport).y == 32,
             "Debug panel must leave room for the top buttons");
     input.clicked = false;
     require(settings.update_debug(input, camera, menu, options) && menu.visible,
-            "Holding Debu repeated the toggle");
+            "Holding Debug repeated the toggle");
     input.clicked = true;
     input.mouse = menu.origin(camera.viewport) + kinetra::Vec2{10, 28} * menu.scale(camera.viewport);
     require(settings.update_debug(input, camera, menu, options) && enabled,
             "Debug picking did not follow the upper-left panel");
-    input.mouse = {80, 12};
+    input.mouse = {110, 12};
     require(settings.update_debug(input, camera, menu, options) && !menu.visible,
-            "Debu button did not close and capture the click");
+            "Debug button did not close and capture the click");
 }
 } // namespace
 int main() {

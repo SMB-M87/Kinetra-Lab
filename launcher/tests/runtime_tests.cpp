@@ -1,4 +1,5 @@
 #include "../include/session.h"
+#include "../../labs/i4sim/include/factory_settings.h"
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
 #include <iostream>
@@ -10,6 +11,76 @@ namespace {
 void require(bool value, const char *message) {
     if (!value)
         throw std::runtime_error(message);
+}
+template <typename Settings> void full_debug_label(Runtime &runtime) {
+    Settings settings;
+    runtime.begin({0, 0, 0});
+    settings.draw(runtime, false, true, false);
+    runtime.end();
+    glFinish();
+    int width, height;
+    SDL_GL_GetDrawableSize(SDL_GL_GetCurrentWindow(), &width, &height);
+    unsigned char pixel[4]{};
+    auto read = [&] {
+        glReadPixels(int(98.5f * width / runtime.camera.viewport.x),
+                     height - 1 - int(8.5f * height / runtime.camera.viewport.y),
+                     1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+    };
+    glReadBuffer(GL_FRONT);
+    read();
+    if (pixel[0] < 200) {
+        glReadBuffer(GL_BACK);
+        read();
+    }
+    require(pixel[0] > 200 && pixel[1] > 200, "DEBUG button is missing its final G");
+}
+void default_debug_views() {
+    Runtime runtime("Default debug views", 640, 480);
+    auto *window = SDL_GL_GetCurrentWindow();
+    runtime.poll(false);
+    auto pixel = [&](Vec2 point) {
+        int width, height;
+        SDL_GL_GetDrawableSize(window, &width, &height);
+        std::array<unsigned char, 4> color{};
+        glReadPixels(int(point.x * width / runtime.camera.viewport.x),
+                     height - 1 - int(point.y * height / runtime.camera.viewport.y),
+                     1, 1, GL_RGBA, GL_UNSIGNED_BYTE, color.data());
+        return color;
+    };
+    for (auto variant : {launcher::Variant::demo, launcher::Variant::i4sim}) {
+        auto session = launcher::start(variant, 0, 42, runtime.camera);
+        if (variant == launcher::Variant::i4sim) {
+            Input choose;
+            choose.pressed[std::size_t(Key::enter)] = true;
+            session->advance(0, choose, runtime.camera);
+        }
+        Input menu;
+        menu.pressed[std::size_t(Key::backquote)] = true;
+        session->advance(0, menu, runtime.camera);
+        session->render(runtime);
+        glFinish();
+        const float scale = DebugMenu::scale(runtime.camera.viewport);
+        const auto checkbox = [&](int row) {
+            return Vec2{8, 32} + Vec2{12.5f, 29.5f + row * 16} * scale;
+        };
+        glReadBuffer(GL_FRONT);
+        if (pixel(checkbox(1))[0] < 150)
+            glReadBuffer(GL_BACK);
+        for (int row = 1; row <= (variant == launcher::Variant::demo ? 5 : 7); ++row) {
+            const auto color = pixel(checkbox(row));
+            require(color[0] > 150, ("Visual debug layer did not start enabled: variant " +
+                    std::to_string(int(variant)) + " row " + std::to_string(row) + " red " +
+                    std::to_string(color[0]) + " viewport " + std::to_string(runtime.camera.viewport.x)).c_str());
+        }
+        if (variant == launcher::Variant::demo) {
+            require(pixel(checkbox(8))[0] > 150, "Demo reciprocal avoidance did not start enabled");
+            for (int row : {0, 6, 7})
+                require(pixel(checkbox(row))[0] < 100, "Demo debug default changed camera, goals or gravity");
+            const auto statistics = pixel({10.5f, runtime.camera.viewport.y - 19.5f});
+            require(statistics[0] > 200 && statistics[1] > 200 && statistics[2] < 100,
+                    "Demo statistics did not start enabled");
+        }
+    }
 }
 void configure_debug(lab::Session &session, Runtime &runtime) {
     Input settings;
@@ -28,11 +99,14 @@ void settings_regression(Runtime &runtime) {
         const float initial_zoom = runtime.camera.pixels_per_unit;
         Input input;
         input.pressed[std::size_t(Key::space)] = true;
+        session->advance(0, input, runtime.camera);
+        require(session->title().find("PAUSED") == std::string::npos, "Space still pauses gameplay");
+        input = {};
         input.wheel = 2;
         session->advance(0, input, runtime.camera);
-        require(session->title().find("PAUSED") == std::string::npos &&
-                    runtime.camera.pixels_per_unit == initial_zoom,
-                "Space or normal wheel still active");
+        require(variant == launcher::Variant::demo ? runtime.camera.pixels_per_unit > initial_zoom
+                                                  : runtime.camera.pixels_per_unit == initial_zoom,
+                "Demo debug must start enabled; Dotio debug must remain opt-in");
         input = {};
         input.pressed[std::size_t(Key::control)] = true;
         session->advance(0, input, runtime.camera);
@@ -49,7 +123,8 @@ void settings_regression(Runtime &runtime) {
         click(56, 46);
         require(runtime.camera.pixels_per_unit > initial_zoom, "Settings zoom failed");
         click(50, 74);
-        click(50, 102);
+        if (variant == launcher::Variant::dotio)
+            click(50, 102);
         click(92, 134);
         layout.controls_visible = !layout.controls_visible;
         click(92, layout.debug_toggle_y());
@@ -89,6 +164,7 @@ void settings_regression(Runtime &runtime) {
 } // namespace
 int main() {
     try {
+        default_debug_views();
         Runtime reopened("Launcher integration", 160, 120);
         SDL_Event escape{};
         escape.type = SDL_KEYDOWN;
@@ -98,6 +174,8 @@ int main() {
                 "Escape still shuts down the Lab runtime");
         escape.type = SDL_KEYUP;
         require(SDL_PushEvent(&escape) == 1 && reopened.poll(false), "Cannot release Escape");
+        full_debug_label<lab::Settings>(reopened);
+        full_debug_label<i4sim::FactorySettings>(reopened);
         settings_regression(reopened);
         launcher::Menu menu;
         launcher::render_menu(reopened, menu);
@@ -141,7 +219,6 @@ int main() {
         require(session->title().find("PAUSED") == std::string::npos && reopened.camera.pixels_per_unit == 17,
                 "Returning to Demo did not create a clean session");
         session->advance(0, {}, reopened.camera);
-        configure_debug(*session, reopened);
         Input demo_debug;
         demo_debug.pressed[std::size_t(Key::backquote)] = true;
         session->advance(0, demo_debug, reopened.camera);

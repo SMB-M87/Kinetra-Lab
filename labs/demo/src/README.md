@@ -30,8 +30,8 @@ flowchart LR
 | File | Responsibility |
 | --- | --- |
 | [sandbox_application.cpp](sandbox_application.cpp) | Command, camera, pointer and fixed-update ordering |
-| [sandbox_renderer.cpp](sandbox_renderer.cpp) | World rendering, culling and application overlays |
-| [session.cpp](session.cpp) | Session adapter, bindings and debug controls |
+| [sandbox_renderer.cpp](sandbox_renderer.cpp) | World rendering with matching convex polygon fills/outlines, culling and application overlays |
+| [session.cpp](session.cpp) | Session adapter, bindings and enabled-by-default visual debug controls and reciprocal/legacy avoidance selection |
 | [main.cpp](main.cpp) | Direct executable and argument handling |
 
 ## Architecture and build

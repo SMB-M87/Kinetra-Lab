@@ -61,7 +61,7 @@ A deterministic batch executable is available even with `KINETRA_LAB_BUILD_RUNTI
 
 Ctrl or SETTINGS opens the modal settings panel and suspends simulation and world input.
 Resume restores the previous pause state. Launcher and Exit are available there.
-Enable Debug Mode and click Debu next to Settings to open the paged debug menu below the buttons.
+Debug Mode, statistics and every visual debug layer start enabled. Click DEBUG next to Settings to open the paged debug menu below the buttons.
 
 | Input | Action |
 | --- | --- |
@@ -76,7 +76,7 @@ Enable Debug Mode and click Debu next to Settings to open the paged debug menu b
 
 Debug View offers grid, heatmap, routes, force vectors, boundaries, detection and contact contours,
 pause, single tick, workload, framing and blueprint selection. Debug Motion offers Improved,
-Original Basic and experimental RVO steering, A*/heatmap A*, optional geometric route recovery,
+Original Basic, experimental RVO and experimental Reciprocal steering, A*/heatmap A*, optional geometric route recovery,
 speed, acceleration and lookahead adjustments with parameter reset (default lookahead: 32 ticks).
 Pause before changing motion configuration. Factory assignments and positions survive configuration changes; routes are rebuilt.
 
@@ -88,6 +88,33 @@ inflating each mover to a circle. Routes are reconsidered after 100 ticks withou
 along the remaining route, rather than reacting to the mover's own heatmap footprint.
 Parked and processing movers remain stationary during mover contact correction.
 Geometric route recovery remains optional and disabled by default.
+
+Reciprocal uses the shared Kinetra avoidance controller with immutable neighbor snapshots.
+It operates directly in millimeters per tick (`dt = 1`); changing UPS does not change
+its speed or acceleration settings. Fixed axis-aligned mover pairs use their exact
+summed rectangular footprint with 2 mm clearance per axis, permitting narrow gaps
+and parking departures that enclosing circles would reject.
+Improved remains the default. `AVOID LIMIT` counts movers whose reciprocal constraints
+were infeasible or whose command needed contact/border recovery in the last movement
+tick. Wall constraints and rectangular contact correction remain active; this profile
+does not guarantee collision freedom or factory throughput.
+
+Optional **DEBUG → Motion → PARKING TRAFFIC** defers automatic parking returns
+that would obstruct active routes. Movers use a staging area and resume their own
+parking goal when the route clears; `PARK WAIT` shows the number deferred. Manual
+goals take precedence. This policy is disabled by default and does not relocate
+already parked movers. It improves several measured workloads but does not provide
+general junction scheduling; see the [simulation contract](../../docs/factory-simulation-architecture.md).
+
+Optional **DEBUG → Motion → JUNCTION TRAFFIC** admits movers in FIFO order at
+isolated T/+ junctions with one-cell corridor arms. `CROSS WAIT` shows waiting movers
+and the detected junction count; cyan outlines appear with the boundary view.
+Waiting movers brake before entry, while physical occupants retain the zone until
+they leave. Goals stay intact, including manual goals. The option is disabled by
+default; open floors and adjacent junction complexes are outside this detector.
+It does not resolve blocked exits or opposing traffic in single-lane corridors.
+Use the [crossing demonstration](tests/README.md#crossing-demonstration) to compare
+the behavior visually.
 
 Contacts count new unordered mover-pair or mover-boundary contacts before correction. Duration
 counts pair/segment contact ticks, not seconds. Ongoing contact is not a new event every tick.
@@ -103,7 +130,7 @@ Units remain millimeters and ticks: maximum speed 2 mm/tick, maximum acceleratio
 
 ## Provenance and differences
 
-Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. The original checkout remains unchanged. All fourteen JSON files are bundled unchanged; their city aliases intentionally retain the original internal names. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry [engine attribution](../../external/Kinetra/I4SIM-LICENSE).
+Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. The original checkout remains unchanged. All fourteen JSON files are bundled unchanged; their city aliases intentionally retain the original internal names. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry [engine license](../../external/Kinetra/LICENSE).
 
 MQTT, Akka.NET, .NET and Win32/Direct2D are absent. Deterministic tick state transitions replace actors. The original asynchronous scheduling and pixel appearance are not reproduced exactly. The port uses safe waypoint paths and optional, explicitly enabled geometric replanning rather than unchecked Bezier curves; weighted costs use physical cell distances. Parking reservations remain owned by their original movers instead of compacting/switching between model-specific spaces. Collision counters count contact episodes; duration is reported separately, rather than reproducing the original cooldown counter. Summary JSON replaces per-tick text logs and original dump formatting. The tangent-based `RVODeadlock` translation is exposed as an experiment, not a collision-free solver. Radial-border steering is not a separate mode. See the migration guide for details; these differences prevent claiming bit-for-bit parity.
 

@@ -47,7 +47,43 @@ Kinetra never imports factory models or Lab headers. Existing `steer`/`Navigatio
 
 A fixed tick generates bounded local workload, refreshes occupancy, moves agents using a consistent neighbor snapshot, and advances products through waiting, transport, queue and processing states. Recipes retain their mover until completion. A producer reserves a bounded queue slot before transport starts. Queue heads own the processing position; other reservations wait outside it. Consecutive supported interactions retain the same station reservation. Other completed interactions release the processor and clear its approach area. Blocked producer/mover controls retain products for resumption or retry; no network services participate.
 
-Grid occupancy uses the original four-corner contributions of 4/8/16 per mover according to its size relative to a cell. The occupancy includes the querying mover itself, so high local weight alone does not trigger replanning. After 100 ticks without progress, weighted A* reconsiders the route; progress is measured along the remaining polyline rather than straight-line distance to the destination. Optional route recovery uses the existing finer geometric planner around actual bodies; it is disabled by default. Steering profiles never switch automatically. Improved prediction, original priority steering and experimental tangent/spring steering are selected explicitly. The local priority is overlap safety, predictive avoidance, then seek/arrival, followed by wall-normal velocity constraints; acceleration and speed are capped in original tick units. Lab's default lookahead is 32 ticks. Improved steering opts into exact rectangular clearance for axis-aligned mover pairs; the engine's conservative circular envelope remains the default for existing consumers. Parked/processing movers have zero prediction velocity and are fixed during mover-pair contact correction, so passing traffic cannot displace their reservations.
+Grid occupancy uses the original four-corner contributions of 4/8/16 per mover according to its size relative to a cell. The occupancy includes the querying mover itself, so high local weight alone does not trigger replanning. After 100 ticks without progress, weighted A* reconsiders the route; progress is measured along the remaining polyline rather than straight-line distance to the destination. Optional route recovery uses the existing finer geometric planner around actual bodies; it is disabled by default. Steering profiles never switch automatically. Improved prediction, original priority steering, experimental tangent/spring steering and experimental Reciprocal avoidance are selected explicitly. The local priority is overlap safety, predictive avoidance, then seek/arrival, followed by wall-normal velocity constraints; acceleration and speed are capped in original tick units. Lab's default lookahead is 32 ticks. Improved steering opts into exact rectangular clearance for axis-aligned mover pairs; the engine's conservative circular envelope remains the default for existing consumers. Parked/processing movers have zero prediction velocity and are fixed during mover-pair contact correction, so passing traffic cannot displace their reservations.
+
+Reciprocal adapts the shared [avoidance controller](../external/Kinetra/include/kinetra/avoidance.h) to millimeters per tick with `dt = 1`. It reads an immutable snapshot; parked and blocked neighbors are noncooperative. Pairs use exact fixed axis-aligned rectangular envelopes with 2 mm clearance per axis; mixed shapes in the shared controller retain enclosing circles. Improved remains the default while factory throughput and contact behavior are evaluated. The last movement tick's `AVOID LIMIT` counter includes infeasible constraints and subsequent contact/border overrides. Existing wall constraints and rectangular contact correction still apply; reciprocal feasibility alone does not certify the final command or guarantee progress.
+
+Optional `MotionSettings::parking_traffic` is application-owned parking coordination,
+independent of the steering profile and disabled by default. Before movement, an
+automatic return whose parking footprint intersects an active non-parking route
+is redirected to a free staging cell outside protected routes. Deferred movers
+retain their own parking reservation and cannot be allocated to a new product.
+The original parking goal resumes when the conflict clears. New production or
+manual goals cancel deferral; blocked departures stop protecting their route.
+Disabling the option restores deferred parking goals without teleporting bodies.
+Staging changes goals, while the existing steering and contact paths still govern
+all movement. Decisions use stable mover order and are retried each tick; waiting
+counts are exposed as `PARK WAIT`. Already parked, blocked and manually commanded
+movers are not relocated. If no staging cell is available, the existing goal and
+local avoidance remain active. This is a parking interlock, not intersection
+reservation, corridor scheduling or a guarantee against starvation/deadlock.
+
+Optional `MotionSettings::junction_traffic` detects isolated T/+ cells whose open
+cardinal neighbors are degree-two corridor cells. It uses the shared
+[`TrafficGate`](../external/Kinetra/include/kinetra/traffic.h), with one gate per
+junction and spatially indexed candidate queries. Movers request their next zone
+within a bounded route lookahead. A braking-travel check retains approaching
+requests after goal changes until coasting can no longer enter the zone. Complete physical-occupancy snapshots include
+parked and blocked movers. Non-admitted approaches get temporary stop lines enforced
+by the existing acceleration-bounded border controller; they appear noncooperative
+to reciprocal avoidance. Occupants may always exit. Goals are preserved and all
+routes are prepared before the admission snapshot when junction coordination is
+active. With no detected junctions, route preparation retains its original order.
+
+The option is off by default. `CROSS WAIT` exposes waiting movers and detected zone
+count; the boundary layer outlines detected zones. Disabling clears logical gates
+and waits without moving bodies. A stopped occupant continues blocking admission;
+there is no expiry timer. This policy does not reserve exits, solve head-on
+single-lane traffic, coordinate adjacent intersection complexes or guarantee
+progress through a permanently occupied zone.
 
 Weighted routes validate the mover's rectangular footprint on every swept link,
 including exact start and destination coordinates. Contiguous wall segments are

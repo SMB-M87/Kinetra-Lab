@@ -4,6 +4,7 @@
 
 - [Visual overview](#visual-overview)
 - [Contents and use](#contents-and-use)
+- [Crossing demonstration](#crossing-demonstration)
 - [Motion benchmark](#motion-benchmark)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
@@ -42,12 +43,44 @@ Run `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --tic
 Motion regressions cover manual reservation against factory allocation, paused single-step, all steering profiles, invalid horizons, and frontal/crossing encounters with goal completion and contact comparison. Regressions also verify that a mover does not replan due to its own heatmap footprint,
 that a valid geometric detour counts as progress, and that contact cannot displace a
 parked mover. Parking regressions depart and return beside a wall, in a corner
-and between parked neighbors under Improved and Original steering. They require
+and between parked neighbors under Improved, Original and Reciprocal steering. They require
 zero contacts (including a flush wall reservation), bounded acceleration, exact
 final reservations and no drift after arrival; footprint-invalid manual goals must
-fail. Allocation must skip a mover trapped behind blocked neighbors. Improved frontal/crossing
-encounters require zero contacts.
-Large-factory recovery is explicitly enabled in its regression.
+fail. Allocation must skip a mover trapped behind blocked neighbors. Frontal/crossing encounters under Improved
+and Reciprocal require zero contacts. Reciprocal regressions also verify
+tick-unit/UPS independence, bounded acceleration and feasible departure through a
+rectangular gap whose circular envelopes overlap,
+parked-neighbor immobility and visible profile selection/limitation statistics.
+Parking-traffic regressions replay MAS seed 42 for 50000 ticks, require at least
+15 completed products with zero contacts, preserve owned reservations and acceleration
+bounds, and exercise wait/release, blocked departures, manual replacement and
+disabling the interlock without teleportation. Graphics tests toggle the new
+Motion row and verify wait statistics. Junction regressions use a single-cell
+crossing where one uncoordinated mover remains moving after 5000 ticks; with
+admission both arrive within 1000 ticks with zero contacts, exclusive occupancy,
+bounded acceleration and unchanged goals. They also cover replay, blocked occupancy,
+resumption, disabling, all four approach orientations, a turning T-junction and
+early/late cancelled approaches. Graphics tests toggle the appended junction row
+and render an actual crossing with cyan zone outlines and manually commanded movers. Large-factory recovery is explicitly enabled
+in its regression.
+
+## Crossing demonstration
+
+[junction-crossing.json](junction-crossing.json) is the shared headless/graphics
+fixture and a manually controlled visual example, separate from the fourteen
+unchanged original blueprints:
+
+```sh
+./build/kinetra_i4sim --blueprint labs/i4sim/tests/junction-crossing.json
+```
+
+Keep the simulation paused while setting up. Disable workload with `G`, choose
+Reciprocal and enable JUNCTION TRAFFIC in DEBUG → Motion, then close the menu.
+Select the west mover and Shift-click the center of the east arm at `(1100, 700)`;
+select the north mover and Shift-click the south arm at `(700, 1100)`. Press Space.
+The cyan boundary marks the exclusive zone. Repeat with junction traffic disabled
+to observe the uncoordinated narrow-crossing failure. There are no producers in
+this fixture; goals are manual.
 
 ## Motion benchmark
 
@@ -56,9 +89,14 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 ```sh
 ./build/kinetra_i4sim_motion_benchmark > /tmp/i4sim-motion.csv
 ./build/kinetra_i4sim_motion_benchmark --recovery > /tmp/i4sim-recovery.csv
+./build/kinetra_i4sim_motion_benchmark --profile reciprocal --ticks 50000 > /tmp/i4sim-reciprocal.csv
+./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic > /tmp/i4sim-parking-traffic.csv
+./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic > /tmp/i4sim-junction-traffic.csv
 ```
 
 The bundled blueprints run for 50000 ticks each with seeds 42 and 915839214.
+`--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
+`--ticks` accepts 1 through 1000000. Recovery, parking traffic and junction traffic remain disabled unless explicitly requested.
 CSV reports completed products, contact episodes, pair/segment contact ticks,
 summed changes in commanded acceleration, and elapsed milliseconds. Acceleration
 change is a diagnostic for steering activity, not a physical jerk measurement;
@@ -84,3 +122,28 @@ runs that counted raster seams and proxy-only touching. Crowded factories still
 have physical contacts; these runs do not establish general collision freedom or
 verify desktop animation smoothness. The focused parking tests independently
 require zero contacts and exact settled reservations.
+
+Reciprocal with fixed axis-aligned rectangular envelopes, the same 50000-tick
+workloads and recovery disabled. Paired values compare parking traffic **off/on**:
+
+| Blueprint | Seed | Completed products (off/on) | Contact episodes (off/on) | Contact ticks (off/on) |
+| --- | --- | --- | --- | --- |
+| MAS-demonstrator | 42 | 10 / 15 | 0 / 0 | 0 / 0 |
+| MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 | 0 / 0 |
+| 3840x2400 | 42 | 59 / 57 | 0 / 0 | 0 / 0 |
+| 3840x2400 | 915839214 | 61 / 62 | 0 / 0 | 0 / 0 |
+| 8640x4800 | 42 | 95 / 108 | 0 / 0 | 0 / 0 |
+| 8640x4800 | 915839214 | 93 / 112 | 0 / 0 | 0 / 0 |
+
+The interlock prevents an observed MAS return from sealing another mover's
+parking departure. It improves throughput in four runs, preserves one, and reduces
+one; it is not a universal improvement. Reciprocal and parking traffic remain
+explicit options, with Improved still the default. These measurements do not
+establish general collision freedom or starvation prevention. Runtime measurements
+are omitted because other verification jobs ran concurrently.
+
+With junction traffic also enabled, the six 50000-tick benchmark outcomes match
+the parking-traffic-on column above exactly. These three factory layouts contain
+no junctions matching the intentionally narrow detector, so this is a compatibility
+check, not evidence of additional factory throughput. Crossing behavior is verified
+using the dedicated fixture and its rotated/T-junction/cancellation variants.

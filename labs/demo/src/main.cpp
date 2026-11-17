@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
         runtime.camera.pixels_per_unit = 17;
         const std::uint32_t seed = std::random_device{}();
         std::cout << "World seed: " << seed << '\n';
-        auto session = sandbox::create_session(0, seed);
+        auto session = sandbox::create_session(sandbox::default_agent_count, seed);
         kinetra::run_session(runtime, *session, frames);
     } catch (const std::exception &error) {
         std::cerr << "Demo: " << error.what() << '\n';

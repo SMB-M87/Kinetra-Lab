@@ -5,21 +5,60 @@
 int main(int argc, char **argv) {
     try {
         using namespace i4sim;
-        if (argc > 2 || (argc == 2 && std::string(argv[1]) != "--recovery"))
-            throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery]");
+        bool recovery = false, parking_traffic = false, junction_traffic = false;
+        auto profile = SteeringProfile::improved;
+        std::uint64_t ticks = 50000;
+        for (int i = 1; i < argc; ++i) {
+            const std::string option = argv[i];
+            if (option == "--junction-traffic") {
+                junction_traffic = true;
+                continue;
+            }
+            if (option == "--parking-traffic") {
+                parking_traffic = true;
+                continue;
+            }
+            if (option == "--recovery") {
+                recovery = true;
+                continue;
+            }
+            if (i + 1 >= argc)
+                throw std::invalid_argument("Missing benchmark argument for " + option);
+            const std::string value = argv[++i];
+            if (option == "--profile") {
+                if (value == "improved") profile = SteeringProfile::improved;
+                else if (value == "original") profile = SteeringProfile::original;
+                else if (value == "rvo") profile = SteeringProfile::experimental_rvo;
+                else if (value == "reciprocal") profile = SteeringProfile::reciprocal;
+                else throw std::invalid_argument("Unknown steering profile: " + value);
+            } else if (option == "--ticks") {
+                std::size_t used{};
+                if (value.empty() || value.front() == '-')
+                    throw std::invalid_argument("Ticks must be in 1..1000000");
+                ticks = std::stoull(value, &used);
+                if (used != value.size() || ticks == 0 || ticks > 1000000)
+                    throw std::invalid_argument("Ticks must be in 1..1000000");
+            } else {
+                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] [--parking-traffic] [--junction-traffic] "
+                                            "[--profile improved|original|rvo|reciprocal] [--ticks N]");
+            }
+        }
         std::cout << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,elapsed_ms\n";
         for (const char *name : {"MAS-demonstrator", "3840x2400", "8640x4800"}) {
             for (unsigned seed : {42u, 915839214u}) {
                 Simulation simulation(load_blueprint(default_blueprint_directory() /
                                                      (std::string(name) + ".json")), seed);
                 auto settings = simulation.motion_settings();
-                settings.recovery = argc == 2;
+                settings.recovery = recovery;
+                settings.parking_traffic = parking_traffic;
+                settings.junction_traffic = junction_traffic;
+                settings.profile = profile;
                 simulation.configure_motion(settings);
                 simulation.paused = false;
                 double acceleration_change = 0;
                 const auto started = std::chrono::steady_clock::now();
                 std::vector<Vec2> previous(simulation.movers().size());
-                for (int tick = 0; tick < 50000; ++tick) {
+                for (std::uint64_t tick = 0; tick < ticks && !simulation.paused; ++tick) {
                     simulation.tick();
                     for (std::size_t i = 0; i < previous.size(); ++i) {
                         const auto acceleration = simulation.movers()[i].body.acceleration;

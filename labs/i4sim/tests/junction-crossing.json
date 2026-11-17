@@ -1,0 +1,19 @@
+{
+  "name": "Junction crossing (manual)",
+  "tickCap": 100000,
+  "dimension": {"x": 1400, "y": 1400},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 155,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "west", "model": "APM4220", "position": {"x": 243.5, "y": 643.5}},
+    {"id": "north", "model": "APM4220", "position": {"x": 643.5, "y": 243.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": [
+    {"id": "northwest", "position": {"x": 0, "y": 0}, "dimension": {"x": 600, "y": 600}},
+    {"id": "northeast", "position": {"x": 800, "y": 0}, "dimension": {"x": 600, "y": 600}},
+    {"id": "southwest", "position": {"x": 0, "y": 800}, "dimension": {"x": 600, "y": 600}},
+    {"id": "southeast", "position": {"x": 800, "y": 800}, "dimension": {"x": 600, "y": 600}}
+  ]
+}

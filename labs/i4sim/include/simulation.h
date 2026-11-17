@@ -3,16 +3,17 @@
 #include <deque>
 #include <kinetra/steering.h>
 #include <kinetra/timing.h>
+#include <kinetra/traffic.h>
 #include <kinetra/weighted_grid.h>
 #include <optional>
 #include <random>
 #include <set>
 
 namespace i4sim {
-enum class SteeringProfile { improved, original, experimental_rvo };
+enum class SteeringProfile { improved, original, experimental_rvo, reciprocal };
 struct MotionSettings {
     SteeringProfile profile{SteeringProfile::improved};
-    bool heatmap{true}, recovery{};
+    bool heatmap{true}, recovery{}, parking_traffic{}, junction_traffic{};
     float speed{2}, force{0.6f}, horizon{32};
 };
 enum class ProductKind { trimmer, personalized };
@@ -31,7 +32,7 @@ struct Mover {
     unsigned stalled{}, replan{}, no_progress{};
     float best_remaining{};
     unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{};
+    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{};
 };
 struct Producer {
     ProducerDefinition definition;
@@ -65,6 +66,13 @@ class Simulation {
     std::uint64_t ticks() const { return ticks_; }
     std::uint64_t completed() const { return completed_; }
     std::uint64_t collisions() const { return collisions_; }
+    /// Movers with infeasible reciprocal constraints or overridden avoidance in the last movement tick.
+    std::size_t avoidance_limited() const { return avoidance_limited_; }
+    /// Automatic parking returns temporarily staged outside active departure routes.
+    std::size_t parking_waiting() const;
+    std::size_t junction_count() const { return junctions_.size(); }
+    Vec2 junction_center(std::size_t index) const { return junctions_.at(index).center; }
+    std::size_t junction_waiting() const;
     const MotionSettings &motion_settings() const { return motion_; }
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return contact_ticks_; }
@@ -82,11 +90,19 @@ class Simulation {
     void dump(const std::filesystem::path &directory) const;
 
   private:
+    struct Junction {
+        Vec2 center;
+        kinetra::TrafficGate gate;
+    };
+    std::vector<Junction> junctions_;
+    std::vector<std::optional<kinetra::Segment>> junction_stops_;
     MotionSettings motion_;
+    std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{};
     Blueprint blueprint_;
     kinetra::WeightedGrid grid_;
+    kinetra::SpatialGrid junction_index_;
     std::vector<kinetra::Segment> borders_;
     std::vector<Mover> movers_;
     std::vector<Producer> producers_;
@@ -98,6 +114,10 @@ class Simulation {
     std::vector<Vec2> plan_route(const Mover &mover, Vec2 destination, bool require_departure = false) const;
     void set_goal(Mover &mover, Vec2 destination);
     Vec2 holding_position(const Mover &mover, Vec2 destination) const;
+    bool parking_conflict(const Mover &mover, Vec2 position) const;
+    void coordinate_parking();
+    bool prepare_route(Mover &mover);
+    void coordinate_junctions();
     void update_heatmap();
     void schedule(Product &product);
     void recover_route(Mover &mover);

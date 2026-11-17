@@ -37,6 +37,9 @@ void SandboxApplication::update_camera(double elapsed, const FrameCommands &comm
 void SandboxApplication::apply_pointer(const PointerCommand &command, const kinetra::Camera2D &camera) {
     const auto destination = camera.screen_to_world(command.screen_position);
     switch (command.action) {
+    case PointerAction::clear_selection:
+        scene_.selected_agent.reset();
+        break;
     case PointerAction::teleport:
         last_action_ =
             scene_.teleport(destination) ? ActionResult::teleported : ActionResult::teleport_blocked;
@@ -54,6 +57,7 @@ void SandboxApplication::apply_pointer(const PointerCommand &command, const kine
 }
 
 void SandboxApplication::advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
+    scene_.reciprocal_avoidance = commands.reciprocal_avoidance;
     apply_actions(commands);
     scene_.following = !(commands.debug && commands.ghost);
     update_camera(elapsed, commands, camera);
@@ -61,7 +65,7 @@ void SandboxApplication::advance(double elapsed, const FrameCommands &commands, 
     if (commands.pointer &&
         (commands.pointer->action != PointerAction::teleport || (commands.debug && commands.ghost))) {
         auto pointer = *commands.pointer;
-        if (commands.debug && commands.ghost)
+        if (commands.debug && commands.ghost && pointer.action != PointerAction::clear_selection)
             pointer.action = PointerAction::teleport;
         apply_pointer(pointer, camera);
         scene_.follow(camera);

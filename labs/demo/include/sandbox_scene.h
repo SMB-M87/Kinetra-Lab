@@ -3,6 +3,7 @@
 #include "agent.h"
 #include "player_control.h"
 #include "terrain.h"
+#include <kinetra/avoidance.h>
 #include <kinetra/camera.h>
 #include <kinetra/steering.h>
 #include <optional>
@@ -20,6 +21,8 @@ class Sandbox {
     kinetra::Navigation navigation;
     std::size_t moving_body_count{};
     std::size_t player{};
+    bool reciprocal_avoidance{true};
+    std::size_t avoidance_limited{};
     std::vector<Vec2> player_path;
     std::optional<Vec2> player_goal;
     std::optional<Vec2> selected_agent;
@@ -40,7 +43,7 @@ class Sandbox {
             bool placed = false;
             for (int attempt = 0; attempt < 1000 && !placed; ++attempt) {
                 const auto unit = [&]() { return float(random() >> 8) / 16777216.f; };
-                const Vec2 position{-90 + unit() * 180, -90 + unit() * 180};
+                const Vec2 position{-36 + unit() * 72, -42 + unit() * 48};
                 placed = spawn(position, spawn_terrain.chunks());
             }
             if (!placed)
@@ -55,7 +58,10 @@ class Sandbox {
         player = world.add(b);
         for (int i = 0; i < 6; ++i) {
             Body ball;
-            ball.shape = i % 2 ? Shape::circle : Shape::box;
+            if (i >= 2)
+                ball = regular_polygon(i == 2 ? 3 : i == 3 ? 5 : 6, 0.5f);
+            else
+                ball.shape = i % 2 ? Shape::circle : Shape::box;
             ball.position = {-22.f + i * 8, 16};
             ball.velocity = {i % 2 ? -4.f : 4.f, -1};
             ball.angle = 0.35f * i;
@@ -65,8 +71,8 @@ class Sandbox {
         }
         moving_body_count = world.bodies().size();
         // Initial agents already populate these chunks; exploration adds agents elsewhere.
-        for (int y = -3; count > 0 && y <= 2; ++y)
-            for (int x = -3; x <= 2; ++x)
+        for (int y = -2; count > 0 && y <= 0; ++y)
+            for (int x = -2; x <= 1; ++x)
                 populated_.emplace(x, y);
     }
 
@@ -141,7 +147,7 @@ class Sandbox {
                     world.add(body);
             }
             added = true;
-            for (int attempt = 0, made = 0; attempt < 40 && made < 3 && agents_.size() < maximum_agents;
+            for (int attempt = 0, made = 0; attempt < 160 && made < 12 && agents_.size() < maximum_agents;
                  ++attempt) {
                 const auto unit = [&]() { return float(random() >> 8) / 16777216.f; };
                 if (spawn(corner + Vec2{2 + unit() * 28, 2 + unit() * 28}, terrain.chunks()))
@@ -231,26 +237,66 @@ class Sandbox {
     /// Apply player intent and active-agent steering for one fixed tick; sleeping
     /// agents remain collision obstacles and regain their exact state after physics.
     void update(float dt, const PlayerControl &control) {
-        std::vector<Aabb> boxes;
-        for (std::size_t id = 0; id < moving_body_count; ++id)
-            boxes.push_back(bounds(world.body(id)));
-        SpatialGrid neighbors(4);
-        neighbors.rebuild(boxes);
+        avoidance_limited = 0;
         Steering steering;
         steering.max_speed = 4;
         steering.lookahead = 0.8f;
         steering.slow_radius = 1;
         steering.stop_radius = 0.08f;
         steering.clearance = 0.05f;
+        std::vector<Body> snapshot(world.bodies().begin(), world.bodies().begin() + moving_body_count);
+        std::vector<bool> cooperative(moving_body_count, false);
+        for (const auto &agent : agents_) {
+            cooperative[agent.body_id()] = agent.active();
+            if (!agent.active()) {
+                auto &body = snapshot[agent.body_id()];
+                body.motion = Motion::fixed;
+                body.velocity = {};
+                body.angular_velocity = 0;
+            }
+        }
+        std::vector<Aabb> boxes;
+        float largest_radius = 0;
+        float largest_speed = steering.max_speed;
+        for (std::size_t id = 0; id < moving_body_count; ++id) {
+            boxes.push_back(bounds(snapshot[id]));
+            largest_radius = std::max(largest_radius, bounding_radius(snapshot[id]));
+            largest_speed = std::max(largest_speed, length(snapshot[id].velocity));
+        }
+        SpatialGrid neighbors(4);
+        neighbors.rebuild(boxes);
+        AvoidanceSettings avoidance;
+        avoidance.max_speed = steering.max_speed;
+        avoidance.max_acceleration = steering.max_acceleration;
+        avoidance.clearance = steering.clearance;
         const auto acceleration = [&](std::size_t id, Vec2 target) {
-            const auto &body = world.body(id);
+            const auto &body = snapshot[id];
             std::vector<Body> obstacles;
-            const Vec2 reach{6, 6};
+            std::vector<AvoidanceAgent> agents;
+            const bool reciprocal = reciprocal_avoidance && id != player;
+            const float range = reciprocal ? bounding_radius(body) + largest_radius +
+                                                 (avoidance.max_speed + largest_speed) * avoidance.horizon : 6.f;
+            const Vec2 reach{range, range};
             for (auto other : neighbors.query({body.position - reach, body.position + reach}))
                 // Terrain clearance is handled by the swept route. Local avoidance
                 // handles movers without fighting planned static-obstacle corners.
-                if (other != id && other < moving_body_count)
-                    obstacles.push_back(world.body(other));
+                if (other != id && other < moving_body_count) {
+                    if (reciprocal) {
+                        const auto &neighbor = snapshot[other];
+                        agents.push_back({other, neighbor.position, neighbor.velocity,
+                                          bounding_radius(neighbor), cooperative[other]});
+                    } else {
+                        obstacles.push_back(snapshot[other]);
+                    }
+                }
+            if (reciprocal) {
+                const auto preferred = body.velocity + steer(body, target, {}, steering) * steering.response_time;
+                const auto result = avoid_collisions({id, body.position, body.velocity, bounding_radius(body)},
+                                                       preferred, agents, dt, avoidance);
+                if (!result.feasible)
+                    ++avoidance_limited;
+                return result.acceleration;
+            }
             auto settings = steering;
             if (id != player) {
                 settings.separation_radius = 1.6f;
@@ -314,12 +360,17 @@ class Sandbox {
 
     /// Reject overlapping spawn candidates, including the reserved player/passive area.
     bool spawn(Vec2 position, const Terrain::Chunks &chunks) {
-        if (std::abs(position.x) < 30 && std::abs(position.y) < 20)
+        if (distance(position, {0, -18}) < 3 ||
+            (position.x > -24 && position.x < 20 && std::abs(position.y - 16) < 2))
             return false;
         Body b;
+        const auto variant = agents_.size() % 5;
+        if (variant >= 2)
+            b = regular_polygon(variant == 2 ? 3 : variant == 3 ? 5 : 6, 0.32f);
         b.position = position;
         b.motion = Motion::controlled;
-        b.shape = agents_.size() % 3 == 0 ? Shape::box : Shape::circle;
+        if (variant < 2)
+            b.shape = variant == 0 ? Shape::box : Shape::circle;
         b.motion = agents_.size() % 4 == 0 ? Motion::dynamic : Motion::controlled;
         b.half_extents = {0.4f, 0.25f};
         b.radius = 0.32f;

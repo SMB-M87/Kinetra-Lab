@@ -66,7 +66,7 @@ Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header;
 | **Dotio** | ![Dotio survival gameplay and player HUD](docs/media/dotio.png) | ![Dotio with AI states, paths, probes and collision shapes](docs/media/dotio-debug.png) |
 | **i4sim** | ![i4sim factory simulation](docs/media/i4sim.png) | ![i4sim factory simulation with debug mode enabled](docs/media/i4sim-debug.png) |
 
-Debug layers are optional; enable Debug Mode in settings and open the menu with Backquote. See the [Dotio settings screenshot](docs/media/dotio-settings.png) and [media guide](docs/media/README.md) for capture details.
+Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps debug opt-in. Open the menu with the DEBUG button or Backquote and toggle layers as needed. See the [Dotio settings screenshot](docs/media/dotio-settings.png) and [media guide](docs/media/README.md) for capture details.
 
 ## Quick start
 

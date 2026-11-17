@@ -13,6 +13,11 @@ void require(bool value, const char *message) {
 
 // Compare all generated shape/material fields rather than object padding bytes.
 bool same(const Body &a, const Body &b) {
+    if (a.vertices.size() != b.vertices.size())
+        return false;
+    for (std::size_t i = 0; i < a.vertices.size(); ++i)
+        if (length(a.vertices[i] - b.vertices[i]) != 0)
+            return false;
     return a.shape == b.shape && a.motion == b.motion && a.position.x == b.position.x &&
            a.position.y == b.position.y && a.half_extents.x == b.half_extents.x &&
            a.half_extents.y == b.half_extents.y && a.radius == b.radius && a.angle == b.angle &&
@@ -254,6 +259,58 @@ void random_wander() {
     enclosed.advance_navigation(1.f / 120, body, nav);
     require(enclosed.route().empty() && enclosed.replan_in() == 2,
             "Enclosed wander must wait between bounded planning attempts");
+}
+
+void curved_wander() {
+    Navigation navigation;
+    navigation.rebuild({{-100, -100}, {100, 100}}, {});
+    sandbox::Agent agent(0, {}, 123);
+    Body body;
+    body.motion = Motion::controlled;
+    agent.update_visibility({{-100, -100}, {100, 100}}, body);
+    Vec2 previous_direction{}, previous_goal{};
+    float total_turn = 0;
+    int early_goal_changes = 0;
+    Steering settings;
+    settings.max_speed = 4;
+    for (int tick = 0; tick < 960; ++tick) {
+        const float previous_distance = length(agent.goal() - body.position);
+        const auto target = agent.advance_navigation(1.f / 120, body, navigation);
+        if (tick > 0 && length(agent.goal() - previous_goal) > 0.1f && previous_distance > 2)
+            ++early_goal_changes;
+        previous_goal = agent.goal();
+        body.acceleration = steer(body, target, {}, settings);
+        integrate(body, 1.f / 120);
+        const auto direction = normalized(body.velocity);
+        if (length(body.velocity) > 1 && length(previous_direction) > 0)
+            total_turn += std::abs(std::atan2(cross(previous_direction, direction), dot(previous_direction, direction)));
+        previous_direction = direction;
+    }
+    require(early_goal_changes >= 3 && total_turn > 0.5f,
+            "Wander stayed on long straight legs instead of curving before arrival");
+    agent.retarget({80, 80});
+    for (int tick = 0; tick < 360; ++tick)
+        agent.advance_navigation(1.f / 120, body, navigation);
+    require(!agent.wandering() && length(agent.goal() - Vec2{80, 80}) < 0.001f,
+            "Short wander timers interrupted commanded travel");
+}
+
+void crowded_population() {
+    sandbox::Sandbox scene(240, 42);
+    require(scene.agents().size() == 240, "Crowded initial population was not created");
+    Camera2D camera;
+    camera.viewport = {1280, 800};
+    camera.pixels_per_unit = 17;
+    camera.position = scene.world.body(scene.player).position;
+    scene.stream(camera);
+    std::size_t visible = 0;
+    for (const auto &agent : scene.agents()) {
+        const auto &body = scene.world.body(agent.body_id());
+        if (scene.view.overlaps(bounds(body)))
+            ++visible;
+        require(!collide(body, scene.world.body(scene.player)), "Crowded spawn overlaps player");
+    }
+    require(visible >= 200, "Crowded population is not visible near the initial camera");
 }
 
 void navigation_and_controls() {
@@ -540,7 +597,7 @@ void population_lifecycle() {
         require(same(body, repeat.world.body(repeat.agents()[i].body_id())),
                 "Population seed not repeatable");
         changed = changed || !same(body, different.world.body(different.agents()[i].body_id()));
-        spread = spread || length(body.position) > 60;
+        spread = spread || length(body.position - Vec2{0, -18}) > 25;
         for (std::size_t j = 0; j < i; ++j)
             require(!collide(body, scene.world.body(scene.agents()[j].body_id())), "Spawned agents overlap");
     }
@@ -595,11 +652,22 @@ void selection_and_command_timeout() {
 
 int main() {
     try {
+        sandbox::Sandbox shape_scene(10, 42);
+        std::set<std::size_t> polygon_sides;
+        for (const auto &agent : shape_scene.agents()) {
+            const auto &body = shape_scene.world.body(agent.body_id());
+            validate(body);
+            if (body.shape == Shape::polygon)
+                polygon_sides.insert(body.vertices.size());
+        }
+        require(polygon_sides == std::set<std::size_t>{3, 5, 6}, "Demo population lacks polygon variants");
         terrain_lifecycle();
         obstacle_contracts();
         scene_streaming();
         agent_lifecycle();
         random_wander();
+        curved_wander();
+        crowded_population();
         agent_navigation_contracts();
         navigation_and_controls();
         contact_navigation_recovery();

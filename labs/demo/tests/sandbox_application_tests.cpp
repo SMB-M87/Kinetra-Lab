@@ -1,5 +1,6 @@
 #include "../include/sandbox_application.h"
 #include "../include/sandbox_input.h"
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 
@@ -14,6 +15,24 @@ void require(bool value, const char *message) {
 Vec2 player_position(const SandboxApplication &application) {
     const auto &scene = application.scene();
     return scene.world.body(scene.player).position;
+}
+
+void avoidance_mode() {
+    SandboxApplication application(10, 42);
+    Camera2D camera;
+    FrameCommands commands;
+    application.advance(1.0 / 120, commands, camera);
+    require(application.scene().reciprocal_avoidance, "Reciprocal avoidance did not start enabled");
+    const auto count = application.scene().agents().size();
+    const auto before = player_position(application);
+    commands.reciprocal_avoidance = false;
+    application.advance(0, commands, camera);
+    require(!application.scene().reciprocal_avoidance && application.scene().agents().size() == count &&
+                length(before - player_position(application)) == 0,
+            "Switching avoidance mode reset or advanced the scene");
+    commands.reciprocal_avoidance = true;
+    application.advance(0, commands, camera);
+    require(application.scene().reciprocal_avoidance, "Could not restore reciprocal avoidance");
 }
 
 void pause_and_resume() {
@@ -114,6 +133,32 @@ void pointer_results_and_reset() {
             "Teleport before reset failed");
 }
 
+void right_click_clears_selection_in_ghost_mode() {
+    SandboxApplication application(6, 42);
+    Camera2D camera;
+    application.advance(0, {}, camera);
+    const auto &scene = application.scene();
+    const auto agent = std::find_if(scene.agents().begin(), scene.agents().end(),
+                                    [](const auto &candidate) { return candidate.active(); });
+    require(agent != scene.agents().end(), "Missing active agent for selection test");
+    Input input;
+    input.clicked = true;
+    input.mouse = camera.world_to_screen(scene.world.body(agent->body_id()).position);
+    application.advance(0, read_commands(input), camera);
+    require(scene.selected_agent.has_value(), "Left click did not select an agent");
+
+    const auto start = player_position(application);
+    input.clicked = false;
+    input.right_clicked = true;
+    input.mouse = camera.world_to_screen({12, 0});
+    auto commands = read_commands(input);
+    commands.debug = commands.ghost = true;
+    application.advance(0, commands, camera);
+    require(!scene.selected_agent && length(player_position(application) - start) == 0 &&
+                application.last_action() == ActionResult::none,
+            "Right click must clear the selection without teleporting the player");
+}
+
 void held_rotation_cancels_navigation() {
     Sandbox scene(0, 42);
     scene.stream(Camera2D{});
@@ -163,9 +208,11 @@ void input_commands() {
 int main() {
     try {
         input_commands();
+        avoidance_mode();
         pause_and_resume();
         camera_and_pointer_order();
         pointer_results_and_reset();
+        right_click_clears_selection_in_ghost_mode();
         held_rotation_cancels_navigation();
         std::cout << "PASS sandbox application pause, camera, commands, reset and player intent\n";
     } catch (const std::exception &error) {

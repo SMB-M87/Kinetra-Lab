@@ -23,10 +23,15 @@ void draw_body(Runtime &runtime, const Body &body, bool is_player, const Present
         color = {0.55f, 1.f, 0.35f};
     if (body.shape == Shape::circle)
         runtime.circle(body.position, body.radius, color);
-    else
+    else if (body.shape == Shape::polygon) {
+        std::vector<Vec2> vertices;
+        for (auto vertex : body.vertices)
+            vertices.push_back(body.position + rotated(vertex, body.angle));
+        runtime.polygon(vertices, color);
+    } else
         runtime.box(body.position, body.half_extents, body.angle, color);
     if (body.motion != Motion::fixed) {
-        const float size = body.shape == Shape::circle ? body.radius : body.half_extents.x;
+        const float size = local_extents(body).x;
         runtime.line(body.position, body.position + rotated({size, 0}, body.angle), 0.05f,
                      {0.03f, 0.08f, 0.1f});
         if (options.vectors)
@@ -83,7 +88,12 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
         if (collisions) {
             if (body.shape == Shape::circle)
                 draw_debug_circle(runtime, body.position, body.radius, {1, 0.4f, 0.4f});
-            else
+            else if (body.shape == Shape::polygon) {
+                for (std::size_t i = 0; i < body.vertices.size(); ++i)
+                    runtime.line(body.position + rotated(body.vertices[i], body.angle),
+                                 body.position + rotated(body.vertices[(i + 1) % body.vertices.size()], body.angle),
+                                 1.f / runtime.camera.pixels_per_unit, {1, 0.4f, 0.4f});
+            } else
                 draw_debug_box(runtime, body.position, body.half_extents, body.angle, {1, 0.4f, 0.4f});
         }
         ++id;
@@ -121,7 +131,12 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
                                           [](const auto &agent) { return agent.active(); });
         const auto text = "FPS " + std::to_string(int(fps)) + " AGENTS " + std::to_string(active) + "/" +
                           std::to_string(scene.agents().size()) + " CHUNKS " +
-                          std::to_string(scene.terrain.chunks().size());
+                          std::to_string(scene.terrain.chunks().size()) +
+                          (scene.reciprocal_avoidance ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited)
+                                                      : " AVOID LEGACY");
+        const float width = std::min(runtime.camera.viewport.x, 20.f + float(text.size()) * 9);
+        runtime.box(runtime.camera.screen_to_world({width / 2, runtime.camera.viewport.y - 15}),
+                    Vec2{width / 2, 13} / runtime.camera.pixels_per_unit, 0, {0.025f, 0.035f, 0.06f});
         draw_text(runtime, text, {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
     }
     if (menu)
@@ -137,7 +152,8 @@ std::string window_title(const SandboxApplication &application) {
            (application.paused() ? "PAUSED" : "running") + " | " +
            std::to_string(scene.terrain.chunks().size()) + " chunks | " +
            (scene.following ? "camera FOLLOW" : "camera FREE") + " | paths " +
-           (application.presentation().paths ? "ON" : "OFF") + " | " +
+           (application.presentation().paths ? "ON" : "OFF") +
+           (scene.reciprocal_avoidance ? " | avoidance RECIPROCAL | " : " | avoidance LEGACY | ") +
            std::string(action_text(application.last_action())) +
            " | WASD/arrows move, ghost camera and layers in debug menu, CTRL settings";
 }

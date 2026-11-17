@@ -8,20 +8,23 @@ using lab::Session;
 class DemoSession final : public Session {
     sandbox::SandboxApplication application_;
     kinetra::DebugMenu menu_;
-    bool vectors_{}, paths_{}, collisions_{}, agents_{}, debug_{}, ghost_{}, gravity_{}, probes_{}, goals_{};
-    bool statistics_{};
+    bool vectors_{true}, paths_{true}, collisions_{true}, agents_{true}, debug_{true}, probes_{true};
+    bool ghost_{}, gravity_{}, goals_{};
+    bool statistics_{true};
+    bool reciprocal_{true};
     lab::Settings settings_;
     double statistics_elapsed_{}, fps_{};
     int frames_{};
     auto options() {
-        return std::array<kinetra::DebugOption, 8>{{{"GHOST CAMERA", &ghost_},
+        return std::array<kinetra::DebugOption, 9>{{{"GHOST CAMERA", &ghost_},
                                                     {"VECTORS", &vectors_},
                                                     {"STEERING PROBES", &probes_},
                                                     {"PATHS", &paths_},
                                                     {"COLLISION SHAPES", &collisions_},
                                                     {"ACTIVE AGENTS", &agents_},
                                                     {"AGENT GOAL", &goals_},
-                                                    {"GRAVITY", &gravity_}}};
+                                                    {"GRAVITY", &gravity_},
+                                                    {"RECIPROCAL AVOID", &reciprocal_}}};
     }
 
   public:
@@ -51,6 +54,7 @@ class DemoSession final : public Session {
         commands.debug = debug_;
         commands.ghost = ghost_;
         commands.probes = debug_ && probes_;
+        commands.reciprocal_avoidance = reciprocal_;
         commands.toggle_gravity = (debug_ && gravity_) != (application_.scene().world.gravity.y != 0);
         if (commands.pointer && debug_ && goals_ && commands.pointer->action == sandbox::PointerAction::walk)
             commands.pointer->action = sandbox::PointerAction::target_agents;

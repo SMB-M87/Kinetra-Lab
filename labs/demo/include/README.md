@@ -30,14 +30,14 @@ classDiagram
 | File | Responsibility |
 | --- | --- |
 | [sandbox_application.h](sandbox_application.h) | Headless application coordinator and fixed clock |
-| [sandbox_scene.h](sandbox_scene.h) | World, terrain residency, population and body-index remapping |
-| [agent.h](agent.h) | Agent route and lifecycle state |
+| [sandbox_scene.h](sandbox_scene.h) | World, terrain residency, mixed population, immutable avoidance snapshots and body-index remapping |
+| [agent.h](agent.h) | Seeded curved wandering, commanded routes and lifecycle state |
 | [terrain.h](terrain.h) | Seeded chunk generation and preview cache |
 | [sandbox_commands.h](sandbox_commands.h) | Commands and presentation options |
 | [sandbox_input.h](sandbox_input.h) | Input mapping and debug capture adapter |
 | [player_control.h](player_control.h) | Player movement intent |
 | [sandbox_renderer.h](sandbox_renderer.h) | Scene rendering interface |
-| [session.h](session.h) | Public engine Session factory |
+| [session.h](session.h) | Demo Session factory and default initial population |
 | [help_overlay.h](help_overlay.h) | Application help content |
 
 ## Architecture and build

@@ -61,7 +61,7 @@ struct Settings {
                       std::span<kinetra::DebugOption> options) const {
         menu.screen_origin = {8, 32};
         const bool captured = menu.update(input, camera.viewport, options);
-        if (input.mouse.x >= 64 && input.mouse.x < 104 && input.mouse.y >= 0 && input.mouse.y < 24) {
+        if (input.mouse.x >= 64 && input.mouse.x < 112 && input.mouse.y >= 0 && input.mouse.y < 24) {
             if (input.clicked)
                 menu.visible = !menu.visible;
             return true;
@@ -71,12 +71,15 @@ struct Settings {
     void draw(kinetra::Runtime &runtime, bool statistics, bool debug, bool dotio) const {
         using namespace kinetra;
         if (!visible) {
+            const float width = debug ? 112.f : 64.f;
+            runtime.box(runtime.camera.screen_to_world({width / 2, 12}),
+                        Vec2{width / 2, 12} / runtime.camera.pixels_per_unit, 0, {0.025f, 0.035f, 0.06f});
             const bool hovered = pointer.x >= 0 && pointer.x < 64 && pointer.y >= 0 && pointer.y < 24;
             draw_text(runtime, "SETTINGS", {8, 8}, 1, hovered ? Color{0.25f, 0.65f, 1.f} : Color{1, 1, 1});
             if (debug) {
                 const bool debug_hovered =
-                    pointer.x >= 64 && pointer.x < 104 && pointer.y >= 0 && pointer.y < 24;
-                draw_text(runtime, "DEBU", {72, 8}, 1,
+                    pointer.x >= 64 && pointer.x < 112 && pointer.y >= 0 && pointer.y < 24;
+                draw_text(runtime, "DEBUG", {72, 8}, 1,
                           debug_hovered ? Color{0.25f, 0.65f, 1.f} : Color{1, 1, 1});
             }
             return;
