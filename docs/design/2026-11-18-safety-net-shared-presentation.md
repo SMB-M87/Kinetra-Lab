@@ -1,6 +1,6 @@
 # Safety net and shared presentation
 
-Status: draft · Branch: `refactor/safety-net-shared-presentation` · Related: [quality roadmap, phase 3](2026-11-18-quality-roadmap.md#phase-3-safety-net-and-shared-presentation), [Kinetra testing](../../external/Kinetra/docs/testing.md), [launcher and overlays](../launcher-overlays.md)
+Status: accepted · Branches: `test/characterization-safety-net` (step 1), a later branch for steps 2–7 · Related: [quality roadmap, phase 3](2026-11-18-quality-roadmap.md#phase-3-safety-net-and-shared-presentation), [Kinetra testing](../../external/Kinetra/docs/testing.md), [launcher and overlays](../launcher-overlays.md)
 
 Phase 3 of the quality roadmap. It pins the current simulation behavior with characterization tests, so phases 4–6 can restructure i4sim, Demo and Dotio safely. It also removes the presentation glue that the three sessions duplicate. This document refines the roadmap scope with evidence from the code and records the decisions that are still open.
 
@@ -61,9 +61,9 @@ Non-goals:
 | Characterization form | A golden line per seeded scenario: totals plus a 64-bit FNV-1a fingerprint of every mover's exact motion after every tick | Totals alone miss route changes; an end-state hash misses them when every mover ends parked (seen during the first attempt: two different runs gave the same end-state hash) |
 | Shared test helper | Header-only target `kinetra_lab_test_support` (`labs/test_support/test_support.h`) with `require` and `Fingerprint` | The two new tests need the same hash; adding copies would contradict this phase. doctest replaces `require` in step 2 |
 | Sequencing with phase 2 | Step 1 adds files only. Steps 2–7 wait until phase 2's clang-format commit and doctest target are on `main` | Editing the sessions before the repository-wide reformat would conflict on almost every line |
-| Open: pull-request split | To settle with the user | See [open points](#open-points) |
-| Open: launcher navigation | To settle with the user | See [open points](#open-points) |
-| Open: shared helper placement | To settle with the user | Roadmap open point |
+| Pull-request split | Step 1 as its own pull request now; steps 2–7 on a new branch after phase 2 merges | Settled with the user on 2026-11-18. Phase 4 gets its safety net early, and the test-only change cannot conflict with phase 2 |
+| Launcher navigation | `kinetra::Session` gains a navigation request (stay, menu, exit) that `run_launcher` honors; its M and Escape bindings become configurable; Lab removes its own loop | Settled with the user on 2026-11-18. Returning to a menu is a mechanism any launcher needs. It changes Kinetra's public API, so it gets a Kinetra ADR |
+| Shared helper placement | A `kinetra_lab_common` target in `labs/common/` for Lab policy, included through target include directories | Settled with the user on 2026-11-18. Replaces the `../../settings.h` includes, as the [conventions](../../external/Kinetra/docs/conventions.md#headers-and-includes) ask |
 
 ## Design
 
@@ -98,13 +98,13 @@ flowchart LR
 2. **doctest migration.** Convert every Lab test program to named doctest cases on phase 2's target; delete the 11 `require` copies and the one in `test_support.h`. Keep CTest names stable, or register per-case tests where selection helps.
 3. **Settings overlay in Kinetra.** A Kinetra overlay that owns layout, picking, drawing and input capture. Applications supply rows (toggle, button, action) and help lines. `FactorySettings` and the `dotio` flag disappear, and the help-height coupling becomes derived. Kinetra ADR and Kinetra design document.
 4. **Glyphs.** Add `-`, `_` and `.` to `kinetra::draw_text` with the same pixels as the patch (`{0,0,0,31,0,0,0}`, `{0,0,0,0,0,0,31}`, `{0,0,0,0,0,0,4}`), extract a pure `glyph(char)` lookup so it gets a headless test, and remove `factory_text`. Visible effect: `-` appears in debug-menu and launcher text where it is blank today.
-5. **Shared session glue.** One zoom-step function (`pow(1.1, steps)` plus clamp, with each application's limits as named constants), one direction mapping from WASD/arrows, one pause-while-settings-open rule that restores the earlier pause state (the i4sim behavior), and one FPS window. Mechanisms go to Kinetra; Lab limits and key policy go to a shared Lab place.
-6. **Launcher on `SessionHost`.** Remove the Lab loop and pass configuration names instead of `logic::Difficulty`. How the session asks for menu or exit is an open decision.
+5. **Shared session glue.** One zoom-step function (`pow(1.1, steps)` plus clamp, with each application's limits as named constants), one direction mapping from WASD/arrows, one pause-while-settings-open rule that restores the earlier pause state (the i4sim behavior), and one FPS window. Mechanisms go to Kinetra; Lab limits and key policy go to the new `kinetra_lab_common` target, which also takes over `labs/settings.h`'s remaining Lab parts.
+6. **Launcher on `SessionHost`.** Add the navigation request to `kinetra::Session` and honor it in `run_launcher` (Kinetra design document and ADR). Then remove the Lab loop and pass configuration names instead of `logic::Difficulty`.
 7. **Standalone LAUNCHER.** Exit when there is no launcher, as i4sim does; the roadmap settles this.
 
 ## Affected areas
 
-- Step 1: `labs/test_support/` (new), `labs/CMakeLists.txt`, `labs/i4sim/CMakeLists.txt`, `labs/demo/CMakeLists.txt`, the two new test files, `AGENTS.md` (targeted-verification targets), `labs/i4sim/tests/README.md`, `labs/demo/README.md`, `labs/demo/tests/README.md`.
+- Step 1: `labs/test_support/` (new; folds into `labs/common/` with step 5), `labs/CMakeLists.txt`, `labs/i4sim/CMakeLists.txt`, `labs/demo/CMakeLists.txt`, the two new test files, `AGENTS.md` (targeted-verification targets), `labs/i4sim/tests/README.md`, `labs/demo/README.md`, `labs/demo/tests/README.md`.
 - Steps 2–7: every Lab test program; `labs/settings.h`, `labs/i4sim/include/factory_settings.h`; the three `session.cpp` files and Dotio `application.h`/`presentation.cpp`; `launcher/`; Kinetra `bitmap_text.h`, a new overlay header, `launcher.h`/`session.h` if the navigation hook goes there; `docs/architecture.md`, `docs/launcher-overlays.md` and the launcher READMEs.
 
 ## Test plan
@@ -139,9 +139,6 @@ Pending.
 
 ## Open points
 
-- **Pull-request split.** Step 1 adds tests only and could merge now, giving phase 4 its safety net early. The rest waits for phase 2. Either one pull request per phase (as the roadmap says), or step 1 now and steps 2–7 later.
-- **Launcher navigation.** `run_launcher` cannot see a session's request for the menu or exit. Either `kinetra::Session` gains a navigation request that `run_launcher` honors (and its M and Escape bindings become configurable), or Lab keeps a small loop that drives `SessionHost`.
-- **Shared helper placement.** Whether the Lab policy part of step 5 gets a `kinetra_lab_common` target or stays header-only next to `labs/settings.h` (roadmap open point).
 - **Uppercasing in `draw_text`.** `factory_text` uppercases; Kinetra's `draw_text` does not. Decide in the Kinetra design document for step 4.
 - **Coverage gaps of the golden scenarios.** Heatmap refresh timing, the stalled-pair cancellation of predictive passing and the expiry of commanded agent travel do not change the values. Phases 4 and 5 add targeted tests when they touch that code.
 - **Floating-point portability.** The fingerprints need identical floating-point results. CI on another compiler or C library may differ. If phase 2's CI shows that, keep the totals exact and compare the fingerprint per platform only.
