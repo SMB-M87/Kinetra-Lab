@@ -1,28 +1,14 @@
 # Screenshots and demo video
 
-Real application captures used by the project's README gallery.
+Real application captures used by the project's README gallery, what each one shows, and how to refresh them.
 
 ## Table of contents
 
-- [Visual overview](#visual-overview)
 - [Files](#files)
 - [Capture details](#capture-details)
+- [Refreshing the media](#refreshing-the-media)
 
 [Parent guide / documentation index](../README.md) · [Project overview](../../README.md#screenshots-and-demo)
-
-## Visual overview
-
-The media records real application output; the gallery consumes the resulting files.
-
-```mermaid
-flowchart LR
-    Sessions["Launcher, Demo and Dotio"] --> Context["SDL offscreen / Mesa OpenGL"]
-    Context --> Frames["1280 x 800 framebuffer captures"]
-    Frames --> PNG["Normal and debug PNG pairs"]
-    Frames --> Video["H.264 MP4 tour"]
-    PNG --> Gallery["Root README gallery"]
-    Video --> Gallery
-```
 
 ## Files
 
@@ -32,18 +18,23 @@ flowchart LR
 | [launcher-loadscreen.png](launcher-loadscreen.png) | i4sim loadscreen with blueprint selection |
 | [demo.png](demo.png), [demo-debug.png](demo-debug.png) | Demo with debug layers disabled and enabled |
 | [dotio.png](dotio.png), [dotio-debug.png](dotio-debug.png) | Dotio with debug layers disabled and enabled |
-| [dotio-settings.png](dotio-settings.png) | Dotio settings with both control sections expanded |
-| [kinetra-lab-tour.mp4](kinetra-lab-tour.mp4) | 23-second tour, H.264, 1280 × 800, 30 fps, no audio |
+| [dotio-settings.png](dotio-settings.png) | Dotio settings with the simulation controls expanded |
+| [kinetra-lab-tour.mp4](kinetra-lab-tour.mp4) | Tour video: 2 min 14 s, H.264 at 1920 × 1080 and 60 fps, with an AAC audio track |
 | [i4sim.png](i4sim.png), [i4sim-debug.png](i4sim-debug.png) | i4sim with debug mode disabled and enabled |
 
 ## Capture details
 
-The original captures use the Lab launcher and session renderers with the bundled `external/Kinetra` checkout, an SDL offscreen OpenGL context and Mesa software rendering at 1280 × 800. Updated launcher screenshots preserve their supplied dimensions. The video advances the real simulations at 60 Hz and records every second update; timing is simulated rather than a performance measurement.
+The PNG files are window captures of about 1915 × 1055 pixels; the exact size varies by a few pixels per file. Seeds and session options are not recorded, except what a capture shows on screen.
 
-Sessions use seed 42, 36 Demo agents and Medium Dotio difficulty. Each screenshot pair shows the same scene with debug mode enabled or disabled. The debug views enable vectors, steering probes, paths, collision shapes and active-agent markers; Dotio also shows AI states and uses Invulnerable during the debug portion. The normal screenshots have Debug Mode disabled.
+- **Demo:** `demo-debug.png` has every visual layer enabled (vectors, steering probes, paths, collision shapes, active agents); its statistics show 71 of 193 agents active. The two Demo captures are not the same scene.
+- **Dotio:** `dotio-debug.png` has Debug Mode with vectors, AI states, paths and their filters, steering probes, collision shapes, active agents, hiding hits and Invulnerable enabled.
+- **i4sim:** both captures show the `MAS-demonstrator` blueprint (`MAS-demonstrator.json`; `Rijn-Ruhrgebied.json` is an identical copy), paused at 200 UPS, at tick 83 (`i4sim.png`) and tick 116 (`i4sim-debug.png`, with the View page of the debug menu open). They lack the CORRIDOR TRAFFIC and PREDICTIVE PASS rows of today's View page, so they are due for a refresh.
+- **i4sim loadscreen:** `launcher-loadscreen.png` shows the first catalog page (`1680x960+` to `H`) with `8640x4800` highlighted.
 
-The i4sim loadscreen capture shows blueprint selection with Previous, Exit and Next actions. The tour starts with Demo selected, hovers Dotio at 0:00.5 and Exit at 0:01.
+## Refreshing the media
 
-The tour shows the launcher at 0:00, difficulty selection at 0:01.5, Demo at 0:03, Demo debug at 0:07, Dotio at 0:12, Dotio debug at 0:16 and expanded Dotio settings at 0:21. PNG screenshots are linked separately so readers can inspect full-resolution details.
+Rebuild the current checkout using the [root verification commands](../../README.md#tests-and-resources), then run the applications with the [Demo controls](../../labs/demo/README.md#controls), [Dotio controls](../../labs/dotio/README.md#launch-and-controls) and [i4sim controls](../../labs/i4sim/README.md#controls). The bundled launcher picks a new world seed per run and prints it (`World seed: …`); record it next to the capture.
 
-To refresh the media, rebuild the current checkout using the [root verification commands](../../README.md#tests-and-resources), run the applications with the [Demo controls](../../labs/demo/README.md) and [Dotio controls](../../labs/dotio/README.md), and capture at the same viewport size. Keep filenames synchronized with the [README gallery](../../README.md#screenshots-and-demo). Encode video as H.264 with `yuv420p` and MP4 fast start for broad playback support.
+For i4sim, `./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json` opens the same blueprint directly with seed 42 (the default; `--seed N` changes it), paused. Without `--blueprint` it opens the loadscreen; inside the bundled launcher, choose i4sim.
+
+Keep filenames synchronized with the [README gallery](../../README.md#screenshots-and-demo). Encode video as H.264 with `yuv420p` and MP4 fast start for broad playback support.

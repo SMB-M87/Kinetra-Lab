@@ -1,16 +1,11 @@
 # Labs
 
-Applications and experiments built on the public Kinetra APIs. Each lab owns its application logic, presentation and tests; reusable engine functionality belongs in Kinetra.
-
-| Guide | Purpose |
-| --- | --- |
-| [Demo](demo/README.md) | Reference application for terrain, navigation, agents and physics |
-| [i4sim](i4sim/README.md) | Local factory simulation, steering and JSON blueprint loading |
-| [Dotio](dotio/README.md) | Survival game and AI experiment |
+Applications and experiments built on the public Kinetra APIs. Each lab owns its application logic, presentation and tests; reusable engine functionality belongs in Kinetra. The [applications table](../README.md#applications) lists their targets.
 
 ## Table of contents
 
 - [Visual overview](#visual-overview)
+- [Shared Lab code](#shared-lab-code)
 - [Build and run](#build-and-run)
 - [Verification](#verification)
 
@@ -35,6 +30,13 @@ flowchart TD
     Factory -.-> FactorySettings["i4sim factory_settings.h"]
 ```
 
+## Shared Lab code
+
+Code shared between applications stays application-neutral ([Lab boundaries](../AGENTS.md#lab-boundaries)):
+
+- [settings.h](settings.h) owns the shared modal settings layout, input capture and Lab session navigation request; see [launcher and overlays](../docs/launcher-overlays.md#debug-and-help-interaction). i4sim uses its own near-copy, `FactorySettings` in [factory_settings.h](i4sim/include/factory_settings.h).
+- [test_support/test_support.h](test_support/test_support.h) holds header-only helpers for the test programs (target `kinetra_lab_test_support`, built only with `BUILD_TESTING`).
+
 ## Build and run
 
 Build from the repository root; this directory is included by the top-level CMake project. See the [quick start](../README.md#quick-start) for dependencies and Kinetra setup.
@@ -44,18 +46,17 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ./build/kinetra_demo --frames 120
 ./build/kinetra_dotio --difficulty medium --frames 120
+./build/kinetra_i4sim --frames 120
 ```
 
-The [launcher](../launcher/README.md) also provides a shared menu for all applications. [settings.h](settings.h) owns the shared modal settings layout, input capture and Lab session navigation request; see [launcher and overlays](../docs/launcher-overlays.md#debug-and-help-interaction).
+The [launcher](../launcher/README.md) also provides a shared menu for all applications.
 
 ## Verification
 
 For logic tests without graphical applications, run from the repository root:
 
 ```sh
-cmake -S . -B build-headless -DCMAKE_BUILD_TYPE=Release -DKINETRA_LAB_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON
-cmake --build build-headless --parallel
-ctest --test-dir build-headless --output-on-failure
+cmake --workflow --preset headless
 ```
 
-See [tests and resources](../README.md#tests-and-resources) for graphics checks. Application-specific behavior and verification are documented in the guides above.
+It configures, builds and tests in `build-headless/` with `KINETRA_LAB_BUILD_RUNTIME=OFF`. See [tests and resources](../README.md#tests-and-resources) for graphics checks. Application-specific behavior and verification are documented in the guides above.

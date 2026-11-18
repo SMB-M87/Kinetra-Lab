@@ -39,7 +39,7 @@ Install the existing CMake/C++20 and SDL2/OpenGL dependencies plus the header-on
 From the repository root:
 
 ```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKINETRA_SOURCE_DIR="$PWD/external/Kinetra"
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j2
 ./build/kinetra --variant i4sim
 ./build/kinetra_i4sim
@@ -65,10 +65,12 @@ Debug Mode, statistics and every visual debug layer start enabled. Click DEBUG n
 
 | Input | Action |
 | --- | --- |
+| Escape / M on the Loadscreen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim` |
 | Space / P | Pause or resume |
 | R | Reset the blueprint and seed, retaining motion configuration; start paused |
 | G | Toggle automatic factory workload |
 | Q / E | Halve / double target UPS |
+| 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode) |
 | WASD / arrows | Pan camera |
 | Wheel (debug) / F | Zoom / frame scene |
 | Left click / right click | Inspect / toggle blocked state |
@@ -154,7 +156,7 @@ Units remain millimeters and ticks: maximum speed 2 mm/tick, maximum acceleratio
 
 Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. The original checkout remains unchanged. All fourteen JSON files are bundled unchanged; their city aliases intentionally retain the original internal names. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry [engine license](../../external/Kinetra/LICENSE).
 
-MQTT, Akka.NET, .NET and Win32/Direct2D are absent. Deterministic tick state transitions replace actors. The original asynchronous scheduling and pixel appearance are not reproduced exactly. The port uses safe waypoint paths and optional, explicitly enabled geometric replanning rather than unchecked Bezier curves; weighted costs use physical cell distances. Parking reservations remain owned by their original movers instead of compacting/switching between model-specific spaces. Collision counters count contact episodes; duration is reported separately, rather than reproducing the original cooldown counter. Summary JSON replaces per-tick text logs and original dump formatting. The tangent-based `RVODeadlock` translation is exposed as an experiment, not a collision-free solver. Radial-border steering is not a separate mode. See the migration guide for details; these differences prevent claiming bit-for-bit parity.
+MQTT, Akka.NET, .NET and Win32/Direct2D are absent. Deterministic tick state transitions replace actors. The original asynchronous scheduling and pixel appearance are not reproduced exactly. The port uses safe waypoint paths and optional, explicitly enabled geometric replanning rather than unchecked Bezier curves; weighted costs use physical cell distances. Parking reservations remain owned by their original movers instead of compacting/switching between model-specific spaces. Collision counters count contact episodes; duration is reported separately, rather than reproducing the original cooldown counter. Summary JSON replaces per-tick text logs and original dump formatting. The tangent-based `RVODeadlock` translation is exposed as an experiment, not a collision-free solver. Radial-border steering is not a separate mode. These differences rule out bit-for-bit parity with the reference.
 
 ## Verification
 

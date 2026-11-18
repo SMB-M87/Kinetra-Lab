@@ -9,7 +9,6 @@ Reference application for public Kinetra physics, navigation, camera, runtime an
 - [Scene ownership and streaming](#scene-ownership-and-streaming)
 - [Navigation and agents](#navigation-and-agents)
 - [Verification and limits](#verification-and-limits)
-- [Source navigation](#source-navigation)
 
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
@@ -47,7 +46,7 @@ flowchart LR
 | Wheel | Zoom during gameplay only in Debug Mode |
 | Settings Launcher / Exit | Return to bundled launcher / exit the application |
 
-Settings reveals centered help controls only after clicking Show Controls and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
+Settings reveals centered help controls only after clicking SHOW SIM CONTROLS or SHOW DEBUG CONTROLS, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
 
 Demo starts with Debug Mode, statistics and all visual layers enabled. Ghost Camera, Agent Goal and Gravity remain off; the debug menu starts collapsed.
 
@@ -78,7 +77,7 @@ Terrain validates finite ordered views, ±200,000-unit bounds and a maximum 4,09
 
 ## Navigation and agents
 
-The reusable [planner](https://github.com/SMB-M87/Kinetra/blob/main/docs/engine/navigation.md) owns A*, swept clearance and route shortening. Demo selects one-unit spacing and a conservative 0.85-unit circular envelope. Exact free clicks stay exact; occupied clicks project to the closest reachable free node. Outside/disconnected free goals fail. Outward recovery can leave conservative clearance margins without crossing a surface.
+The reusable [planner](../../external/Kinetra/docs/engine/navigation.md) owns A*, swept clearance and route shortening. Demo selects one-unit spacing and a conservative 0.85-unit circular envelope. Exact free clicks stay exact; occupied clicks project to the closest reachable free node. Outside/disconnected free goals fail. Outward recovery can leave conservative clearance margins without crossing a surface.
 
 | Decision | Demo policy |
 | --- | --- |
@@ -102,8 +101,4 @@ Avoidance considers moving-body envelopes; static terrain is handled by routes a
 
 [Terrain tests](tests/terrain_tests.cpp) cover deterministic streaming, compaction, sleep/wake, wandering, commands, detours, clearance, recovery and arrival. [Application tests](tests/sandbox_application_tests.cpp) cover pause, camera, pointer ordering and bindings. [Presentation tests](tests/presentation_tests.cpp) cover rendered scene/debug/help behavior.
 
-The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks. Design history: [terrain](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0002-camera-driven-terrain.md), [application boundary](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0005-sandbox-agent-lifecycle.md).
-
-## Source navigation
-
-[Headers](include/README.md) and [implementation](src/README.md) describe the local source layout.
+The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks. Decisions behind this design: [terrain](../../external/Kinetra/docs/decisions/0002-camera-driven-terrain.md), [application boundary](../../external/Kinetra/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](../../external/Kinetra/docs/decisions/0005-sandbox-agent-lifecycle.md).

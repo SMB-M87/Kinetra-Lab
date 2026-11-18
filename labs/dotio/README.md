@@ -12,7 +12,6 @@ Portable local survival game in Kinetra-Lab. Build/run instructions are in [Quic
 - [AI and combat](#ai-and-combat)
 - [Difficulty](#difficulty)
 - [Verification and limits](#verification-and-limits)
-- [Extraction](#extraction)
 - [Provenance](#provenance)
 - [Source navigation](#source-navigation)
 
@@ -46,11 +45,11 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels di
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings zoom buttons | Adjust camera scale: 25–50 px/unit normally; 2.5–50 in debug |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
-| Debu button (next to Settings) | Toggle the upper-left debug menu in Debug Mode |
+| DEBUG button (next to Settings) | Toggle the upper-left debug menu in Debug Mode |
 | Wheel | Zoom during gameplay only in Debug Mode |
 | Settings Launcher / Exit | Return to bundled launcher / exit the application |
 
-Settings reveals centered help controls only after clicking Show Controls and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
+Settings reveals centered help controls only after clicking SHOW SIM CONTROLS or SHOW DEBUG CONTROLS, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
 
 No reset or click-navigation binding exists. F/P/R/G/Tab/C and V/Shift+V have no gameplay effects. Debug Mode gates vectors, shapes, AI labels, steering probes, active markers and paths. Ghost Camera is the first debug row; leaving either restores player following. Ghost has no purple player marker. Teleport checks walls, props and live enemies, then clears velocity.
 
@@ -59,6 +58,8 @@ Paths expands into wander, pursue, kamikaze, recovery and hiding-intersection fi
 ## Application boundary
 
 See [Dotio architecture](../../docs/dotio-architecture.md) for component ownership, lifecycle and the engine boundary.
+
+Dotio links only the public `Kinetra::Simulation` and `Kinetra::Runtime` targets. Its direct executable `kinetra_dotio` needs no Demo or launcher sources.
 
 ## World and residency
 
@@ -135,13 +136,9 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 Static raster storage permits only one active Dotio world. Absolute district integers and local float precision remain finite. Cross-platform random sequences/timing are not promised. Teleport tests destination clearance, not a swept route. Gameplay balance and desktop feel require manual Artix checks.
 
-## Extraction
-
-Dotio now lives in Kinetra-Lab and links only public Kinetra Simulation and Runtime targets. Its direct executable requires no Demo or launcher sources. The root build consumes Kinetra source from `external/Kinetra` or an explicit local checkout; see [build instructions](../../README.md). i4sim and the original sibling repositories are unchanged.
-
 ## Provenance
 
-The `logic/` and `gmath/` sources originate from the independent local Dotio repository and retain author attribution. The checkout's [MIT license](../../LICENSE) applies here; no separate upstream license file was present. The Windows window, Direct2D backend, platform input and concurrent update threads were not copied. Port fixes preserve tests for empty paths, zero-vector normalization, frontier capacity, heuristic correctness, waypoint updates and projectile ordering. Original sibling repositories remain unchanged.
+The `logic/` and `gmath/` sources come from the independent Dotio repository and keep their author attribution. Lab's [MIT license](../../LICENSE) applies to them; the upstream repository had no license file of its own. The Windows window, Direct2D backend, platform input and concurrent update threads are not part of the port. Tests cover the fixes made in the port: empty paths, zero-vector normalization, frontier capacity, heuristic correctness, waypoint updates and projectile ordering.
 
 ## Source navigation
 

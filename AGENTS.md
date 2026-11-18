@@ -44,9 +44,10 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 | Presentation: session, input mapping, drawing | `kinetra_demo_presentation`, `kinetra_dotio_presentation`, `kinetra_i4sim_presentation` | Its own logic, `Kinetra::Runtime`, shared Lab helpers |
 | Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions` | Presentation libraries, `Kinetra::Launcher` |
 
-- Applications never include each other's headers. Shared Lab code (today: [labs/settings.h](labs/settings.h)) is application-neutral.
+- Open point: `kinetra_i4sim_presentation` also links `Kinetra::Launcher`, for the `LaunchMenu` of its blueprint screen. The table does not allow that edge; phase 4 either makes it the rule or removes it ([roadmap open points](docs/design/2026-11-18-quality-roadmap.md#open-points)).
+- Applications never include each other's headers. Shared Lab code is application-neutral: today the settings overlay [labs/settings.h](labs/settings.h) and the test helpers in [labs/test_support/test_support.h](labs/test_support/test_support.h) (target `kinetra_lab_test_support`).
 - Logic must build and test with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`.
-- i4sim needs the header-only nlohmann JSON package (3.11+) and reads blueprints from `labs/i4sim/blueprints/`. Treat blueprint files as a data format: changing their fields is a contract change.
+- i4sim needs the header-only nlohmann JSON package (3.11+). Its blueprints live in `labs/i4sim/blueprints/`; CMake copies them to `i4sim-blueprints/` next to every executable that opens them, and the application reads them from there. Treat blueprint files as a data format: changing their fields is a contract change.
 
 *Why:* headless logic is what makes simulation behavior testable without a window, and the dependency direction keeps applications replaceable.
 
@@ -80,7 +81,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - Lab records one exact Kinetra commit. A change to `external/Kinetra` is committed **in Kinetra** on its own branch, then the pointer is committed in Lab (`git add external/Kinetra`).
 - Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. Push the Kinetra branch and open its pull request before pushing Lab.
 - The Lab pull request links the Kinetra pull request. It states that Kinetra merges first, with a merge commit rather than a squash, so the pointer stays reachable.
-- The manual publishing steps for people are in the [README](README.md#kinetra-development-workflow).
+- The manual steps and commands are in [External dependencies](external/README.md).
 
 ## Documentation in Lab
 
