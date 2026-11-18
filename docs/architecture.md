@@ -15,7 +15,7 @@ Kinetra-Lab owns runnable applications and their composition. The Kinetra source
 ```mermaid
 flowchart TD
     Bundled[kinetra / kinetra_sandbox] --> Sessions[kinetra_sessions: factories and camera setup]
-    Sessions --> Launcher[Kinetra::Launcher: registry, menu and host]
+    Sessions --> Launcher[Kinetra::Launcher: LaunchMenu]
     Sessions --> Demo[kinetra_demo_presentation]
     Sessions --> Dotio[kinetra_dotio_presentation]
     Sessions --> Factory[kinetra_i4sim_presentation]
@@ -42,26 +42,33 @@ With `KINETRA_LAB_BUILD_RUNTIME=OFF`, application logic, its headless tests and 
 
 ```mermaid
 sequenceDiagram
-    participant Main as Bundled executable
-    participant Host as SessionHost
-    participant Session as Application Session
+    participant Main as kinetra main.cpp
+    participant Host as Lab loop (launcher run)
+    participant Menu as Lab Menu over LaunchMenu
+    participant Session as Application session
     participant App as Application state
     participant Runtime as Kinetra Runtime
-    Main->>Host: register factories / select application
-    Host->>Session: create and own unique session
-    Main->>Runtime: poll input
-    Main->>Host: advance(elapsed, input, camera)
-    Host->>Session: advance (zero time / empty input on first update)
-    Session->>Session: capture debug input, map commands
-    Session->>App: advance commands and fixed ticks
-    Main->>Host: render(runtime)
-    Host->>Session: render(runtime)
-    Session->>Runtime: draw world and overlays
-    Main->>Host: return to menu
-    Host->>Session: destroy session
+    Main->>Host: run(runtime, count, seed, difficulty, initial variant, frame limit)
+    loop every frame while runtime.poll()
+        alt no session
+            Host->>Menu: update(input, viewport)
+            Menu-->>Host: selected variant
+            Host->>Session: launcher::start creates one unique_ptr session
+        else session running
+            Host->>Session: advance(elapsed, input, camera), zero time and empty input on the first update
+            Session->>Session: capture settings/debug input, map commands
+            Session->>App: commands and fixed ticks
+            Host->>Session: return_to_menu() / exit_requested()?
+            Host->>Session: render(runtime)
+            Session->>Runtime: draw world and overlays
+        end
+    end
+    Host->>Session: destroy on return to menu or exit
 ```
 
-Runtime outlives hosted sessions. Registrations own factories; sessions own application state. Applications choose timing, bindings, pause behavior and world residency. Debug overlay pointers/callbacks borrow application state and must remain valid during update and draw. The direct executables use the core `run_session` loop instead of SessionHost.
+The bundled launcher runs its own loop, `launcher::run` in [launcher/src/session.cpp](../launcher/src/session.cpp). It owns at most one session through `std::unique_ptr<lab::Session>`, and reads the application-owned Settings actions (`return_to_menu`, `exit_requested`) to navigate. It uses `kinetra::LaunchMenu` for selection, but not `kinetra::SessionHost` or `run_launcher`. Moving to `SessionHost` is planned in the [quality roadmap](design/2026-11-18-quality-roadmap.md).
+
+Runtime outlives every session; sessions own application state. Applications choose timing, bindings, pause behavior and world residency. Debug overlay pointers and callbacks borrow application state and must remain valid during update and draw. The direct executables (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) use the core `run_session` loop.
 
 [Launcher and overlays](launcher-overlays.md) details factory failure and transition isolation. [Demo architecture](demo-architecture.md) and [Dotio architecture](dotio-architecture.md) describe their different simulation ownership and coordinate policies.
 
