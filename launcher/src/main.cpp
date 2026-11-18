@@ -1,5 +1,5 @@
-#include "../include/session.h"
 #include "../../labs/demo/include/session.h"
+#include "../include/session.h"
 #include <cstdlib>
 #include <iostream>
 #include <kinetra/engine.h>

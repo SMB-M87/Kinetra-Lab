@@ -1,13 +1,13 @@
 #pragma once
 
-#include "physics_adapter.h"
 #include "../../settings.h"
+#include "physics_adapter.h"
 #include "world.h"
 #include <array>
-#include <memory>
 #include <kinetra/camera.h>
 #include <kinetra/debug_view.h>
 #include <kinetra/timing.h>
+#include <memory>
 
 namespace dotio {
 
@@ -42,8 +42,10 @@ class Application {
     kinetra::DebugMenu menu;
     lab::Settings settings{.sim_controls_height = 28};
     auto debug_options() {
-        std::vector<kinetra::DebugOption> options{{"GHOST CAMERA", &ghost},     {"VECTORS", &vectors},
-                                                  {"STEERING PROBES", &probes}, {"PATHS", &paths[0]}};
+        std::vector<kinetra::DebugOption> options{{"GHOST CAMERA", &ghost},
+                                                  {"VECTORS", &vectors},
+                                                  {"STEERING PROBES", &probes},
+                                                  {"PATHS", &paths[0]}};
         if (paths[0]) {
             options.push_back({"  WANDER", &paths[1]});
             options.push_back({"  PURSUE", &paths[2]});

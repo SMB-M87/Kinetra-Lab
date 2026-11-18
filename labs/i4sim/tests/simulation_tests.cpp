@@ -38,7 +38,8 @@ void reciprocal_motion_contracts() {
     normal.single_step();
     accelerated.single_step();
     require(kinetra::distance(normal.movers()[0].body.position, accelerated.movers()[0].body.position) == 0 &&
-                std::abs(kinetra::length(normal.movers()[0].body.velocity) - normal.motion_settings().force) < 0.00001f,
+                std::abs(kinetra::length(normal.movers()[0].body.velocity) - normal.motion_settings().force) <
+                    0.00001f,
             "Reciprocal controller changed physical tick units with UPS");
     require(normal.avoidance_limited() == 0, "Unobstructed reciprocal control reported a limitation");
 
@@ -78,13 +79,17 @@ void junction_traffic_contracts() {
         s.paused = false;
     };
     Simulation reference(crossing_fixture()), trial(crossing_fixture()), replay(crossing_fixture());
-    start(reference, false); start(trial, true); start(replay, true);
+    start(reference, false);
+    start(trial, true);
+    start(replay, true);
     require(trial.junction_count() == 1 && trial.junction_center(0).x == 700 &&
-                trial.junction_center(0).y == 700, "Isolated crossing detection failed");
+                trial.junction_center(0).y == 700,
+            "Isolated crossing detection failed");
     require(Simulation(fixture()).junction_count() == 0, "Open floor was mistaken for a corridor crossing");
     bool waited = false, checked_block = false, checked_late_cancel = false;
     for (int tick = 0; tick < 1000; ++tick) {
-        trial.tick(); replay.tick();
+        trial.tick();
+        replay.tick();
         int occupying = 0;
         for (std::size_t i = 0; i < trial.movers().size(); ++i) {
             const auto &m = trial.movers()[i];
@@ -96,7 +101,8 @@ void junction_traffic_contracts() {
                     "Junction admission changed a manual goal");
             const auto delta = m.body.position - Vec2{700, 700};
             if (std::abs(delta.x) < 102 + m.body.half_extents.x &&
-                std::abs(delta.y) < 102 + m.body.half_extents.y) ++occupying;
+                std::abs(delta.y) < 102 + m.body.half_extents.y)
+                ++occupying;
         }
         require(occupying <= 1, "Two movers entered an exclusively reserved crossing");
         const auto &approach = trial.movers()[0].body;
@@ -110,12 +116,14 @@ void junction_traffic_contracts() {
                 for (const auto &m : cancelled.movers()) {
                     const auto delta = m.body.position - Vec2{700, 700};
                     if (std::abs(delta.x) < 102 + m.body.half_extents.x &&
-                        std::abs(delta.y) < 102 + m.body.half_extents.y) ++present;
+                        std::abs(delta.y) < 102 + m.body.half_extents.y)
+                        ++present;
                 }
                 require(present <= 1, "Late goal change released a coasting approach too early");
             }
             require(!cancelled.movers()[0].moving && !cancelled.movers()[1].moving &&
-                        cancelled.collisions() == 0, "Late cancellation failed to release after braking");
+                        cancelled.collisions() == 0,
+                    "Late cancellation failed to release after braking");
             checked_late_cancel = true;
         }
         waited = waited || trial.junction_waiting() > 0;
@@ -123,12 +131,15 @@ void junction_traffic_contracts() {
             auto blocked = trial;
             blocked.toggle_mover(0);
             const auto held = blocked.movers()[0].body.position;
-            for (int t = 0; t < 200; ++t) blocked.tick();
+            for (int t = 0; t < 200; ++t)
+                blocked.tick();
             require(kinetra::distance(held, blocked.movers()[0].body.position) == 0 &&
-                        blocked.movers()[1].body.position.y + blocked.movers()[1].body.half_extents.y <= 598.001f,
+                        blocked.movers()[1].body.position.y + blocked.movers()[1].body.half_extents.y <=
+                            598.001f,
                     "Blocked physical occupant released the crossing");
             blocked.toggle_mover(0);
-            for (int t = 0; t < 1000; ++t) blocked.tick();
+            for (int t = 0; t < 1000; ++t)
+                blocked.tick();
             require(!blocked.movers()[0].moving && !blocked.movers()[1].moving,
                     "Crossing did not resume after its occupant was unblocked");
             auto disabled = trial;
@@ -142,9 +153,11 @@ void junction_traffic_contracts() {
             checked_block = true;
         }
     }
-    for (int t = 0; t < 5000; ++t) reference.tick();
-    require(reference.movers()[1].moving && waited && checked_block && checked_late_cancel && trial.junction_waiting() == 0 &&
-                !trial.movers()[0].moving && !trial.movers()[1].moving && trial.collisions() == 0,
+    for (int t = 0; t < 5000; ++t)
+        reference.tick();
+    require(reference.movers()[1].moving && waited && checked_block && checked_late_cancel &&
+                trial.junction_waiting() == 0 && !trial.movers()[0].moving && !trial.movers()[1].moving &&
+                trial.collisions() == 0,
             "Junction admission did not resolve the narrow crossing regression");
     for (int orientation = 1; orientation <= 3; ++orientation) {
         auto b = crossing_fixture();
@@ -162,7 +175,8 @@ void junction_traffic_contracts() {
                     rotated.move_to(1, Vec2{700, 700} + kinetra::rotated({0, 400}, angle)),
                 "Rotated crossing goal rejected");
         rotated.paused = false;
-        for (int t = 0; t < 1500; ++t) rotated.tick();
+        for (int t = 0; t < 1500; ++t)
+            rotated.tick();
         require(!rotated.movers()[0].moving && !rotated.movers()[1].moving && rotated.collisions() == 0,
                 "Crossing admission depended on approach orientation");
     }
@@ -177,14 +191,16 @@ void junction_traffic_contracts() {
     require(tee.junction_count() == 1 && tee.move_to(0, {1100, 700}) && tee.move_to(1, {300, 700}),
             "T-junction detection or goals failed");
     tee.paused = false;
-    for (int t = 0; t < 2000; ++t) tee.tick();
+    for (int t = 0; t < 2000; ++t)
+        tee.tick();
     require(!tee.movers()[0].moving && !tee.movers()[1].moving && tee.collisions() == 0,
             "T-junction admission failed to clear a turning movement");
     Simulation cancelled(crossing_fixture());
     start(cancelled, true);
     cancelled.tick();
     require(cancelled.move_to(0, {100, 700}), "Cancelled approach goal rejected");
-    for (int t = 0; t < 1000; ++t) cancelled.tick();
+    for (int t = 0; t < 1000; ++t)
+        cancelled.tick();
     require(!cancelled.movers()[0].moving && !cancelled.movers()[1].moving && cancelled.collisions() == 0,
             "Cancelled approach retained a stale junction admission");
 }
@@ -195,8 +211,11 @@ void junction_exit_contracts() {
         b.movers.push_back({"blocked east", Model::APM4220, {843.5f, 643.5f}});
         const float angle = orientation * 1.57079632679f;
         const Vec2 half = mover_spec(Model::APM4220).dimension / 2;
-        auto rotate = [&](Vec2 point) { return Vec2{700, 700} + kinetra::rotated(point - Vec2{700, 700}, angle); };
-        for (auto &m : b.movers) m.position = rotate(m.position + half) - half;
+        auto rotate = [&](Vec2 point) {
+            return Vec2{700, 700} + kinetra::rotated(point - Vec2{700, 700}, angle);
+        };
+        for (auto &m : b.movers)
+            m.position = rotate(m.position + half) - half;
         Simulation trial(b);
         trial.workload = false;
         auto config = trial.motion_settings();
@@ -226,7 +245,8 @@ void junction_exit_contracts() {
         config.junction_traffic = false;
         disabled.configure_motion(config);
         require(disabled.junction_exit_waiting() == 0 && !disabled.junction_exit_reservation(0) &&
-                    kinetra::distance(disabled.movers()[0].body.position, trial.movers()[0].body.position) == 0,
+                    kinetra::distance(disabled.movers()[0].body.position, trial.movers()[0].body.position) ==
+                        0,
                 "Disabling traffic left an exit wait or moved a body");
         trial.toggle_mover(2);
         require(trial.move_to(2, rotate({1250, 700})), "Exit blocker could not move away");
@@ -251,7 +271,8 @@ void junction_exit_contracts() {
     config.junction_traffic = true;
     protected_exit.configure_motion(config);
     require(protected_exit.move_to(0, {1100, 700}) && protected_exit.move_to(1, {700, 1100}) &&
-                protected_exit.move_to(2, {300, 700}), "Opposing-approach goals rejected");
+                protected_exit.move_to(2, {300, 700}),
+            "Opposing-approach goals rejected");
     protected_exit.paused = false;
     bool held_outside_exit = false;
     for (int t = 0; t < 200; ++t) {
@@ -275,7 +296,8 @@ void junction_exit_contracts() {
     coasting.configure_motion(config);
     require(coasting.move_to(2, {300, 700}), "Coasting approach goal rejected");
     coasting.paused = false;
-    for (int t = 0; t < 109; ++t) coasting.tick();
+    for (int t = 0; t < 109; ++t)
+        coasting.tick();
     require(coasting.movers()[2].body.position.x - coasting.movers()[2].body.half_extents.x > 925.2f,
             "Coasting fixture already physically occupied the exit pocket");
     coasting.paused = true;
@@ -290,7 +312,8 @@ void junction_exit_contracts() {
 }
 void corridor_traffic_contracts() {
     using namespace i4sim;
-    const auto original = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json");
+    const auto original =
+        load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json");
     auto setup = [](Simulation &s, bool enabled, Vec2 west_goal, Vec2 east_goal) {
         s.workload = false;
         auto config = s.motion_settings();
@@ -302,14 +325,18 @@ void corridor_traffic_contracts() {
     };
     Simulation reference(original);
     setup(reference, false, {1900, 700}, {300, 700});
-    for (int t = 0; t < 5000; ++t) reference.tick();
+    for (int t = 0; t < 5000; ++t)
+        reference.tick();
     require(reference.movers()[0].moving && reference.movers()[1].moving,
             "Corridor fixture no longer reproduces the head-on stall");
     for (int orientation = 0; orientation < 4; ++orientation) {
         auto b = original;
         const float angle = orientation * 1.57079632679f;
-        if (orientation % 2) b.dimension = {original.dimension.y, original.dimension.x};
-        auto rotate = [&](Vec2 point) { return b.dimension / 2 + kinetra::rotated(point - original.dimension / 2, angle); };
+        if (orientation % 2)
+            b.dimension = {original.dimension.y, original.dimension.x};
+        auto rotate = [&](Vec2 point) {
+            return b.dimension / 2 + kinetra::rotated(point - original.dimension / 2, angle);
+        };
         for (auto &m : b.movers) {
             const auto half = mover_spec(m.model).dimension / 2;
             m.position = rotate(m.position + half) - half;
@@ -332,7 +359,8 @@ void corridor_traffic_contracts() {
         const auto bounds = trial.corridor_bounds(0);
         bool saw_wait = false, saw_exit = false, checked_block = false;
         for (int t = 0; t < 5000; ++t) {
-            trial.tick(); replay.tick();
+            trial.tick();
+            replay.tick();
             int occupying = 0;
             for (std::size_t i = 0; i < trial.movers().size(); ++i) {
                 const auto &m = trial.movers()[i];
@@ -341,11 +369,13 @@ void corridor_traffic_contracts() {
                 require(kinetra::length(m.body.acceleration) <= trial.motion_settings().force + 0.00001f,
                         "Corridor admission exceeded acceleration bounds");
                 const auto goal = rotate(i == 0 ? Vec2{1900, 700} : Vec2{300, 700});
-                require(kinetra::distance(m.destination, goal) == 0, "Corridor admission changed a manual goal");
+                require(kinetra::distance(m.destination, goal) == 0,
+                        "Corridor admission changed a manual goal");
                 if (m.body.position.x + m.body.half_extents.x > bounds.min.x - 2 &&
                     m.body.position.x - m.body.half_extents.x < bounds.max.x + 2 &&
                     m.body.position.y + m.body.half_extents.y > bounds.min.y - 2 &&
-                    m.body.position.y - m.body.half_extents.y < bounds.max.y + 2) ++occupying;
+                    m.body.position.y - m.body.half_extents.y < bounds.max.y + 2)
+                    ++occupying;
             }
             require(occupying <= 1, "Opposing movers entered the reserved corridor together");
             saw_wait = saw_wait || trial.corridor_waiting() > 0;
@@ -354,12 +384,16 @@ void corridor_traffic_contracts() {
                 auto blocked = trial;
                 blocked.toggle_mover(0);
                 const auto position = blocked.movers()[0].body.position;
-                for (int step = 0; step < 200; ++step) blocked.tick();
+                for (int step = 0; step < 200; ++step)
+                    blocked.tick();
                 require(kinetra::distance(position, blocked.movers()[0].body.position) == 0 &&
-                            blocked.movers()[1].corridor_waiting, "Blocked occupant released corridor admission");
+                            blocked.movers()[1].corridor_waiting,
+                        "Blocked occupant released corridor admission");
                 blocked.toggle_mover(0);
-                for (int step = 0; step < 5000; ++step) blocked.tick();
-                require(!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0,
+                for (int step = 0; step < 5000; ++step)
+                    blocked.tick();
+                require(!blocked.movers()[0].moving && !blocked.movers()[1].moving &&
+                            blocked.collisions() == 0,
                         "Corridor traffic failed to resume after unblocking");
                 auto independent = trial;
                 independent.paused = true;
@@ -381,9 +415,10 @@ void corridor_traffic_contracts() {
                 checked_block = true;
             }
         }
-        require(saw_wait && saw_exit && checked_block && !trial.movers()[0].moving && !trial.movers()[1].moving &&
-                    trial.collisions() == 0 && trial.contact_ticks() == 0 && trial.corridor_waiting() == 0 &&
-                    !trial.corridor_exit_reservation(0), "Corridor traffic did not clear both goals without contact");
+        require(saw_wait && saw_exit && checked_block && !trial.movers()[0].moving &&
+                    !trial.movers()[1].moving && trial.collisions() == 0 && trial.contact_ticks() == 0 &&
+                    trial.corridor_waiting() == 0 && !trial.corridor_exit_reservation(0),
+                "Corridor traffic did not clear both goals without contact");
     }
     auto parked = original;
     parked.movers[0].position.x = 1043.5f;
@@ -396,13 +431,15 @@ void corridor_traffic_contracts() {
     stopped.toggle_mover(0);
     require(stopped.move_to(1, {300, 700}), "Occupied corridor goal rejected");
     stopped.paused = false;
-    for (int t = 0; t < 300; ++t) stopped.tick();
+    for (int t = 0; t < 300; ++t)
+        stopped.tick();
     require(stopped.movers()[0].body.position.x == 1100 && stopped.movers()[1].corridor_waiting &&
                 stopped.movers()[1].body.position.x - stopped.movers()[1].body.half_extents.x > 1725.7f,
             "Waiting traffic consumed an unassigned occupant's exit space");
     stopped.toggle_mover(0);
     require(stopped.move_to(0, {1900, 700}), "Parked corridor occupant could not depart");
-    for (int t = 0; t < 5000; ++t) stopped.tick();
+    for (int t = 0; t < 5000; ++t)
+        stopped.tick();
     require(!stopped.movers()[0].moving && !stopped.movers()[1].moving && stopped.collisions() == 0,
             "A previously parked occupant could not clear the corridor");
     auto dead_end = original;
@@ -418,13 +455,18 @@ void corridor_traffic_contracts() {
 }
 void corridor_recovery_contracts() {
     using namespace i4sim;
-    const auto original = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json");
+    const auto original =
+        load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json");
     for (int orientation = 0; orientation < 4; ++orientation) {
         auto b = original;
         const float angle = orientation * 1.57079632679f;
-        if (orientation % 2) b.dimension = {original.dimension.y, original.dimension.x};
-        auto rotate = [&](Vec2 p) { return b.dimension / 2 + kinetra::rotated(p - original.dimension / 2, angle); };
-        for (auto &m : b.movers) m.position = rotate(m.position + Vec2{56.5f, 56.5f}) - Vec2{56.5f, 56.5f};
+        if (orientation % 2)
+            b.dimension = {original.dimension.y, original.dimension.x};
+        auto rotate = [&](Vec2 p) {
+            return b.dimension / 2 + kinetra::rotated(p - original.dimension / 2, angle);
+        };
+        for (auto &m : b.movers)
+            m.position = rotate(m.position + Vec2{56.5f, 56.5f}) - Vec2{56.5f, 56.5f};
         for (auto &zone : b.zones) {
             const auto a = rotate(zone.position), c = rotate(zone.position + zone.dimension);
             zone.position = {std::round(std::min(a.x, c.x)), std::round(std::min(a.y, c.y))};
@@ -438,7 +480,8 @@ void corridor_recovery_contracts() {
         require(trial.move_to(0, rotate({1900, 700})) && trial.move_to(1, rotate({300, 700})),
                 "Recovery goals rejected");
         trial.paused = false;
-        for (int t = 0; t < 1500; ++t) trial.tick();
+        for (int t = 0; t < 1500; ++t)
+            trial.tick();
         require(trial.movers()[0].moving && trial.movers()[1].moving, "Recovery fixture did not stall");
         trial.paused = true;
         config.corridor_traffic = true;
@@ -447,19 +490,24 @@ void corridor_recovery_contracts() {
         auto replay = trial;
         bool saw_retreat = false, saw_reverse = false, checked_lifecycle = false;
         for (int t = 0; t < 6000; ++t) {
-            trial.tick(); replay.tick();
+            trial.tick();
+            replay.tick();
             for (std::size_t i = 0; i < trial.movers().size(); ++i) {
                 const auto &m = trial.movers()[i];
                 require(kinetra::distance(m.body.position, replay.movers()[i].body.position) == 0,
                         "Retreat recovery was nondeterministic");
                 require(kinetra::length(m.body.acceleration) <= config.force + 0.00001f &&
-                            kinetra::distance(m.destination, rotate(i == 0 ? Vec2{1900, 700} : Vec2{300, 700})) == 0,
+                            kinetra::distance(m.destination,
+                                              rotate(i == 0 ? Vec2{1900, 700} : Vec2{300, 700})) == 0,
                         "Retreat exceeded acceleration limits or replaced a goal");
-                if (!m.corridor_retreating) continue;
+                if (!m.corridor_retreating)
+                    continue;
                 saw_retreat = true;
-                saw_reverse = saw_reverse || kinetra::dot(m.body.velocity, m.destination - m.body.position) < -1;
+                saw_reverse =
+                    saw_reverse || kinetra::dot(m.body.velocity, m.destination - m.body.position) < -1;
                 require(trial.corridor_retreat_target(i).has_value(), "Active retreat has no control target");
-                if (checked_lifecycle) continue;
+                if (checked_lifecycle)
+                    continue;
                 auto cancelled = trial;
                 require(cancelled.move_to(i, m.destination) && cancelled.corridor_recovering() == 0 &&
                             !cancelled.corridor_retreat_target(i) &&
@@ -467,26 +515,31 @@ void corridor_recovery_contracts() {
                         "New manual goal failed to cancel retreat without teleporting");
                 auto disabled = trial;
                 disabled.paused = true;
-                auto off = disabled.motion_settings(); off.corridor_traffic = false;
+                auto off = disabled.motion_settings();
+                off.corridor_traffic = false;
                 disabled.configure_motion(off);
                 require(disabled.corridor_recovering() == 0 && !disabled.movers()[i].corridor_retreating &&
                             kinetra::distance(disabled.movers()[i].body.position, m.body.position) == 0,
                         "Disabling traffic retained retreat state or moved a body");
                 auto blocked = trial;
                 blocked.toggle_mover(i);
-                for (int step = 0; step < 200; ++step) blocked.tick();
+                for (int step = 0; step < 200; ++step)
+                    blocked.tick();
                 require(kinetra::distance(blocked.movers()[i].body.position, m.body.position) == 0,
                         "Recovery moved a blocked yielding mover");
                 blocked.toggle_mover(i);
-                for (int step = 0; step < 6000; ++step) blocked.tick();
-                require(!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0,
+                for (int step = 0; step < 6000; ++step)
+                    blocked.tick();
+                require(!blocked.movers()[0].moving && !blocked.movers()[1].moving &&
+                            blocked.collisions() == 0,
                         "Retreat did not resume after a temporary blockage");
                 checked_lifecycle = true;
             }
         }
         require(saw_retreat && saw_reverse && checked_lifecycle && trial.corridor_recovering() == 0 &&
                     !trial.movers()[0].moving && !trial.movers()[1].moving && trial.collisions() == 0 &&
-                    trial.contact_ticks() == 0, "Retreat failed to restore both original goals without contact");
+                    trial.contact_ticks() == 0,
+                "Retreat failed to restore both original goals without contact");
     }
     auto rectangular = original;
     rectangular.dimension = {1400, 2200};
@@ -500,17 +553,20 @@ void corridor_recovery_contracts() {
     Simulation long_movers(rectangular);
     long_movers.workload = false;
     auto long_config = long_movers.motion_settings();
-    long_config.profile = SteeringProfile::reciprocal; long_config.corridor_traffic = true;
+    long_config.profile = SteeringProfile::reciprocal;
+    long_config.corridor_traffic = true;
     long_movers.configure_motion(long_config);
     require(long_movers.move_to(0, {700, 2050}) && long_movers.move_to(1, {700, 300}),
             "Long rectangular mover goals rejected");
     long_movers.paused = false;
     bool long_recovery = false;
     for (int t = 0; t < 8000; ++t) {
-        long_movers.tick(); long_recovery = long_recovery || long_movers.corridor_recovering() > 0;
+        long_movers.tick();
+        long_recovery = long_recovery || long_movers.corridor_recovering() > 0;
     }
     require(long_recovery && !long_movers.movers()[0].moving && !long_movers.movers()[1].moving &&
-                long_movers.collisions() == 0, "Retreat refuge failed to fit long rectangular movers");
+                long_movers.collisions() == 0,
+            "Retreat refuge failed to fit long rectangular movers");
     auto b = original;
     for (auto point : {Vec2{500, 500}, Vec2{500, 900}, Vec2{1700, 500}, Vec2{1700, 900}})
         b.movers.push_back({"occupied refuge " + std::to_string(b.movers.size()), Model::APM4220,
@@ -518,9 +574,11 @@ void corridor_recovery_contracts() {
     Simulation obstructed(b);
     obstructed.workload = false;
     auto config = obstructed.motion_settings();
-    config.profile = SteeringProfile::reciprocal; config.corridor_traffic = true;
+    config.profile = SteeringProfile::reciprocal;
+    config.corridor_traffic = true;
     obstructed.configure_motion(config);
-    require(obstructed.move_to(0, {1900, 700}) && obstructed.move_to(1, {300, 700}), "Obstructed recovery goals rejected");
+    require(obstructed.move_to(0, {1900, 700}) && obstructed.move_to(1, {300, 700}),
+            "Obstructed recovery goals rejected");
     obstructed.paused = false;
     for (int t = 0; t < 1500; ++t) {
         obstructed.tick();
@@ -528,8 +586,12 @@ void corridor_recovery_contracts() {
     }
     require(obstructed.move_to(2, {100, 300}), "Refuge blocker could not move away");
     bool recovered = false;
-    for (int t = 0; t < 8000; ++t) { obstructed.tick(); recovered = recovered || obstructed.corridor_recovering() > 0; }
-    require(recovered && !obstructed.movers()[0].moving && !obstructed.movers()[1].moving && obstructed.collisions() == 0,
+    for (int t = 0; t < 8000; ++t) {
+        obstructed.tick();
+        recovered = recovered || obstructed.corridor_recovering() > 0;
+    }
+    require(recovered && !obstructed.movers()[0].moving && !obstructed.movers()[1].moving &&
+                obstructed.collisions() == 0,
             "Freeing a refuge did not permit a safe retry");
 }
 void predictive_passing_contracts() {
@@ -537,7 +599,9 @@ void predictive_passing_contracts() {
     for (auto profile : {SteeringProfile::improved, SteeringProfile::reciprocal})
         for (int orientation = 0; orientation < 8; ++orientation) {
             Blueprint b;
-            b.name = "open-floor passing"; b.dimension = {4000, 4000}; b.cell_size = {200, 200};
+            b.name = "open-floor passing";
+            b.dimension = {4000, 4000};
+            b.cell_size = {200, 200};
             b.mover_max_extent = 235;
             const float angle = orientation * 0.78539816339f;
             const auto forward = kinetra::rotated({1, 0}, angle);
@@ -546,14 +610,18 @@ void predictive_passing_contracts() {
                         {"second", Model::APM4350, second - Vec2{77.5f, 117.5f}}};
             Simulation trial(b);
             trial.workload = false;
-            auto config = trial.motion_settings(); config.profile = profile; config.predictive_passing = true; config.heatmap = false;
+            auto config = trial.motion_settings();
+            config.profile = profile;
+            config.predictive_passing = true;
+            config.heatmap = false;
             trial.configure_motion(config);
             require(trial.move_to(0, second) && trial.move_to(1, first), "Passing goals rejected");
             trial.paused = false;
             auto replay = trial;
             bool saw_pair = false, checked_lifecycle = false;
             for (int tick = 0; tick < 5000; ++tick) {
-                trial.tick(); replay.tick();
+                trial.tick();
+                replay.tick();
                 for (std::size_t i = 0; i < 2; ++i) {
                     const auto &m = trial.movers()[i];
                     require(kinetra::distance(m.body.position, replay.movers()[i].body.position) == 0,
@@ -563,29 +631,40 @@ void predictive_passing_contracts() {
                             "Passing changed a goal or exceeded acceleration bounds");
                     require(!m.corridor_retreating, "Open-floor passing invoked corridor retreat");
                 }
-                if (!trial.predictive_pairs()) continue;
+                if (!trial.predictive_pairs())
+                    continue;
                 if (!saw_pair)
                     require(trial.movers()[0].no_progress < 120 && trial.movers()[1].no_progress < 120 &&
-                                kinetra::distance(trial.movers()[0].body.position, trial.movers()[1].body.position) > 300,
+                                kinetra::distance(trial.movers()[0].body.position,
+                                                  trial.movers()[1].body.position) > 300,
                             "Passing was detected only after a packed standstill");
                 saw_pair = true;
                 require(trial.movers()[0].passing_detour && trial.movers()[1].passing_detour &&
-                            trial.passing_target(0) && trial.passing_target(1), "Pair did not share temporary targets");
-                if (checked_lifecycle) continue;
+                            trial.passing_target(0) && trial.passing_target(1),
+                        "Pair did not share temporary targets");
+                if (checked_lifecycle)
+                    continue;
                 auto cancelled = trial;
                 require(cancelled.move_to(0, second) && cancelled.predictive_pairs() == 0 &&
                             !cancelled.passing_target(1) &&
-                            kinetra::distance(cancelled.movers()[0].body.position, trial.movers()[0].body.position) == 0,
+                            kinetra::distance(cancelled.movers()[0].body.position,
+                                              trial.movers()[0].body.position) == 0,
                         "Manual command did not cancel passing without teleportation");
-                auto disabled = trial; disabled.paused = true;
-                auto off = disabled.motion_settings(); off.predictive_passing = false;
+                auto disabled = trial;
+                disabled.paused = true;
+                auto off = disabled.motion_settings();
+                off.predictive_passing = false;
                 disabled.configure_motion(off);
                 require(disabled.predictive_pairs() == 0 &&
-                            kinetra::distance(disabled.movers()[1].body.position, trial.movers()[1].body.position) == 0,
+                            kinetra::distance(disabled.movers()[1].body.position,
+                                              trial.movers()[1].body.position) == 0,
                         "Disabling predictive passing retained a pair or moved a body");
-                auto blocked = trial; blocked.toggle_mover(1); blocked.tick();
+                auto blocked = trial;
+                blocked.toggle_mover(1);
+                blocked.tick();
                 require(blocked.predictive_pairs() == 0 &&
-                            kinetra::distance(blocked.movers()[1].body.position, trial.movers()[1].body.position) == 0,
+                            kinetra::distance(blocked.movers()[1].body.position,
+                                              trial.movers()[1].body.position) == 0,
                         "Blocked participant retained a stale passing commitment");
                 checked_lifecycle = true;
             }
@@ -595,31 +674,45 @@ void predictive_passing_contracts() {
         }
     auto b = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json");
     b.movers[0].position.y = b.movers[1].position.y = 43.5f;
-    Simulation wall(b); wall.workload = false;
-    auto config = wall.motion_settings(); config.profile = SteeringProfile::reciprocal; config.predictive_passing = true; config.heatmap = false;
+    Simulation wall(b);
+    wall.workload = false;
+    auto config = wall.motion_settings();
+    config.profile = SteeringProfile::reciprocal;
+    config.predictive_passing = true;
+    config.heatmap = false;
     wall.configure_motion(config);
     require(wall.move_to(0, {1900, 100}) && wall.move_to(1, {500, 100}), "Near-wall goals rejected");
     wall.paused = false;
     bool shifted = false;
-    for (int t = 0; t < 5000; ++t) { wall.tick(); shifted = shifted || wall.predictive_pairs() > 0; }
+    for (int t = 0; t < 5000; ++t) {
+        wall.tick();
+        shifted = shifted || wall.predictive_pairs() > 0;
+    }
     require(shifted && !wall.movers()[0].moving && !wall.movers()[1].moving && wall.collisions() == 0,
             "Shared passing lanes did not shift away from a wall");
     b.dimension.y = 200;
-    Simulation narrow(b); narrow.workload = false; narrow.configure_motion(config);
+    Simulation narrow(b);
+    narrow.workload = false;
+    narrow.configure_motion(config);
     require(narrow.move_to(0, {1900, 100}) && narrow.move_to(1, {500, 100}), "Narrow goals rejected");
     narrow.paused = false;
     for (int t = 0; t < 1000; ++t) {
         narrow.tick();
-        require(narrow.predictive_pairs() == 0 && !narrow.movers()[0].route.empty() && !narrow.movers()[1].route.empty(),
+        require(narrow.predictive_pairs() == 0 && !narrow.movers()[0].route.empty() &&
+                    !narrow.movers()[1].route.empty(),
                 "No-space passing created an unsafe detour or cleared the original path");
     }
     for (auto profile : {SteeringProfile::original, SteeringProfile::experimental_rvo}) {
-        Simulation legacy(load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
-        legacy.workload = false; config.profile = profile; legacy.configure_motion(config);
+        Simulation legacy(
+            load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+        legacy.workload = false;
+        config.profile = profile;
+        legacy.configure_motion(config);
         require(legacy.move_to(0, {1900, 800}) && legacy.move_to(1, {500, 800}), "Legacy goals rejected");
         legacy.paused = false;
         for (int t = 0; t < 1000; ++t) {
-            legacy.tick(); require(legacy.predictive_pairs() == 0, "Predictive policy changed a legacy steering profile");
+            legacy.tick();
+            require(legacy.predictive_pairs() == 0, "Predictive policy changed a legacy steering profile");
         }
     }
 }
@@ -650,11 +743,11 @@ void parking_traffic_contracts() {
                     "Parking traffic changed an owned reservation");
             require(kinetra::length(m.body.acceleration) <= simulation.motion_settings().force + 0.00001f,
                     "Parking traffic bypassed bounded movement");
-            if (waiting[i] && !m.parking_deferred &&
-                kinetra::distance(m.destination, m.parking) < 0.05f)
+            if (waiting[i] && !m.parking_deferred && kinetra::distance(m.destination, m.parking) < 0.05f)
                 saw_return = true;
             waiting[i] = m.parking_deferred;
-            if (!m.parking_deferred) continue;
+            if (!m.parking_deferred)
+                continue;
             saw_wait = true;
             if (!checked_release) {
                 auto disabled = simulation;
@@ -670,7 +763,8 @@ void parking_traffic_contracts() {
                 blocked.workload = false;
                 blocked.paused = true;
                 for (std::size_t j = 0; j < blocked.movers().size(); ++j)
-                    if (j != i && !blocked.movers()[j].blocked) blocked.toggle_mover(j);
+                    if (j != i && !blocked.movers()[j].blocked)
+                        blocked.toggle_mover(j);
                 blocked.single_step();
                 require(!blocked.movers()[i].parking_deferred,
                         "A blocked departure retained a stale parking interlock");
@@ -707,7 +801,8 @@ int main(int argc, char **argv) {
             probe.single_step();
             require(!probe.movers()[0].product, "Manual mover allocated by factory");
             require(probe.paused && probe.ticks() == 1, "Single step did not retain pause");
-            require(kinetra::distance(start, probe.movers()[0].body.position) > 0, "Single step did not move");
+            require(kinetra::distance(start, probe.movers()[0].body.position) > 0,
+                    "Single step did not move");
             for (auto profile : {SteeringProfile::improved, SteeringProfile::original,
                                  SteeringProfile::experimental_rvo, SteeringProfile::reciprocal}) {
                 auto config = probe.motion_settings();
@@ -720,24 +815,34 @@ int main(int argc, char **argv) {
             auto config = probe.motion_settings();
             config.profile = SteeringProfile(99);
             bool invalid_profile = false;
-            try { probe.configure_motion(config); } catch (const std::invalid_argument &) { invalid_profile = true; }
+            try {
+                probe.configure_motion(config);
+            } catch (const std::invalid_argument &) {
+                invalid_profile = true;
+            }
             require(invalid_profile, "Unknown steering profile accepted");
             config.profile = SteeringProfile::improved;
             config.horizon = 65;
             bool rejected = false;
-            try { probe.configure_motion(config); } catch (const std::invalid_argument &) { rejected = true; }
+            try {
+                probe.configure_motion(config);
+            } catch (const std::invalid_argument &) {
+                rejected = true;
+            }
             require(rejected, "Unbounded horizon accepted");
         }
         {
             // Return to an actual reservation after departing into the aisle.
             // Include walls, a corner and a slot between two parked movers.
-            for (auto profile : {SteeringProfile::improved, SteeringProfile::original, SteeringProfile::reciprocal})
+            for (auto profile :
+                 {SteeringProfile::improved, SteeringProfile::original, SteeringProfile::reciprocal})
                 for (int scenario = 0; scenario < 3; ++scenario) {
                     auto b = fixture();
                     b.producers.clear();
                     const Vec2 size = mover_spec(Model::APM4220).dimension;
-                    const Vec2 home = scenario == 0 ? Vec2{0, 500}
-                                    : scenario == 1 ? Vec2{.25f, .25f} : Vec2{800, 500};
+                    const Vec2 home = scenario == 0   ? Vec2{0, 500}
+                                      : scenario == 1 ? Vec2{.25f, .25f}
+                                                      : Vec2{800, 500};
                     b.movers = {{"returning", Model::APM4220, home}};
                     if (scenario == 2) {
                         b.movers.push_back({"left", Model::APM4220, home - Vec2{size.x + 8, 0}});
@@ -766,7 +871,8 @@ int main(int argc, char **argv) {
                             std::cerr << "parking profile=" << int(profile) << " scenario=" << scenario
                                       << " pos=" << m.body.position.x << ',' << m.body.position.y
                                       << " goal=" << goal.x << ',' << goal.y << " route=" << m.route.size()
-                                      << " velocity=" << m.body.velocity.x << ',' << m.body.velocity.y << '\n';
+                                      << " velocity=" << m.body.velocity.x << ',' << m.body.velocity.y
+                                      << '\n';
                         }
                         require(!parking.movers()[0].moving, "Parking approach failed to settle");
                         require(parking.collisions() == 0, "Parking approach contacted a wall or neighbor");
@@ -774,7 +880,8 @@ int main(int argc, char **argv) {
                     require(kinetra::distance(parking.movers()[0].body.position, reserved) == 0 &&
                                 kinetra::length(parking.movers()[0].body.velocity) == 0,
                             "Mover failed to park at its reservation");
-                    for (int tick = 0; tick < 200; ++tick) parking.tick();
+                    for (int tick = 0; tick < 200; ++tick)
+                        parking.tick();
                     require(kinetra::distance(parking.movers()[0].body.position, reserved) == 0,
                             "Parked mover drifted after arrival");
                 }
@@ -798,7 +905,7 @@ int main(int argc, char **argv) {
         {
             auto b = fixture();
             b.producers.clear();
-            b.movers.push_back({"overlap", Model::APM4220, b.movers[0].position + Vec2{10,0}});
+            b.movers.push_back({"overlap", Model::APM4220, b.movers[0].position + Vec2{10, 0}});
             Simulation contacts(b);
             contacts.workload = false;
             contacts.single_step();
@@ -818,18 +925,18 @@ int main(int argc, char **argv) {
             solo.workload = false;
             require(solo.move_to(0, {1900, 750}), "Solo goal rejected");
             solo.paused = false;
-            for (int tick = 0; tick < 80; ++tick) solo.tick();
-            require(solo.movers()[0].replan == 80,
-                    "A mover replanned because of its own heatmap footprint");
-            for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick) solo.tick();
+            for (int tick = 0; tick < 80; ++tick)
+                solo.tick();
+            require(solo.movers()[0].replan == 80, "A mover replanned because of its own heatmap footprint");
+            for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick)
+                solo.tick();
             require(!solo.movers()[0].moving && solo.collisions() == 0,
                     "Solo route failed to arrive without contact");
         }
         {
             auto b = fixture();
             b.producers.clear();
-            b.movers = {{"moving", Model::APM4220, {500, 700}},
-                        {"parked", Model::APM4220, {510, 700}}};
+            b.movers = {{"moving", Model::APM4220, {500, 700}}, {"parked", Model::APM4220, {510, 700}}};
             Simulation parked(b);
             parked.workload = false;
             const auto position = parked.movers()[1].body.position;
@@ -861,7 +968,8 @@ int main(int argc, char **argv) {
         }
         for (bool crossing : {false, true}) {
             std::uint64_t reference_contacts{};
-            for (auto profile : {SteeringProfile::original, SteeringProfile::improved, SteeringProfile::reciprocal}) {
+            for (auto profile :
+                 {SteeringProfile::original, SteeringProfile::improved, SteeringProfile::reciprocal}) {
                 auto b = fixture();
                 b.producers.clear();
                 b.movers = {{"A", Model::APM4220, {500, 700}},
@@ -876,11 +984,13 @@ int main(int argc, char **argv) {
                 require(trial.move_to(0, crossing ? Vec2{1700, a.y} : c), "Encounter goal A rejected");
                 require(trial.move_to(1, crossing ? Vec2{c.x, 1300} : a), "Encounter goal B rejected");
                 trial.paused = false;
-                for (int tick=0; tick<5000; ++tick) trial.tick();
-                std::cout << "ENCOUNTER " << crossing << " PROFILE " << int(profile)
-                          << " CONTACTS " << trial.collisions() << " MOVING "
-                          << trial.movers()[0].moving << trial.movers()[1].moving << '\n';
-                if (profile == SteeringProfile::original) reference_contacts = trial.collisions();
+                for (int tick = 0; tick < 5000; ++tick)
+                    trial.tick();
+                std::cout << "ENCOUNTER " << crossing << " PROFILE " << int(profile) << " CONTACTS "
+                          << trial.collisions() << " MOVING " << trial.movers()[0].moving
+                          << trial.movers()[1].moving << '\n';
+                if (profile == SteeringProfile::original)
+                    reference_contacts = trial.collisions();
                 else {
                     require(!trial.movers()[0].moving && !trial.movers()[1].moving,
                             "Encounter did not reach both goals");
@@ -959,7 +1069,8 @@ int main(int argc, char **argv) {
                 std::cerr << m.definition.id << " pos=" << m.body.position.x << ',' << m.body.position.y
                           << " goal=" << m.destination.x << ',' << m.destination.y << " moving=" << m.moving
                           << " unreachable=" << m.unreachable << " route=" << m.route.size()
-                          << " blocked-start=" << !factory.grid().clear(m.body.position, m.body.position, m.body.half_extents)
+                          << " blocked-start="
+                          << !factory.grid().clear(m.body.position, m.body.position, m.body.half_extents)
                           << '\n';
         }
         require(factory.completed() >= 5, "Original MAS workload deadlocked instead of completing recipes");

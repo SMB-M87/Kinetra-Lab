@@ -27,13 +27,16 @@ struct Harness {
     }
 
     /// Feeds one frame of input; zoom is bounded to 25..50 pixels per unit.
-    bool update(const kinetra::Input &input) { return settings.update(input, camera, statistics, debug, 25, 50); }
+    bool update(const kinetra::Input &input) {
+        return settings.update(input, camera, statistics, debug, 25, 50);
+    }
 
     /// Clicks at a position in the panel's own layout coordinates (centered modal).
     bool click(float x, float y) {
         kinetra::Input input;
         input.clicked = true;
-        input.mouse = viewport / 2 + (kinetra::Vec2{x, y} - settings.half_extent()) * lab::Settings::scale(viewport);
+        input.mouse =
+            viewport / 2 + (kinetra::Vec2{x, y} - settings.half_extent()) * lab::Settings::scale(viewport);
         return update(input);
     }
 

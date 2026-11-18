@@ -2,9 +2,9 @@
 
 #include <cmath>
 #include <cstdint>
+#include <kinetra/physics.h>
 #include <map>
 #include <random>
-#include <kinetra/physics.h>
 #include <stdexcept>
 #include <utility>
 #include <vector>

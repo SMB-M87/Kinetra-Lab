@@ -91,7 +91,8 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
             else if (body.shape == Shape::polygon) {
                 for (std::size_t i = 0; i < body.vertices.size(); ++i)
                     runtime.line(body.position + rotated(body.vertices[i], body.angle),
-                                 body.position + rotated(body.vertices[(i + 1) % body.vertices.size()], body.angle),
+                                 body.position +
+                                     rotated(body.vertices[(i + 1) % body.vertices.size()], body.angle),
                                  1.f / runtime.camera.pixels_per_unit, {1, 0.4f, 0.4f});
             } else
                 draw_debug_box(runtime, body.position, body.half_extents, body.angle, {1, 0.4f, 0.4f});
@@ -129,11 +130,12 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     if (statistics) {
         const auto active = std::count_if(scene.agents().begin(), scene.agents().end(),
                                           [](const auto &agent) { return agent.active(); });
-        const auto text = "FPS " + std::to_string(int(fps)) + " AGENTS " + std::to_string(active) + "/" +
-                          std::to_string(scene.agents().size()) + " CHUNKS " +
-                          std::to_string(scene.terrain.chunks().size()) +
-                          (scene.reciprocal_avoidance ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited)
-                                                      : " AVOID LEGACY");
+        const auto text =
+            "FPS " + std::to_string(int(fps)) + " AGENTS " + std::to_string(active) + "/" +
+            std::to_string(scene.agents().size()) + " CHUNKS " +
+            std::to_string(scene.terrain.chunks().size()) +
+            (scene.reciprocal_avoidance ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited)
+                                        : " AVOID LEGACY");
         const float width = std::min(runtime.camera.viewport.x, 20.f + float(text.size()) * 9);
         runtime.box(runtime.camera.screen_to_world({width / 2, runtime.camera.viewport.y - 15}),
                     Vec2{width / 2, 13} / runtime.camera.pixels_per_unit, 0, {0.025f, 0.035f, 0.06f});

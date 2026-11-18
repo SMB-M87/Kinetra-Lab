@@ -283,7 +283,8 @@ void curved_wander() {
         integrate(body, 1.f / 120);
         const auto direction = normalized(body.velocity);
         if (length(body.velocity) > 1 && length(previous_direction) > 0)
-            total_turn += std::abs(std::atan2(cross(previous_direction, direction), dot(previous_direction, direction)));
+            total_turn += std::abs(
+                std::atan2(cross(previous_direction, direction), dot(previous_direction, direction)));
         previous_direction = direction;
     }
     require(early_goal_changes >= 3 && total_turn > 0.5f,

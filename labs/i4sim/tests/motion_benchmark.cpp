@@ -11,8 +11,14 @@ int main(int argc, char **argv) {
         std::uint64_t ticks = 50000;
         for (int i = 1; i < argc; ++i) {
             const std::string option = argv[i];
-            if (option == "--predictive-passing") { predictive_passing = true; continue; }
-            if (option == "--no-predictive-passing") { predictive_passing = false; continue; }
+            if (option == "--predictive-passing") {
+                predictive_passing = true;
+                continue;
+            }
+            if (option == "--no-predictive-passing") {
+                predictive_passing = false;
+                continue;
+            }
             if (option == "--corridor-traffic") {
                 corridor_traffic = true;
                 continue;
@@ -33,11 +39,16 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Missing benchmark argument for " + option);
             const std::string value = argv[++i];
             if (option == "--profile") {
-                if (value == "improved") profile = SteeringProfile::improved;
-                else if (value == "original") profile = SteeringProfile::original;
-                else if (value == "rvo") profile = SteeringProfile::experimental_rvo;
-                else if (value == "reciprocal") profile = SteeringProfile::reciprocal;
-                else throw std::invalid_argument("Unknown steering profile: " + value);
+                if (value == "improved")
+                    profile = SteeringProfile::improved;
+                else if (value == "original")
+                    profile = SteeringProfile::original;
+                else if (value == "rvo")
+                    profile = SteeringProfile::experimental_rvo;
+                else if (value == "reciprocal")
+                    profile = SteeringProfile::reciprocal;
+                else
+                    throw std::invalid_argument("Unknown steering profile: " + value);
             } else if (option == "--ticks") {
                 std::size_t used{};
                 if (value.empty() || value.front() == '-')
@@ -46,15 +57,17 @@ int main(int argc, char **argv) {
                 if (used != value.size() || ticks == 0 || ticks > 1000000)
                     throw std::invalid_argument("Ticks must be in 1..1000000");
             } else {
-                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] [--parking-traffic] [--junction-traffic] [--corridor-traffic] [--predictive-passing|--no-predictive-passing] "
+                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] "
+                                            "[--parking-traffic] [--junction-traffic] [--corridor-traffic] "
+                                            "[--predictive-passing|--no-predictive-passing] "
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N]");
             }
         }
         std::cout << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,elapsed_ms\n";
         for (const char *name : {"MAS-demonstrator", "3840x2400", "8640x4800"}) {
             for (unsigned seed : {42u, 915839214u}) {
-                Simulation simulation(load_blueprint(default_blueprint_directory() /
-                                                     (std::string(name) + ".json")), seed);
+                Simulation simulation(
+                    load_blueprint(default_blueprint_directory() / (std::string(name) + ".json")), seed);
                 auto settings = simulation.motion_settings();
                 settings.predictive_passing = predictive_passing;
                 settings.recovery = recovery;
@@ -76,7 +89,8 @@ int main(int argc, char **argv) {
                     }
                 }
                 const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - started).count();
+                                         std::chrono::steady_clock::now() - started)
+                                         .count();
                 std::cout << name << ',' << seed << ',' << simulation.completed() << ','
                           << simulation.collisions() << ',' << simulation.contact_ticks() << ','
                           << acceleration_change << ',' << elapsed << std::endl;

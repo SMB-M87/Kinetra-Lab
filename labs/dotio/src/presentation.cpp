@@ -1,6 +1,6 @@
 #include "../include/presentation.h"
-#include <kinetra/help_view.h>
 #include "../include/physics_adapter.h"
+#include <kinetra/help_view.h>
 
 namespace dotio {
 using namespace kinetra;
@@ -114,10 +114,10 @@ void render(Runtime &runtime, Application &application) {
                 draw_debug_circle(runtime, position, enemy.Radius / 25, {0.6f, 0.8f, 1});
             if (application.ai) {
                 const std::string_view label = enemy.IsKamikazing()   ? "KAMIKAZE"
-                                    : enemy.IsRecovering() ? "RECOVER"
-                                    : enemy.IsPursueing()  ? "PURSUE"
-                                    : enemy.IsAttacking()  ? "ATTACK"
-                                                           : "WANDER";
+                                               : enemy.IsRecovering() ? "RECOVER"
+                                               : enemy.IsPursueing()  ? "PURSUE"
+                                               : enemy.IsAttacking()  ? "ATTACK"
+                                                                      : "WANDER";
                 const auto screen = runtime.camera.world_to_screen(position);
                 if (screen.x >= 0 && screen.y >= 0 && screen.x < runtime.camera.viewport.x &&
                     screen.y < runtime.camera.viewport.y) {

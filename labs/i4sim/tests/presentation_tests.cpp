@@ -63,7 +63,8 @@ int main() {
         require(statistics_pixels() != before_motion, "Running Motion edit did not update statistics");
         click_row(5); // Speed - restores the initial speed.
         require(statistics_pixels() == before_motion, "Inverse Motion edit did not restore speed");
-        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        for (int cycle = 0; cycle < 3; ++cycle)
+            click_row(1);
         require(statistics_pixels() != before_motion, "Reciprocal profile did not expose avoidance limits");
         click_row(1);
         require(statistics_pixels() == before_motion, "Profile cycle did not restore Improved");
@@ -129,17 +130,19 @@ int main() {
         suppressed.clicked = true;
         suppressed.mouse = {1, 479};
         session->advance(1, suppressed, runtime.camera);
-        require(session->title().find("PAUSED") != std::string::npos, "Modal settings leaked simulation input");
+        require(session->title().find("PAUSED") != std::string::npos,
+                "Modal settings leaked simulation input");
         session->advance(0, panel, runtime.camera);
-        require(session->title().find("RUNNING") != std::string::npos, "Settings did not restore running state");
+        require(session->title().find("RUNNING") != std::string::npos,
+                "Settings did not restore running state");
         Input back;
         back.pressed[std::size_t(Key::control)] = true;
         session->advance(0, back, runtime.camera);
         session->render(runtime);
         back = {};
         // Centered modal settings, default collapsed help: launcher action.
-        const float scale = std::min({2.f, runtime.camera.viewport.x / 204.f,
-                                      runtime.camera.viewport.y / 418.f});
+        const float scale =
+            std::min({2.f, runtime.camera.viewport.x / 204.f, runtime.camera.viewport.y / 418.f});
         back.mouse = runtime.camera.viewport / 2 + Vec2{-41, 67} * scale;
         back.clicked = true;
         session->advance(0, back, runtime.camera);
@@ -172,7 +175,8 @@ int main() {
         session->render(runtime);
         session->advance(0, debug_menu, runtime.camera);
         click_row(0);
-        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        for (int cycle = 0; cycle < 3; ++cycle)
+            click_row(1);
         click_row(14);
         session->advance(0, debug_menu, runtime.camera);
         Input no_workload;
@@ -200,18 +204,20 @@ int main() {
         for (std::size_t i = 0; i < crossing_pixels.size(); i += 3) {
             if (crossing_pixels[i] < 30 && crossing_pixels[i + 1] > 180 && crossing_pixels[i + 2] > 240)
                 ++cyan;
-            if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 &&
-                crossing_pixels[i + 1] > 235 && crossing_pixels[i + 2] < 30)
+            if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 && crossing_pixels[i + 1] > 235 &&
+                crossing_pixels[i + 2] < 30)
                 ++lime;
         }
         require(lime > 30 && cyan > 100 && session->title().find("RUNNING") != std::string::npos &&
-                    glGetError() == GL_NO_ERROR, "Actual crossing/zone rendering failed");
+                    glGetError() == GL_NO_ERROR,
+                "Actual crossing/zone rendering failed");
         const auto corridor_file = std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json";
         session = i4sim::create_session(42, repaired_catalog, corridor_file);
         session->render(runtime);
         session->advance(0, debug_menu, runtime.camera);
         click_row(0);
-        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        for (int cycle = 0; cycle < 3; ++cycle)
+            click_row(1);
         click_row(0);
         click_row(13);
         session->advance(0, debug_menu, runtime.camera);
@@ -235,10 +241,12 @@ int main() {
         unsigned blue = 0;
         lime = 0;
         for (std::size_t i = 0; i < crossing_pixels.size(); i += 3) {
-            if (crossing_pixels[i] > 30 && crossing_pixels[i] < 80 &&
-                crossing_pixels[i + 1] > 90 && crossing_pixels[i + 1] < 160 && crossing_pixels[i + 2] > 240) ++blue;
-            if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 &&
-                crossing_pixels[i + 1] > 235 && crossing_pixels[i + 2] < 30) ++lime;
+            if (crossing_pixels[i] > 30 && crossing_pixels[i] < 80 && crossing_pixels[i + 1] > 90 &&
+                crossing_pixels[i + 1] < 160 && crossing_pixels[i + 2] > 240)
+                ++blue;
+            if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 && crossing_pixels[i + 1] > 235 &&
+                crossing_pixels[i + 2] < 30)
+                ++lime;
         }
         require(blue > 50 && lime > 30 && glGetError() == GL_NO_ERROR,
                 "Actual corridor admission/exit rendering failed");
@@ -247,8 +255,10 @@ int main() {
         session->render(runtime);
         session->advance(0, debug_menu, runtime.camera);
         click_row(0);
-        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
-        click_row(0); click_row(13);
+        for (int cycle = 0; cycle < 3; ++cycle)
+            click_row(1);
+        click_row(0);
+        click_row(13);
         session->advance(0, debug_menu, runtime.camera);
         session->advance(0, no_workload, runtime.camera);
         for (int i = 0; i < 2; ++i) {
@@ -270,16 +280,20 @@ int main() {
         unsigned retreat_pixels = 0;
         for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
             if (crossing_pixels[i] > 230 && crossing_pixels[i + 1] > 50 && crossing_pixels[i + 1] < 100 &&
-                crossing_pixels[i + 2] > 150 && crossing_pixels[i + 2] < 210) ++retreat_pixels;
-        require(retreat_pixels > 20 && glGetError() == GL_NO_ERROR, "Actual corridor retreat rendering failed");
+                crossing_pixels[i + 2] > 150 && crossing_pixels[i + 2] < 210)
+                ++retreat_pixels;
+        require(retreat_pixels > 20 && glGetError() == GL_NO_ERROR,
+                "Actual corridor retreat rendering failed");
         const auto passing_file = std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json";
         session = i4sim::create_session(42, repaired_catalog, passing_file);
         session->render(runtime);
         session->advance(0, debug_menu, runtime.camera);
         click_row(0);
-        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        for (int cycle = 0; cycle < 3; ++cycle)
+            click_row(1);
         click_row(2); // Plain A* keeps this controlled encounter head-on.
-        click_row(0); click_row(14);
+        click_row(0);
+        click_row(14);
         session->advance(0, debug_menu, runtime.camera);
         session->advance(0, no_workload, runtime.camera);
         for (int i = 0; i < 2; ++i) {
@@ -301,9 +315,11 @@ int main() {
             passing_pixels = 0;
             for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
                 if (crossing_pixels[i] > 60 && crossing_pixels[i] < 100 && crossing_pixels[i + 1] > 240 &&
-                    crossing_pixels[i + 2] > 160 && crossing_pixels[i + 2] < 200) ++passing_pixels;
+                    crossing_pixels[i + 2] > 160 && crossing_pixels[i + 2] < 200)
+                    ++passing_pixels;
         }
-        require(passing_pixels > 20 && glGetError() == GL_NO_ERROR, "Actual predictive passing rendering failed");
+        require(passing_pixels > 20 && glGetError() == GL_NO_ERROR,
+                "Actual predictive passing rendering failed");
         std::cout << "PASS loadscreen, simulation overlays, input and session lifecycle\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';

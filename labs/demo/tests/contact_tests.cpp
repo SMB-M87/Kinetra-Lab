@@ -1,6 +1,6 @@
-#include <kinetra/physics.h>
 #include <cmath>
 #include <iostream>
+#include <kinetra/physics.h>
 #include <stdexcept>
 
 namespace {
@@ -29,7 +29,8 @@ void head_on(float dt, float speed = 2, float duration = 2) {
     const auto &right = world.body(1);
     require(left.velocity.x < 0 && right.velocity.x > 0, "Head-on contact must reverse velocities");
     require(length(left.velocity + right.velocity) < 0.001f, "Contact lost linear momentum");
-    require(std::abs(dot(left.velocity, left.velocity) + dot(right.velocity, right.velocity) - 2 * speed * speed) < 0.01f,
+    require(std::abs(dot(left.velocity, left.velocity) + dot(right.velocity, right.velocity) -
+                     2 * speed * speed) < 0.01f,
             "Elastic contact lost kinetic energy");
     require(left.position.x < right.position.x, "Bodies passed through one another");
 }
@@ -75,8 +76,8 @@ void off_center_contact() {
     const auto contact = collide(box, ball);
     require(contact.has_value(), "Off-center impact must produce contact");
     const Vec2 momentum = box.velocity * box.mass + ball.velocity * ball.mass;
-    const float angular_momentum = cross(box.position, box.velocity * box.mass) +
-                                   cross(ball.position, ball.velocity * ball.mass);
+    const float angular_momentum =
+        cross(box.position, box.velocity * box.mass) + cross(ball.position, ball.velocity * ball.mass);
     // Suppress position correction to isolate the impulse's conservation laws.
     auto impulse_contact = *contact;
     impulse_contact.penetration = 0;
@@ -84,12 +85,12 @@ void off_center_contact() {
     require(box.angular_velocity < -0.01f, "Off-center impact must rotate the box clockwise");
     require(length(box.velocity * box.mass + ball.velocity * ball.mass - momentum) < 0.0001f,
             "Off-center contact lost linear momentum");
-    const float box_inertia = box.mass * (box.half_extents.x * box.half_extents.x +
-                                         box.half_extents.y * box.half_extents.y) / 3;
+    const float box_inertia =
+        box.mass * (box.half_extents.x * box.half_extents.x + box.half_extents.y * box.half_extents.y) / 3;
     const float ball_inertia = ball.mass * ball.radius * ball.radius / 2;
     const float after = cross(box.position, box.velocity * box.mass) +
-                        cross(ball.position, ball.velocity * ball.mass) +
-                        box_inertia * box.angular_velocity + ball_inertia * ball.angular_velocity;
+                        cross(ball.position, ball.velocity * ball.mass) + box_inertia * box.angular_velocity +
+                        ball_inertia * ball.angular_velocity;
     require(std::abs(after - angular_momentum) < 0.0001f, "Contact lost angular momentum");
 }
 

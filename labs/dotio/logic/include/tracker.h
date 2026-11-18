@@ -27,7 +27,9 @@ struct Tracker {
 
     T &operator[](const int index) { return GetInstances()[index % _size]; }
 
-    void AddInstance(T instance) requires IsActive<T> {
+    void AddInstance(T instance)
+        requires IsActive<T>
+    {
         T &i = _instances[_index++] = instance;
         i.IsActive = true;
 

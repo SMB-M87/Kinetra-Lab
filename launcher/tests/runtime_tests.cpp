@@ -1,5 +1,5 @@
-#include "../include/session.h"
 #include "../../labs/i4sim/include/factory_settings.h"
+#include "../include/session.h"
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
 #include <iostream>
@@ -23,8 +23,8 @@ template <typename Settings> void full_debug_label(Runtime &runtime) {
     unsigned char pixel[4]{};
     auto read = [&] {
         glReadPixels(int(98.5f * width / runtime.camera.viewport.x),
-                     height - 1 - int(8.5f * height / runtime.camera.viewport.y),
-                     1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+                     height - 1 - int(8.5f * height / runtime.camera.viewport.y), 1, 1, GL_RGBA,
+                     GL_UNSIGNED_BYTE, pixel);
     };
     glReadBuffer(GL_FRONT);
     read();
@@ -43,8 +43,8 @@ void default_debug_views() {
         SDL_GL_GetDrawableSize(window, &width, &height);
         std::array<unsigned char, 4> color{};
         glReadPixels(int(point.x * width / runtime.camera.viewport.x),
-                     height - 1 - int(point.y * height / runtime.camera.viewport.y),
-                     1, 1, GL_RGBA, GL_UNSIGNED_BYTE, color.data());
+                     height - 1 - int(point.y * height / runtime.camera.viewport.y), 1, 1, GL_RGBA,
+                     GL_UNSIGNED_BYTE, color.data());
         return color;
     };
     for (auto variant : {launcher::Variant::demo, launcher::Variant::i4sim}) {
@@ -60,17 +60,17 @@ void default_debug_views() {
         session->render(runtime);
         glFinish();
         const float scale = DebugMenu::scale(runtime.camera.viewport);
-        const auto checkbox = [&](int row) {
-            return Vec2{8, 32} + Vec2{12.5f, 29.5f + row * 16} * scale;
-        };
+        const auto checkbox = [&](int row) { return Vec2{8, 32} + Vec2{12.5f, 29.5f + row * 16} * scale; };
         glReadBuffer(GL_FRONT);
         if (pixel(checkbox(1))[0] < 150)
             glReadBuffer(GL_BACK);
         for (int row = 1; row <= (variant == launcher::Variant::demo ? 5 : 7); ++row) {
             const auto color = pixel(checkbox(row));
-            require(color[0] > 150, ("Visual debug layer did not start enabled: variant " +
-                    std::to_string(int(variant)) + " row " + std::to_string(row) + " red " +
-                    std::to_string(color[0]) + " viewport " + std::to_string(runtime.camera.viewport.x)).c_str());
+            require(color[0] > 150,
+                    ("Visual debug layer did not start enabled: variant " + std::to_string(int(variant)) +
+                     " row " + std::to_string(row) + " red " + std::to_string(color[0]) + " viewport " +
+                     std::to_string(runtime.camera.viewport.x))
+                        .c_str());
         }
         if (variant == launcher::Variant::demo) {
             require(pixel(checkbox(8))[0] > 150, "Demo reciprocal avoidance did not start enabled");
@@ -105,7 +105,7 @@ void settings_regression(Runtime &runtime) {
         input.wheel = 2;
         session->advance(0, input, runtime.camera);
         require(variant == launcher::Variant::demo ? runtime.camera.pixels_per_unit > initial_zoom
-                                                  : runtime.camera.pixels_per_unit == initial_zoom,
+                                                   : runtime.camera.pixels_per_unit == initial_zoom,
                 "Demo debug must start enabled; Dotio debug must remain opt-in");
         input = {};
         input.pressed[std::size_t(Key::control)] = true;

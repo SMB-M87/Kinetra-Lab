@@ -11,7 +11,7 @@ class State {
   public:
     void SetEnemy(Enemy &enemy) { _enemy = &enemy; }
     virtual void Execute(const float delta) = 0;
-    virtual void Update(){};
+    virtual void Update() {};
 };
 
 struct AttackState : State {
