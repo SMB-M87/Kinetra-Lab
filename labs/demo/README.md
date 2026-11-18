@@ -98,6 +98,8 @@ Avoidance considers moving-body envelopes; static terrain is handled by routes a
 
 [Crowd stability tests](tests/crowd_stability_tests.cpp) exercise 60 simulated seconds with each of seeds 123 and 456, including the spinning tangent-contact freeze regression.
 
+[Crowd characterization tests](tests/crowd_characterization_tests.cpp) pin the current crowd behavior with per-frame invariants and a trajectory fingerprint, so the planned Demo refactor can prove that it preserves behavior.
+
 [Terrain tests](tests/terrain_tests.cpp) cover deterministic streaming, compaction, sleep/wake, wandering, commands, detours, clearance, recovery and arrival. [Application tests](tests/sandbox_application_tests.cpp) cover pause, camera, pointer ordering and bindings. [Presentation tests](tests/presentation_tests.cpp) cover rendered scene/debug/help behavior.
 
 The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks. Design history: [terrain](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0002-camera-driven-terrain.md), [application boundary](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](https://github.com/SMB-M87/Kinetra/blob/main/docs/decisions/0005-sandbox-agent-lifecycle.md).

@@ -62,8 +62,8 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
-| `labs/i4sim/` logic (`simulation`, `predictive_passing`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim` | `^kinetra_i4sim` |
-| `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
+| `labs/i4sim/` logic (`simulation`, `predictive_passing`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim` | `^kinetra_i4sim` |
+| `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
 | `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio$` |
 | `labs/settings.h`, `launcher/include/menu.h` | `kinetra_settings_tests kinetra_menu_tests` | `^kinetra_(settings\|menu)$` |
 | Any `session.cpp`, presentation, launcher loop, `main.cpp` | Full level with graphics | |
