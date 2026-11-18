@@ -21,6 +21,7 @@ flowchart TD
     Sessions --> Factory[kinetra_i4sim_presentation]
     FactoryExe[kinetra_i4sim] --> Factory
     Factory --> FactoryLogic[kinetra_i4sim_application]
+    Factory -->|blueprint screen| Launcher
     FactoryLogic --> Sim
     Factory --> Runtime
     DemoExe[kinetra_demo] --> Demo
@@ -34,9 +35,9 @@ flowchart TD
     Dotio --> Runtime
 ```
 
-Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define application targets. Kinetra defines `Kinetra::Launcher` and `Kinetra::Runtime`. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure.
+Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define application targets. Kinetra defines `Kinetra::Launcher` and `Kinetra::Runtime`. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure. The i4sim presentation does link `Kinetra::Launcher` itself, for the `LaunchMenu` of its blueprint screen; the [layer rule](../AGENTS.md#lab-boundaries) lists this as an open point for phase 4.
 
-With `KINETRA_LAB_BUILD_RUNTIME=OFF`, application logic, its headless tests and the i4sim batch executable are built. Core tests are disabled in the embedded engine build and run independently in Kinetra. `KINETRA_SOURCE_DIR` selects the recorded `external/Kinetra` submodule by default or an explicit development checkout; no installed package is required.
+With `KINETRA_LAB_BUILD_RUNTIME=OFF`, application logic, its headless tests and the i4sim batch executable are built. Core tests are disabled in the embedded engine build and run independently in Kinetra. `KINETRA_SOURCE_DIR` selects the recorded `external/Kinetra` submodule by default or an explicit development checkout; no installed package is required. [External dependencies](../external/README.md) explains the submodule and how its pointer moves.
 
 ## Session ownership and frame flow
 
@@ -74,6 +75,6 @@ Runtime outlives every session; sessions own application state. Applications cho
 
 ## Verification boundaries
 
-Headless tests exercise terrain, application command ordering and ported game logic. Generic launcher registry tests run in Kinetra; Lab menu adapter tests run in runtime-enabled builds without opening a window. With `KINETRA_TEST_GRAPHICS=ON`, presentation and launcher integration tests require an actual OpenGL context.
+Headless tests exercise terrain, application command ordering and ported game logic. The settings overlay tests (`kinetra_settings_tests`) link only `Kinetra::Simulation`, so they build and run without the runtime too. Generic launcher registry tests run in Kinetra; Lab menu adapter tests run in runtime-enabled builds without opening a window. With `KINETRA_TEST_GRAPHICS=ON`, presentation and launcher integration tests require an actual OpenGL context.
 
 See [Labs verification](../labs/README.md#verification) and [graphics commands](../README.md#tests-and-resources). Engine changes are tested independently; Lab tests validate application integration with the selected engine checkout.

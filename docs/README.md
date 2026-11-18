@@ -1,4 +1,4 @@
-# Architecture documentation
+# Documentation index
 
 Design explanations live here; controls, gameplay and provenance live with the application sources.
 
@@ -8,7 +8,9 @@ Design explanations live here; controls, gameplay and provenance live with the a
 - [Architecture guides](#architecture-guides)
 - [Source and usage guides](#source-and-usage-guides)
 
-[Parent guide / project overview](../README.md) · [Documentation index](README.md) · [Media guide](media/README.md) · [Design documents](design/README.md)
+[Parent guide](../README.md) · [Agent rules](../AGENTS.md)
+
+Directory guides: [design](design/README.md), [media](media/README.md).
 
 ## Visual overview
 
@@ -37,12 +39,13 @@ flowchart TD
 | How does the local C++ factory simulation divide engine and application responsibilities? | [Factory simulation architecture](factory-simulation-architecture.md) |
 | How do registration, session transitions and overlay capture work? | [Launcher and overlays](launcher-overlays.md) |
 | What is changing now, and what is planned? | [Design documents](design/README.md), [quality roadmap](design/2026-11-18-quality-roadmap.md) |
+| How do I change Kinetra from Lab and update the submodule pointer? | [External dependencies](../external/README.md) |
 | How do we work (cycle, conventions, tests, docs)? | [Agent rules](../AGENTS.md), and in Kinetra: [workflow](../external/Kinetra/docs/workflow.md), [conventions](../external/Kinetra/docs/conventions.md), [testing](../external/Kinetra/docs/testing.md), [documentation guide](../external/Kinetra/docs/documentation.md) |
 
 ## Source and usage guides
 
-- [Labs](../labs/README.md), [Demo](../labs/demo/README.md) and [Dotio](../labs/dotio/README.md).
-- [Launcher](../launcher/README.md), [headers](../launcher/include/README.md) and [sources](../launcher/src/README.md).
+- [Labs](../labs/README.md), [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md).
+- [Launcher](../launcher/README.md).
 - [Build and verification](../README.md#tests-and-resources).
 - [Screenshots and demo video](media/README.md) used by the project overview.
 - [Core architecture](../external/Kinetra/docs/architecture.md) for reusable engine contracts.
