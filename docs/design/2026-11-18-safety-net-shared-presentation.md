@@ -123,7 +123,7 @@ The golden values stay unchanged through every step of this phase.
 
 ## Review
 
-Pending.
+Step 1: `/code-review` (low) on the branch diff found no issues. The self-review caught one dangling lambda capture and a weak end-state hash before the commit; both were fixed.
 
 ## Verification
 
@@ -132,10 +132,11 @@ Step 1, headless Release build (`-DKINETRA_LAB_BUILD_RUNTIME=OFF`) in `build/`:
 - `ctest --test-dir build --output-on-failure` before the change: 9 of 9 passed.
 - `ctest --test-dir build -R '^kinetra_(i4sim_golden|demo_crowd_characterization)$' --output-on-failure`: 2 of 2 passed.
 - Debug build in `build-debug/`: both programs reproduce the Release values.
+- `./build.sh` (Full): Kinetra 9/9 and Lab 12/12 passed, with no warnings.
 
 ## Pull request
 
-Pending.
+Step 1: `test: characterize i4sim and Demo crowds before phase 3 refactors` (description: summary, changes, verification with mutation check, merge order: independent). Steps 2–7 get their own pull request.
 
 ## Open points
 
