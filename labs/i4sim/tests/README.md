@@ -210,3 +210,38 @@ Enabling corridor traffic as well preserves all six 50000-tick results above.
 MAS-demonstrator, 3840x2400 and 8640x4800 contain no straight corridors matching
 the room-to-room detector, so this verifies compatibility rather than added
 throughput. The dedicated corridor fixture establishes the new passing behavior.
+
+Predictive passing coverage uses eight encounter orientations with mixed square/long
+rectangular footprints under Improved and Reciprocal. Tests check deterministic
+replay, early commitment, preserved goals, bounded acceleration, zero contacts,
+completion, cancellation, disable/block lifecycle, near-wall translated lanes and
+rejection when no passing space exists. Congestion costs are disabled in these
+controlled encounters to prevent A* from resolving the conflict before coordination.
+Original and RVO are checked for absence of pair commitments.
+
+`predictive-passing.json` provides an open-floor graphical fixture. Disable workload
+with G, select Reciprocal, enable DEBUG → View → PREDICTIVE PASS, and assign swapped
+center goals (1900, 800) and (500, 800) with Shift-click. Mint arrows show temporary
+targets. The benchmark accepts `--predictive-passing` and
+`--no-predictive-passing` (default); compare the same profile, seeds and policy flags.
+The policy remains opt-in pending broader factory throughput evaluation.
+
+Final 50000-tick runs with predictive passing enabled, default heatmap costs,
+recovery/parking/junction/corridor policies disabled:
+
+| Blueprint | Seed | Improved completed / contacts | Reciprocal completed / contacts |
+| --- | --- | --- | --- |
+| MAS-demonstrator | 42 | 15 / 42 | 10 / 0 |
+| MAS-demonstrator | 915839214 | 14 / 222 | 16 / 0 |
+| 3840x2400 | 42 | 57 / 3 | 59 / 0 |
+| 3840x2400 | 915839214 | 59 / 6 | 61 / 0 |
+| 8640x4800 | 42 | 96 / 767 | 99 / 0 |
+| 8640x4800 | 915839214 | 101 / 823 | 103 / 0 |
+
+Compared with the earlier reciprocal baseline above, the two large-layout runs
+increase completed products from 95/93 to 99/103 while retaining zero contacts;
+the other four reciprocal results are unchanged. Improved outcomes are mixed,
+including increased contacts. These observations support keeping the policy optional.
+Graphics coverage also exercises the toggle/statistics and actual mint target arrows
+using the passing fixture. Runtime comparisons are omitted because verification ran
+concurrently.

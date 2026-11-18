@@ -7,6 +7,7 @@ The factory application lives in Lab and consumes reusable simulation capabiliti
 - [Ownership](#ownership)
 - [Execution](#execution)
 - [Compatibility and fidelity](#compatibility-and-fidelity)
+- [Predictive passing](#predictive-passing)
 - [Verification](#verification)
 
 [Directory guide](README.md) · [Project overview](../README.md) · [Application guide](../labs/i4sim/README.md)
@@ -180,6 +181,37 @@ The loader accepts case-insensitive property names and string/numeric IDs, expan
 The [application guide](../labs/i4sim/README.md#provenance-and-differences) is authoritative for intentional differences. This is a local C++ implementation of the case, not a binary-compatible replacement for actor/MQTT contracts. Numerical trajectories and asynchronous task ordering differ. Neither bit-for-bit behavioral parity nor identical throughput is established by the tests.
 
 All source edits belong to `Kinetra-Lab` or its `external/Kinetra` repository. The sibling engine and original i4sim remain unchanged. Engine modifications require a future engine commit and a corresponding Lab submodule-pointer update by the maintainer; no Git staging, commits or publication are performed as part of this implementation.
+
+## Predictive passing
+
+[Lab coordination](../labs/i4sim/src/predictive_passing.cpp) is an opt-in policy
+for Improved and Reciprocal. It predicts conflicting, approximately opposite route
+headings using preferred speed and a footprint-dependent lookahead. Detection uses
+an immutable spatial snapshot; sorted encounter times and mover IDs make pairing
+deterministic. Each mover can join one pair. Original destinations, product ownership
+and manual commands remain intact; this policy overrides the current steering target.
+
+Pairs commit to two stages: both reach stationary entry points in separate lateral
+lanes, then both reach exit points beyond the encounter before replanning to their
+original goals. Formation requires longitudinal separation of at least twice the
+combined projected half extents plus 32 mm. Lane offsets use each rectangular
+footprint plus 8 mm; two side choices and three shared lateral translations allow
+passing near a wall. Temporary points use intermediate-waypoint braking. Both
+participants must be within 0.1 mm and below 0.05 mm/tick before a stage completes.
+
+Every formation/crossing sweep checks static grid clearance with 2 mm footprint
+inflation, all other mover footprints in the snapshot, detected traffic zones, and
+the swept envelopes of existing pairs. Detected narrow passages are excluded even
+when their optional admission policy is off. Corridor recovery has precedence.
+If no candidate fits, ordinary steering keeps its existing route.
+
+Disabling the feature, blocking a participant or issuing a new goal releases the
+pair and rebuilds the original routes. A pair also releases after 240 ticks without
+measurable progress; both participants wait 120 ticks before retrying. Body positions
+are never snapped by this policy. Existing local avoidance and contact correction
+remain active. Snapshot checks do not reserve space against later intrusions by
+unrelated movers; this is not a general collision-free or starvation-free scheduler.
+The [regression and benchmark guide](../labs/i4sim/tests/README.md) describes coverage.
 
 ## Verification
 

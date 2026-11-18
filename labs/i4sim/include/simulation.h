@@ -1,6 +1,7 @@
 #pragma once
 #include "blueprint.h"
 #include <deque>
+#include <array>
 #include <kinetra/steering.h>
 #include <kinetra/timing.h>
 #include <kinetra/traffic.h>
@@ -14,6 +15,7 @@ enum class SteeringProfile { improved, original, experimental_rvo, reciprocal };
 struct MotionSettings {
     SteeringProfile profile{SteeringProfile::improved};
     bool heatmap{true}, recovery{}, parking_traffic{}, junction_traffic{}, corridor_traffic{};
+    bool predictive_passing{};
     float speed{2}, force{0.6f}, horizon{32};
 };
 enum class ProductKind { trimmer, personalized };
@@ -32,7 +34,7 @@ struct Mover {
     unsigned stalled{}, replan{}, no_progress{};
     float best_remaining{};
     unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{}, corridor_waiting{}, corridor_retreating{};
+    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{}, corridor_waiting{}, corridor_retreating{}, passing_detour{};
 };
 struct Producer {
     ProducerDefinition definition;
@@ -81,6 +83,8 @@ class Simulation {
     std::optional<Vec2> corridor_retreat_target(std::size_t mover) const;
     kinetra::Aabb corridor_bounds(std::size_t index) const;
     std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
+    std::size_t predictive_pairs() const { return passing_plans_.size(); }
+    std::optional<Vec2> passing_target(std::size_t mover) const;
     const MotionSettings &motion_settings() const { return motion_; }
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return contact_ticks_; }
@@ -98,6 +102,20 @@ class Simulation {
     void dump(const std::filesystem::path &directory) const;
 
   private:
+    struct PassingPlan {
+        std::array<std::size_t, 2> movers;
+        std::array<Vec2, 2> entry, exit;
+        std::vector<kinetra::Aabb> space;
+        bool crossing{};
+        float best_remaining{};
+        std::uint64_t progress_at{};
+    };
+    std::vector<PassingPlan> passing_plans_;
+    std::vector<std::uint64_t> passing_retry_;
+    bool predictive_enabled() const;
+    void restore_passing_routes(std::array<std::size_t, 2> movers);
+    void cancel_predictive_passing(Mover &mover);
+    void coordinate_predictive_passing(const kinetra::SpatialGrid &index);
     struct ExitReservation {
         std::uint64_t agent;
         kinetra::Aabb area;

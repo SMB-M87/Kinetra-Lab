@@ -1,5 +1,5 @@
 find_package(nlohmann_json 3.11 REQUIRED)
-add_library(kinetra_i4sim_application src/blueprint.cpp src/simulation.cpp)
+add_library(kinetra_i4sim_application src/blueprint.cpp src/simulation.cpp src/predictive_passing.cpp)
 target_include_directories(kinetra_i4sim_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation PRIVATE nlohmann_json::nlohmann_json)
 # Keep resources beside every executable that can open the factory. Resolve their

@@ -6,10 +6,13 @@ int main(int argc, char **argv) {
     try {
         using namespace i4sim;
         bool recovery = false, parking_traffic = false, junction_traffic = false, corridor_traffic = false;
+        bool predictive_passing = false;
         auto profile = SteeringProfile::improved;
         std::uint64_t ticks = 50000;
         for (int i = 1; i < argc; ++i) {
             const std::string option = argv[i];
+            if (option == "--predictive-passing") { predictive_passing = true; continue; }
+            if (option == "--no-predictive-passing") { predictive_passing = false; continue; }
             if (option == "--corridor-traffic") {
                 corridor_traffic = true;
                 continue;
@@ -43,7 +46,7 @@ int main(int argc, char **argv) {
                 if (used != value.size() || ticks == 0 || ticks > 1000000)
                     throw std::invalid_argument("Ticks must be in 1..1000000");
             } else {
-                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] [--parking-traffic] [--junction-traffic] [--corridor-traffic] "
+                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] [--parking-traffic] [--junction-traffic] [--corridor-traffic] [--predictive-passing|--no-predictive-passing] "
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N]");
             }
         }
@@ -53,6 +56,7 @@ int main(int argc, char **argv) {
                 Simulation simulation(load_blueprint(default_blueprint_directory() /
                                                      (std::string(name) + ".json")), seed);
                 auto settings = simulation.motion_settings();
+                settings.predictive_passing = predictive_passing;
                 settings.recovery = recovery;
                 settings.parking_traffic = parking_traffic;
                 settings.junction_traffic = junction_traffic;

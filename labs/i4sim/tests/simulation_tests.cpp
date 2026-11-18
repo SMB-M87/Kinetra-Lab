@@ -532,6 +532,97 @@ void corridor_recovery_contracts() {
     require(recovered && !obstructed.movers()[0].moving && !obstructed.movers()[1].moving && obstructed.collisions() == 0,
             "Freeing a refuge did not permit a safe retry");
 }
+void predictive_passing_contracts() {
+    using namespace i4sim;
+    for (auto profile : {SteeringProfile::improved, SteeringProfile::reciprocal})
+        for (int orientation = 0; orientation < 8; ++orientation) {
+            Blueprint b;
+            b.name = "open-floor passing"; b.dimension = {4000, 4000}; b.cell_size = {200, 200};
+            b.mover_max_extent = 235;
+            const float angle = orientation * 0.78539816339f;
+            const auto forward = kinetra::rotated({1, 0}, angle);
+            const Vec2 first = Vec2{2000, 2000} - forward * 600, second = Vec2{2000, 2000} + forward * 600;
+            b.movers = {{"first", Model::APM4220, first - Vec2{56.5f, 56.5f}},
+                        {"second", Model::APM4350, second - Vec2{77.5f, 117.5f}}};
+            Simulation trial(b);
+            trial.workload = false;
+            auto config = trial.motion_settings(); config.profile = profile; config.predictive_passing = true; config.heatmap = false;
+            trial.configure_motion(config);
+            require(trial.move_to(0, second) && trial.move_to(1, first), "Passing goals rejected");
+            trial.paused = false;
+            auto replay = trial;
+            bool saw_pair = false, checked_lifecycle = false;
+            for (int tick = 0; tick < 5000; ++tick) {
+                trial.tick(); replay.tick();
+                for (std::size_t i = 0; i < 2; ++i) {
+                    const auto &m = trial.movers()[i];
+                    require(kinetra::distance(m.body.position, replay.movers()[i].body.position) == 0,
+                            "Predictive passing was nondeterministic");
+                    require(kinetra::distance(m.destination, i == 0 ? second : first) == 0 &&
+                                kinetra::length(m.body.acceleration) <= config.force + 0.00001f,
+                            "Passing changed a goal or exceeded acceleration bounds");
+                    require(!m.corridor_retreating, "Open-floor passing invoked corridor retreat");
+                }
+                if (!trial.predictive_pairs()) continue;
+                if (!saw_pair)
+                    require(trial.movers()[0].no_progress < 120 && trial.movers()[1].no_progress < 120 &&
+                                kinetra::distance(trial.movers()[0].body.position, trial.movers()[1].body.position) > 300,
+                            "Passing was detected only after a packed standstill");
+                saw_pair = true;
+                require(trial.movers()[0].passing_detour && trial.movers()[1].passing_detour &&
+                            trial.passing_target(0) && trial.passing_target(1), "Pair did not share temporary targets");
+                if (checked_lifecycle) continue;
+                auto cancelled = trial;
+                require(cancelled.move_to(0, second) && cancelled.predictive_pairs() == 0 &&
+                            !cancelled.passing_target(1) &&
+                            kinetra::distance(cancelled.movers()[0].body.position, trial.movers()[0].body.position) == 0,
+                        "Manual command did not cancel passing without teleportation");
+                auto disabled = trial; disabled.paused = true;
+                auto off = disabled.motion_settings(); off.predictive_passing = false;
+                disabled.configure_motion(off);
+                require(disabled.predictive_pairs() == 0 &&
+                            kinetra::distance(disabled.movers()[1].body.position, trial.movers()[1].body.position) == 0,
+                        "Disabling predictive passing retained a pair or moved a body");
+                auto blocked = trial; blocked.toggle_mover(1); blocked.tick();
+                require(blocked.predictive_pairs() == 0 &&
+                            kinetra::distance(blocked.movers()[1].body.position, trial.movers()[1].body.position) == 0,
+                        "Blocked participant retained a stale passing commitment");
+                checked_lifecycle = true;
+            }
+            require(saw_pair && checked_lifecycle && trial.predictive_pairs() == 0 &&
+                        !trial.movers()[0].moving && !trial.movers()[1].moving && trial.collisions() == 0,
+                    "Predictive passing failed to complete without contact");
+        }
+    auto b = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json");
+    b.movers[0].position.y = b.movers[1].position.y = 43.5f;
+    Simulation wall(b); wall.workload = false;
+    auto config = wall.motion_settings(); config.profile = SteeringProfile::reciprocal; config.predictive_passing = true; config.heatmap = false;
+    wall.configure_motion(config);
+    require(wall.move_to(0, {1900, 100}) && wall.move_to(1, {500, 100}), "Near-wall goals rejected");
+    wall.paused = false;
+    bool shifted = false;
+    for (int t = 0; t < 5000; ++t) { wall.tick(); shifted = shifted || wall.predictive_pairs() > 0; }
+    require(shifted && !wall.movers()[0].moving && !wall.movers()[1].moving && wall.collisions() == 0,
+            "Shared passing lanes did not shift away from a wall");
+    b.dimension.y = 200;
+    Simulation narrow(b); narrow.workload = false; narrow.configure_motion(config);
+    require(narrow.move_to(0, {1900, 100}) && narrow.move_to(1, {500, 100}), "Narrow goals rejected");
+    narrow.paused = false;
+    for (int t = 0; t < 1000; ++t) {
+        narrow.tick();
+        require(narrow.predictive_pairs() == 0 && !narrow.movers()[0].route.empty() && !narrow.movers()[1].route.empty(),
+                "No-space passing created an unsafe detour or cleared the original path");
+    }
+    for (auto profile : {SteeringProfile::original, SteeringProfile::experimental_rvo}) {
+        Simulation legacy(load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+        legacy.workload = false; config.profile = profile; legacy.configure_motion(config);
+        require(legacy.move_to(0, {1900, 800}) && legacy.move_to(1, {500, 800}), "Legacy goals rejected");
+        legacy.paused = false;
+        for (int t = 0; t < 1000; ++t) {
+            legacy.tick(); require(legacy.predictive_pairs() == 0, "Predictive policy changed a legacy steering profile");
+        }
+    }
+}
 void parking_traffic_contracts() {
     using namespace i4sim;
     const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
@@ -810,6 +901,7 @@ int main(int argc, char **argv) {
         junction_exit_contracts();
         corridor_traffic_contracts();
         corridor_recovery_contracts();
+        predictive_passing_contracts();
         parking_traffic_contracts();
         for (const auto &file : files) {
             const auto b = load_blueprint(file);

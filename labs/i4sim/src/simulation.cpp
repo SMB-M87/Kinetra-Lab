@@ -323,6 +323,7 @@ std::vector<Vec2> Simulation::plan_route(const Mover &m, Vec2 target, bool requi
 }
 void Simulation::set_goal(Mover &m, Vec2 target) {
     cancel_corridor_recovery(m);
+    cancel_predictive_passing(m);
     m.parking_deferred = false;
     m.destination = target;
     m.route = plan_route(m, target);
@@ -759,8 +760,9 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
     traffic_controls_.assign(movers_.size(), std::nullopt);
     for (auto &m : movers_) m.corridor_retreating = false;
     for (auto &m : movers_) m.junction_waiting = m.junction_exit_waiting = m.corridor_waiting = false;
-    if (!motion_.junction_traffic && !motion_.corridor_traffic) return;
     if (motion_.corridor_traffic) recover_corridors(index);
+    coordinate_predictive_passing(index);
+    if (!motion_.junction_traffic && !motion_.corridor_traffic) return;
     std::vector<std::vector<std::uint64_t>> requests(traffic_zones_.size()), occupants(traffic_zones_.size());
     std::vector<std::optional<std::size_t>> next(movers_.size());
     const float reach = 2 * std::max(blueprint_.cell_size.x, blueprint_.cell_size.y) +
@@ -901,7 +903,8 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
 }
 void Simulation::move_agents() {
     const bool prepare_together = (motion_.junction_traffic && junction_count_ > 0) ||
-                                  (motion_.corridor_traffic && corridor_count() > 0);
+                                  (motion_.corridor_traffic && corridor_count() > 0) ||
+                                  (predictive_enabled() && movers_.size() > 1);
     if (prepare_together)
         for (auto &m : movers_) prepare_route(m);
     avoidance_limited_ = 0;

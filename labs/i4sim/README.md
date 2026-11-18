@@ -99,6 +99,14 @@ were infeasible or whose command needed contact/border recovery in the last move
 tick. Wall constraints and rectangular contact correction remain active; this profile
 does not guarantee collision freedom or factory throughput.
 
+Optional **DEBUG → View → PREDICTIVE PASS** coordinates oncoming movers on
+open floors before they become stuck. Improved and Reciprocal support it; Original
+and RVO retain their existing behavior. Both movers first enter separate temporary
+lanes, then pass and replan towards their unchanged destinations. Mint arrows show
+the temporary targets and `PASS` counts active pairs. The policy starts disabled:
+factory throughput depends on the layout and workload. Narrow passages keep their
+existing admission/retreat policies. See the [passing contract](../../docs/factory-simulation-architecture.md#predictive-passing).
+
 Optional **DEBUG → Motion → PARKING TRAFFIC** defers automatic parking returns
 that would obstruct active routes. Movers use a staging area and resume their own
 parking goal when the route clears; `PARK WAIT` shows the number deferred. Manual

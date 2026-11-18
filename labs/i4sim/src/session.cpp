@@ -102,6 +102,13 @@ class FactorySession final : public lab::Session {
             rows.push_back({"CORRIDOR TRAFFIC", nullptr, [this] { change_motion([](auto &c) {
                 c.corridor_traffic = !c.corridor_traffic; }); },
                 [this] { return simulation_->motion_settings().corridor_traffic ? "ON" : "OFF"; }});
+        if (page_ == 0)
+            rows.push_back({"PREDICTIVE PASS", nullptr, [this] { change_motion([](auto &c) {
+                c.predictive_passing = !c.predictive_passing; }); }, [this] {
+                const auto &c = simulation_->motion_settings();
+                if (c.profile == SteeringProfile::original || c.profile == SteeringProfile::experimental_rvo)
+                    return std::string("LEGACY");
+                return std::string(c.predictive_passing ? "ON" : "OFF"); }});
         return rows;
     }
     bool back_to_blueprints_{};
@@ -368,6 +375,9 @@ class FactorySession final : public lab::Session {
             if (debug_ && paths_)
                 if (const auto target = simulation_->corridor_retreat_target(i))
                     draw_debug_vector(runtime, center, world(*target - m.body.position), {1, 0.3f, 0.7f});
+            if (debug_ && paths_)
+                if (const auto target = simulation_->passing_target(i))
+                    draw_debug_vector(runtime, center, world(*target - m.body.position), {0.3f, 1, 0.7f});
             if (debug_ && vectors_) {
                 draw_debug_vector(runtime, center, world(m.forces.border * 50), {1,.5f,0});
                 draw_debug_vector(runtime, center, world(m.forces.collision * 50), {1,0,0});
@@ -429,6 +439,8 @@ class FactorySession final : public lab::Session {
             std::ostringstream stats;
             stats << "TICK " << simulation_->ticks() << " UPS " << simulation_->updates_per_second()
                   << " CONTACTS " << simulation_->collisions() << " DURATION " << simulation_->contact_ticks();
+            if (c.predictive_passing && (c.profile == SteeringProfile::improved || c.profile == SteeringProfile::reciprocal))
+                stats << " PASS " << simulation_->predictive_pairs();
             if (c.corridor_traffic) stats << " RETREAT " << simulation_->corridor_recovering();
             factory_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
             std::ostringstream motion;
@@ -453,6 +465,7 @@ class FactorySession final : public lab::Session {
                  << " | "
                  << (m.blocked       ? "BLOCKED"
                                      : m.corridor_retreating ? "CORRIDOR RETREAT"
+                                     : m.passing_detour ? "PASSING DETOUR"
                      : m.unreachable ? "UNREACHABLE"
                      : m.product     ? "ALLOCATED"
                                      : "IDLE - SHIFT CLICK GOAL");
@@ -460,7 +473,7 @@ class FactorySession final : public lab::Session {
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
-                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting ? " STALLED" : "");
+                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting && !m.passing_detour ? " STALLED" : "");
             factory_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {

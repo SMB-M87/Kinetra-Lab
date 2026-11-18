@@ -32,3 +32,8 @@ The optional Reciprocal profile adapts shared avoidance to tick units; the Motio
 profile selector and statistics expose it without changing the Improved default.
 
 Motion controls briefly pause configuration and restore the previous running state. Interaction errors expire after four seconds. Statistics use the shared yellow 1.5-scale style at the bottom of the viewport. Selected mover and producer information uses the same style and left alignment directly above the statistics and follows viewport resizing.
+
+`predictive_passing.cpp` owns optional paired formation/crossing targets, swept
+clearance checks, cancellation and retry timing. It consumes engine geometry and
+steering without introducing factory policy into Kinetra. See the
+[passing contract](../../../docs/factory-simulation-architecture.md#predictive-passing).
