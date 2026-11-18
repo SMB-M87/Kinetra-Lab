@@ -1,6 +1,7 @@
 add_library(kinetra_sandbox_application src/sandbox_application.cpp)
 target_include_directories(kinetra_sandbox_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_sandbox_application PUBLIC Kinetra::Simulation)
+target_compile_features(kinetra_sandbox_application PUBLIC cxx_std_20)
 if(BUILD_TESTING)
     add_executable(kinetra_demo_crowd_tests tests/crowd_stability_tests.cpp)
     target_link_libraries(kinetra_demo_crowd_tests PRIVATE kinetra_sandbox_application)

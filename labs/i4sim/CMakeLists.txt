@@ -2,6 +2,7 @@ find_package(nlohmann_json 3.11 REQUIRED)
 add_library(kinetra_i4sim_application src/blueprint.cpp src/simulation.cpp src/predictive_passing.cpp)
 target_include_directories(kinetra_i4sim_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation PRIVATE nlohmann_json::nlohmann_json)
+target_compile_features(kinetra_i4sim_application PUBLIC cxx_std_20)
 # Keep resources beside every executable that can open the factory. Resolve their
 # location at runtime so moving a complete bundle does not retain a build-machine path.
 function(kinetra_i4sim_bundle_blueprints target)
