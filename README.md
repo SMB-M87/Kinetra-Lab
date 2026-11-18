@@ -13,13 +13,13 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 - [Architecture documentation](#architecture-documentation)
 - [License](#license)
 
-[Documentation index](docs/README.md)
+[Documentation index](docs/README.md) · [Agent rules](AGENTS.md)
 
 Directory guides: [docs](docs/README.md), [external](external/README.md), [labs](labs/README.md), [launcher](launcher/README.md).
 
 ## Visual overview
 
-Arrows show which layer consumes another; application rules stay in Lab.
+Arrows show which layer consumes another; application rules stay in Lab. The i4sim presentation also uses `Kinetra::Launcher` directly, for its blueprint screen.
 
 ```mermaid
 flowchart TD
@@ -27,6 +27,7 @@ flowchart TD
     Launcher --> Dotio["Dotio presentation"]
     Launcher --> Factory["i4sim presentation"]
     Launcher --> Host["Kinetra::Launcher"]
+    Factory --> Host
     Demo --> DemoLogic["Demo application"]
     Dotio --> DotioLogic["Dotio logic and gmath"]
     Factory --> FactoryLogic["i4sim simulation"]
@@ -50,11 +51,9 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 | [labs/i4sim](labs/i4sim/README.md) | `kinetra_i4sim`, `kinetra_i4sim_application`, `kinetra_i4sim_presentation` | Local factory simulation and original JSON blueprints |
 | [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
 
-Kinetra supplies `Kinetra::Launcher` and its public `kinetra/launcher.h` header; Lab consumes that target. The engine checkout must include this target. The bundled checkout supplies this target; verify the default source integration before delivery.
-
 ## Screenshots and demo
 
-[Watch or download the 23-second tour](docs/media/kinetra-lab-tour.mp4) (MP4, 1280 × 800, 30 fps, no audio): launcher, Demo, Dotio and their debug views.
+[Watch or download the tour](docs/media/kinetra-lab-tour.mp4) (MP4, 2 min 14 s, 1920 × 1080, 60 fps, 64 MB).
 
 | Launcher | Dotio difficulty selection | i4sim loadscreen |
 | --- | --- | --- |
@@ -70,19 +69,22 @@ Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps 
 
 ## Quick start
 
-Requires a C++20 compiler, CMake 3.16+, a build tool, SDL2 development files, OpenGL development files and an OpenGL 3.3 context. Linux is supported. On Artix/Arch use the normal `base-devel`, `cmake`, `sdl2` and `mesa` packages.
+Requires a C++20 compiler, CMake 3.16+ and a build tool, SDL2 and OpenGL development files with an OpenGL 3.3 context, and the header-only nlohmann JSON package 3.11+ (i4sim needs it in every build, headless included). The [CMake presets](CMakePresets.json) also need CMake 3.25+, Ninja and ccache. Linux is supported. On Artix/Arch: `pacman -S --needed base-devel cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json`, the same set CI uses (`clang` provides clang-format). On Debian, the JSON package is `nlohmann-json3-dev`.
 
 Repository layout:
 
 ```text
 Kinetra-Lab/
-├── docs/
-├── launcher/
+├── docs/                # architecture pages, design documents, media
+├── launcher/            # bundled launcher executable kinetra
 ├── labs/
 │   ├── demo/
-│   └── dotio/
+│   ├── dotio/
+│   ├── i4sim/
+│   ├── test_support/    # header-only test helpers
+│   └── settings.h       # shared settings overlay
 └── external/
-    └── Kinetra/    # expected submodule checkout
+    └── Kinetra/         # engine submodule
 ```
 
 The build uses the Git submodule at `external/Kinetra`. Clone with its sources:
@@ -119,114 +121,18 @@ ctest --test-dir build --output-on-failure
 ./build/kinetra --variant dotio --difficulty medium --frames 120
 ./build/kinetra_demo --frames 120
 ./build/kinetra_dotio --difficulty medium --frames 120
+./build/kinetra_i4sim
 ```
 
-With [CMake presets](CMakePresets.json) (CMake 3.25+, Ninja, ccache), `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`, and `cmake --workflow --preset ci` runs exactly what CI runs. All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
-
-Select with arrows/Enter or click; Ctrl or the SETTINGS button opens centered settings and pauses the run. Settings provides zoom, statistics, Debug Mode, controls and Launcher / Exit actions. Backquote and gameplay wheel zoom require Debug Mode; Space and M have no gameplay action. Each launch creates a fresh session. Detailed controls are in the application guides.
+With the presets, `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`. CI ([ci.yml](.github/workflows/ci.yml)) checks formatting with clang-format, runs `python3 external/Kinetra/tools/check_docs.py`, then `cmake --workflow --preset headless` and `cmake --workflow --preset ci`. All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
 
 `./build.sh` builds and tests both Kinetra and Lab. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
-When Kinetra source changes, rebuild Lab; CMake rebuilds the affected core targets automatically. Run core tests separately in Kinetra. Use a fresh build directory when switching source checkouts.
+In every application, Ctrl or the SETTINGS button opens the shared settings panel (zoom, statistics, Debug Mode, controls, Launcher and Exit) and pauses the run. The full controls are in the [Demo](labs/demo/README.md#controls), [Dotio](labs/dotio/README.md#launch-and-controls) and [i4sim](labs/i4sim/README.md#controls) guides.
 
 ## Kinetra development workflow
 
-Kinetra-Lab and Kinetra have separate Git histories. Lab records one exact Kinetra commit, not a live branch. Editing `external/Kinetra` changes the engine checkout; it does not automatically publish those edits or update Lab's recorded commit. A sibling `../Kinetra` checkout is independent and does not synchronize automatically.
-
-The Git commands below are manual developer steps. Inspect `git status` in both repositories before changing branches or updating submodules; commit or otherwise preserve local work first. Examples use `main`; use your feature branch and the normal review process when appropriate. Publish the Kinetra commit before publishing a Lab commit that references it, so other developers can fetch it.
-
-### Change Kinetra from inside Lab
-
-Submodules normally start with a detached HEAD. From Kinetra-Lab, create a branch before editing engine code:
-
-```sh
-git -C external/Kinetra switch -c my-engine-change
-```
-
-Edit reusable engine code in `external/Kinetra`; keep application changes in Lab. Build and test the engine independently, then build Lab against those same sources:
-
-```sh
-cmake -S external/Kinetra -B build-core -DCMAKE_BUILD_TYPE=Release
-cmake --build build-core -j2
-ctest --test-dir build-core --output-on-failure
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j2
-ctest --test-dir build --output-on-failure
-```
-
-The core build above tests the default headless configuration. For runtime changes, also run the runtime/graphics checks in [Kinetra development](external/Kinetra/docs/development.md#graphics-execution) and Lab's [graphics checks](#tests-and-resources).
-
-Commit the intended engine files inside `external/Kinetra`, then publish that branch:
-
-```sh
-cd external/Kinetra
-git diff
-# Stage only the intended engine files, then:
-git commit -m "Describe the engine change"
-git push -u origin my-engine-change
-cd ../..
-```
-
-After the Kinetra change is reviewed and merged, select its published upstream commit and rebuild Lab:
-
-```sh
-git -C external/Kinetra fetch origin
-git -C external/Kinetra switch --detach origin/main
-cmake --build build -j2
-ctest --test-dir build --output-on-failure
-```
-
-If merging changed the engine code, repeat the core checks too. Review and publish Lab's updated pointer, together with any required application changes:
-
-```sh
-git diff --submodule=log
-git add external/Kinetra
-# Stage any intended Lab source changes separately.
-git commit -m "Update Kinetra dependency"
-git push origin HEAD
-```
-
-When initially registering the submodule, also stage `.gitmodules` in the Lab commit. If the workflow uses pull requests, push to your Lab feature branch and open the normal review instead of updating a protected branch directly.
-
-### Change Kinetra in the standalone checkout
-
-Develop, test, commit and publish the engine change from the standalone Kinetra repository first. After it is merged into Kinetra's `main`, run from Kinetra-Lab with a clean submodule checkout:
-
-```sh
-git -C external/Kinetra fetch origin
-git -C external/Kinetra switch --detach origin/main
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j2
-ctest --test-dir build --output-on-failure
-git diff --submodule=log
-```
-
-Then commit and publish `external/Kinetra` in Lab using the pointer update steps above. Fetching alone does not change the checked-out engine version, and pushing Kinetra alone does not update Lab.
-
-To test unpublished changes from a sibling checkout, use a separate build directory:
-
-```sh
-cmake -S . -B build-local-core -DCMAKE_BUILD_TYPE=Release -DKINETRA_SOURCE_DIR=../Kinetra
-cmake --build build-local-core -j2
-ctest --test-dir build-local-core --output-on-failure
-```
-
-This override does not update the submodule pointer. Before publishing Lab, select the published engine commit in `external/Kinetra` and verify the normal submodule build too. If `build` previously used an override, restore it explicitly with `-DKINETRA_SOURCE_DIR="$PWD/external/Kinetra"` when configuring.
-
-### Receive published Lab changes
-
-From Kinetra-Lab, preserve local changes before pulling, then restore the engine commit recorded by Lab:
-
-```sh
-git pull --ff-only
-git submodule update --init --recursive
-git submodule status
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j2
-ctest --test-dir build --output-on-failure
-```
-
-In `git submodule status`, a leading space means the checkout matches Lab's recorded commit; `-` means uninitialized, and `+` means a different commit is checked out. `git submodule update` selects Lab's recorded commit, not the latest upstream Kinetra commit. Lab application changes never flow into Kinetra automatically; make reusable engine changes in the engine repository and publish them separately.
+Lab records one exact Kinetra commit in the `external/Kinetra` submodule. An engine change is committed and pushed in Kinetra on its own branch first, then Lab commits the new pointer; [External dependencies](external/README.md) has the steps and commands.
 
 ## Tests and resources
 
@@ -242,10 +148,9 @@ SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build/kinetra --variant demo
 `cmake --workflow --preset graphics` does the same in `build-graphics/`. Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb.
 Software rendering does not establish desktop feel or performance.
 
-For headless Demo/Dotio logic tests, configure a separate directory with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`. Launcher and graphical executables are omitted in that configuration.
+For the headless application logic of Demo, Dotio and i4sim, run `cmake --workflow --preset headless` (in `build-headless/`, `KINETRA_LAB_BUILD_RUNTIME=OFF`). It needs no SDL2 or OpenGL and omits the launcher and graphical executables.
 
-i4sim additionally requires the header-only nlohmann JSON package (3.11+; Debian: `nlohmann-json3-dev`). Its blueprints are copied into the build tree; see [i4sim usage](labs/i4sim/README.md). Shaders, bitmap text, terrain and drawing data are embedded or generated in code.
-Build directories and generated artifacts are ignored. Follow the included `.clang-format`; first-party C++ uses `.h` and `.cpp`.
+i4sim blueprints are copied next to each executable that opens them; see [i4sim usage](labs/i4sim/README.md#build-and-run). Shaders, bitmap text, terrain and drawing data are embedded or generated in code.
 
 ## Architecture documentation
 
