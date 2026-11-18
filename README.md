@@ -121,6 +121,8 @@ ctest --test-dir build --output-on-failure
 ./build/kinetra_dotio --difficulty medium --frames 120
 ```
 
+With [CMake presets](CMakePresets.json) (CMake 3.25+, Ninja, ccache), `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`, and `cmake --workflow --preset ci` runs exactly what CI runs. All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
+
 Select with arrows/Enter or click; Ctrl or the SETTINGS button opens centered settings and pauses the run. Settings provides zoom, statistics, Debug Mode, controls and Launcher / Exit actions. Backquote and gameplay wheel zoom require Debug Mode; Space and M have no gameplay action. Each launch creates a fresh session. Detailed controls are in the application guides.
 
 `./build.sh` builds and tests both Kinetra and Lab. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
@@ -237,7 +239,7 @@ SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir build --outpu
 SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build/kinetra --variant demo --frames 120
 ```
 
-Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb.
+`cmake --workflow --preset graphics` does the same in `build-graphics/`. Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb.
 Software rendering does not establish desktop feel or performance.
 
 For headless Demo/Dotio logic tests, configure a separate directory with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`. Launcher and graphical executables are omitted in that configuration.

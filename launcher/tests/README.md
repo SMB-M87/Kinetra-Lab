@@ -28,7 +28,7 @@ flowchart TD
 
 | Source | CTest name | Coverage |
 | --- | --- | --- |
-| [settings_tests.cpp](settings_tests.cpp) | `kinetra_settings` | Modal input capture, zoom bounds, toggles, navigation and resized picking without a graphics context |
+| [settings_tests.cpp](settings_tests.cpp) | `kinetra_settings:<case>` (doctest) | Modal input capture, zoom bounds, toggles, navigation and resized picking without a graphics context; each case runs on four layouts |
 | [menu_tests.cpp](menu_tests.cpp) | `kinetra_menu` | Keyboard selection, Dotio difficulty, resized mouse picking, cancellation and difficulty parsing |
 | [runtime_tests.cpp](runtime_tests.cpp) | `kinetra_graphics` | Rendering, settings pause/resume, normal/debug full DEBUG labels, default Demo/i4sim visual layers, wheel gating and settings-driven navigation |
 
@@ -37,9 +37,11 @@ flowchart TD
 Run from the repository root. Menu tests require the runtime libraries but do not open a window:
 
 ```sh
-cmake -S . -B build -DKINETRA_LAB_BUILD_RUNTIME=ON -DBUILD_TESTING=ON
-cmake --build build --target kinetra_menu_tests --parallel
-ctest --test-dir build -R '^kinetra_menu$' --output-on-failure
+cmake --preset dev                                   # once
+cmake --build --preset dev --target kinetra_settings_tests kinetra_menu_tests
+ctest --preset dev -R '^kinetra_(settings|menu)'
 ```
+
+`settings_tests.cpp` is Lab's doctest reference; how to write cases is in [Kinetra testing](../../external/Kinetra/docs/testing.md#writing-a-doctest-suite).
 
 For `kinetra_graphics`, enable `KINETRA_TEST_GRAPHICS=ON`, build `kinetra_runtime_tests` and provide an OpenGL context as described in [Tests and resources](../../README.md#tests-and-resources). Filter that build's CTest run with `-R '^kinetra_graphics$'`.

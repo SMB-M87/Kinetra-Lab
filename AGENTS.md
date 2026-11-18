@@ -57,19 +57,23 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | Level | In Lab |
 | --- | --- |
 | Docs | `python3 external/Kinetra/tools/check_docs.py` |
-| Targeted | `cmake --build build --target <targets> -j2` and `ctest --test-dir build -R '<regex>' --output-on-failure`, using the table below |
-| Full | `./build.sh` (Kinetra in `build-core`, Lab in `build`). For runtime, presentation or launcher changes, also the graphics configuration and smoke runs in the [README](README.md#tests-and-resources) |
+| Targeted | `cmake --build --preset dev --target <targets>` and `ctest --preset dev -R '<regex>'`, using the table below (configure once with `cmake --preset dev`) |
+| Full | `cmake --workflow --preset ci` and `cmake --workflow --preset headless`, which is what CI runs (or `./build.sh`). For runtime, presentation or launcher changes, also `cmake --workflow --preset graphics` and the smoke runs in the [README](README.md#tests-and-resources) |
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
 | `labs/i4sim/` logic (`simulation`, `predictive_passing`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim` | `^kinetra_i4sim` |
 | `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
 | `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio$` |
-| `labs/settings.h`, `launcher/include/menu.h` | `kinetra_settings_tests kinetra_menu_tests` | `^kinetra_(settings\|menu)$` |
+| `labs/settings.h`, `launcher/include/menu.h` | `kinetra_settings_tests kinetra_menu_tests` | `^kinetra_(settings\|menu)` |
 | Any `session.cpp`, presentation, launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 
-The level is decided by the whole change; one Full-level file lifts everything.
+The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), `kinetra_i4sim` and the Demo crowd soak tests take minutes. For a quick targeted run, use the `release` preset.
+
+**Warnings.** `KINETRA_LAB_WARNINGS` (on in `dev` and `ci`) reports the shared warning set for `labs/` and `launcher/`. Engine warnings are errors in CI.
+- Lab code had 119 warnings when this was introduced. New or changed Lab code must not add any.
+- When a roadmap phase makes a module warning-free, add `kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/<module> RECURSE AS_ERRORS)` to the root `CMakeLists.txt`, so CI keeps it that way.
 
 ## Git with the engine submodule
 
