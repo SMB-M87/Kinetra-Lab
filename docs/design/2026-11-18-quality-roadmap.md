@@ -73,6 +73,7 @@ Settled with the user on 2026-11-18. ⚑ marks answers that differ from the agen
 | CI | GitHub Actions per pull request: headless build and tests, format check, docs check | Catches what the Targeted level skips locally; there is no GPU in CI |
 | Predictive passing | Its scenarios and diagnostics join phase 4's safety net, before the refactor. Behavior changes follow in phase 7, on the restructured code. The mechanism moves to Kinetra last, in phase 8 | Added on 2026-11-18. Changing behavior inside the hotspot that phase 4 splits would add flags and change the golden values during the refactor. Sharing an unproven mechanism would spread its failures to Demo and Dotio |
 | Documentation cleanup | Cross-cutting fixes now, on their own branch; module READMEs are rewritten in their module's phase | Added on 2026-11-18. Stale facts mislead today, but a module README written before its refactor would be written twice |
+| Skill documentation | Every skill gets a `README.md` with use cases next to its `SKILL.md`; `.agents/skills/README.md` stays the page that lists all skills | Added on 2026-11-18 at the user's request. `SKILL.md` instructs the agent; a person choosing a skill needs examples of when to use it and what it changes |
 
 ## Phases
 
@@ -204,6 +205,7 @@ Repositories: Kinetra and Lab. Depends on phases 5, 6 and 7.
 - The module being refactored gets its README rewritten with the [module template](../../external/Kinetra/docs/documentation.md#module-readme-template), and its headers get `///` contracts (`doc-module` skill). Docs are written after the code has its new shape, so nothing is documented twice.
 - Navigation-only sub-READMEs of that module are folded in and removed.
 - Architecture pages and diagrams are updated in the same phase as the code they describe.
+- A phase that adds or changes a skill updates the skill's README and the skills overview in the same commit.
 
 ## Documentation cleanup
 
@@ -214,7 +216,9 @@ Two read-only audits on 2026-11-18 (Lab at `4eb5dba`, Kinetra at `b107142`) foun
 | Lab cross-cutting fixes: root README back to an entry point (the submodule workflow moves to `external/README.md`, reconciled with the [Kinetra workflow](../../external/Kinetra/docs/workflow.md#changes-across-kinetra-and-lab)), stale commands and facts, history text, `blob/main` links, the documentation index, `prompt.md` (its plan is phases 4, 7 and 8 above) | Now | Lab `docs/roadmap-and-cleanup` |
 | Launcher module README, `docs/launcher-overlays.md` cut to Lab composition, `docs/architecture.md` session loop | Phase 3 | Lab phase 3 branch |
 | Kinetra runtime, launcher, session and text docs (`docs/engine/runtime.md`, `docs/engine/launcher-overlays.md`, `docs/architecture.md`, `src/engine/README.md`) | Phase 3 | Kinetra phase 3 branch |
-| Kinetra cross-cutting fixes, `///` contracts on every public header, the ADR table in `docs/decisions/README.md`, and folding `include/README.md`, `include/kinetra/README.md`, `src/README.md`, `docs/engine/README.md` and `tests/consumer/README.md` into module READMEs | After the Kinetra phase 3 branch, stacked on it | Kinetra `docs/cleanup` |
+| Kinetra cross-cutting fixes, `///` contracts on every public header, and folding `include/README.md`, `include/kinetra/README.md`, `src/README.md`, `docs/engine/README.md` and `tests/consumer/README.md` into module READMEs. The ADR index moves into `docs/decisions/README.md`: in number order, 0011 and 0012 as rows, with each ADR's status and supersessions; `docs/README.md` and the `adr` skill then point there. The `tests/README.md` test map gets the missing `weighted_navigation_tests.cpp` and the CTest names of suites converted to doctest | After the Kinetra phase 3 branch, stacked on it | Kinetra `docs/cleanup` |
+| Skill rule: a `README.md` with use cases next to every `SKILL.md`, `.agents/skills/README.md` as the overview of all skills, and a template in the Kinetra documentation guide | Now | Kinetra `docs/skill-documentation` |
+| A README for each of the seven skills (`feature`, `grilling`, `verify`, `doc-module`, `refactor`, `adr`, `pr-feedback`) following that template, linked from the overview | After `docs/skill-documentation` merges; independent of phase 3 | Kinetra `docs/skill-readmes` |
 | i4sim, Demo and Dotio module READMEs; their thin sub-READMEs folded in; `demo-architecture.md` and `dotio-architecture.md` absorbed; i4sim test history moved out of the tests README | Phases 4, 5 and 6 | Each module's phase |
 
 ## Open points
