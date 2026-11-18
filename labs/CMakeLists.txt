@@ -1,3 +1,10 @@
+if(BUILD_TESTING)
+    # Header-only helpers for the test programs of every application.
+    add_library(kinetra_lab_test_support INTERFACE)
+    target_include_directories(kinetra_lab_test_support INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/test_support)
+    target_link_libraries(kinetra_lab_test_support INTERFACE Kinetra::Simulation)
+    target_compile_features(kinetra_lab_test_support INTERFACE cxx_std_20)
+endif()
 add_subdirectory(demo)
 add_subdirectory(dotio)
 add_subdirectory(i4sim)
