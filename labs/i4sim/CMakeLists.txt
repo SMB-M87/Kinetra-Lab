@@ -30,6 +30,10 @@ if(BUILD_TESTING)
     target_link_libraries(kinetra_i4sim_tests PRIVATE kinetra_i4sim_application)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)
     add_test(NAME kinetra_i4sim COMMAND kinetra_i4sim_tests)
+    add_executable(kinetra_i4sim_golden_tests tests/golden_tests.cpp)
+    target_link_libraries(kinetra_i4sim_golden_tests PRIVATE kinetra_i4sim_application kinetra_lab_test_support)
+    kinetra_i4sim_bundle_blueprints(kinetra_i4sim_golden_tests)
+    add_test(NAME kinetra_i4sim_golden COMMAND kinetra_i4sim_golden_tests)
     add_test(NAME kinetra_i4sim_relocation COMMAND ${CMAKE_COMMAND}
         "-DPROBE=$<TARGET_FILE:kinetra_i4sim_tests>"
         "-DRESOURCES=${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
