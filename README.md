@@ -92,7 +92,21 @@ git clone --recurse-submodules https://github.com/SMB-M87/Kinetra-Lab.git
 cd Kinetra-Lab
 ```
 
-For an existing clone, run `git submodule update --init --recursive` from Kinetra-Lab before configuring. `external/Kinetra/CMakeLists.txt` must exist. No separate Kinetra installation or build is needed.
+If you cloned without `--recurse-submodules`, `external/Kinetra` is an empty directory. Load the submodule from Kinetra-Lab before configuring:
+
+```sh
+git submodule update --init --recursive
+ls external/Kinetra/CMakeLists.txt   # must exist
+```
+
+While the directory is empty, `git -C external/Kinetra ...` acts on the Lab repository itself, not the engine; initialize the submodule first. If the update asks for SSH authentication (`.gitmodules` uses a `git@github.com:` URL), switch this clone to HTTPS:
+
+```sh
+git config submodule.external/Kinetra.url https://github.com/SMB-M87/Kinetra.git
+git submodule update --init --recursive
+```
+
+If an earlier configure failed, remove `build/` before rebuilding. No separate Kinetra installation or build is needed.
 
 Run from Kinetra-Lab:
 
