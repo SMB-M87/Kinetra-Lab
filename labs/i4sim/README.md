@@ -119,6 +119,14 @@ clears the zone. This does not relocate blockers or solve opposing single-lane t
 Use the [crossing demonstration](tests/README.md#crossing-demonstration) to compare
 the behavior visually.
 
+Optional **DEBUG → View → CORRIDOR TRAFFIC** reserves a complete straight narrow
+corridor between two wider rooms. One mover traverses at a time; the opposite
+approach waits outside its exit space. Blue outlines show controlled corridors,
+lime shows the admitted exit, and `LANE WAIT` reports waiting movers and zone count.
+It is disabled by default and covers straight runs up to 256 cells with room at
+both ends. It prevents new opposing entry; movers already stuck together inside
+still need a retreat policy. Use the [corridor demonstration](tests/README.md#corridor-demonstration).
+
 Contacts count new unordered mover-pair or mover-boundary contacts before correction. Duration
 counts pair/segment contact ticks, not seconds. Ongoing contact is not a new event every tick.
 Inspection reports mover contact ticks and marks lack of goal progress as STALLED, not a proven deadlock.

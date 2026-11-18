@@ -288,6 +288,134 @@ void junction_exit_contracts() {
     require(coasting.movers()[0].junction_exit_waiting && admitted_exit && admitted_exit->min.y > 799,
             "A coasting approach was ignored when admitting an exit reservation");
 }
+void corridor_traffic_contracts() {
+    using namespace i4sim;
+    const auto original = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json");
+    auto setup = [](Simulation &s, bool enabled, Vec2 west_goal, Vec2 east_goal) {
+        s.workload = false;
+        auto config = s.motion_settings();
+        config.profile = SteeringProfile::reciprocal;
+        config.corridor_traffic = enabled;
+        s.configure_motion(config);
+        require(s.move_to(0, west_goal) && s.move_to(1, east_goal), "Corridor goals rejected");
+        s.paused = false;
+    };
+    Simulation reference(original);
+    setup(reference, false, {1900, 700}, {300, 700});
+    for (int t = 0; t < 5000; ++t) reference.tick();
+    require(reference.movers()[0].moving && reference.movers()[1].moving,
+            "Corridor fixture no longer reproduces the head-on stall");
+    for (int orientation = 0; orientation < 4; ++orientation) {
+        auto b = original;
+        const float angle = orientation * 1.57079632679f;
+        if (orientation % 2) b.dimension = {original.dimension.y, original.dimension.x};
+        auto rotate = [&](Vec2 point) { return b.dimension / 2 + kinetra::rotated(point - original.dimension / 2, angle); };
+        for (auto &m : b.movers) {
+            const auto half = mover_spec(m.model).dimension / 2;
+            m.position = rotate(m.position + half) - half;
+        }
+        for (auto &zone : b.zones) {
+            const auto first = rotate(zone.position), opposite = rotate(zone.position + zone.dimension);
+            zone.position = {std::min(first.x, opposite.x), std::min(first.y, opposite.y)};
+            zone.dimension = {std::abs(first.x - opposite.x), std::abs(first.y - opposite.y)};
+            // Quarter-turn roundoff must not turn exact grid edges into extra cells.
+            zone.position.x = std::round(zone.position.x);
+            zone.position.y = std::round(zone.position.y);
+            zone.dimension.x = std::round(zone.dimension.x);
+            zone.dimension.y = std::round(zone.dimension.y);
+        }
+        Simulation trial(b);
+        setup(trial, true, rotate({1900, 700}), rotate({300, 700}));
+        require(trial.corridor_count() == 1 && trial.junction_count() == 0,
+                "Straight room-to-room corridor detection failed");
+        auto replay = trial;
+        const auto bounds = trial.corridor_bounds(0);
+        bool saw_wait = false, saw_exit = false, checked_block = false;
+        for (int t = 0; t < 5000; ++t) {
+            trial.tick(); replay.tick();
+            int occupying = 0;
+            for (std::size_t i = 0; i < trial.movers().size(); ++i) {
+                const auto &m = trial.movers()[i];
+                require(kinetra::distance(m.body.position, replay.movers()[i].body.position) == 0,
+                        "Corridor coordination was nondeterministic");
+                require(kinetra::length(m.body.acceleration) <= trial.motion_settings().force + 0.00001f,
+                        "Corridor admission exceeded acceleration bounds");
+                const auto goal = rotate(i == 0 ? Vec2{1900, 700} : Vec2{300, 700});
+                require(kinetra::distance(m.destination, goal) == 0, "Corridor admission changed a manual goal");
+                if (m.body.position.x + m.body.half_extents.x > bounds.min.x - 2 &&
+                    m.body.position.x - m.body.half_extents.x < bounds.max.x + 2 &&
+                    m.body.position.y + m.body.half_extents.y > bounds.min.y - 2 &&
+                    m.body.position.y - m.body.half_extents.y < bounds.max.y + 2) ++occupying;
+            }
+            require(occupying <= 1, "Opposing movers entered the reserved corridor together");
+            saw_wait = saw_wait || trial.corridor_waiting() > 0;
+            saw_exit = saw_exit || trial.corridor_exit_reservation(0).has_value();
+            if (!checked_block && occupying == 1 && trial.corridor_waiting() == 1) {
+                auto blocked = trial;
+                blocked.toggle_mover(0);
+                const auto position = blocked.movers()[0].body.position;
+                for (int step = 0; step < 200; ++step) blocked.tick();
+                require(kinetra::distance(position, blocked.movers()[0].body.position) == 0 &&
+                            blocked.movers()[1].corridor_waiting, "Blocked occupant released corridor admission");
+                blocked.toggle_mover(0);
+                for (int step = 0; step < 5000; ++step) blocked.tick();
+                require(!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0,
+                        "Corridor traffic failed to resume after unblocking");
+                auto independent = trial;
+                independent.paused = true;
+                auto config = independent.motion_settings();
+                config.junction_traffic = true;
+                independent.configure_motion(config);
+                config.junction_traffic = false;
+                independent.configure_motion(config);
+                require(independent.corridor_exit_reservation(0).has_value(),
+                        "Junction toggle cancelled an active corridor reservation");
+                auto disabled = trial;
+                disabled.paused = true;
+                config = disabled.motion_settings();
+                config.corridor_traffic = false;
+                disabled.configure_motion(config);
+                require(disabled.corridor_waiting() == 0 && !disabled.corridor_exit_reservation(0) &&
+                            kinetra::distance(disabled.movers()[0].body.position, position) == 0,
+                        "Disabling corridor traffic retained state or teleported a mover");
+                checked_block = true;
+            }
+        }
+        require(saw_wait && saw_exit && checked_block && !trial.movers()[0].moving && !trial.movers()[1].moving &&
+                    trial.collisions() == 0 && trial.contact_ticks() == 0 && trial.corridor_waiting() == 0 &&
+                    !trial.corridor_exit_reservation(0), "Corridor traffic did not clear both goals without contact");
+    }
+    auto parked = original;
+    parked.movers[0].position.x = 1043.5f;
+    Simulation stopped(parked);
+    stopped.workload = false;
+    auto config = stopped.motion_settings();
+    config.profile = SteeringProfile::reciprocal;
+    config.corridor_traffic = true;
+    stopped.configure_motion(config);
+    stopped.toggle_mover(0);
+    require(stopped.move_to(1, {300, 700}), "Occupied corridor goal rejected");
+    stopped.paused = false;
+    for (int t = 0; t < 300; ++t) stopped.tick();
+    require(stopped.movers()[0].body.position.x == 1100 && stopped.movers()[1].corridor_waiting &&
+                stopped.movers()[1].body.position.x - stopped.movers()[1].body.half_extents.x > 1725.7f,
+            "Waiting traffic consumed an unassigned occupant's exit space");
+    stopped.toggle_mover(0);
+    require(stopped.move_to(0, {1900, 700}), "Parked corridor occupant could not depart");
+    for (int t = 0; t < 5000; ++t) stopped.tick();
+    require(!stopped.movers()[0].moving && !stopped.movers()[1].moving && stopped.collisions() == 0,
+            "A previously parked occupant could not clear the corridor");
+    auto dead_end = original;
+    dead_end.movers.resize(1);
+    dead_end.zones.push_back({"closed room", {1600, 200}, {600, 1000}});
+    require(Simulation(dead_end).corridor_count() == 0, "Dead end was registered as a passing corridor");
+    auto long_lane = original;
+    long_lane.dimension.x = 52600;
+    long_lane.zones[0].dimension.x = long_lane.zones[1].dimension.x = 52600;
+    long_lane.zones[2].dimension.x = long_lane.zones[3].dimension.x = 51400;
+    long_lane.movers[1].position.x = 52243.5f;
+    require(Simulation(long_lane).corridor_count() == 0, "Corridor indexing budget was not bounded");
+}
 void parking_traffic_contracts() {
     using namespace i4sim;
     const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
@@ -564,6 +692,7 @@ int main(int argc, char **argv) {
         }
         junction_traffic_contracts();
         junction_exit_contracts();
+        corridor_traffic_contracts();
         parking_traffic_contracts();
         for (const auto &file : files) {
             const auto b = load_blueprint(file);

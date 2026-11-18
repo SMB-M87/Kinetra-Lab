@@ -1,0 +1,19 @@
+{
+  "name": "Single-lane corridor (manual)",
+  "tickCap": 100000,
+  "dimension": {"x": 2200, "y": 1400},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 155,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "west", "model": "APM4220", "position": {"x": 243.5, "y": 643.5}},
+    {"id": "east", "model": "APM4220", "position": {"x": 1843.5, "y": 643.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": [
+    {"id": "north", "position": {"x": 0, "y": 0}, "dimension": {"x": 2200, "y": 200}},
+    {"id": "south", "position": {"x": 0, "y": 1200}, "dimension": {"x": 2200, "y": 200}},
+    {"id": "above lane", "position": {"x": 600, "y": 200}, "dimension": {"x": 1000, "y": 400}},
+    {"id": "below lane", "position": {"x": 600, "y": 800}, "dimension": {"x": 1000, "y": 400}}
+  ]
+}

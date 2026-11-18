@@ -70,9 +70,9 @@ Terrain uses 32-world-unit chunks with seeded static circles/rotated rectangles.
 | Agent activation | Body-AABB overlap with 1.75× maximum normal player view |
 | Agent retention | Evict beyond 1.25× maximum debug player view |
 | Navigation | Activation area plus 24-unit wander margin |
-| Population | 240 initial agents near the player; new activation chunks attempt 12 safe spawns; cap 1,200 |
+| Population | 48 initial agents near the player; new activation chunks attempt 12 safe spawns; cap 1,200 |
 
-The launcher’s `--agents 0..300` overrides the default initial population. The standalone Demo also starts with 240 agents. Initial agents sample a 72×48-unit region centered on the initial player, with reserved player/prop clearances. Zoom and Ghost position do not affect player-centered lifecycle bounds; viewport size does. Dormant agents discard paths, ignore new goals and freeze timers. During physics they temporarily become fixed obstacles; full body state is restored afterward. Distant-agent eviction compacts movers and remaps surviving agent/player indices. Terrain rebuilding preserves movers before appending static obstacles.
+The launcher’s `--agents 0..300` overrides the default initial population. The standalone Demo also starts with 48 agents. Initial agents sample a 72×48-unit region centered on the initial player, with reserved player/prop clearances. Zoom and Ghost position do not affect player-centered lifecycle bounds; viewport size does. Dormant agents discard paths, ignore new goals and freeze timers. During physics they temporarily become fixed obstacles; full body state is restored afterward. Distant-agent eviction compacts movers and remaps surviving agent/player indices. Terrain rebuilding preserves movers before appending static obstacles.
 
 Terrain validates finite ordered views, ±200,000-unit bounds and a maximum 4,096 chunks. Camera centers are clamped to ±100,000. Neither agent state nor world edits persist after eviction; revisits can create fresh agents. Physics outside resident terrain is inactive.
 

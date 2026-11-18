@@ -42,7 +42,7 @@ stateDiagram-v2
 | --- | --- |
 | `--variant` | `demo`, `dotio`; omit for menu |
 | `--difficulty` | `easy`, `medium`, `hard`; default medium |
-| `--agents` | 0–300 initial Demo agents; default 240 |
+| `--agents` | 0–300 initial Demo agents; default 48 |
 | `--frames` | 1–100000 rendered frames; omit for unlimited |
 
 Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A process selects and prints one random world seed. Selecting an application creates a fresh session. Detailed controls live in the [Demo](../labs/demo/README.md) [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md) guides. Build commands live in [Quick start](../README.md#quick-start).

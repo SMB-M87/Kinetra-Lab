@@ -97,6 +97,11 @@ class FactorySession final : public lab::Session {
             rows.push_back({"JUNCTION TRAFFIC", nullptr, [this] { change_motion([](auto &c) {
                 c.junction_traffic = !c.junction_traffic; }); },
                 [this] { return simulation_->motion_settings().junction_traffic ? "ON" : "OFF"; }});
+        // Keep the motion panel above the statistics on short viewports.
+        if (page_ == 0)
+            rows.push_back({"CORRIDOR TRAFFIC", nullptr, [this] { change_motion([](auto &c) {
+                c.corridor_traffic = !c.corridor_traffic; }); },
+                [this] { return simulation_->motion_settings().corridor_traffic ? "ON" : "OFF"; }});
         return rows;
     }
     bool back_to_blueprints_{};
@@ -379,6 +384,15 @@ class FactorySession final : public lab::Session {
                     draw_debug_box(runtime, world((exit->min + exit->max) / 2),
                                    (exit->max - exit->min) / 2, 0, {0.6f, 1, 0});
             }
+        if (debug_ && borders_ && simulation_->motion_settings().corridor_traffic)
+            for (std::size_t i = 0; i < simulation_->corridor_count(); ++i) {
+                const auto area = simulation_->corridor_bounds(i);
+                draw_debug_box(runtime, world((area.min + area.max) / 2),
+                               (area.max - area.min) / 2, 0, {0.2f, 0.5f, 1});
+                if (const auto exit = simulation_->corridor_exit_reservation(i))
+                    draw_debug_box(runtime, world((exit->min + exit->max) / 2),
+                                   (exit->max - exit->min) / 2, 0, {0.6f, 1, 0});
+            }
         if (debug_ && borders_)
             for (const auto &s : simulation_->borders())
                 runtime.line(world(s.start), world(s.end), 2 / runtime.camera.pixels_per_unit,
@@ -421,8 +435,11 @@ class FactorySession final : public lab::Session {
             if (c.parking_traffic)
                 motion << " PARK WAIT " << simulation_->parking_waiting();
             if (c.junction_traffic)
-                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/" << simulation_->junction_count()
-                       << " EXIT " << simulation_->junction_exit_waiting();
+                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/" << simulation_->junction_count();
+            if (c.corridor_traffic)
+                motion << " LANE WAIT " << simulation_->corridor_waiting() << "/" << simulation_->corridor_count();
+            if (c.junction_traffic || c.corridor_traffic)
+                motion << " EXIT " << simulation_->junction_exit_waiting();
             factory_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
         }
         if (selected_mover_) {

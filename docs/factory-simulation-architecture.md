@@ -101,6 +101,33 @@ intrusions, infeasible braking after late activation, opposing single-lane traff
 adjacent intersection complexes and permanently occupied zones still require
 additional policy; this is not a general liveness or collision-free guarantee.
 
+Optional `MotionSettings::corridor_traffic` applies the same gate/exit machinery to
+whole straight single-cell corridors. The detector collects maximal horizontal or
+vertical runs bounded on both sides by blocked cells, up to 256 cells long. Both
+ends must open into a free three-cell-wide, two-cell-deep room. Dead ends, bends,
+complex branches and longer runs are excluded. Zones store their actual rectangular
+bounds and axis; existing junction APIs keep their original indexing.
+
+Corridor admission is exclusive for the entire run. Waiting approaches stop far
+enough into the entrance rooms to leave a full mover-length exit pocket plus
+braking space free at either end, including when a parked occupant has no departure
+route yet. The holder's actual exit is reserved and protected through the existing
+readiness checks and bounded stop-line controller. After it fully clears the
+corridor, the next request may enter; local reciprocal avoidance handles passing
+in the wider room. Manual destinations and original parking reservations stay
+intact. The application reuses the existing shared `TrafficGate` without an engine
+API extension.
+
+The option is disabled by default and lives under DEBUG → View → CORRIDOR TRAFFIC,
+alongside scene/workload controls; the shorter Motion page retains its existing
+rows. Blue outlines identify controlled corridors, lime outlines their reserved
+exits, and `LANE WAIT` reports waiting movers/detected corridor count. Admission and
+reservation state are cleared only for disabled policy types. This prevents new
+head-on entry into eligible clear corridors; it does not reverse agents already
+stuck together inside, move permanent blockers, coordinate branched networks or
+guarantee starvation freedom. Late activation inside an already contested corridor
+falls back to physical occupancy protection and local avoidance.
+
 Weighted routes validate the mover's rectangular footprint on every swept link,
 including exact start and destination coordinates. Contiguous wall segments are
 merged so raster seams do not create artificial corners. Wall constraints bound

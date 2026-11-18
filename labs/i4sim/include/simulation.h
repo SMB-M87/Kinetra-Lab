@@ -13,7 +13,7 @@ namespace i4sim {
 enum class SteeringProfile { improved, original, experimental_rvo, reciprocal };
 struct MotionSettings {
     SteeringProfile profile{SteeringProfile::improved};
-    bool heatmap{true}, recovery{}, parking_traffic{}, junction_traffic{};
+    bool heatmap{true}, recovery{}, parking_traffic{}, junction_traffic{}, corridor_traffic{};
     float speed{2}, force{0.6f}, horizon{32};
 };
 enum class ProductKind { trimmer, personalized };
@@ -32,7 +32,7 @@ struct Mover {
     unsigned stalled{}, replan{}, no_progress{};
     float best_remaining{};
     unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{};
+    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{}, corridor_waiting{};
 };
 struct Producer {
     ProducerDefinition definition;
@@ -70,11 +70,15 @@ class Simulation {
     std::size_t avoidance_limited() const { return avoidance_limited_; }
     /// Automatic parking returns temporarily staged outside active departure routes.
     std::size_t parking_waiting() const;
-    std::size_t junction_count() const { return junctions_.size(); }
-    Vec2 junction_center(std::size_t index) const { return junctions_.at(index).center; }
+    std::size_t junction_count() const { return junction_count_; }
+    Vec2 junction_center(std::size_t index) const;
     std::size_t junction_waiting() const;
     std::size_t junction_exit_waiting() const;
     std::optional<kinetra::Aabb> junction_exit_reservation(std::size_t index) const;
+    std::size_t corridor_count() const { return traffic_zones_.size() - junction_count_; }
+    std::size_t corridor_waiting() const;
+    kinetra::Aabb corridor_bounds(std::size_t index) const;
+    std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
     const MotionSettings &motion_settings() const { return motion_; }
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return contact_ticks_; }
@@ -96,22 +100,25 @@ class Simulation {
         std::uint64_t agent;
         kinetra::Aabb area;
     };
-    struct Junction {
-        Vec2 center;
+    struct TrafficZone {
+        Vec2 center, half_extents;
+        bool corridor{}, vertical{};
         kinetra::TrafficGate gate;
         std::optional<ExitReservation> exit;
     };
-    std::vector<Junction> junctions_;
-    std::vector<std::vector<kinetra::Segment>> junction_stops_;
+    std::vector<TrafficZone> traffic_zones_;
+    std::size_t junction_count_{};
+    std::vector<std::vector<kinetra::Segment>> traffic_stops_;
     MotionSettings motion_;
     std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{};
     Blueprint blueprint_;
     kinetra::WeightedGrid grid_;
-    kinetra::SpatialGrid junction_index_;
+    kinetra::SpatialGrid traffic_index_;
     std::vector<kinetra::Segment> borders_;
     std::vector<Mover> movers_;
+    Vec2 mover_max_half_{};
     std::vector<Producer> producers_;
     std::vector<Product> products_, completed_products_;
     std::mt19937 random_;
@@ -124,8 +131,8 @@ class Simulation {
     bool parking_conflict(const Mover &mover, Vec2 position) const;
     void coordinate_parking();
     bool prepare_route(Mover &mover);
-    std::optional<kinetra::Aabb> junction_exit(const Mover &mover, const Junction &junction) const;
-    void coordinate_junctions(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
+    std::optional<kinetra::Aabb> traffic_exit(const Mover &mover, const TrafficZone &junction) const;
+    void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
     void update_heatmap();
     void schedule(Product &product);
     void recover_route(Mover &mover);

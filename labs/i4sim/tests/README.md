@@ -5,6 +5,7 @@
 - [Visual overview](#visual-overview)
 - [Contents and use](#contents-and-use)
 - [Crossing demonstration](#crossing-demonstration)
+- [Corridor demonstration](#corridor-demonstration)
 - [Motion benchmark](#motion-benchmark)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
@@ -93,6 +94,31 @@ to free the pocket and let the west mover proceed. Lime outlines show an admitte
 exit reservation, which protects enough space to clear the zone, not the entire
 outbound corridor.
 
+## Corridor demonstration
+
+[corridor-passing.json](corridor-passing.json) contains two wide rooms joined by a
+straight single-cell corridor, with two manually controlled movers:
+
+```sh
+./build/kinetra_i4sim --blueprint labs/i4sim/tests/corridor-passing.json
+```
+
+While paused, disable workload with `G`, select Reciprocal under DEBUG → Motion,
+and enable CORRIDOR TRAFFIC under DEBUG → View. Close the menu. Select the west
+mover and Shift-click `(1900, 700)`, then select the east mover and Shift-click
+`(300, 700)`. Press Space. One waits in its entrance room while the other traverses
+the blue corridor and clears the lime exit pocket. Repeating without corridor
+traffic reproduces the head-on standstill. These are prevention/reservation tests;
+late activation with both movers already inside does not provide automatic retreat.
+
+The regression runs all four orientations and requires exclusive full-body
+occupancy, bounded acceleration, unchanged manual goals, deterministic replay,
+arrival of both movers within 5000 ticks and zero contacts. It also checks blocked
+occupancy/resumption, a previously parked occupant with no initial exit route,
+independent junction toggling, disabling without teleportation, dead-end exclusion
+and the 256-cell detection/indexing budget. Graphics tests exercise both the View
+toggle/statistics and the actual blue corridor/lime reservation with moving agents.
+
 ## Motion benchmark
 
 Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explicitly:
@@ -103,11 +129,12 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --ticks 50000 > /tmp/i4sim-reciprocal.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic > /tmp/i4sim-parking-traffic.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic > /tmp/i4sim-junction-traffic.csv
+./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic --corridor-traffic > /tmp/i4sim-corridor-traffic.csv
 ```
 
 The bundled blueprints run for 50000 ticks each with seeds 42 and 915839214.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
-`--ticks` accepts 1 through 1000000. Recovery, parking traffic and junction traffic remain disabled unless explicitly requested.
+`--ticks` accepts 1 through 1000000. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
 CSV reports completed products, contact episodes, pair/segment contact ticks,
 summed changes in commanded acceleration, and elapsed milliseconds. Acceleration
 change is a diagnostic for steering activity, not a physical jerk measurement;
@@ -158,3 +185,8 @@ the parking-traffic-on column above exactly. These three factory layouts contain
 no junctions matching the intentionally narrow detector, so this is a compatibility
 check, not evidence of additional factory throughput. Crossing behavior is verified
 using the dedicated fixture and its rotated/T-junction/cancellation variants.
+
+Enabling corridor traffic as well preserves all six 50000-tick results above.
+MAS-demonstrator, 3840x2400 and 8640x4800 contain no straight corridors matching
+the room-to-room detector, so this verifies compatibility rather than added
+throughput. The dedicated corridor fixture establishes the new passing behavior.

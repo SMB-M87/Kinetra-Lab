@@ -5,11 +5,15 @@
 int main(int argc, char **argv) {
     try {
         using namespace i4sim;
-        bool recovery = false, parking_traffic = false, junction_traffic = false;
+        bool recovery = false, parking_traffic = false, junction_traffic = false, corridor_traffic = false;
         auto profile = SteeringProfile::improved;
         std::uint64_t ticks = 50000;
         for (int i = 1; i < argc; ++i) {
             const std::string option = argv[i];
+            if (option == "--corridor-traffic") {
+                corridor_traffic = true;
+                continue;
+            }
             if (option == "--junction-traffic") {
                 junction_traffic = true;
                 continue;
@@ -39,7 +43,7 @@ int main(int argc, char **argv) {
                 if (used != value.size() || ticks == 0 || ticks > 1000000)
                     throw std::invalid_argument("Ticks must be in 1..1000000");
             } else {
-                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] [--parking-traffic] [--junction-traffic] "
+                throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] [--parking-traffic] [--junction-traffic] [--corridor-traffic] "
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N]");
             }
         }
@@ -52,6 +56,7 @@ int main(int argc, char **argv) {
                 settings.recovery = recovery;
                 settings.parking_traffic = parking_traffic;
                 settings.junction_traffic = junction_traffic;
+                settings.corridor_traffic = corridor_traffic;
                 settings.profile = profile;
                 simulation.configure_motion(settings);
                 simulation.paused = false;

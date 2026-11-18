@@ -75,6 +75,12 @@ int main() {
         require(statistics_pixels() != before_motion, "Junction traffic did not expose wait statistics");
         click_row(14);
         require(statistics_pixels() == before_motion, "Junction traffic did not clear disabled statistics");
+        click_row(0); // View page: corridor admission sits with scene/workload controls.
+        click_row(13);
+        require(statistics_pixels() != before_motion, "Corridor traffic did not expose wait statistics");
+        click_row(13);
+        require(statistics_pixels() == before_motion, "Corridor traffic did not clear disabled statistics");
+        click_row(0);
         for (unsigned row = 1; row <= 14; ++row) {
             click_row(row);
             require(session->title().find("RUNNING") != std::string::npos,
@@ -196,6 +202,42 @@ int main() {
         }
         require(lime > 30 && cyan > 100 && session->title().find("RUNNING") != std::string::npos &&
                     glGetError() == GL_NO_ERROR, "Actual crossing/zone rendering failed");
+        const auto corridor_file = std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json";
+        session = i4sim::create_session(42, repaired_catalog, corridor_file);
+        session->render(runtime);
+        session->advance(0, debug_menu, runtime.camera);
+        click_row(0);
+        for (int cycle = 0; cycle < 3; ++cycle) click_row(1);
+        click_row(0);
+        click_row(13);
+        session->advance(0, debug_menu, runtime.camera);
+        session->advance(0, no_workload, runtime.camera);
+        for (int i = 0; i < 2; ++i) {
+            Input select;
+            select.clicked = true;
+            select.mouse = runtime.camera.world_to_screen(i == 0 ? Vec2{300, -700} : Vec2{1900, -700});
+            session->advance(0, select, runtime.camera);
+            select.held[std::size_t(Key::shift)] = true;
+            select.mouse = runtime.camera.world_to_screen(i == 0 ? Vec2{1900, -700} : Vec2{300, -700});
+            session->advance(0, select, runtime.camera);
+        }
+        session->advance(0, run, runtime.camera);
+        for (int frame = 0; frame < 60; ++frame) {
+            session->advance(0.02, {}, runtime.camera);
+            session->render(runtime);
+        }
+        glFinish();
+        glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+        unsigned blue = 0;
+        lime = 0;
+        for (std::size_t i = 0; i < crossing_pixels.size(); i += 3) {
+            if (crossing_pixels[i] > 30 && crossing_pixels[i] < 80 &&
+                crossing_pixels[i + 1] > 90 && crossing_pixels[i + 1] < 160 && crossing_pixels[i + 2] > 240) ++blue;
+            if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 &&
+                crossing_pixels[i + 1] > 235 && crossing_pixels[i + 2] < 30) ++lime;
+        }
+        require(blue > 50 && lime > 30 && glGetError() == GL_NO_ERROR,
+                "Actual corridor admission/exit rendering failed");
         std::cout << "PASS loadscreen, simulation overlays, input and session lifecycle\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';
