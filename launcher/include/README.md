@@ -12,15 +12,15 @@ Sources in this directory belong to `kinetra_sessions`. These are Lab-owned inte
 
 ## Visual overview
 
-These adapters connect Lab identities and factories to generic engine infrastructure.
+These adapters connect Lab identities and factories to the generic engine menu. Sessions are owned by Lab's own loop, not by `kinetra::SessionHost` (see [system architecture](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
 ```mermaid
 flowchart LR
     Menu["menu.h: application choices"] --> LaunchMenu["kinetra::LaunchMenu"]
     Session["session.h: Lab factory dispatch"] --> Factories["Demo / Dotio / i4sim factories"]
-    Session --> Host["kinetra::SessionHost"]
-    Factories --> Contract["kinetra::Session"]
-    Host --> Contract
+    Session --> Loop["launcher::run: Lab event loop"]
+    Factories --> Contract["lab::Session (kinetra::Session)"]
+    Loop --> Contract
 ```
 
 ## File map

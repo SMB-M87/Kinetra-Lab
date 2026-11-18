@@ -19,8 +19,8 @@ flowchart TD
     Main["main.cpp: arguments and seed"] --> Loop["session.cpp: Lab event loop"]
     Loop --> Select["Menu or requested variant"]
     Select --> Factory["Application factory and camera setup"]
-    Factory --> Host["SessionHost owns session"]
-    Host --> Frame["Poll input, advance, render"]
+    Factory --> Owner["launcher::run owns one unique_ptr session"]
+    Owner --> Frame["Poll input, advance, render"]
     Frame --> Action{"Session navigation"}
     Action -->|continue| Frame
     Action -->|return to launcher| Select
