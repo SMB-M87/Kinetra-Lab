@@ -9,12 +9,16 @@ This plan turns Kinetra-Lab and Kinetra into a codebase that has tooling, tests,
 - [Evidence](#evidence)
 - [Decisions](#decisions)
 - [Phases](#phases)
+- [Status](#status)
 - [Phase 2: tooling and CI](#phase-2-tooling-and-ci)
 - [Phase 3: safety net and shared presentation](#phase-3-safety-net-and-shared-presentation)
 - [Phase 4: i4sim](#phase-4-i4sim)
 - [Phase 5: Demo](#phase-5-demo)
 - [Phase 6: Dotio](#phase-6-dotio)
+- [Phase 7: predictive passing under pressure](#phase-7-predictive-passing-under-pressure)
+- [Phase 8: shared passing mechanism](#phase-8-shared-passing-mechanism)
 - [Documentation in every phase](#documentation-in-every-phase)
+- [Documentation cleanup](#documentation-cleanup)
 - [Open points](#open-points)
 
 [Directory guide](README.md) · [Project overview](../../README.md) · [Documentation index](../README.md)
@@ -36,6 +40,24 @@ From a read-only audit on 2026-11-18. Line numbers refer to that date.
 | Tests | Plain `main()` programs; `simulation_tests` has a 350-line `main`. Session glue (~630 lines) is tested only with graphics, which is off by default. Some tests assert internal counters |
 | Formatting | `.clang-format` deviations: 224 in `i4sim/src/session.cpp`, 155 in `simulation.cpp`, 39 in `predictive_passing.cpp`; elsewhere 6 or fewer per file |
 | Build | No warning flags, no presets, no `compile_commands.json` export. `cxx_std_20` is set only for Dotio. `priority_queue.cpp` is empty |
+| Engine fit | Dotio uses none of Kinetra's motion API: it has its own A*, `PriorityQueue`, `Stack` and `Graph`, and a static `Grid`. In Kinetra, `tangent_steer` is documented as translated from i4sim, and the `PrioritySteering` defaults (2, 0.6) are i4sim's millimeters-per-tick values. Four steering models (`steer`, `priority_steer`, `tangent_steer`, `avoid_collisions`) overlap, take different inputs and return acceleration or velocity |
+
+### Predictive passing baseline
+
+Measured on 2026-11-18 at `4eb5dba` with `kinetra_i4sim_motion_benchmark` (Release, 50,000 ticks, traffic rules off). It reproduces the measurements of the predictive passing work that preceded this roadmap.
+
+| Profile | Passing | 8640x4800 completed (seed 42 / 915839214) | Contacts, 8640x4800 | Run time, 8640x4800 |
+| --- | --- | --- | --- | --- |
+| Reciprocal | off | 95 / 93 | 0 / 0 | ~9.6 s |
+| Reciprocal | on | 99 / 103 | 0 / 0 | ~14.9 s |
+| Improved | off | 98 / 99 | 384 / 726 | ~9.0 s |
+| Improved | on | 96 / 101 | 767 / 823 | ~13.9 s |
+
+- Reciprocal stays contact-free in all six runs (three layouts, two seeds) with and without passing; passing raises throughput on the large layout.
+- Improved gets mixed results and more contacts with passing, so the feature is no general guarantee against contacts or deadlocks.
+- Passing costs about 55% more run time on the large layout.
+- Reciprocal on `MAS-demonstrator` with seed 42 completes 10 products against 16 with the other seed, which suggests stuck movers. The benchmark reports neither waiting time nor stuck movers.
+- The passing checks use snapshots: a third mover that enters a passing lane later is not guarded against.
 
 ## Decisions
 
@@ -49,6 +71,8 @@ Settled with the user on 2026-11-18. ⚑ marks answers that differ from the agen
 | Dotio scope | Replace its A*, PriorityQueue and Stack with Kinetra mechanisms ⚑ | Fully aligned with the engine; behavior may change |
 | Dotio acceptance | Invariant tests plus a playtest, with a recording of the old behavior made first | An exact copy of the old A* would make the replacement pointless |
 | CI | GitHub Actions per pull request: headless build and tests, format check, docs check | Catches what the Targeted level skips locally; there is no GPU in CI |
+| Predictive passing | Its scenarios and diagnostics join phase 4's safety net, before the refactor. Behavior changes follow in phase 7, on the restructured code. The mechanism moves to Kinetra last, in phase 8 | Added on 2026-11-18. Changing behavior inside the hotspot that phase 4 splits would add flags and change the golden values during the refactor. Sharing an unproven mechanism would spread its failures to Demo and Dotio |
+| Documentation cleanup | Cross-cutting fixes now, on their own branch; module READMEs are rewritten in their module's phase | Added on 2026-11-18. Stale facts mislead today, but a module README written before its refactor would be written twice |
 
 ## Phases
 
@@ -56,12 +80,27 @@ Settled with the user on 2026-11-18. ⚑ marks answers that differ from the agen
 flowchart LR
     P1["1 Process and rules<br/>(done)"] --> P2["2 Tooling and CI<br/>(done)"]
     P2 --> P3["3 Safety net and<br/>shared presentation"]
-    P3 --> P4["4 i4sim"]
+    P3 --> P4["4 i4sim<br/>(passing scenarios first)"]
     P3 --> P5["5 Demo"]
     P3 --> P6["6 Dotio"]
+    P4 --> P7["7 Predictive passing<br/>under pressure"]
+    P7 --> P8["8 Shared passing<br/>mechanism"]
+    P5 --> P8
+    P6 --> P8
 ```
 
-Phases 4–6 depend only on phase 3 and may run in any order; i4sim goes first because it hurts most. Each phase ends at the **Full** verification level, with its module documentation rewritten.
+*Takeaway:* phases 4–6 depend only on phase 3 and may run in any order; i4sim goes first because it hurts most. Predictive passing changes behavior only after phase 4 restructured i4sim, and is shared only after all three applications are clean. Each phase ends at the **Full** verification level, with its module documentation rewritten.
+
+## Status
+
+Updated on 2026-11-18.
+
+| Phase | State | Where |
+| --- | --- | --- |
+| 1 Process and rules | Implemented | [Development process](2026-11-18-development-process.md) |
+| 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
+| 3 Safety net and shared presentation | Step 1 implemented; the Kinetra design for steps 3, 4 and 6 is accepted ([Kinetra design](../../external/Kinetra/docs/design/README.md#index), ADRs 0013 and 0014); steps 2–7 open | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md) |
+| 4–8 | Not started | This page |
 
 ## Phase 2: tooling and CI
 
@@ -101,7 +140,11 @@ Repositories: Kinetra (overlay, glyphs, ADR) and Lab.
 
 Repository: Lab.
 
-- **Mover state.** Replace the `Mover` flags with a `MoverState` enum and explicit transitions, documented as a state diagram in the module README.
+- **Predictive passing safety net (first, before any restructuring).** Pins today's passing behavior, so the refactor cannot change it silently and phase 7 has its baseline. No behavior change; the golden values stay identical.
+  - *Diagnostics.* A passing event log in the simulation: participants, chosen lanes, phase transitions and the reason for every cancellation. On a contact it records seed and tick, so a failing situation can be replayed directly.
+  - *Pressure scenarios* as named doctest cases with blueprint fixtures: three oncoming movers, a third mover entering an active passing lane, several simultaneous passing plans, and limited room to give way. Each case records today's outcome (contacts, cancellations, arrival), including the known failures.
+  - *Benchmark metrics.* `kinetra_i4sim_motion_benchmark` also reports waiting time and stuck movers, next to completed products and contacts.
+- **Mover state.** Replace the `Mover` flags with a `MoverState` enum and explicit transitions, documented as a state diagram in the module README. The passing plan gets explicit phases (entering lanes, passing, restoring) in the same model.
 - **Split `Simulation` by responsibility.** Separate grid topology, route planning, parking, traffic and corridor coordination, predictive passing, recovery, scheduling and motion. Each part is a class or function group with its own tests; `Simulation` composes them.
 - **Constants.** Name the repeated literals (`Vec2{2, 2}`, `0.05f`, `120`) and the braking-distance expression.
 - **Encapsulation.** Make `paused` and `workload` private, behind operations, so the session no longer flips `paused` to get past a guard.
@@ -136,13 +179,46 @@ Repository: Lab, plus Kinetra if navigation needs an extension.
 - **Tests.** Invariant tests: paths valid and clear of walls, enemies reach the player, no stuck agents within N ticks, determinism per seed. Then a playtest by the user against the recording.
 - **Documentation.** `///` contracts and the module README, including how AI states use navigation.
 
+## Phase 7: predictive passing under pressure
+
+Repository: Lab. Depends on phase 4, which provides the scenarios, the diagnostics and the explicit passing phases.
+
+Goal: predictive passing that stays safe and keeps traffic flowing under pressure, with Reciprocal as the reference profile. It stays off by default until the measurements below justify changing that.
+
+1. **Cause of Improved's extra contacts.** Replay the contacts from the baseline with the event log and establish the cause before changing parameters or behavior.
+2. **Guarded maneuvers.** Recheck during the maneuver that it stays feasible, not only when the plan starts, so a third mover entering a lane is handled. Wait or abort under a fixed priority, so movers do not keep switching decisions. Respect braking distance and acceleration limits.
+3. **Measured result.** Compare identical seeds, layouts and settings with passing on and off: contacts, completed products, waiting time and stuck movers, including the `MAS-demonstrator` seed-42 throughput gap. The phase 4 scenarios turn from recorded outcomes into required outcomes.
+
+**Done when:** the pressure scenarios end without contacts and with arrival, the benchmark shows no regression with passing on for Reciprocal, and the Improved contacts are either explained and fixed or documented as a profile limit.
+
+## Phase 8: shared passing mechanism
+
+Repositories: Kinetra and Lab. Depends on phases 5, 6 and 7.
+
+- **Kinetra design and ADR.** Move the proven, application-free part of predictive passing (conflict prediction, lane agreement, maneuver guard) to Kinetra. Factory policy (traffic zones, parking, junction rules) stays in i4sim.
+- **Same scenarios everywhere.** Run the phase 4 pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism and scenario set.
+- **Steering models.** Use this phase to decide whether the four overlapping steering models in Kinetra can share one agent-motion interface (see [Evidence](#evidence)), and to move i4sim-shaped defaults out of the engine.
+
 ## Documentation in every phase
 
 - The module being refactored gets its README rewritten with the [module template](../../external/Kinetra/docs/documentation.md#module-readme-template), and its headers get `///` contracts (`doc-module` skill). Docs are written after the code has its new shape, so nothing is documented twice.
 - Navigation-only sub-READMEs of that module are folded in and removed.
 - Architecture pages and diagrams are updated in the same phase as the code they describe.
 
+## Documentation cleanup
+
+Two read-only audits on 2026-11-18 (Lab at `4eb5dba`, Kinetra at `b107142`) found stale facts, history text, duplicated diagrams and navigation-only READMEs in both repositories. The cleanup is split so nothing is written twice:
+
+| What | When | Where |
+| --- | --- | --- |
+| Lab cross-cutting fixes: root README back to an entry point (the submodule workflow moves to `external/README.md`, reconciled with the [Kinetra workflow](../../external/Kinetra/docs/workflow.md#changes-across-kinetra-and-lab)), stale commands and facts, history text, `blob/main` links, the documentation index, `prompt.md` (its plan is phases 4, 7 and 8 above) | Now | Lab `docs/roadmap-and-cleanup` |
+| Launcher module README, `docs/launcher-overlays.md` cut to Lab composition, `docs/architecture.md` session loop | Phase 3 | Lab phase 3 branch |
+| Kinetra runtime, launcher, session and text docs (`docs/engine/runtime.md`, `docs/engine/launcher-overlays.md`, `docs/architecture.md`, `src/engine/README.md`) | Phase 3 | Kinetra phase 3 branch |
+| Kinetra cross-cutting fixes, `///` contracts on every public header, the ADR table in `docs/decisions/README.md`, and folding `include/README.md`, `include/kinetra/README.md`, `src/README.md`, `docs/engine/README.md` and `tests/consumer/README.md` into module READMEs | After the Kinetra phase 3 branch, stacked on it | Kinetra `docs/cleanup` |
+| i4sim, Demo and Dotio module READMEs; their thin sub-READMEs folded in; `demo-architecture.md` and `dotio-architecture.md` absorbed; i4sim test history moved out of the tests README | Phases 4, 5 and 6 | Each module's phase |
+
 ## Open points
 
-- Whether the Lab-specific shared presentation helpers deserve their own target (`kinetra_lab_common`) or stay header-only is decided in the phase 3 design document.
 - Desktop playtests and performance checks remain manual; CI cannot replace them.
+- Phase 6 starts with a short video of today's Dotio enemy behavior. Recording it needs the user's desktop.
+- The i4sim presentation links `Kinetra::Launcher` for its blueprint screen, which the [layer rule](../../AGENTS.md#lab-boundaries) does not list. Phase 4 either documents it as the rule or removes the dependency.
