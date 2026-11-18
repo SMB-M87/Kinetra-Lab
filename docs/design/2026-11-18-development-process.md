@@ -79,16 +79,13 @@ Documentation only, so the **Docs** level applies: `python3 external/Kinetra/too
 
 **Title:** `docs: adopt Kinetra development process and fix launcher session docs`
 
-**Description:**
-
-> - `AGENTS.md` now adds Lab-specific rules (layers per application, Targeted test mapping, submodule git) on top of the shared rules in Kinetra.
-> - Agent skills are available through `.agents/skills` and `.claude/skills` (symlinks into the Kinetra submodule).
-> - Corrects the session-ownership docs: the bundled launcher runs its own `launcher::run` loop and does not use `SessionHost` yet.
-> - Adds the quality roadmap (`docs/design/2026-11-18-quality-roadmap.md`) for tooling, tests and the per-module clean-up.
-> - Ignores the local reference folders `files/` and `bms_files/`.
-> - Updates `external/Kinetra` to the branch with the shared process docs. **Push Kinetra `docs/development-process` first.**
->
-> Documentation only; verified with `python3 external/Kinetra/tools/check_docs.py`.
+The description is published with the pull request. It covers:
+- the Lab-specific `AGENTS.md` rules;
+- the skills symlinks;
+- the corrected session-ownership docs;
+- the quality roadmap;
+- the ignored local folders;
+- the dependency on the Kinetra pull request (merge Kinetra first, with a merge commit).
 
 ## Open points
 

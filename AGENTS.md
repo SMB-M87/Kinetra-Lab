@@ -74,7 +74,8 @@ The level is decided by the whole change; one Full-level file lifts everything.
 ## Git with the engine submodule
 
 - Lab records one exact Kinetra commit. A change to `external/Kinetra` is committed **in Kinetra** on its own branch, then the pointer is committed in Lab (`git add external/Kinetra`).
-- Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. In the hand-over, tell the user to push Kinetra before Lab.
+- Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. Push the Kinetra branch and open its pull request before pushing Lab.
+- The Lab pull request links the Kinetra pull request. It states that Kinetra merges first, with a merge commit rather than a squash, so the pointer stays reachable.
 - The manual publishing steps for people are in the [README](README.md#kinetra-development-workflow).
 
 ## Documentation in Lab
