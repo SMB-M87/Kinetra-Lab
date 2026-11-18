@@ -1,32 +1,43 @@
+// Soak tests for dense Demo crowds: 60 simulated seconds per seed. These seeds stalled
+// only after sustained crowd motion, beyond the old five-frame smoke checks, so the
+// tests step simulated time rather than rendering speed. CTest labels them `soak`.
 #include "../include/sandbox_application.h"
-#include <iostream>
-#include <stdexcept>
 
-int main(int argc, char **argv) {
-    unsigned seed = 0;
-    int tick = 0;
-    try {
-        if (argc != 2)
-            throw std::invalid_argument("Expected a deterministic crowd seed");
-        seed = unsigned(std::stoul(argv[1]));
-        sandbox::SandboxApplication application(240, seed);
-        kinetra::Camera2D camera;
-        camera.viewport = {1280, 800};
-        camera.pixels_per_unit = 17;
-        // These seeds stalled only after sustained crowd motion, beyond the old
-        // five-frame smoke checks. Test simulated time rather than rendering speed.
-        for (; tick < 7200; ++tick) {
-            application.advance(1.0 / 120, {}, camera);
-            const auto &world = application.scene().world;
-            if (world.sweep_budget_exhausted())
-                throw std::runtime_error("Ordinary crowd contact exhausted the swept-event budget");
-            for (const auto &body : world.bodies())
-                if (!kinetra::finite(body.position) || !kinetra::finite(body.velocity))
-                    throw std::runtime_error("Crowd motion produced nonfinite state");
-        }
-        std::cout << "PASS crowded Demo seed " << seed << ": 60 simulated seconds\n";
-    } catch (const std::exception &error) {
-        std::cerr << "Seed " << seed << ", tick " << tick << ": " << error.what() << '\n';
-        return 1;
+#include <doctest/doctest.h>
+
+#include <algorithm>
+
+namespace {
+/// Fixed steps per simulated run: 60 seconds at the Demo's 120 Hz clock.
+constexpr int soak_ticks = 7200;
+
+/// Runs a 240-agent crowd for `soak_ticks` frames and checks every tick that contact
+/// never exhausts the swept-event budget and that all motion stays finite.
+void soak(unsigned seed) {
+    sandbox::SandboxApplication application(240, seed);
+    kinetra::Camera2D camera;
+    camera.viewport = {1280, 800};
+    camera.pixels_per_unit = 17;
+    for (int tick = 0; tick < soak_ticks; ++tick) {
+        INFO("tick " << tick);
+        application.advance(1.0 / 120, {}, camera);
+        const auto &world = application.scene().world;
+        REQUIRE_MESSAGE(!world.sweep_budget_exhausted(),
+                        "Ordinary crowd contact exhausted the swept-event budget");
+        // One assertion per tick instead of per body keeps the soak run as fast as before.
+        const auto bodies = world.bodies();
+        const bool finite = std::all_of(bodies.begin(), bodies.end(), [](const kinetra::Body &body) {
+            return kinetra::finite(body.position) && kinetra::finite(body.velocity);
+        });
+        REQUIRE_MESSAGE(finite, "Crowd motion produced nonfinite state");
     }
+}
+} // namespace
+
+TEST_CASE("a dense crowd with seed 123 keeps finite motion and its sweep budget for 60 seconds") {
+    soak(123);
+}
+
+TEST_CASE("a dense crowd with seed 456 keeps finite motion and its sweep budget for 60 seconds") {
+    soak(456);
 }
