@@ -122,11 +122,33 @@ The option is disabled by default and lives under DEBUG → View → CORRIDOR TR
 alongside scene/workload controls; the shorter Motion page retains its existing
 rows. Blue outlines identify controlled corridors, lime outlines their reserved
 exits, and `LANE WAIT` reports waiting movers/detected corridor count. Admission and
-reservation state are cleared only for disabled policy types. This prevents new
-head-on entry into eligible clear corridors; it does not reverse agents already
-stuck together inside, move permanent blockers, coordinate branched networks or
-guarantee starvation freedom. Late activation inside an already contested corridor
-falls back to physical occupancy protection and local avoidance.
+reservation state are cleared only for disabled policy types.
+
+With exactly two active, unblocked opposing occupants, recovery may start after
+both have at least 120 ticks without route progress and speed at most 0.05 mm/tick.
+At most four candidates are checked: either mover reversing to either side of its
+entrance room. Static footprint-aware routing and 2 mm peer/reservation clearance
+must validate the complete retreat path and refuge against the current snapshot.
+Refuges account for the mover's full rectangular footprint, including bodies longer
+than a cell. The shortest valid path wins; equal costs prefer the higher stable ID.
+Unsuccessful checks retry no more often than every 120 ticks.
+
+The passing mover holds its initial position while the yielding mover follows a
+private temporary route. Once settled in the refuge, the yielding mover waits until
+the other fully clears the corridor. Both then resume ordinary control. Temporary
+control targets retain original destinations, manual flags, task state and parking
+reservations; movement still uses normal avoidance, border constraints and bounded
+acceleration. Temporary targets cannot complete a production arrival. A new goal
+cancels the affected recovery immediately; configuration rebuilds its routes, and
+disabling corridor traffic clears recovery without moving bodies. Blocking a
+participant suspends its motion and can be resumed. `RETREAT` counts active
+recoveries, and pink path arrows show the current temporary steering target.
+
+The mechanism does not relocate permanent blockers, handle three or more opposing
+occupants, coordinate branched networks, or guarantee starvation freedom. A refuge
+is checked when the manoeuvre is selected; later intrusions can still delay it via
+local avoidance. Without a clear path/refuge, logical admission stays protected
+and no forced escape or teleportation is attempted.
 
 Weighted routes validate the mover's rectangular footprint on every swept link,
 including exact start and destination coordinates. Contiguous wall segments are

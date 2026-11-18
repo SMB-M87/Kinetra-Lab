@@ -108,8 +108,8 @@ and enable CORRIDOR TRAFFIC under DEBUG → View. Close the menu. Select the wes
 mover and Shift-click `(1900, 700)`, then select the east mover and Shift-click
 `(300, 700)`. Press Space. One waits in its entrance room while the other traverses
 the blue corridor and clears the lime exit pocket. Repeating without corridor
-traffic reproduces the head-on standstill. These are prevention/reservation tests;
-late activation with both movers already inside does not provide automatic retreat.
+traffic reproduces the head-on standstill. Enabling corridor traffic after a
+standstill also permits the two-mover retreat recovery described below.
 
 The regression runs all four orientations and requires exclusive full-body
 occupancy, bounded acceleration, unchanged manual goals, deterministic replay,
@@ -118,6 +118,26 @@ occupancy/resumption, a previously parked occupant with no initial exit route,
 independent junction toggling, disabling without teleportation, dead-end exclusion
 and the 256-cell detection/indexing budget. Graphics tests exercise both the View
 toggle/statistics and the actual blue corridor/lime reservation with moving agents.
+
+[corridor-recovery.json](corridor-recovery.json) starts the movers inside the same
+corridor, so recovery can be inspected directly:
+
+```sh
+./build/kinetra_i4sim --blueprint labs/i4sim/tests/corridor-recovery.json
+```
+
+Disable workload, choose Reciprocal and enable CORRIDOR TRAFFIC as above. Select
+the mover at `(1000, 700)` and Shift-click `(1900, 700)`, then select `(1200, 700)`
+and Shift-click `(300, 700)`. Run the scene. After sustained standstill one backs
+into the side of an entrance room; its pink arrow and `RETREAT` identify the
+manoeuvre. The other waits, passes, and both resume their unchanged goals.
+
+Recovery regressions cover all four orientations after late activation, reverse
+movement, deterministic replay, bounded acceleration and zero contacts. They also
+exercise manual cancellation, disabling without teleportation, blocked/unblocked
+participants, longer APM4350 rectangular bodies, and all four occupied refuges
+with safe retry after one is freed. The graphics test renders the actual retreat
+and checks its pink steering arrow. The targeted policy/probe also runs under UBSan.
 
 ## Motion benchmark
 

@@ -124,8 +124,11 @@ corridor between two wider rooms. One mover traverses at a time; the opposite
 approach waits outside its exit space. Blue outlines show controlled corridors,
 lime shows the admitted exit, and `LANE WAIT` reports waiting movers and zone count.
 It is disabled by default and covers straight runs up to 256 cells with room at
-both ends. It prevents new opposing entry; movers already stuck together inside
-still need a retreat policy. Use the [corridor demonstration](tests/README.md#corridor-demonstration).
+both ends. For two active opposing movers already stalled inside, it can hold one
+and back the other into a validated free side position in an entrance room, then
+resume both original goals. `RETREAT` counts active recoveries; pink path arrows
+show the temporary steering target. Occupied refuges or blocked retreat routes
+prevent recovery from starting. Use the [corridor demonstrations](tests/README.md#corridor-demonstration).
 
 Contacts count new unordered mover-pair or mover-boundary contacts before correction. Duration
 counts pair/segment contact ticks, not seconds. Ongoing contact is not a new event every tick.

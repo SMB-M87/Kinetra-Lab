@@ -365,6 +365,9 @@ class FactorySession final : public lab::Session {
                     from = target;
                 }
             }
+            if (debug_ && paths_)
+                if (const auto target = simulation_->corridor_retreat_target(i))
+                    draw_debug_vector(runtime, center, world(*target - m.body.position), {1, 0.3f, 0.7f});
             if (debug_ && vectors_) {
                 draw_debug_vector(runtime, center, world(m.forces.border * 50), {1,.5f,0});
                 draw_debug_vector(runtime, center, world(m.forces.collision * 50), {1,0,0});
@@ -422,11 +425,12 @@ class FactorySession final : public lab::Session {
         for (const auto &m : simulation_->movers()) name(m.definition.id,m.body.position);
         for (const auto &p : simulation_->producers()) name(p.definition.id,p.definition.position);
         if (statistics_) {
+            const auto &c = simulation_->motion_settings();
             std::ostringstream stats;
             stats << "TICK " << simulation_->ticks() << " UPS " << simulation_->updates_per_second()
                   << " CONTACTS " << simulation_->collisions() << " DURATION " << simulation_->contact_ticks();
+            if (c.corridor_traffic) stats << " RETREAT " << simulation_->corridor_recovering();
             factory_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
-            const auto &c = simulation_->motion_settings();
             std::ostringstream motion;
             motion << (simulation_->paused ? "PAUSED" : "RUNNING") << " SPEED " << c.speed
                    << " FORCE " << c.force << " HORIZON " << c.horizon;
@@ -448,6 +452,7 @@ class FactorySession final : public lab::Session {
             text << m.definition.id << " | DISTANCE " << int(m.distance) << " MM | CONTACT TICKS " << m.collision_ticks
                  << " | "
                  << (m.blocked       ? "BLOCKED"
+                                     : m.corridor_retreating ? "CORRIDOR RETREAT"
                      : m.unreachable ? "UNREACHABLE"
                      : m.product     ? "ALLOCATED"
                                      : "IDLE - SHIFT CLICK GOAL");
@@ -455,7 +460,7 @@ class FactorySession final : public lab::Session {
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
-                    << (m.no_progress >= 120 ? " STALLED" : "");
+                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting ? " STALLED" : "");
             factory_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {

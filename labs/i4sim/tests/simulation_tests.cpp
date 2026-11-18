@@ -416,6 +416,122 @@ void corridor_traffic_contracts() {
     long_lane.movers[1].position.x = 52243.5f;
     require(Simulation(long_lane).corridor_count() == 0, "Corridor indexing budget was not bounded");
 }
+void corridor_recovery_contracts() {
+    using namespace i4sim;
+    const auto original = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json");
+    for (int orientation = 0; orientation < 4; ++orientation) {
+        auto b = original;
+        const float angle = orientation * 1.57079632679f;
+        if (orientation % 2) b.dimension = {original.dimension.y, original.dimension.x};
+        auto rotate = [&](Vec2 p) { return b.dimension / 2 + kinetra::rotated(p - original.dimension / 2, angle); };
+        for (auto &m : b.movers) m.position = rotate(m.position + Vec2{56.5f, 56.5f}) - Vec2{56.5f, 56.5f};
+        for (auto &zone : b.zones) {
+            const auto a = rotate(zone.position), c = rotate(zone.position + zone.dimension);
+            zone.position = {std::round(std::min(a.x, c.x)), std::round(std::min(a.y, c.y))};
+            zone.dimension = {std::round(std::abs(a.x - c.x)), std::round(std::abs(a.y - c.y))};
+        }
+        Simulation trial(b);
+        trial.workload = false;
+        auto config = trial.motion_settings();
+        config.profile = SteeringProfile::reciprocal;
+        trial.configure_motion(config);
+        require(trial.move_to(0, rotate({1900, 700})) && trial.move_to(1, rotate({300, 700})),
+                "Recovery goals rejected");
+        trial.paused = false;
+        for (int t = 0; t < 1500; ++t) trial.tick();
+        require(trial.movers()[0].moving && trial.movers()[1].moving, "Recovery fixture did not stall");
+        trial.paused = true;
+        config.corridor_traffic = true;
+        trial.configure_motion(config);
+        trial.paused = false;
+        auto replay = trial;
+        bool saw_retreat = false, saw_reverse = false, checked_lifecycle = false;
+        for (int t = 0; t < 6000; ++t) {
+            trial.tick(); replay.tick();
+            for (std::size_t i = 0; i < trial.movers().size(); ++i) {
+                const auto &m = trial.movers()[i];
+                require(kinetra::distance(m.body.position, replay.movers()[i].body.position) == 0,
+                        "Retreat recovery was nondeterministic");
+                require(kinetra::length(m.body.acceleration) <= config.force + 0.00001f &&
+                            kinetra::distance(m.destination, rotate(i == 0 ? Vec2{1900, 700} : Vec2{300, 700})) == 0,
+                        "Retreat exceeded acceleration limits or replaced a goal");
+                if (!m.corridor_retreating) continue;
+                saw_retreat = true;
+                saw_reverse = saw_reverse || kinetra::dot(m.body.velocity, m.destination - m.body.position) < -1;
+                require(trial.corridor_retreat_target(i).has_value(), "Active retreat has no control target");
+                if (checked_lifecycle) continue;
+                auto cancelled = trial;
+                require(cancelled.move_to(i, m.destination) && cancelled.corridor_recovering() == 0 &&
+                            !cancelled.corridor_retreat_target(i) &&
+                            kinetra::distance(cancelled.movers()[i].body.position, m.body.position) == 0,
+                        "New manual goal failed to cancel retreat without teleporting");
+                auto disabled = trial;
+                disabled.paused = true;
+                auto off = disabled.motion_settings(); off.corridor_traffic = false;
+                disabled.configure_motion(off);
+                require(disabled.corridor_recovering() == 0 && !disabled.movers()[i].corridor_retreating &&
+                            kinetra::distance(disabled.movers()[i].body.position, m.body.position) == 0,
+                        "Disabling traffic retained retreat state or moved a body");
+                auto blocked = trial;
+                blocked.toggle_mover(i);
+                for (int step = 0; step < 200; ++step) blocked.tick();
+                require(kinetra::distance(blocked.movers()[i].body.position, m.body.position) == 0,
+                        "Recovery moved a blocked yielding mover");
+                blocked.toggle_mover(i);
+                for (int step = 0; step < 6000; ++step) blocked.tick();
+                require(!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0,
+                        "Retreat did not resume after a temporary blockage");
+                checked_lifecycle = true;
+            }
+        }
+        require(saw_retreat && saw_reverse && checked_lifecycle && trial.corridor_recovering() == 0 &&
+                    !trial.movers()[0].moving && !trial.movers()[1].moving && trial.collisions() == 0 &&
+                    trial.contact_ticks() == 0, "Retreat failed to restore both original goals without contact");
+    }
+    auto rectangular = original;
+    rectangular.dimension = {1400, 2200};
+    for (auto &zone : rectangular.zones) {
+        const auto low = zone.position, high = zone.position + zone.dimension;
+        zone.position = {1400 - high.y, low.x};
+        zone.dimension = {high.y - low.y, high.x - low.x};
+    }
+    rectangular.movers = {{"long north", Model::APM4350, {622.5f, 782.5f}},
+                          {"long south", Model::APM4350, {622.5f, 1182.5f}}};
+    Simulation long_movers(rectangular);
+    long_movers.workload = false;
+    auto long_config = long_movers.motion_settings();
+    long_config.profile = SteeringProfile::reciprocal; long_config.corridor_traffic = true;
+    long_movers.configure_motion(long_config);
+    require(long_movers.move_to(0, {700, 2050}) && long_movers.move_to(1, {700, 300}),
+            "Long rectangular mover goals rejected");
+    long_movers.paused = false;
+    bool long_recovery = false;
+    for (int t = 0; t < 8000; ++t) {
+        long_movers.tick(); long_recovery = long_recovery || long_movers.corridor_recovering() > 0;
+    }
+    require(long_recovery && !long_movers.movers()[0].moving && !long_movers.movers()[1].moving &&
+                long_movers.collisions() == 0, "Retreat refuge failed to fit long rectangular movers");
+    auto b = original;
+    for (auto point : {Vec2{500, 500}, Vec2{500, 900}, Vec2{1700, 500}, Vec2{1700, 900}})
+        b.movers.push_back({"occupied refuge " + std::to_string(b.movers.size()), Model::APM4220,
+                            point - Vec2{56.5f, 56.5f}});
+    Simulation obstructed(b);
+    obstructed.workload = false;
+    auto config = obstructed.motion_settings();
+    config.profile = SteeringProfile::reciprocal; config.corridor_traffic = true;
+    obstructed.configure_motion(config);
+    require(obstructed.move_to(0, {1900, 700}) && obstructed.move_to(1, {300, 700}), "Obstructed recovery goals rejected");
+    obstructed.paused = false;
+    for (int t = 0; t < 1500; ++t) {
+        obstructed.tick();
+        require(obstructed.corridor_recovering() == 0, "Recovery selected an occupied refuge");
+    }
+    require(obstructed.move_to(2, {100, 300}), "Refuge blocker could not move away");
+    bool recovered = false;
+    for (int t = 0; t < 8000; ++t) { obstructed.tick(); recovered = recovered || obstructed.corridor_recovering() > 0; }
+    require(recovered && !obstructed.movers()[0].moving && !obstructed.movers()[1].moving && obstructed.collisions() == 0,
+            "Freeing a refuge did not permit a safe retry");
+}
 void parking_traffic_contracts() {
     using namespace i4sim;
     const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
@@ -693,6 +809,7 @@ int main(int argc, char **argv) {
         junction_traffic_contracts();
         junction_exit_contracts();
         corridor_traffic_contracts();
+        corridor_recovery_contracts();
         parking_traffic_contracts();
         for (const auto &file : files) {
             const auto b = load_blueprint(file);

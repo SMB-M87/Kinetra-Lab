@@ -32,7 +32,7 @@ struct Mover {
     unsigned stalled{}, replan{}, no_progress{};
     float best_remaining{};
     unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{}, corridor_waiting{};
+    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{}, corridor_waiting{}, corridor_retreating{};
 };
 struct Producer {
     ProducerDefinition definition;
@@ -77,6 +77,8 @@ class Simulation {
     std::optional<kinetra::Aabb> junction_exit_reservation(std::size_t index) const;
     std::size_t corridor_count() const { return traffic_zones_.size() - junction_count_; }
     std::size_t corridor_waiting() const;
+    std::size_t corridor_recovering() const;
+    std::optional<Vec2> corridor_retreat_target(std::size_t mover) const;
     kinetra::Aabb corridor_bounds(std::size_t index) const;
     std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
     const MotionSettings &motion_settings() const { return motion_; }
@@ -100,15 +102,29 @@ class Simulation {
         std::uint64_t agent;
         kinetra::Aabb area;
     };
+    struct CorridorRecovery {
+        std::size_t yielding, passing;
+        Vec2 refuge, hold;
+        std::vector<Vec2> route;
+        bool yielded{};
+    };
+    struct TrafficControl {
+        std::size_t zone;
+        Vec2 target;
+        bool arrival;
+    };
     struct TrafficZone {
         Vec2 center, half_extents;
         bool corridor{}, vertical{};
         kinetra::TrafficGate gate;
         std::optional<ExitReservation> exit;
+        std::optional<CorridorRecovery> recovery;
+        std::uint64_t retry_at{};
     };
     std::vector<TrafficZone> traffic_zones_;
     std::size_t junction_count_{};
     std::vector<std::vector<kinetra::Segment>> traffic_stops_;
+    std::vector<std::optional<TrafficControl>> traffic_controls_;
     MotionSettings motion_;
     std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
@@ -132,6 +148,8 @@ class Simulation {
     void coordinate_parking();
     bool prepare_route(Mover &mover);
     std::optional<kinetra::Aabb> traffic_exit(const Mover &mover, const TrafficZone &junction) const;
+    void cancel_corridor_recovery(Mover &mover);
+    void recover_corridors(const kinetra::SpatialGrid &index);
     void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
     void update_heatmap();
     void schedule(Product &product);
