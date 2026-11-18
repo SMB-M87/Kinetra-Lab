@@ -112,7 +112,10 @@ and the detected junction count; cyan outlines appear with the boundary view.
 Waiting movers brake before entry, while physical occupants retain the zone until
 they leave. Goals stay intact, including manual goals. The option is disabled by
 default; open floors and adjacent junction complexes are outside this detector.
-It does not resolve blocked exits or opposing traffic in single-lane corridors.
+New entry also requires a clear exit pocket, outlined in lime. `EXIT` counts
+movers waiting for that space. Blocked requests retain FIFO priority while traffic
+to a free exit can pass. Already admitted space stays reserved until the mover
+clears the zone. This does not relocate blockers or solve opposing single-lane traffic.
 Use the [crossing demonstration](tests/README.md#crossing-demonstration) to compare
 the behavior visually.
 

@@ -188,6 +188,106 @@ void junction_traffic_contracts() {
     require(!cancelled.movers()[0].moving && !cancelled.movers()[1].moving && cancelled.collisions() == 0,
             "Cancelled approach retained a stale junction admission");
 }
+void junction_exit_contracts() {
+    using namespace i4sim;
+    for (int orientation = 0; orientation < 4; ++orientation) {
+        auto b = crossing_fixture();
+        b.movers.push_back({"blocked east", Model::APM4220, {843.5f, 643.5f}});
+        const float angle = orientation * 1.57079632679f;
+        const Vec2 half = mover_spec(Model::APM4220).dimension / 2;
+        auto rotate = [&](Vec2 point) { return Vec2{700, 700} + kinetra::rotated(point - Vec2{700, 700}, angle); };
+        for (auto &m : b.movers) m.position = rotate(m.position + half) - half;
+        Simulation trial(b);
+        trial.workload = false;
+        auto config = trial.motion_settings();
+        config.profile = SteeringProfile::reciprocal;
+        config.junction_traffic = true;
+        trial.configure_motion(config);
+        trial.toggle_mover(2);
+        require(trial.move_to(0, rotate({1100, 700})) && trial.move_to(1, rotate({700, 1100})),
+                "Blocked-exit goals rejected");
+        trial.paused = false;
+        bool saw_exit_wait = false, saw_free_exit = false;
+        for (int t = 0; t < 1000; ++t) {
+            trial.tick();
+            saw_exit_wait = saw_exit_wait || trial.movers()[0].junction_exit_waiting;
+            saw_free_exit = saw_free_exit || !trial.movers()[1].moving;
+            const auto &west = trial.movers()[0];
+            const auto approach = kinetra::rotated({1, 0}, angle);
+            require(kinetra::dot(west.body.position - Vec2{700, 700}, approach) + half.x <= -101.999f,
+                    "Mover entered a junction with a blocked exit");
+            require(kinetra::length(west.body.acceleration) <= config.force + 0.00001f,
+                    "Blocked-exit wait bypassed bounded acceleration");
+        }
+        require(saw_exit_wait && saw_free_exit && !trial.junction_exit_reservation(0),
+                "Blocked request prevented another exit from clearing or retained stale space");
+        auto disabled = trial;
+        disabled.paused = true;
+        config.junction_traffic = false;
+        disabled.configure_motion(config);
+        require(disabled.junction_exit_waiting() == 0 && !disabled.junction_exit_reservation(0) &&
+                    kinetra::distance(disabled.movers()[0].body.position, trial.movers()[0].body.position) == 0,
+                "Disabling traffic left an exit wait or moved a body");
+        trial.toggle_mover(2);
+        require(trial.move_to(2, rotate({1250, 700})), "Exit blocker could not move away");
+        bool reserved_after_release = false;
+        for (int t = 0; t < 1500; ++t) {
+            trial.tick();
+            reserved_after_release = reserved_after_release || trial.junction_exit_reservation(0).has_value();
+        }
+        require(reserved_after_release && trial.collisions() == 0 && trial.contact_ticks() == 0 &&
+                    !trial.movers()[0].moving && !trial.movers()[1].moving && !trial.movers()[2].moving &&
+                    trial.junction_exit_waiting() == 0 && !trial.junction_exit_reservation(0),
+                "Clearing the exit did not resume and release crossing traffic");
+    }
+    // An opposing approach must stop outside the admitted mover's exit pocket,
+    // so the admitted body can fully clear the junction before local avoidance.
+    auto b = crossing_fixture();
+    b.movers.push_back({"east approach", Model::APM4220, {1143.5f, 643.5f}});
+    Simulation protected_exit(b);
+    protected_exit.workload = false;
+    auto config = protected_exit.motion_settings();
+    config.profile = SteeringProfile::reciprocal;
+    config.junction_traffic = true;
+    protected_exit.configure_motion(config);
+    require(protected_exit.move_to(0, {1100, 700}) && protected_exit.move_to(1, {700, 1100}) &&
+                protected_exit.move_to(2, {300, 700}), "Opposing-approach goals rejected");
+    protected_exit.paused = false;
+    bool held_outside_exit = false;
+    for (int t = 0; t < 200; ++t) {
+        protected_exit.tick();
+        const auto area = protected_exit.junction_exit_reservation(0);
+        require(area && area->min.x > 799, "First mover did not retain its east exit");
+        const auto &other = protected_exit.movers()[2];
+        require(other.body.position.x - other.body.half_extents.x >= area->max.x - 0.001f,
+                "Another approach occupied reserved exit space");
+        require(kinetra::length(other.body.acceleration) <= config.force + 0.00001f,
+                "Reserved-exit stop exceeded the acceleration limit");
+        held_outside_exit = held_outside_exit || other.junction_exit_waiting;
+    }
+    require(held_outside_exit && protected_exit.collisions() == 0,
+            "Exit reservation did not constrain competing traffic");
+    // Enabling coordination while another mover is coasting toward a currently
+    // empty pocket must not treat that pocket as safely reservable.
+    Simulation coasting(b);
+    coasting.workload = false;
+    config.junction_traffic = false;
+    coasting.configure_motion(config);
+    require(coasting.move_to(2, {300, 700}), "Coasting approach goal rejected");
+    coasting.paused = false;
+    for (int t = 0; t < 109; ++t) coasting.tick();
+    require(coasting.movers()[2].body.position.x - coasting.movers()[2].body.half_extents.x > 925.2f,
+            "Coasting fixture already physically occupied the exit pocket");
+    coasting.paused = true;
+    config.junction_traffic = true;
+    coasting.configure_motion(config);
+    require(coasting.move_to(0, {1100, 700}) && coasting.move_to(1, {700, 1100}),
+            "Late-enabled crossing goals rejected");
+    coasting.single_step();
+    const auto admitted_exit = coasting.junction_exit_reservation(0);
+    require(coasting.movers()[0].junction_exit_waiting && admitted_exit && admitted_exit->min.y > 799,
+            "A coasting approach was ignored when admitting an exit reservation");
+}
 void parking_traffic_contracts() {
     using namespace i4sim;
     const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
@@ -463,6 +563,7 @@ int main(int argc, char **argv) {
             return 0;
         }
         junction_traffic_contracts();
+        junction_exit_contracts();
         parking_traffic_contracts();
         for (const auto &file : files) {
             const auto b = load_blueprint(file);

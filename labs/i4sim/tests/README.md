@@ -61,7 +61,11 @@ admission both arrive within 1000 ticks with zero contacts, exclusive occupancy,
 bounded acceleration and unchanged goals. They also cover replay, blocked occupancy,
 resumption, disabling, all four approach orientations, a turning T-junction and
 early/late cancelled approaches. Graphics tests toggle the appended junction row
-and render an actual crossing with cyan zone outlines and manually commanded movers. Large-factory recovery is explicitly enabled
+and render an actual crossing with cyan zone outlines, lime exit reservations and
+manually commanded movers. Exit regressions block one arm in all four orientations,
+require waiting outside while another exit clears, then free the blocker and require
+all three goals with zero contacts. They also verify reserved space remains free of
+an opposing approach and that coasting traffic prevents an unsafe new reservation. Large-factory recovery is explicitly enabled
 in its regression.
 
 ## Crossing demonstration
@@ -81,6 +85,13 @@ select the north mover and Shift-click the south arm at `(700, 1100)`. Press Spa
 The cyan boundary marks the exclusive zone. Repeat with junction traffic disabled
 to observe the uncoordinated narrow-crossing failure. There are no producers in
 this fixture; goals are manual.
+
+For a blocked-exit demonstration, reload and first send the north mover to
+`(900, 700)`. Once it has stopped, command the west mover to `(1100, 700)`; it waits
+before entry and `EXIT` increases. Move the blocker farther east to `(1250, 700)`
+to free the pocket and let the west mover proceed. Lime outlines show an admitted
+exit reservation, which protects enough space to clear the zone, not the entire
+outbound corridor.
 
 ## Motion benchmark
 

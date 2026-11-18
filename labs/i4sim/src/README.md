@@ -26,7 +26,7 @@ flowchart TD
 
 ## Contents and use
 
-`blueprint.cpp` loads and expands original JSON. `simulation.cpp` owns deterministic product/transport/production policy, footprint-aware route requests, parking approach refinement, optional parking/staging interlocks, isolated-junction admission and arrival checks. See the [simulation contract](../../../docs/factory-simulation-architecture.md) for wall constraints and stalled-route handling. `session.cpp` provides the Loadscreen, interaction and rendering. Debug Mode and all visual layers start enabled; disabling Debug Mode hides the layers while preserving their individual selections. `main.cpp` provides graphical and batch entry points.
+`blueprint.cpp` loads and expands original JSON. `simulation.cpp` owns deterministic product/transport/production policy, footprint-aware route requests, parking approach refinement, optional parking/staging interlocks, isolated-junction admission and exit-pocket protection and arrival checks. See the [simulation contract](../../../docs/factory-simulation-architecture.md) for wall constraints and stalled-route handling. `session.cpp` provides the Loadscreen, interaction and rendering. Debug Mode and all visual layers start enabled; disabling Debug Mode hides the layers while preserving their individual selections. `main.cpp` provides graphical and batch entry points.
 
 The optional Reciprocal profile adapts shared avoidance to tick units; the Motion
 profile selector and statistics expose it without changing the Improved default.

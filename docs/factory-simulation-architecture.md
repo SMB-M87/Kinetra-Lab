@@ -79,11 +79,27 @@ routes are prepared before the admission snapshot when junction coordination is
 active. With no detected junctions, route preparation retains its original order.
 
 The option is off by default. `CROSS WAIT` exposes waiting movers and detected zone
-count; the boundary layer outlines detected zones. Disabling clears logical gates
-and waits without moving bodies. A stopped occupant continues blocking admission;
-there is no expiry timer. This policy does not reserve exits, solve head-on
-single-lane traffic, coordinate adjacent intersection complexes or guarantee
-progress through a permanently occupied zone.
+count. `EXIT` counts requests/approaches held for exit space. The boundary layer
+outlines junctions in cyan and admitted exit pockets in lime. Disabling clears
+logical gates, reservations and waits without moving bodies. A stopped occupant
+continues blocking admission; there is no expiry timer.
+
+Before a new grant, i4sim follows the route to the first fully clear exit and
+reserves its swept rectangular footprint plus a bounded braking pocket (clipped
+to the next waypoint). Static geometry, other bodies, their braking travel and
+existing exit reservations must leave this pocket clear. A goal ending inside the
+junction supplies no exit and is ineligible for a new grant. The oldest eligible
+request may pass a blocked request, whose FIFO ticket remains intact. An admitted
+exit stays reserved while that agent still requests or physically occupies the
+zone, including after a goal change; it is not revoked by later readiness changes.
+Other approaches get bounded stop-line constraints outside that pocket. Bodies
+already inside a pocket or junction may leave freely. Physical queries reuse the
+movement snapshot's spatial index.
+
+This reserves space to clear the junction, not the entire outbound route. Existing
+intrusions, infeasible braking after late activation, opposing single-lane traffic,
+adjacent intersection complexes and permanently occupied zones still require
+additional policy; this is not a general liveness or collision-free guarantee.
 
 Weighted routes validate the mover's rectangular footprint on every swept link,
 including exact start and destination coordinates. Contiguous wall segments are

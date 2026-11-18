@@ -32,7 +32,7 @@ struct Mover {
     unsigned stalled{}, replan{}, no_progress{};
     float best_remaining{};
     unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{};
+    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{};
 };
 struct Producer {
     ProducerDefinition definition;
@@ -73,6 +73,8 @@ class Simulation {
     std::size_t junction_count() const { return junctions_.size(); }
     Vec2 junction_center(std::size_t index) const { return junctions_.at(index).center; }
     std::size_t junction_waiting() const;
+    std::size_t junction_exit_waiting() const;
+    std::optional<kinetra::Aabb> junction_exit_reservation(std::size_t index) const;
     const MotionSettings &motion_settings() const { return motion_; }
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return contact_ticks_; }
@@ -90,12 +92,17 @@ class Simulation {
     void dump(const std::filesystem::path &directory) const;
 
   private:
+    struct ExitReservation {
+        std::uint64_t agent;
+        kinetra::Aabb area;
+    };
     struct Junction {
         Vec2 center;
         kinetra::TrafficGate gate;
+        std::optional<ExitReservation> exit;
     };
     std::vector<Junction> junctions_;
-    std::vector<std::optional<kinetra::Segment>> junction_stops_;
+    std::vector<std::vector<kinetra::Segment>> junction_stops_;
     MotionSettings motion_;
     std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
@@ -117,7 +124,8 @@ class Simulation {
     bool parking_conflict(const Mover &mover, Vec2 position) const;
     void coordinate_parking();
     bool prepare_route(Mover &mover);
-    void coordinate_junctions();
+    std::optional<kinetra::Aabb> junction_exit(const Mover &mover, const Junction &junction) const;
+    void coordinate_junctions(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
     void update_heatmap();
     void schedule(Product &product);
     void recover_route(Mover &mover);

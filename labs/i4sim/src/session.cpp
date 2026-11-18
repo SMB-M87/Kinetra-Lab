@@ -372,9 +372,13 @@ class FactorySession final : public lab::Session {
             }
         }
         if (debug_ && borders_ && simulation_->motion_settings().junction_traffic)
-            for (std::size_t i = 0; i < simulation_->junction_count(); ++i)
+            for (std::size_t i = 0; i < simulation_->junction_count(); ++i) {
                 draw_debug_box(runtime, world(simulation_->junction_center(i)),
                                b.cell_size / 2, 0, {0, 0.8f, 1});
+                if (const auto exit = simulation_->junction_exit_reservation(i))
+                    draw_debug_box(runtime, world((exit->min + exit->max) / 2),
+                                   (exit->max - exit->min) / 2, 0, {0.6f, 1, 0});
+            }
         if (debug_ && borders_)
             for (const auto &s : simulation_->borders())
                 runtime.line(world(s.start), world(s.end), 2 / runtime.camera.pixels_per_unit,
@@ -417,7 +421,8 @@ class FactorySession final : public lab::Session {
             if (c.parking_traffic)
                 motion << " PARK WAIT " << simulation_->parking_waiting();
             if (c.junction_traffic)
-                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/" << simulation_->junction_count();
+                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/" << simulation_->junction_count()
+                       << " EXIT " << simulation_->junction_exit_waiting();
             factory_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
         }
         if (selected_mover_) {

@@ -186,11 +186,15 @@ int main() {
         std::vector<unsigned char> crossing_pixels(640 * 480 * 3);
         glReadBuffer(GL_FRONT);
         glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
-        unsigned cyan = 0;
-        for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
+        unsigned cyan = 0, lime = 0;
+        for (std::size_t i = 0; i < crossing_pixels.size(); i += 3) {
             if (crossing_pixels[i] < 30 && crossing_pixels[i + 1] > 180 && crossing_pixels[i + 2] > 240)
                 ++cyan;
-        require(cyan > 100 && session->title().find("RUNNING") != std::string::npos &&
+            if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 &&
+                crossing_pixels[i + 1] > 235 && crossing_pixels[i + 2] < 30)
+                ++lime;
+        }
+        require(lime > 30 && cyan > 100 && session->title().find("RUNNING") != std::string::npos &&
                     glGetError() == GL_NO_ERROR, "Actual crossing/zone rendering failed");
         std::cout << "PASS loadscreen, simulation overlays, input and session lifecycle\n";
     } catch (const std::exception &e) {
