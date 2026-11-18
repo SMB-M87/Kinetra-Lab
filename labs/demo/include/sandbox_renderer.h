@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sandbox_application.h"
 #include "../../settings.h"
+#include "sandbox_application.h"
 #include <kinetra/debug_view.h>
 #include <string>
 

@@ -1,6 +1,6 @@
 #include "session.h"
-#include "simulation.h"
 #include "factory_settings.h"
+#include "simulation.h"
 #include <cctype>
 #include <iostream>
 #include <kinetra/bitmap_text.h>
@@ -15,14 +15,16 @@ Vec2 world(Vec2 p) {
 }
 void factory_text(Runtime &runtime, std::string_view text, Vec2 origin, float scale, Color color) {
     std::string visible(text);
-    for (char &c : visible) c = char(std::toupper(static_cast<unsigned char>(c)));
+    for (char &c : visible)
+        c = char(std::toupper(static_cast<unsigned char>(c)));
     kinetra::draw_text(runtime, visible, origin, scale, color);
-    for (std::size_t i=0; i<visible.size(); ++i) {
-        if (visible[i] != '.' && visible[i] != '_' && visible[i] != '-') continue;
+    for (std::size_t i = 0; i < visible.size(); ++i) {
+        if (visible[i] != '.' && visible[i] != '_' && visible[i] != '-')
+            continue;
         const bool dot = visible[i] == '.';
         const float y = visible[i] == '-' ? 3.5f : 6.5f;
-        runtime.box(runtime.camera.screen_to_world(origin + Vec2{float(i)*6+2.5f,y}*scale),
-                    Vec2{dot ? .5f : 2.5f,.5f}*scale/runtime.camera.pixels_per_unit, 0, color);
+        runtime.box(runtime.camera.screen_to_world(origin + Vec2{float(i) * 6 + 2.5f, y} * scale),
+                    Vec2{dot ? .5f : 2.5f, .5f} * scale / runtime.camera.pixels_per_unit, 0, color);
     }
 }
 class FactorySession final : public lab::Session {
@@ -53,7 +55,7 @@ class FactorySession final : public lab::Session {
     }
     std::vector<DebugOption> options() {
         std::vector<DebugOption> rows;
-        rows.push_back({page_ ? "PAGE: MOTION" : "PAGE: VIEW", nullptr, [this] { page_ = 1-page_; }});
+        rows.push_back({page_ ? "PAGE: MOTION" : "PAGE: VIEW", nullptr, [this] { page_ = 1 - page_; }});
         if (!page_) {
             rows.push_back({"GRID", &grid_});
             rows.push_back({"HEATMAP", &heat_});
@@ -68,47 +70,86 @@ class FactorySession final : public lab::Session {
             rows.push_back({"FRAME SCENE", nullptr, [this] { fitted_ = false; }});
             rows.push_back({"BLUEPRINTS", nullptr, [this] { back_to_blueprints_ = true; }});
         } else {
-            rows.push_back({"PROFILE", nullptr, [this] { change_motion([](auto &c) {
-                c.profile = SteeringProfile((int(c.profile)+1)%4); }); }, [this] {
-                    switch (simulation_->motion_settings().profile) {
-                    case SteeringProfile::original: return std::string("ORIGINAL");
-                    case SteeringProfile::experimental_rvo: return std::string("RVO EXPERIMENT");
-                    case SteeringProfile::reciprocal: return std::string("RECIPROCAL");
-                    default: return std::string("IMPROVED"); } }});
-            rows.push_back({"PLANNER", nullptr, [this] { change_motion([](auto &c) { c.heatmap = !c.heatmap; }); },
-                [this] { return simulation_->motion_settings().heatmap ? "HEAT A*" : "A*"; }});
-            rows.push_back({"RECOVERY", nullptr, [this] { change_motion([](auto &c) { c.recovery = !c.recovery; }); },
-                [this] { return simulation_->motion_settings().recovery ? "ON" : "OFF"; }});
-            rows.push_back({"SPEED +", nullptr, [this] { change_motion([](auto &c) { c.speed *= 1.25f; }); }});
-            rows.push_back({"SPEED -", nullptr, [this] { change_motion([](auto &c) { c.speed /= 1.25f; }); }});
-            rows.push_back({"FORCE +", nullptr, [this] { change_motion([](auto &c) { c.force *= 1.25f; }); }});
-            rows.push_back({"FORCE -", nullptr, [this] { change_motion([](auto &c) { c.force /= 1.25f; }); }});
-            rows.push_back({"HORIZON +", nullptr, [this] { change_motion([](auto &c) { c.horizon = std::min(64.f,c.horizon+1); }); }});
-            rows.push_back({"HORIZON -", nullptr, [this] { change_motion([](auto &c) { c.horizon = std::max(1.f,c.horizon-1); }); }});
-            rows.push_back({"RESET PARAMETERS", nullptr, [this] { change_motion([](auto &c) { c.speed=2; c.force=.6f; c.horizon=8; }); }});
-            rows.push_back({"UPS +", nullptr, [this] { simulation_->updates_per_second(std::min(10000u,simulation_->updates_per_second()*2)); }});
-            rows.push_back({"UPS -", nullptr, [this] { simulation_->updates_per_second(std::max(1u,simulation_->updates_per_second()/2)); }});
+            rows.push_back({"PROFILE", nullptr,
+                            [this] {
+                                change_motion(
+                                    [](auto &c) { c.profile = SteeringProfile((int(c.profile) + 1) % 4); });
+                            },
+                            [this] {
+                                switch (simulation_->motion_settings().profile) {
+                                case SteeringProfile::original:
+                                    return std::string("ORIGINAL");
+                                case SteeringProfile::experimental_rvo:
+                                    return std::string("RVO EXPERIMENT");
+                                case SteeringProfile::reciprocal:
+                                    return std::string("RECIPROCAL");
+                                default:
+                                    return std::string("IMPROVED");
+                                }
+                            }});
+            rows.push_back({"PLANNER", nullptr,
+                            [this] { change_motion([](auto &c) { c.heatmap = !c.heatmap; }); },
+                            [this] { return simulation_->motion_settings().heatmap ? "HEAT A*" : "A*"; }});
+            rows.push_back({"RECOVERY", nullptr,
+                            [this] { change_motion([](auto &c) { c.recovery = !c.recovery; }); },
+                            [this] { return simulation_->motion_settings().recovery ? "ON" : "OFF"; }});
+            rows.push_back(
+                {"SPEED +", nullptr, [this] { change_motion([](auto &c) { c.speed *= 1.25f; }); }});
+            rows.push_back(
+                {"SPEED -", nullptr, [this] { change_motion([](auto &c) { c.speed /= 1.25f; }); }});
+            rows.push_back(
+                {"FORCE +", nullptr, [this] { change_motion([](auto &c) { c.force *= 1.25f; }); }});
+            rows.push_back(
+                {"FORCE -", nullptr, [this] { change_motion([](auto &c) { c.force /= 1.25f; }); }});
+            rows.push_back({"HORIZON +", nullptr, [this] {
+                                change_motion([](auto &c) { c.horizon = std::min(64.f, c.horizon + 1); });
+                            }});
+            rows.push_back({"HORIZON -", nullptr, [this] {
+                                change_motion([](auto &c) { c.horizon = std::max(1.f, c.horizon - 1); });
+                            }});
+            rows.push_back({"RESET PARAMETERS", nullptr, [this] {
+                                change_motion([](auto &c) {
+                                    c.speed = 2;
+                                    c.force = .6f;
+                                    c.horizon = 8;
+                                });
+                            }});
+            rows.push_back({"UPS +", nullptr, [this] {
+                                simulation_->updates_per_second(
+                                    std::min(10000u, simulation_->updates_per_second() * 2));
+                            }});
+            rows.push_back({"UPS -", nullptr, [this] {
+                                simulation_->updates_per_second(
+                                    std::max(1u, simulation_->updates_per_second() / 2));
+                            }});
         }
         if (page_ != 0)
-            rows.push_back({"PARKING TRAFFIC", nullptr, [this] { change_motion([](auto &c) {
-                c.parking_traffic = !c.parking_traffic; }); },
-                [this] { return simulation_->motion_settings().parking_traffic ? "ON" : "OFF"; }});
+            rows.push_back(
+                {"PARKING TRAFFIC", nullptr,
+                 [this] { change_motion([](auto &c) { c.parking_traffic = !c.parking_traffic; }); },
+                 [this] { return simulation_->motion_settings().parking_traffic ? "ON" : "OFF"; }});
         if (page_ != 0)
-            rows.push_back({"JUNCTION TRAFFIC", nullptr, [this] { change_motion([](auto &c) {
-                c.junction_traffic = !c.junction_traffic; }); },
-                [this] { return simulation_->motion_settings().junction_traffic ? "ON" : "OFF"; }});
+            rows.push_back(
+                {"JUNCTION TRAFFIC", nullptr,
+                 [this] { change_motion([](auto &c) { c.junction_traffic = !c.junction_traffic; }); },
+                 [this] { return simulation_->motion_settings().junction_traffic ? "ON" : "OFF"; }});
         // Keep the motion panel above the statistics on short viewports.
         if (page_ == 0)
-            rows.push_back({"CORRIDOR TRAFFIC", nullptr, [this] { change_motion([](auto &c) {
-                c.corridor_traffic = !c.corridor_traffic; }); },
-                [this] { return simulation_->motion_settings().corridor_traffic ? "ON" : "OFF"; }});
+            rows.push_back(
+                {"CORRIDOR TRAFFIC", nullptr,
+                 [this] { change_motion([](auto &c) { c.corridor_traffic = !c.corridor_traffic; }); },
+                 [this] { return simulation_->motion_settings().corridor_traffic ? "ON" : "OFF"; }});
         if (page_ == 0)
-            rows.push_back({"PREDICTIVE PASS", nullptr, [this] { change_motion([](auto &c) {
-                c.predictive_passing = !c.predictive_passing; }); }, [this] {
-                const auto &c = simulation_->motion_settings();
-                if (c.profile == SteeringProfile::original || c.profile == SteeringProfile::experimental_rvo)
-                    return std::string("LEGACY");
-                return std::string(c.predictive_passing ? "ON" : "OFF"); }});
+            rows.push_back(
+                {"PREDICTIVE PASS", nullptr,
+                 [this] { change_motion([](auto &c) { c.predictive_passing = !c.predictive_passing; }); },
+                 [this] {
+                     const auto &c = simulation_->motion_settings();
+                     if (c.profile == SteeringProfile::original ||
+                         c.profile == SteeringProfile::experimental_rvo)
+                         return std::string("LEGACY");
+                     return std::string(c.predictive_passing ? "ON" : "OFF");
+                 }});
         return rows;
     }
     bool back_to_blueprints_{};
@@ -195,8 +236,7 @@ class FactorySession final : public lab::Session {
     FactorySession(std::uint32_t seed, const std::filesystem::path &directory,
                    const std::optional<std::filesystem::path> &initial, bool running, unsigned ups,
                    std::optional<std::filesystem::path>)
-        : seed_(seed), running_(running), ups_(ups),
-          directory_(directory) {
+        : seed_(seed), running_(running), ups_(ups), directory_(directory) {
         if (ups < 1 || ups > 10000)
             throw std::invalid_argument("UPS must be in 1..10000");
         refresh_catalog();
@@ -237,8 +277,12 @@ class FactorySession final : public lab::Session {
         if (!settings_.visible && modal_before_)
             simulation_->paused = paused_before_settings_;
         modal_before_ = settings_.visible;
-        if (modal) { menu_.visible = false; return; }
-        if (!debug_) menu_.visible = false;
+        if (modal) {
+            menu_.visible = false;
+            return;
+        }
+        if (!debug_)
+            menu_.visible = false;
         auto rows = options();
         const bool captured = debug_ && settings_.update_debug(input, camera, menu_, rows);
         if (!fitted_)
@@ -252,7 +296,6 @@ class FactorySession final : public lab::Session {
             error_.clear();
             selected_mover_.reset();
             selected_producer_.reset();
-
         }
         if (input.hit(Key::g))
             simulation_->workload = !simulation_->workload;
@@ -274,8 +317,8 @@ class FactorySession final : public lab::Session {
             simulation_->updates_per_second(std::max(1u, simulation_->updates_per_second() / 2));
         if (input.hit(Key::e))
             simulation_->updates_per_second(std::min(10000u, simulation_->updates_per_second() * 2));
-        camera.pixels_per_unit =
-            std::clamp(camera.pixels_per_unit * std::pow(1.1f, debug_ && !captured ? input.wheel : 0), 0.005f, 10.f);
+        camera.pixels_per_unit = std::clamp(
+            camera.pixels_per_unit * std::pow(1.1f, debug_ && !captured ? input.wheel : 0), 0.005f, 10.f);
         const float step = float(std::min(elapsed, 0.1)) * 400 / camera.pixels_per_unit;
         camera.position.x += (input.down(Key::d) || input.down(Key::right) ? step : 0) -
                              (input.down(Key::a) || input.down(Key::left) ? step : 0);
@@ -283,12 +326,13 @@ class FactorySession final : public lab::Session {
                              (input.down(Key::s) || input.down(Key::down) ? step : 0);
         if (!captured && (input.clicked || input.right_clicked)) {
             const auto point = world(camera.screen_to_world(input.mouse));
-            if (input.down(Key::shift) && input.clicked && selected_mover_)
-                { if (!simulation_->move_to(*selected_mover_, point))
-                    { error_ = "GOAL REJECTED: MOVER BUSY, BLOCKED OR GOAL UNREACHABLE";
-                      error_remaining_ = 4; }
-                  else error_.clear(); }
-            else
+            if (input.down(Key::shift) && input.clicked && selected_mover_) {
+                if (!simulation_->move_to(*selected_mover_, point)) {
+                    error_ = "GOAL REJECTED: MOVER BUSY, BLOCKED OR GOAL UNREACHABLE";
+                    error_remaining_ = 4;
+                } else
+                    error_.clear();
+            } else
                 pick(point, input.right_clicked);
         }
         simulation_->advance(elapsed);
@@ -306,7 +350,7 @@ class FactorySession final : public lab::Session {
                 for (std::size_t offset = 0; offset < error_.size() && y + 8 < runtime.camera.viewport.y;
                      offset += columns, y += 12)
                     factory_text(runtime, std::string_view(error_).substr(offset, columns), {12, y}, 1,
-                              {1, 0.8f, 0.7f});
+                                 {1, 0.8f, 0.7f});
                 runtime.end();
             }
             return;
@@ -349,7 +393,6 @@ class FactorySession final : public lab::Session {
                         {color.r * 0.4f, color.g * 0.4f, color.b * 0.4f});
             if (p.product)
                 runtime.circle(world(p.definition.processing_position + extent / 2), radius / 4, color);
-
         }
         for (std::size_t i = 0; i < simulation_->movers().size(); ++i) {
             const auto &m = simulation_->movers()[i];
@@ -361,9 +404,10 @@ class FactorySession final : public lab::Session {
             if (debug_ && contacts_)
                 draw_debug_box(runtime, center, m.body.half_extents, 0, {1, 0, 0});
             if (debug_ && detection_)
-                draw_debug_circle(runtime, center, length(m.body.half_extents) +
-                    simulation_->motion_settings().speed * simulation_->motion_settings().horizon,
-                    {0.25f, 0.4f, 0.6f});
+                draw_debug_circle(runtime, center,
+                                  length(m.body.half_extents) + simulation_->motion_settings().speed *
+                                                                    simulation_->motion_settings().horizon,
+                                  {0.25f, 0.4f, 0.6f});
             if (debug_ && paths_) {
                 Vec2 from = m.body.position;
                 for (auto target : m.route) {
@@ -379,10 +423,10 @@ class FactorySession final : public lab::Session {
                 if (const auto target = simulation_->passing_target(i))
                     draw_debug_vector(runtime, center, world(*target - m.body.position), {0.3f, 1, 0.7f});
             if (debug_ && vectors_) {
-                draw_debug_vector(runtime, center, world(m.forces.border * 50), {1,.5f,0});
-                draw_debug_vector(runtime, center, world(m.forces.collision * 50), {1,0,0});
-                draw_debug_vector(runtime, center, world(m.forces.predictive * 50), {1,0,1});
-                draw_debug_vector(runtime, center, world(m.forces.seek * 50), {0,1,0});
+                draw_debug_vector(runtime, center, world(m.forces.border * 50), {1, .5f, 0});
+                draw_debug_vector(runtime, center, world(m.forces.collision * 50), {1, 0, 0});
+                draw_debug_vector(runtime, center, world(m.forces.predictive * 50), {1, 0, 1});
+                draw_debug_vector(runtime, center, world(m.forces.seek * 50), {0, 1, 0});
                 runtime.line(center, world(m.body.position + m.body.velocity * 40),
                              3 / runtime.camera.pixels_per_unit, {0, 1, 1});
                 runtime.line(center, world(m.body.position + m.forces.acceleration * 100),
@@ -391,20 +435,20 @@ class FactorySession final : public lab::Session {
         }
         if (debug_ && borders_ && simulation_->motion_settings().junction_traffic)
             for (std::size_t i = 0; i < simulation_->junction_count(); ++i) {
-                draw_debug_box(runtime, world(simulation_->junction_center(i)),
-                               b.cell_size / 2, 0, {0, 0.8f, 1});
+                draw_debug_box(runtime, world(simulation_->junction_center(i)), b.cell_size / 2, 0,
+                               {0, 0.8f, 1});
                 if (const auto exit = simulation_->junction_exit_reservation(i))
-                    draw_debug_box(runtime, world((exit->min + exit->max) / 2),
-                                   (exit->max - exit->min) / 2, 0, {0.6f, 1, 0});
+                    draw_debug_box(runtime, world((exit->min + exit->max) / 2), (exit->max - exit->min) / 2,
+                                   0, {0.6f, 1, 0});
             }
         if (debug_ && borders_ && simulation_->motion_settings().corridor_traffic)
             for (std::size_t i = 0; i < simulation_->corridor_count(); ++i) {
                 const auto area = simulation_->corridor_bounds(i);
-                draw_debug_box(runtime, world((area.min + area.max) / 2),
-                               (area.max - area.min) / 2, 0, {0.2f, 0.5f, 1});
+                draw_debug_box(runtime, world((area.min + area.max) / 2), (area.max - area.min) / 2, 0,
+                               {0.2f, 0.5f, 1});
                 if (const auto exit = simulation_->corridor_exit_reservation(i))
-                    draw_debug_box(runtime, world((exit->min + exit->max) / 2),
-                                   (exit->max - exit->min) / 2, 0, {0.6f, 1, 0});
+                    draw_debug_box(runtime, world((exit->min + exit->max) / 2), (exit->max - exit->min) / 2,
+                                   0, {0.6f, 1, 0});
             }
         if (debug_ && borders_)
             for (const auto &s : simulation_->borders())
@@ -415,45 +459,55 @@ class FactorySession final : public lab::Session {
         auto name = [&](std::string_view id, Vec2 position) {
             const Vec2 anchor = runtime.camera.world_to_screen(world(position));
             const float width = float(id.size()) * 6;
-            Vec2 label = anchor + Vec2{-width/2, -16};
-            Aabb box{label - Vec2{3,3}, label + Vec2{width+3,10}};
-            for (std::size_t attempt=0; attempt<=labels.size(); ++attempt) {
-                bool overlap=false;
-                for (const auto &other : labels) if (box.overlaps(other)) overlap=true;
-                if (!overlap) break;
+            Vec2 label = anchor + Vec2{-width / 2, -16};
+            Aabb box{label - Vec2{3, 3}, label + Vec2{width + 3, 10}};
+            for (std::size_t attempt = 0; attempt <= labels.size(); ++attempt) {
+                bool overlap = false;
+                for (const auto &other : labels)
+                    if (box.overlaps(other))
+                        overlap = true;
+                if (!overlap)
+                    break;
                 label.y -= 14;
-                box = {label-Vec2{3,3},label+Vec2{width+3,10}};
+                box = {label - Vec2{3, 3}, label + Vec2{width + 3, 10}};
             }
             labels.push_back(box);
             runtime.line(runtime.camera.screen_to_world(anchor),
-                         runtime.camera.screen_to_world(label+Vec2{width/2,7}),
-                         1/runtime.camera.pixels_per_unit, {.7f,.7f,.7f});
-            runtime.box(runtime.camera.screen_to_world(label+Vec2{width/2,4}),
-                        Vec2{width/2+3,7}/runtime.camera.pixels_per_unit, 0, {.025f,.035f,.06f});
-            factory_text(runtime,id,label,1,{1,1,1});
+                         runtime.camera.screen_to_world(label + Vec2{width / 2, 7}),
+                         1 / runtime.camera.pixels_per_unit, {.7f, .7f, .7f});
+            runtime.box(runtime.camera.screen_to_world(label + Vec2{width / 2, 4}),
+                        Vec2{width / 2 + 3, 7} / runtime.camera.pixels_per_unit, 0, {.025f, .035f, .06f});
+            factory_text(runtime, id, label, 1, {1, 1, 1});
         };
-        for (const auto &m : simulation_->movers()) name(m.definition.id,m.body.position);
-        for (const auto &p : simulation_->producers()) name(p.definition.id,p.definition.position);
+        for (const auto &m : simulation_->movers())
+            name(m.definition.id, m.body.position);
+        for (const auto &p : simulation_->producers())
+            name(p.definition.id, p.definition.position);
         if (statistics_) {
             const auto &c = simulation_->motion_settings();
             std::ostringstream stats;
             stats << "TICK " << simulation_->ticks() << " UPS " << simulation_->updates_per_second()
-                  << " CONTACTS " << simulation_->collisions() << " DURATION " << simulation_->contact_ticks();
-            if (c.predictive_passing && (c.profile == SteeringProfile::improved || c.profile == SteeringProfile::reciprocal))
+                  << " CONTACTS " << simulation_->collisions() << " DURATION "
+                  << simulation_->contact_ticks();
+            if (c.predictive_passing &&
+                (c.profile == SteeringProfile::improved || c.profile == SteeringProfile::reciprocal))
                 stats << " PASS " << simulation_->predictive_pairs();
-            if (c.corridor_traffic) stats << " RETREAT " << simulation_->corridor_recovering();
+            if (c.corridor_traffic)
+                stats << " RETREAT " << simulation_->corridor_recovering();
             factory_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
             std::ostringstream motion;
-            motion << (simulation_->paused ? "PAUSED" : "RUNNING") << " SPEED " << c.speed
-                   << " FORCE " << c.force << " HORIZON " << c.horizon;
+            motion << (simulation_->paused ? "PAUSED" : "RUNNING") << " SPEED " << c.speed << " FORCE "
+                   << c.force << " HORIZON " << c.horizon;
             if (c.profile == SteeringProfile::reciprocal)
                 motion << " AVOID LIMIT " << simulation_->avoidance_limited();
             if (c.parking_traffic)
                 motion << " PARK WAIT " << simulation_->parking_waiting();
             if (c.junction_traffic)
-                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/" << simulation_->junction_count();
+                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/"
+                       << simulation_->junction_count();
             if (c.corridor_traffic)
-                motion << " LANE WAIT " << simulation_->corridor_waiting() << "/" << simulation_->corridor_count();
+                motion << " LANE WAIT " << simulation_->corridor_waiting() << "/"
+                       << simulation_->corridor_count();
             if (c.junction_traffic || c.corridor_traffic)
                 motion << " EXIT " << simulation_->junction_exit_waiting();
             factory_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
@@ -461,19 +515,22 @@ class FactorySession final : public lab::Session {
         if (selected_mover_) {
             const auto &m = simulation_->movers()[*selected_mover_];
             std::ostringstream text;
-            text << m.definition.id << " | DISTANCE " << int(m.distance) << " MM | CONTACT TICKS " << m.collision_ticks
-                 << " | "
-                 << (m.blocked       ? "BLOCKED"
-                                     : m.corridor_retreating ? "CORRIDOR RETREAT"
-                                     : m.passing_detour ? "PASSING DETOUR"
-                     : m.unreachable ? "UNREACHABLE"
-                     : m.product     ? "ALLOCATED"
-                                     : "IDLE - SHIFT CLICK GOAL");
+            text << m.definition.id << " | DISTANCE " << int(m.distance) << " MM | CONTACT TICKS "
+                 << m.collision_ticks << " | "
+                 << (m.blocked               ? "BLOCKED"
+                     : m.corridor_retreating ? "CORRIDOR RETREAT"
+                     : m.passing_detour      ? "PASSING DETOUR"
+                     : m.unreachable         ? "UNREACHABLE"
+                     : m.product             ? "ALLOCATED"
+                                             : "IDLE - SHIFT CLICK GOAL");
             factory_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
-                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting && !m.passing_detour ? " STALLED" : "");
+                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting &&
+                                !m.passing_detour
+                            ? " STALLED"
+                            : "");
             factory_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {

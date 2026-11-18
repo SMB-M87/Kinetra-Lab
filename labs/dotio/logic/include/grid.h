@@ -1,8 +1,8 @@
 #ifndef GRID_H
 #define GRID_H
 
-#include <physics_object.h>
 #include <kinetra/collision_grid.h>
+#include <physics_object.h>
 
 namespace logic {
 /// Streamed local world window, character clearance, visibility and swept projectile geometry.

@@ -1,0 +1,275 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "KINETRA_SOURCE_DIR": "${sourceDir}/external/Kinetra"
+      }
+    },
+    {
+      "name": "ccache",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Development: Debug, applications, Lab and engine warnings, ccache",
+      "inherits": [
+        "base",
+        "ccache"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "KINETRA_LAB_BUILD_RUNTIME": "ON",
+        "KINETRA_LAB_WARNINGS": "ON",
+        "KINETRA_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release with applications and launcher",
+      "inherits": [
+        "base",
+        "ccache"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KINETRA_LAB_BUILD_RUNTIME": "ON"
+      }
+    },
+    {
+      "name": "headless",
+      "displayName": "Release, application logic and tests only (no SDL2/OpenGL)",
+      "inherits": [
+        "base",
+        "ccache"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KINETRA_LAB_BUILD_RUNTIME": "OFF"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "Debug with AddressSanitizer and UndefinedBehaviorSanitizer, headless",
+      "inherits": [
+        "base",
+        "ccache"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "KINETRA_LAB_BUILD_RUNTIME": "OFF",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    },
+    {
+      "name": "graphics",
+      "displayName": "Release with applications and graphics tests (needs an OpenGL context)",
+      "inherits": [
+        "base",
+        "ccache"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KINETRA_LAB_BUILD_RUNTIME": "ON",
+        "KINETRA_TEST_GRAPHICS": "ON"
+      }
+    },
+    {
+      "name": "ci",
+      "displayName": "CI: Release, everything compiled, engine warnings as errors, Lab warnings reported",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KINETRA_LAB_BUILD_RUNTIME": "ON",
+        "KINETRA_TEST_GRAPHICS": "ON",
+        "KINETRA_LAB_WARNINGS": "ON",
+        "KINETRA_WARNINGS": "ON",
+        "KINETRA_WARNINGS_AS_ERRORS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "headless",
+      "configurePreset": "headless"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan"
+    },
+    {
+      "name": "graphics",
+      "configurePreset": "graphics"
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "no-graphics",
+      "hidden": true,
+      "inherits": "base",
+      "filter": {
+        "exclude": {
+          "label": "graphics"
+        }
+      }
+    },
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "inherits": "no-graphics"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "inherits": "no-graphics"
+    },
+    {
+      "name": "headless",
+      "configurePreset": "headless",
+      "inherits": "base"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "inherits": "base"
+    },
+    {
+      "name": "graphics",
+      "configurePreset": "graphics",
+      "inherits": "base",
+      "environment": {
+        "SDL_VIDEODRIVER": "offscreen",
+        "LIBGL_ALWAYS_SOFTWARE": "1"
+      }
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "inherits": "no-graphics"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "dev",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev"
+        },
+        {
+          "type": "build",
+          "name": "dev"
+        },
+        {
+          "type": "test",
+          "name": "dev"
+        }
+      ]
+    },
+    {
+      "name": "headless",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "headless"
+        },
+        {
+          "type": "build",
+          "name": "headless"
+        },
+        {
+          "type": "test",
+          "name": "headless"
+        }
+      ]
+    },
+    {
+      "name": "asan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "asan"
+        },
+        {
+          "type": "build",
+          "name": "asan"
+        },
+        {
+          "type": "test",
+          "name": "asan"
+        }
+      ]
+    },
+    {
+      "name": "graphics",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "graphics"
+        },
+        {
+          "type": "build",
+          "name": "graphics"
+        },
+        {
+          "type": "test",
+          "name": "graphics"
+        }
+      ]
+    },
+    {
+      "name": "ci",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ci"
+        },
+        {
+          "type": "build",
+          "name": "ci"
+        },
+        {
+          "type": "test",
+          "name": "ci"
+        }
+      ]
+    }
+  ]
+}

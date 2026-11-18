@@ -1,14 +1,77 @@
+// Window-free tests for the shared settings overlay (labs/settings.h) and its i4sim
+// copy (labs/i4sim/include/factory_settings.h, removed in roadmap phase 3).
+// Every case runs on four layouts: two sim-control heights times two viewports.
 #include "../../labs/i4sim/include/factory_settings.h"
 #include "../../labs/settings.h"
-#include <iostream>
-#include <stdexcept>
+
+#include <doctest/doctest.h>
+
+#include <array>
+#include <cstddef>
+#include <functional>
 
 namespace {
-void require(bool condition, const char *message) {
-    if (!condition)
-        throw std::runtime_error(message);
+/// One settings overlay with its camera and the flags it toggles, for one layout.
+struct Harness {
+    lab::Settings settings;
+    kinetra::Camera2D camera;
+    kinetra::Vec2 viewport;
+    float controls_height;
+    bool statistics = false;
+    bool debug = false;
+
+    Harness(float height, kinetra::Vec2 size)
+        : settings{.sim_controls_height = height}, viewport(size), controls_height(height) {
+        camera.viewport = size;
+        camera.pixels_per_unit = 25;
+    }
+
+    /// Feeds one frame of input; zoom is bounded to 25..50 pixels per unit.
+    bool update(const kinetra::Input &input) {
+        return settings.update(input, camera, statistics, debug, 25, 50);
+    }
+
+    /// Clicks at a position in the panel's own layout coordinates (centered modal).
+    bool click(float x, float y) {
+        kinetra::Input input;
+        input.clicked = true;
+        input.mouse =
+            viewport / 2 + (kinetra::Vec2{x, y} - settings.half_extent()) * lab::Settings::scale(viewport);
+        return update(input);
+    }
+
+    bool press(kinetra::Key key) {
+        kinetra::Input input;
+        input.pressed[std::size_t(key)] = true;
+        return update(input);
+    }
+
+    /// Opens the modal through the settings button in the top-left corner.
+    bool open_with_button() {
+        kinetra::Input input;
+        input.clicked = true;
+        input.mouse = {10, 10};
+        return update(input);
+    }
+};
+
+/// Runs `check` once per layout, with the layout recorded for failure messages.
+void for_each_layout(const std::function<void(Harness &)> &check) {
+    for (float controls_height : {42.f, 28.f})
+        for (auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{160, 120}}) {
+            CAPTURE(controls_height);
+            CAPTURE(viewport.x);
+            Harness harness(controls_height, viewport);
+            check(harness);
+        }
 }
-template <typename Settings> void debug_button_regression() {
+
+constexpr float controls_toggle_y = 134;
+constexpr float button_column_x = 92;
+} // namespace
+
+TEST_CASE_TEMPLATE("debug button opens, captures and closes the debug panel", Settings, lab::Settings,
+                   i4sim::FactorySettings) {
     Settings settings;
     kinetra::Camera2D camera;
     camera.viewport = {160, 120};
@@ -18,112 +81,144 @@ template <typename Settings> void debug_button_regression() {
     kinetra::Input input;
     input.clicked = input.mouse_down = true;
     input.mouse = {80, 12};
-    require(settings.update_debug(input, camera, menu, options) && menu.visible && !enabled,
-            "Debug button did not open and capture the click");
-    require(menu.origin(camera.viewport).x == 8 && menu.origin(camera.viewport).y == 32,
-            "Debug panel must leave room for the top buttons");
+    CHECK(settings.update_debug(input, camera, menu, options));
+    CHECK(menu.visible);
+    CHECK_FALSE(enabled);
+
+    INFO("the debug panel leaves room for the top buttons");
+    CHECK(menu.origin(camera.viewport).x == 8);
+    CHECK(menu.origin(camera.viewport).y == 32);
+
     input.clicked = false;
-    require(settings.update_debug(input, camera, menu, options) && menu.visible,
-            "Holding Debug repeated the toggle");
+    CHECK(settings.update_debug(input, camera, menu, options));
+    CHECK_MESSAGE(menu.visible, "holding Debug must not repeat the toggle");
+
     input.clicked = true;
     input.mouse = menu.origin(camera.viewport) + kinetra::Vec2{10, 28} * menu.scale(camera.viewport);
-    require(settings.update_debug(input, camera, menu, options) && enabled,
-            "Debug picking did not follow the upper-left panel");
+    CHECK(settings.update_debug(input, camera, menu, options));
+    CHECK_MESSAGE(enabled, "picking follows the upper-left panel");
+
     input.mouse = {110, 12};
-    require(settings.update_debug(input, camera, menu, options) && !menu.visible,
-            "Debug button did not close and capture the click");
+    CHECK(settings.update_debug(input, camera, menu, options));
+    CHECK_FALSE(menu.visible);
 }
-} // namespace
-int main() {
-    try {
-        debug_button_regression<lab::Settings>();
-        debug_button_regression<i4sim::FactorySettings>();
-        for (float controls_height : {42.f, 28.f})
-            for (auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{160, 120}}) {
-                lab::Settings settings{.sim_controls_height = controls_height};
-                kinetra::Camera2D camera;
-                camera.viewport = viewport;
-                camera.pixels_per_unit = 25;
-                bool statistics = false, debug = false;
-                auto update = [&](const kinetra::Input &input) {
-                    return settings.update(input, camera, statistics, debug, 25, 50);
-                };
-                auto click = [&](float x, float y) {
-                    kinetra::Input input;
-                    input.clicked = true;
-                    input.mouse = viewport / 2 + (kinetra::Vec2{x, y} - settings.half_extent()) *
-                                                     lab::Settings::scale(viewport);
-                    return update(input);
-                };
-                kinetra::Input input;
-                input.pressed[std::size_t(kinetra::Key::space)] = true;
-                input.pressed[std::size_t(kinetra::Key::m)] = true;
-                require(!update(input) && !settings.visible && !settings.return_requested,
-                        "Space or M activated settings");
-                input = {};
-                input.pressed[std::size_t(kinetra::Key::h)] = true;
-                input.pressed[std::size_t(kinetra::Key::escape)] = true;
-                require(!update(input), "H or Escape activated settings");
-                input = {};
-                input.clicked = true;
-                input.mouse = {10, 10};
-                require(update(input) && settings.visible, "Settings button did not open modal");
-                require(!settings.controls_visible, "Controls should start hidden");
-                const auto collapsed = settings.half_extent();
-                click(92, 134);
-                require(settings.half_extent().y > collapsed.y, "Controls did not expand the panel");
-                require(settings.controls_visible, "Show Controls did not expand help");
-                require(settings.debug_toggle_y() == 156 + controls_height &&
-                            settings.half_extent().y == collapsed.y + controls_height / 2,
-                        "Sim controls reserved the wrong number of rows");
-                click(92, 134);
-                require(!settings.controls_visible, "Hide Controls did not collapse help");
-                click(92, settings.debug_toggle_y());
-                require(settings.debug_controls_visible && !settings.controls_visible,
-                        "Debug controls must expand independently");
-                click(92, 134);
-                require(settings.controls_visible && settings.debug_controls_visible,
-                        "Both control sections must expand together");
-                const float last_sim_y = controls_height == 42 ? 184.f : 170.f;
-                require(settings.debug_toggle_y() - last_sim_y == 14,
-                        "Sim controls must end one row before the debug toggle");
-                require(settings.actions_y() - (settings.debug_toggle_y() + 28) == 28,
-                        "Debug controls changed the spacing before launcher actions");
-                click(92, settings.debug_toggle_y());
-                require(!settings.debug_controls_visible && settings.controls_visible,
-                        "Hiding debug controls collapsed sim controls");
-                click(92, 134);
-                require(click(56, 46) && camera.pixels_per_unit > 25, "Zoom in failed");
-                for (int i = 0; i < 30; ++i)
-                    click(56, 46);
-                require(camera.pixels_per_unit == 50, "Zoom exceeded maximum");
-                for (int i = 0; i < 30; ++i)
-                    click(124, 46);
-                require(camera.pixels_per_unit == 25, "Zoom exceeded minimum");
-                click(40, 74);
-                click(40, 102);
-                require(statistics && debug, "Settings toggles failed");
-                require(click(106, settings.actions_y()) && !settings.visible,
-                        "Resume click was not captured");
-                input = {};
-                input.clicked = true;
-                const float debug_scale = kinetra::DebugMenu::scale(viewport);
-                input.mouse = {viewport.x - 180 * debug_scale, 36 * debug_scale};
-                require(!update(input) && !settings.visible,
-                        "Settings button overlaps debug controls in a small viewport");
-                input = {};
-                input.pressed[std::size_t(kinetra::Key::control)] = true;
-                require(update(input) && settings.visible, "CTRL did not open settings");
-                require(update(input) && !settings.visible, "CTRL closing leaked input");
-                update(input);
-                click(50, settings.actions_y());
-                require(settings.return_requested, "Launcher request missing");
-                click(146, settings.actions_y());
-                require(settings.exit_requested, "Exit request missing");
-            }
-        std::cout << "PASS settings controls, capture, zoom bounds and resized picking\n";
-    } catch (const std::exception &error) {
-        std::cerr << error.what() << '\n';
-        return 1;
-    }
+
+TEST_CASE("gameplay keys do not open settings") {
+    for_each_layout([](Harness &h) {
+        kinetra::Input input;
+        input.pressed[std::size_t(kinetra::Key::space)] = true;
+        input.pressed[std::size_t(kinetra::Key::m)] = true;
+        CHECK_FALSE(h.update(input));
+        CHECK_FALSE(h.settings.visible);
+        CHECK_FALSE(h.settings.return_requested);
+
+        input = {};
+        input.pressed[std::size_t(kinetra::Key::h)] = true;
+        input.pressed[std::size_t(kinetra::Key::escape)] = true;
+        CHECK_FALSE(h.update(input));
+    });
+}
+
+TEST_CASE("the settings button opens the modal with controls hidden") {
+    for_each_layout([](Harness &h) {
+        CHECK(h.open_with_button());
+        CHECK(h.settings.visible);
+        CHECK_FALSE(h.settings.controls_visible);
+    });
+}
+
+TEST_CASE("control sections expand and collapse independently with fixed spacing") {
+    for_each_layout([](Harness &h) {
+        REQUIRE(h.open_with_button());
+        const auto collapsed = h.settings.half_extent();
+
+        h.click(button_column_x, controls_toggle_y);
+        CHECK(h.settings.controls_visible);
+        CHECK(h.settings.half_extent().y > collapsed.y);
+        INFO("sim controls reserve exactly controls_height");
+        CHECK(h.settings.debug_toggle_y() == 156 + h.controls_height);
+        CHECK(h.settings.half_extent().y == collapsed.y + h.controls_height / 2);
+
+        h.click(button_column_x, controls_toggle_y);
+        CHECK_FALSE(h.settings.controls_visible);
+
+        h.click(button_column_x, h.settings.debug_toggle_y());
+        CHECK(h.settings.debug_controls_visible);
+        CHECK_FALSE(h.settings.controls_visible);
+
+        h.click(button_column_x, controls_toggle_y);
+        CHECK(h.settings.controls_visible);
+        CHECK(h.settings.debug_controls_visible);
+        const float last_sim_y = h.controls_height == 42 ? 184.f : 170.f;
+        CHECK_MESSAGE(h.settings.debug_toggle_y() - last_sim_y == 14,
+                      "sim controls end one row before the debug toggle");
+        CHECK_MESSAGE(h.settings.actions_y() - (h.settings.debug_toggle_y() + 28) == 28,
+                      "debug controls keep the spacing before the launcher actions");
+
+        h.click(button_column_x, h.settings.debug_toggle_y());
+        CHECK_FALSE(h.settings.debug_controls_visible);
+        CHECK_MESSAGE(h.settings.controls_visible, "hiding debug controls keeps sim controls open");
+    });
+}
+
+TEST_CASE("zoom buttons stay within the configured bounds") {
+    for_each_layout([](Harness &h) {
+        REQUIRE(h.open_with_button());
+        CHECK(h.click(56, 46));
+        CHECK(h.camera.pixels_per_unit > 25);
+        for (int i = 0; i < 30; ++i)
+            h.click(56, 46);
+        CHECK(h.camera.pixels_per_unit == 50);
+        for (int i = 0; i < 30; ++i)
+            h.click(124, 46);
+        CHECK(h.camera.pixels_per_unit == 25);
+    });
+}
+
+TEST_CASE("statistics and debug toggles switch their flags") {
+    for_each_layout([](Harness &h) {
+        REQUIRE(h.open_with_button());
+        h.click(40, 74);
+        h.click(40, 102);
+        CHECK(h.statistics);
+        CHECK(h.debug);
+    });
+}
+
+TEST_CASE("resume closes the modal and captures the click") {
+    for_each_layout([](Harness &h) {
+        REQUIRE(h.open_with_button());
+        CHECK(h.click(106, h.settings.actions_y()));
+        CHECK_FALSE(h.settings.visible);
+    });
+}
+
+TEST_CASE("the settings button does not overlap the debug controls") {
+    for_each_layout([](Harness &h) {
+        kinetra::Input input;
+        input.clicked = true;
+        const float debug_scale = kinetra::DebugMenu::scale(h.viewport);
+        input.mouse = {h.viewport.x - 180 * debug_scale, 36 * debug_scale};
+        CHECK_FALSE(h.update(input));
+        CHECK_FALSE(h.settings.visible);
+    });
+}
+
+TEST_CASE("CTRL toggles settings without leaking input") {
+    for_each_layout([](Harness &h) {
+        CHECK(h.press(kinetra::Key::control));
+        CHECK(h.settings.visible);
+        CHECK(h.press(kinetra::Key::control));
+        CHECK_FALSE(h.settings.visible);
+    });
+}
+
+TEST_CASE("launcher and exit actions raise their requests") {
+    for_each_layout([](Harness &h) {
+        REQUIRE(h.press(kinetra::Key::control));
+        h.click(50, h.settings.actions_y());
+        CHECK(h.settings.return_requested);
+        h.click(146, h.settings.actions_y());
+        CHECK(h.settings.exit_requested);
+    });
 }

@@ -54,7 +54,7 @@ Settled with the user on 2026-11-18. ⚑ marks answers that differ from the agen
 
 ```mermaid
 flowchart LR
-    P1["1 Process and rules<br/>(done)"] --> P2["2 Tooling and CI"]
+    P1["1 Process and rules<br/>(done)"] --> P2["2 Tooling and CI<br/>(done)"]
     P2 --> P3["3 Safety net and<br/>shared presentation"]
     P3 --> P4["4 i4sim"]
     P3 --> P5["5 Demo"]
@@ -66,6 +66,11 @@ Phases 4–6 depend only on phase 3 and may run in any order; i4sim goes first b
 ## Phase 2: tooling and CI
 
 Repositories: Kinetra and Lab.
+
+**Status: implemented.** See [Tooling and CI](2026-11-18-tooling-and-ci.md). Additions to the plan below:
+- the CI toolchain is pinned to an Arch Linux Archive snapshot;
+- CI also runs a headless configuration;
+- Lab warnings are reported, and each module's phase turns them into errors.
 
 - **CMake presets.** A `CMakePresets.json` with presets `dev` (Debug, warnings), `release`, `asan` (ASan + UBSan), `headless` and `graphics`, and `CMAKE_EXPORT_COMPILE_COMMANDS` for clangd.
 - **Warnings.** An option for `-Wall -Wextra -Wpedantic -Wshadow -Wconversion`, on in `dev`. Fix or explicitly suppress what it reports, module by module (not `-Werror` yet).

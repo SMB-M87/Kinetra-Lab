@@ -275,7 +275,8 @@ class Sandbox {
             std::vector<AvoidanceAgent> agents;
             const bool reciprocal = reciprocal_avoidance && id != player;
             const float range = reciprocal ? bounding_radius(body) + largest_radius +
-                                                 (avoidance.max_speed + largest_speed) * avoidance.horizon : 6.f;
+                                                 (avoidance.max_speed + largest_speed) * avoidance.horizon
+                                           : 6.f;
             const Vec2 reach{range, range};
             for (auto other : neighbors.query({body.position - reach, body.position + reach}))
                 // Terrain clearance is handled by the swept route. Local avoidance
@@ -290,9 +291,11 @@ class Sandbox {
                     }
                 }
             if (reciprocal) {
-                const auto preferred = body.velocity + steer(body, target, {}, steering) * steering.response_time;
-                const auto result = avoid_collisions({id, body.position, body.velocity, bounding_radius(body)},
-                                                       preferred, agents, dt, avoidance);
+                const auto preferred =
+                    body.velocity + steer(body, target, {}, steering) * steering.response_time;
+                const auto result =
+                    avoid_collisions({id, body.position, body.velocity, bounding_radius(body)}, preferred,
+                                     agents, dt, avoidance);
                 if (!result.feasible)
                     ++avoidance_limited;
                 return result.acceleration;

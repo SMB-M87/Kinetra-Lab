@@ -1,7 +1,7 @@
 #pragma once
 #include "blueprint.h"
-#include <deque>
 #include <array>
+#include <deque>
 #include <kinetra/steering.h>
 #include <kinetra/timing.h>
 #include <kinetra/traffic.h>
@@ -34,7 +34,8 @@ struct Mover {
     unsigned stalled{}, replan{}, no_progress{};
     float best_remaining{};
     unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{}, corridor_waiting{}, corridor_retreating{}, passing_detour{};
+    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{},
+        corridor_waiting{}, corridor_retreating{}, passing_detour{};
 };
 struct Producer {
     ProducerDefinition definition;

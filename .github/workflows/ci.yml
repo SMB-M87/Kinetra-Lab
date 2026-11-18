@@ -1,0 +1,58 @@
+# Checks every pull request and every push to main. See
+# external/Kinetra/docs/testing.md#continuous-integration for the shared design.
+#
+# Same pinned toolchain as Kinetra's CI (dated Arch Linux image plus Arch Linux
+# Archive snapshot), so engine warnings (-Werror) and clang-format output cannot
+# change without a commit. Bump ARCH_SNAPSHOT and the image tag together, in both
+# repositories. Lab warnings are reported but not errors until each module's
+# roadmap phase makes it warning-free. Graphics tests are compiled, not run (no GPU).
+# The workflow name "CI" and job id "checks" are required status checks on main.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ARCH_SNAPSHOT: "2026/11/17"
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel-20261108.0.623074
+    steps:
+      - name: Install pinned toolchain and dependencies
+        run: |
+          echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm --needed git python cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json
+          gcc --version | head -1; clang-format --version; cmake --version | head -1
+
+      - uses: actions/checkout@v7
+
+      - name: Trust the workspace and fetch the Kinetra submodule
+        run: |
+          git config --global --add safe.directory '*'
+          # .gitmodules uses an SSH URL for developers; CI reads the public repository over HTTPS.
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+          git submodule status
+
+      - name: Format check (clang-format)
+        run: git ls-files -- '*.h' '*.cpp' | xargs clang-format --dry-run --Werror
+
+      - name: Documentation links
+        run: python3 external/Kinetra/tools/check_docs.py
+
+      - name: Headless build and test (application logic without SDL2/OpenGL)
+        run: cmake --workflow --preset headless
+
+      - name: Full build and test (applications, graphics tests compiled, engine warnings as errors)
+        run: cmake --workflow --preset ci

@@ -46,7 +46,8 @@ class Agent {
 
     /// Advance active patrol/replanning state and consume reached waypoints.
     /// Dormant agents preserve goals and timers but discard routes; failed plans target the current pose.
-    kinetra::Vec2 advance_navigation(float dt, const kinetra::Body &body, const kinetra::Navigation &navigation) {
+    kinetra::Vec2 advance_navigation(float dt, const kinetra::Body &body,
+                                     const kinetra::Navigation &navigation) {
         if (!active_)
             return body.position;
         if (!wandering_) {
