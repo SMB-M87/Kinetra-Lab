@@ -8,7 +8,7 @@ Design explanations live here; controls, gameplay and provenance live with the a
 - [Architecture guides](#architecture-guides)
 - [Source and usage guides](#source-and-usage-guides)
 
-[Parent guide / project overview](../README.md) · [Documentation index](README.md) · [Media guide](media/README.md)
+[Parent guide / project overview](../README.md) · [Documentation index](README.md) · [Media guide](media/README.md) · [Design documents](design/README.md)
 
 ## Visual overview
 
@@ -36,6 +36,8 @@ flowchart TD
 | How does the Dotio port isolate legacy coordinates and game rules? | [Dotio architecture](dotio-architecture.md) |
 | How does the local C++ factory simulation divide engine and application responsibilities? | [Factory simulation architecture](factory-simulation-architecture.md) |
 | How do registration, session transitions and overlay capture work? | [Launcher and overlays](launcher-overlays.md) |
+| What is changing now, and what is planned? | [Design documents](design/README.md), [quality roadmap](design/2026-11-18-quality-roadmap.md) |
+| How do we work (cycle, conventions, tests, docs)? | [Agent rules](../AGENTS.md), and in Kinetra: [workflow](../external/Kinetra/docs/workflow.md), [conventions](../external/Kinetra/docs/conventions.md), [testing](../external/Kinetra/docs/testing.md), [documentation guide](../external/Kinetra/docs/documentation.md) |
 
 ## Source and usage guides
 
