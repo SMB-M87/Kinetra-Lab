@@ -42,7 +42,7 @@ flowchart TD
     Presentation --> Runtime[Kinetra Runtime]
 ```
 
-Kinetra never imports factory models or Lab headers. Existing `steer`/`Navigation` contracts used by Demo and Dotio remain intact. The priority steering mode supplements them rather than changing existing application tuning. The engine also exposes right-button state and optional menu heading/status text; original left-button semantics and default launcher appearance remain intact.
+Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The session uses the engine's right-button input state, and draws its Loadscreen with the optional heading and status text of `LaunchMenu`.
 
 ## Execution
 
@@ -179,8 +179,6 @@ The loader accepts case-insensitive property names and string/numeric IDs, expan
 ## Compatibility and fidelity
 
 The [application guide](../labs/i4sim/README.md#provenance-and-differences) is authoritative for intentional differences. This is a local C++ implementation of the case, not a binary-compatible replacement for actor/MQTT contracts. Numerical trajectories and asynchronous task ordering differ. Neither bit-for-bit behavioral parity nor identical throughput is established by the tests.
-
-All source edits belong to `Kinetra-Lab` or its `external/Kinetra` repository. The sibling engine and original i4sim remain unchanged. Engine modifications require a future engine commit and a corresponding Lab submodule-pointer update by the maintainer; no Git staging, commits or publication are performed as part of this implementation.
 
 ## Predictive passing
 

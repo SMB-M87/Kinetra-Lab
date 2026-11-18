@@ -1,6 +1,6 @@
 # Dotio application headers
 
-Sources in this directory belong to `kinetra_dotio_logic and kinetra_dotio_presentation`. These are Lab-owned interfaces and implementations; they are not part of the public Kinetra engine API.
+Sources in this directory belong to `kinetra_dotio_logic` and `kinetra_dotio_presentation`. These are Lab-owned interfaces and implementations; they are not part of the public Kinetra engine API.
 
 ## Table of contents
 
