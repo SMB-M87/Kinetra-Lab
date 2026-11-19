@@ -59,13 +59,13 @@ One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or th
 
 For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output /tmp/i4sim-check`.
 
-`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds seven blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
+`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds six blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
 
 ## What the simulation suite covers
 
 | Area | The cases require |
 | --- | --- |
-| Blueprints | All seven originals load, groups expand as in the reference, and invalid input is rejected with the path and the cause |
+| Blueprints | All six originals load, groups expand as in the reference, and invalid input is rejected with the path and the cause |
 | Production | Both recipes complete; a 50000-tick MAS workload reproduces its totals; queues stay bounded; a blocked producer pauses and resumes; an interaction takes exactly its duration |
 | Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
 | Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
@@ -80,7 +80,7 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/bluepr
 | Predictive passing | Eight encounter directions with square and long footprints under Improved and Reciprocal: deterministic replay, early commitment, unchanged goals, bounded acceleration, no contact, completion, cancellation, the switch-off and hold life cycle, shifted lanes near a wall, and no plan where no space exists. Original and RVO form no pairs. Heatmap costs are off in these cases, so A* does not resolve the conflict first |
 | Event log | A plan's formation, crossing and completion; the `goal_changed` and `participant_held` reasons; mover and border contacts with tick and pair; recording changes no pose |
 | Flow metrics | A free trip, a corridor standstill, a held mover, invalid limits |
-| Scenarios | The four showcase scenes load and apply; each runs tick for tick like the same setup built by hand, past its first turn; invalid scenario sections are rejected with their cause |
+| Scenarios | The five showcase scenes load and apply; each runs tick for tick like the same setup built by hand, past its first turn; invalid scenario sections are rejected with their cause |
 | Shuttle and restart | Shuttling movers wait for each other, stand `shuttle_pause_ticks` and turn together; a manual goal ends shuttling for that mover only; every shuttling scene shows its traffic situation on four legs in a row without contacts; corridor recovery shows its retreat and its restart is due exactly one pause after its movers settle |
 | Large factories | `3840x2400` and `8640x4800` with seed `915839214` and route recovery on, which guards the spatial query limits |
 | Determinism and export | Equal runs for equal inputs; the summary file |

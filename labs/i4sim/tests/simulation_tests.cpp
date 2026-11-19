@@ -3,7 +3,7 @@
 // parking traffic, the bundled blueprints and showcase scenarios, recipes, workloads,
 // determinism and export.
 //
-// The `the bundled catalog holds seven blueprints that all load` case doubles as the
+// The `the bundled catalog holds six blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "flow_metrics.h"
 #include "recorder.h"
@@ -1397,21 +1397,21 @@ TEST_CASE("drawing interpolates between a mover's last two ticks") {
     CHECK(simulation.interpolation() == 1);
 }
 
-TEST_CASE("the bundled catalog holds seven blueprints that all load") {
+TEST_CASE("the bundled catalog holds six blueprints that all load") {
     const auto files = discover_blueprints(default_blueprint_directory());
-    REQUIRE_MESSAGE(files.size() == 7, "Original blueprint bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 6, "Original blueprint bundle is incomplete");
     for (const auto &file : files)
         load_blueprint(file);
 }
 
-TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply") {
+TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply") {
     const auto files = discover_blueprints(default_blueprint_directory() / "showcase");
-    REQUIRE_MESSAGE(files.size() == 4, "Showcase bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 5, "Showcase bundle is incomplete");
     for (const auto &file : files) {
         CAPTURE(file);
         const auto scenario = load_scenario(file);
         REQUIRE_MESSAGE(scenario, "Showcase blueprint has no scenario");
-        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() == 2),
+        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() >= 2),
                       "Showcase scenario lacks a description, disables no workload or misses goals");
         Simulation simulation(load_blueprint(file));
         apply_scenario(*scenario, simulation);
@@ -1422,12 +1422,13 @@ TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply
         apply_scenario(*scenario, running);
         CHECK_MESSAGE(running.running(), "Applying a scenario must keep a running simulation running");
         CHECK_MESSAGE(!simulation.workload(), "Scenario workload not applied");
-        CHECK_MESSAGE((simulation.movers()[0].goal == GoalKind::manual &&
-                       simulation.movers()[1].goal == GoalKind::manual),
-                      "Scenario goals were not sent");
         const bool shuttles = scenario->repeat == ScenarioRepeat::shuttle;
-        CHECK_MESSAGE((simulation.shuttling(0) == shuttles && simulation.shuttling(1) == shuttles),
-                      "Scenario repeat mode not applied");
+        for (std::size_t mover = 0; mover < simulation.movers().size(); ++mover) {
+            CAPTURE(mover);
+            CHECK_MESSAGE(simulation.movers()[mover].goal == GoalKind::manual,
+                          "Scenario goals were not sent");
+            CHECK_MESSAGE(simulation.shuttling(mover) == shuttles, "Scenario repeat mode not applied");
+        }
     }
 }
 
@@ -1438,20 +1439,34 @@ TEST_CASE("an original blueprint has no scenario") {
 TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
     struct Scene {
         const char *name;
+        SteeringProfile profile;
         void (*enable)(MotionSettings &);
-        Vec2 first_goal, second_goal;
+        /// One goal per mover, in blueprint order.
+        std::vector<Vec2> goals;
+    };
+    const auto passing = [](MotionSettings &m) {
+        m.predictive_passing = true;
+        m.heatmap = false;
     };
     const Scene scenes[]{
-        {"junction-crossing", [](MotionSettings &m) { m.junction_traffic = true; }, {1100, 700}, {700, 1100}},
-        {"corridor-passing", [](MotionSettings &m) { m.corridor_traffic = true; }, {1900, 700}, {300, 700}},
-        {"corridor-recovery", [](MotionSettings &m) { m.corridor_traffic = true; }, {1900, 700}, {300, 700}},
-        {"predictive-passing",
-         [](MotionSettings &m) {
-             m.predictive_passing = true;
-             m.heatmap = false;
-         },
-         {1900, 800},
-         {500, 800}},
+        {"junction-crossing",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) { m.junction_traffic = true; },
+         {{1100, 700}, {700, 1100}}},
+        {"corridor-passing",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) { m.corridor_traffic = true; },
+         {{1900, 700}, {300, 700}}},
+        {"corridor-recovery",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) { m.corridor_traffic = true; },
+         {{1900, 700}, {300, 700}}},
+        {"predictive-passing", SteeringProfile::reciprocal, passing, {{1900, 800}, {500, 800}}},
+        // The four corners of the H swap diagonally.
+        {"h-crossing",
+         SteeringProfile::improved,
+         passing,
+         {{1323.75f, 843.75f}, {1323.75f, 116.25f}, {116.25f, 843.75f}, {116.25f, 116.25f}}},
     };
     // Long enough for the shuttling scenes to turn at least once.
     constexpr std::uint64_t ticks = 6000;
@@ -1461,7 +1476,7 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
         // The setup the presentation and golden tests build by hand, shuttling where the
         // scene does.
         MotionSettings motion;
-        motion.profile = SteeringProfile::reciprocal;
+        motion.profile = scene.profile;
         scene.enable(motion);
         Simulation by_hand(load_blueprint(file));
         by_hand.set_workload(false);
@@ -1470,7 +1485,8 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
             return load_scenario(file)->repeat == ScenarioRepeat::shuttle ? by_hand.shuttle(mover, goal)
                                                                           : by_hand.move_to(mover, goal);
         };
-        REQUIRE((send(0, scene.first_goal) && send(1, scene.second_goal)));
+        for (std::size_t mover = 0; mover < scene.goals.size(); ++mover)
+            REQUIRE(send(mover, scene.goals[mover]));
         by_hand.run();
         i4sim::test::Recorder hand_recorder;
         hand_recorder.run(by_hand, ticks);
@@ -1611,7 +1627,8 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
         CHECK_MESSAGE(legs == wanted_legs, "The scene did not complete its legs");
         CHECK_MESSAGE(coordinated_legs == wanted_legs, "A leg did not show the traffic situation again");
         CHECK(s.collisions() == 0);
-        CHECK((s.shuttling(0) && s.shuttling(1)));
+        for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
+            CHECK(s.shuttling(mover));
     }
 }
 
