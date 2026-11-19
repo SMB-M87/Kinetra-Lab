@@ -134,8 +134,8 @@ Blueprint load_blueprint(const std::filesystem::path &path) {
         auto add_producer = [&](std::string id, Model m, Vec2 p, Vec2 processing, bool rect) {
             if (m < Model::Kuka || b.producers.size() >= 10000)
                 throw std::runtime_error("Invalid producer model or count");
-            // H/Madrid deliberately draw stations outside the navigable envelope;
-            // only their processing areas must be accessible inside the factory.
+            // H deliberately draws stations outside the navigable envelope; only their
+            // processing areas must be accessible inside the factory.
             if (std::abs(p.x) > b.dimension.x * 2 || std::abs(p.y) > b.dimension.y * 2)
                 throw std::runtime_error("Producer position exceeds supported envelope");
             inside(processing, {b.mover_max_extent, b.mover_max_extent}, b.dimension);

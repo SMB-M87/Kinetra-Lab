@@ -3,7 +3,7 @@
 // parking traffic, the bundled blueprints and showcase scenarios, recipes, workloads,
 // determinism and export.
 //
-// The `the bundled catalog holds fourteen blueprints that all load` case doubles as the
+// The `the bundled catalog holds seven blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "flow_metrics.h"
 #include "recorder.h"
@@ -1397,9 +1397,9 @@ TEST_CASE("drawing interpolates between a mover's last two ticks") {
     CHECK(simulation.interpolation() == 1);
 }
 
-TEST_CASE("the bundled catalog holds fourteen blueprints that all load") {
+TEST_CASE("the bundled catalog holds seven blueprints that all load") {
     const auto files = discover_blueprints(default_blueprint_directory());
-    REQUIRE_MESSAGE(files.size() == 14, "Original blueprint bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 7, "Original blueprint bundle is incomplete");
     for (const auto &file : files)
         load_blueprint(file);
 }
