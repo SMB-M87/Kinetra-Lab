@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-19 | [Windows build with MinGW-w64](2026-11-19-windows-mingw.md): cross build from WSL, Windows CI job | implemented |
 | 2026-11-19 | [Blueprint copy race](2026-11-19-blueprint-copy-race.md): copy the i4sim catalog once per build | implemented |
 | 2026-11-19 | [Link the architecture decisions](2026-11-19-adr-index-link.md) from the Lab documentation index | implemented |
 | 2026-11-19 | [i4sim restructuring](2026-11-19-i4sim-restructuring.md): roadmap phase 4, passing safety net first | accepted |
