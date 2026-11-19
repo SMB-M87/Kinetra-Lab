@@ -4,8 +4,8 @@
 // one line: the totals the HUD and summary export show, plus a 64-bit fingerprint of
 // the trajectory, meaning the exact position and velocity bits of every mover after
 // every tick and the open products at the end. A behavior-preserving refactor leaves
-// every line unchanged. A deliberate behavior change updates the table in the same
-// commit and says why in the commit message.
+// every line unchanged. A deliberate behavior change updates the expected lines in the
+// same commit and says why in the commit message.
 //
 // Set KINETRA_PRINT_GOLDEN=1 to print the current line of every scenario, for a
 // deliberate update of the expected values below. The run still compares, so a changed
