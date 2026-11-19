@@ -6,6 +6,8 @@
 #include "../include/presentation.h"
 
 #include <kinetra/engine.h>
+#include <kinetra/settings_view.h>
+#include <lab/settings.h>
 
 #include <doctest/doctest.h>
 #include <glad/glad.h>
@@ -13,6 +15,15 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+
+namespace {
+/// The settings toolbar a Dotio session draws over the world, over `application`'s flags.
+kinetra::SettingsOverlay settings_for(dotio::Application &application) {
+    return kinetra::SettingsOverlay(lab::settings_rows([] { return dotio::zoom_limits; },
+                                                       application.statistics, application.debug, {}, {}),
+                                    &application.debug);
+}
+} // namespace
 
 using namespace kinetra;
 
@@ -81,12 +92,12 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
             else
                 enemy.SetState(enemy.GetWanderState());
             application.ai = false;
-            dotio::render(runtime, application);
-            dotio::render(runtime, application);
+            dotio::render(runtime, application, settings_for(application));
+            dotio::render(runtime, application, settings_for(application));
             const auto without_label = frame_pixels();
             application.ai = true;
-            dotio::render(runtime, application);
-            dotio::render(runtime, application);
+            dotio::render(runtime, application, settings_for(application));
+            dotio::render(runtime, application, settings_for(application));
             const auto with_label = frame_pixels();
             const int width = int(runtime.camera.viewport.x), height = int(runtime.camera.viewport.y);
             int left = width, right = -1, top = height, bottom = -1;
@@ -164,11 +175,11 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
                   "Dotio WASD and arrows must share movement intent");
     dotio::Application application(42);
     application.advance(0, {}, reopened.camera);
-    dotio::render(reopened, application);
+    dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE(statistics_pixels() == 0, "Disabled statistics rendered outside debug mode");
     // Submitted geometry must stay independent of the offscreen resident population.
     const auto geometry_bytes = [&]() {
-        dotio::render(reopened, application);
+        dotio::render(reopened, application, settings_for(application));
         GLint bytes = 0;
         glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bytes);
         return bytes;
@@ -194,29 +205,29 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     ai_label_placement(reopened, application);
 
     application.statistics = true;
-    dotio::render(reopened, application);
+    dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE((!application.debug && statistics_pixels() > 0),
                   "Enabled statistics are hidden outside debug mode");
     CHECK_MESSAGE(statistics_bands() == 1, "Normal statistics is not a single row");
     application.debug = true;
-    dotio::render(reopened, application);
-    dotio::render(reopened, application);
+    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE(statistics_bands() == 2, "Agent counts are not on a separate row above timing statistics");
     application.debug = false;
     application.statistics = false;
-    dotio::render(reopened, application);
-    dotio::render(reopened, application);
+    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE(statistics_pixels() == 0, "Statistics toggle did not hide the overlay");
     application.debug = application.vectors = application.collisions = application.ai = true;
     application.probes = application.statistics = true;
     application.paths.fill(true);
-    dotio::render(reopened, application);
+    dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Dotio debug rendering failed");
     application.debug = application.ghost = true;
     application.world().GetGhost().Position = application.world().GetPlayer().Position;
     application.world().GetGhost().Position.X += 1000;
     reopened.camera.position = dotio::to_world(application.world().GetGhost().Position);
-    dotio::render(reopened, application);
-    dotio::render(reopened, application);
+    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE(ghost_marker_pixels() == 0, "Ghost camera still draws a purple player marker");
 }

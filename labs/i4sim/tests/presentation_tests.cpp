@@ -6,6 +6,7 @@
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "session.h"
 
+#include <kinetra/debug_view.h>
 #include <kinetra/launcher.h>
 
 #include <SDL2/SDL.h>
@@ -153,7 +154,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     back.mouse = runtime.camera.viewport / 2 + Vec2{-41, 67} * scale;
     back.clicked = true;
     session->advance(0, back, runtime.camera);
-    CHECK_MESSAGE(session->return_to_menu(), "Cannot return to launcher");
+    CHECK_MESSAGE(session->request() == SessionRequest::menu, "Cannot return to launcher");
     session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
                                     i4sim::default_blueprint_directory() / "missing.json");
     session->render(runtime);
