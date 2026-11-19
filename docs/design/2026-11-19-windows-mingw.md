@@ -110,7 +110,8 @@ Self-review of `git diff main...HEAD`:
 | `cmake --workflow --preset headless` | 133/133 passed |
 | `cmake --workflow --preset graphics` | 152/152 passed |
 | `clang-format --dry-run --Werror`, `python3 external/Kinetra/tools/check_docs.py` | Clean; all links resolve |
-| CI `windows` job | Runs on the pull request; result in the pull request |
+| CI `windows` job (MSYS2 UCRT64, `windows-native`) | 138/138 passed; engine warnings as errors held. The Linux `checks` job passed too |
+| After merging `main` (window titles): `cmake --workflow --preset windows`, `cmake --workflow --preset ci` | 150/150, 140/140 |
 
 ## Pull request
 
@@ -126,7 +127,7 @@ Title: `build: cross-compile Windows executables with MinGW-w64`
 
 **Design.** [docs/design/2026-11-19-windows-mingw.md](2026-11-19-windows-mingw.md).
 
-**Verification.** Windows (cross, through interop): 150/150 including graphics; smoke runs of every variant. Linux: `ci` 140/140, `headless` 133/133, `graphics` 152/152.
+**Verification.** Windows (cross, through interop): 150/150 including graphics; smoke runs of every variant. CI `windows` job: 138/138. Linux: `ci` 140/140, `headless` 133/133, `graphics` 152/152.
 
 **Review notes.** Two golden cases are excluded on Windows only (last-bit floating-point differences of the C runtime; Linux still runs them). The build downloads two pinned archives at configure time, cross builds only.
 
