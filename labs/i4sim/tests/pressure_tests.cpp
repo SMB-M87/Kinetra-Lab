@@ -8,6 +8,7 @@
 // requirements yet. Phase 7 turns them into required outcomes.
 //
 // KINETRA_PRINT_GOLDEN=1 prints the current lines, as in the golden suite.
+#include "event_counts.h"
 #include "flow_metrics.h"
 #include "recorder.h"
 #include "simulation.h"
@@ -30,6 +31,8 @@
 namespace {
 using namespace i4sim;
 
+using i4sim::test::count;
+using i4sim::test::passing_contacts;
 using i4sim::test::Recorder;
 
 /// A fixture with one manual goal per mover, run for a fixed number of ticks.
@@ -41,14 +44,6 @@ struct Scenario {
 
 /// Called after every tick, to observe whether the scenario's situation occurs.
 using Watch = std::function<void(const Simulation &)>;
-
-/// Counts the events of `kind`, and for `passing_ended` only those that ended with `end`.
-std::size_t count(std::span<const SimulationEvent> events, EventKind kind,
-                  std::optional<PassingEnd> end = std::nullopt) {
-    return std::size_t(std::count_if(events.begin(), events.end(), [&](const SimulationEvent &event) {
-        return event.kind == kind && (!end || event.end == end);
-    }));
-}
 
 /// Reduces a finished run to its recorded line.
 std::string outcome(const Recorder &recorder, const Simulation &simulation, const FlowMetrics &flow) {
@@ -72,13 +67,10 @@ std::string outcome(const Recorder &recorder, const Simulation &simulation, cons
         fingerprint.add(std::uint64_t{mover.moving()});
         arrived += !mover.moving() && kinetra::distance(mover.body.position, mover.destination) < 0.1f;
     }
-    const auto passing_contacts =
-        std::count_if(events.begin(), events.end(), [](const SimulationEvent &event) {
-            return event.kind == EventKind::contact && event.passing;
-        });
     std::ostringstream line;
     line << "ticks=" << simulation.ticks() << " contacts=" << simulation.collisions()
-         << " contact_ticks=" << simulation.contact_ticks() << " passing_contacts=" << passing_contacts
+         << " contact_ticks=" << simulation.contact_ticks()
+         << " passing_contacts=" << passing_contacts(events)
          << " plans=" << count(events, EventKind::passing_formed)
          << " crossings=" << count(events, EventKind::passing_crossing) << " ends=";
     bool any = false;
