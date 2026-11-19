@@ -43,6 +43,8 @@ constexpr double i4sim_warm_up_seconds = 116;
 /// Wheel notches the Dotio debug scenes zoom out: the screenshot for a wider view of the
 /// agents, the clip far enough to show the whole area the enemies spawn in.
 constexpr float dotio_debug_zoom_out = -3, dotio_debug_clip_zoom_out = -9;
+/// Longest a Dotio screenshot waits for an enemy in sight with a bolt on its way, in seconds.
+constexpr int dotio_fight_wait_seconds = 20;
 /// Longest the Dotio debug clip waits for an enemy to recover before it records anyway, in
 /// seconds. A recovery needs nine shots at the player; it usually comes within twenty.
 constexpr int dotio_recovery_wait_seconds = 60;
@@ -178,18 +180,35 @@ void dotio_debug_view(Stage &stage, float notches) {
     stage.step(zoom);
 }
 
+/// Frames the Dotio warm-up plays; a scene that plays on continues the count from here.
+constexpr int dotio_warm_up_frames = static_cast<int>(dotio_warm_up_seconds * clip_fps);
+
 void dotio_start(Stage &stage, bool debug) {
     stage.start_dotio();
     if (debug)
         dotio_debug_view(stage, dotio_debug_zoom_out);
     stage.point_at(at(stage, .7f, .45f));
-    stage.play(static_cast<int>(dotio_warm_up_seconds * clip_fps),
-               [&](int frame) { return dotio_play(stage, frame); });
+    stage.play(dotio_warm_up_frames, [&](int frame) { return dotio_play(stage, frame); });
 }
 
-/// Takes the screenshot of a started Dotio scene. The pointer first leaves the spot the
-/// player last aimed at: over the open debug menu it would highlight a row.
+/// Whether the player has an enemy in sight and a bolt on its way to it.
+bool dotio_fight_in_view(Stage &stage) {
+    if (!dotio_target(stage.dotio(), stage.runtime().camera))
+        return false;
+    for (auto &bolt : stage.dotio().world().GetBolts())
+        if (bolt.IsActive)
+            return true;
+    return false;
+}
+
+/// Takes the screenshot of a started Dotio scene at a moment that shows the game: the player
+/// plays on until it shoots at an enemy in sight. The pointer then leaves the spot the
+/// player aimed at, because over the open debug menu it would highlight a row.
 void dotio_shot(Stage &stage) {
+    stage.play_until(
+        dotio_fight_wait_seconds * clip_fps,
+        [&](int frame) { return dotio_play(stage, dotio_warm_up_frames + frame); },
+        [&] { return dotio_fight_in_view(stage); });
     stage.point_at(stage.viewport() - Vec2{2, 2});
     stage.shot();
 }
@@ -215,9 +234,7 @@ void dotio_settings(Stage &stage) {
 
 void dotio_clip(Stage &stage) {
     dotio_start(stage, false);
-    // Continues dotio_play() where the warm-up stopped.
-    const int played = static_cast<int>(dotio_warm_up_seconds * clip_fps);
-    stage.record(clip_frames, [&](int frame) { return dotio_play(stage, played + frame); });
+    stage.record(clip_frames, [&](int frame) { return dotio_play(stage, dotio_warm_up_frames + frame); });
 }
 
 /// The debug clip shows the AI cycle from a wide view with the menu closed. The player first
