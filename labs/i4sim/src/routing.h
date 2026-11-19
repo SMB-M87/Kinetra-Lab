@@ -13,8 +13,12 @@ namespace i4sim::detail {
 /// route is checked against every stationary or obstructed mover and, when one is in the
 /// way, refined through the corners around those movers. With `require_departure`, a route
 /// that cannot be cleared is empty; otherwise the plain grid route is kept.
-std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 destination,
-                             bool require_departure = false);
+///
+/// With `motion.path_planning` off, the grid route still decides whether the destination
+/// is reachable (and, with `require_departure`, whether the mover can depart), but the route
+/// returned is the destination alone: the mover steers straight at it.
+std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
+                             std::size_t mover, Vec2 destination, bool require_departure = false);
 
 /// Replaces the route of `mover` with a Navigation route around blocked cells and all other
 /// movers, when one reaches the destination, and marks it as a detour. Resets the progress

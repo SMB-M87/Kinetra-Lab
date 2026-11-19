@@ -42,7 +42,7 @@ The files in [showcase/](showcase/) are small traffic scenes that double as test
 | [corridor-passing.json](showcase/corridor-passing.json) | Corridor traffic: opposing movers take turns through a one-lane corridor | Reciprocal, corridor traffic | Shuttle |
 | [corridor-recovery.json](showcase/corridor-recovery.json) | Corridor retreat: movers meet head-on inside the corridor and one backs out | Reciprocal, corridor traffic | Restart |
 | [predictive-passing.json](showcase/predictive-passing.json) | Predictive passing: movers on a head-on course agree on sides | Reciprocal, no heatmap costs, predictive passing | Shuttle |
-| [h-crossing.json](showcase/h-crossing.json) | H crossing: the four corner movers of the original `H` layout swap diagonal corners through its two-cell middle bar; oncoming movers agree on sides on every leg | Improved, no heatmap costs, predictive passing | Shuttle |
+| [h-crossing.json](showcase/h-crossing.json) | H crossing: the four corner movers of the original `H` layout swap diagonal corners through its two-cell middle bar without path planning; each steers straight at its goal, slides along the walls in its way and avoids the others by steering alone | Improved, no path planning, force 0.5, horizon 16 | Shuttle |
 
 The [README gallery](../../../README.md#screenshots-and-demo) shows one cycle of each scene as a looping clip.
 
@@ -74,12 +74,14 @@ A blueprint may carry one optional `scenario` object. `load_blueprint` ignores i
 | --- | --- | --- |
 | `description` | string, empty | One line drawn above the statistics while the scene runs |
 | `motion.profile` | `improved` (default), `original`, `experimentalRvo` (or `experimental_rvo`), `reciprocal` | Steering profile |
+| `motion.pathPlanning` | boolean, `true` | A* routes over the grid cells; `false` sends each mover straight at its goal, as PLANNER → OFF does |
 | `motion.heatmap` | boolean, `true` | Congestion costs in route planning |
-| `motion.recovery`, `parkingTraffic`, `junctionTraffic`, `corridorTraffic`, `predictivePassing` | boolean, `false` | Coordination features, as in DEBUG → Motion and View |
+| `motion.recovery`, `parkingTraffic`, `junctionTraffic`, `corridorTraffic`, `predictivePassing` | boolean, `false` | Coordination features, as in DEBUG → MOTION and TRAFFIC |
+| `motion.speed`, `motion.force`, `motion.horizon` | positive numbers, `2`, `0.6`, `32` | Top speed in millimeters per tick, acceleration in millimeters per tick squared, prediction horizon in ticks (at most 64) |
 | `workload` | boolean, `true` | Automatic product workload |
 | `repeat` | `none` (default), `shuttle`, `restart` | How the scene repeats once its movers have arrived; see [Showcase scenes](#showcase-scenes) |
 | `goals[].mover` | string | The mover's `id` from the `movers` array, without the model prefix the loader adds |
 | `goals[].position` | `{x, y}` in millimeters | Center of the goal, unlike blueprint positions, which are top-left corners |
 
-Speed, force and horizon keep their defaults. A goal that names no mover, names several (the same `id` under two models), or that `Simulation::move_to` (or `Simulation::shuttle`) rejects (a blocked cell, no route) makes loading the scene fail with the file name and the cause; the loadscreen shows the error and stays open.
+A wrong type or an out-of-range number fails like an unknown property, with the file name. A goal that names no mover, names several (the same `id` under two models), or that `Simulation::move_to` (or `Simulation::shuttle`) rejects (a blocked cell, no route) makes loading the scene fail with the file name and the cause; the loadscreen shows the error and stays open.
 

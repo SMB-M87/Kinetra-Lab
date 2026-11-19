@@ -47,8 +47,8 @@ template <class Clear> std::vector<Vec2> shortest_clear_path(const std::vector<V
     }
     return {};
 }
-} // namespace
-std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 target,
+/// The grid route of plan_route, refined around stationary movers where needed.
+std::vector<Vec2> grid_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 target,
                              bool require_departure) {
     const auto &m = fleet.movers[mover];
     auto route = floor.grid().path(m.body.position, target, m.body.half_extents);
@@ -107,6 +107,16 @@ std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, std::si
     if (auto refined = shortest_clear_path(nodes, clear); !refined.empty())
         return refined;
     return require_departure ? std::vector<Vec2>{} : route;
+}
+} // namespace
+std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
+                             std::size_t mover, Vec2 target, bool require_departure) {
+    auto route = grid_route(floor, fleet, mover, target, require_departure);
+    // Without path planning the grid still decides reachability and, for a departure,
+    // whether stationary movers leave a way out; only the route followed is direct.
+    if (!motion.path_planning && !route.empty())
+        return {target};
+    return route;
 }
 void recover_route(const FloorPlan &floor, Fleet &fleet, std::size_t mover) {
     auto &m = fleet.movers[mover];

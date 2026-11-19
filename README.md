@@ -67,7 +67,7 @@ The i4sim [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes) fro
 | **Corridor passing**: opposing movers take turns through a one-lane corridor | ![i4sim corridor passing: movers take turns through a one-lane corridor](docs/media/i4sim-showcase-corridor-passing-clip.gif) |
 | **Corridor recovery**: movers meet head-on inside the corridor and one backs out; the scene then restarts | ![i4sim corridor recovery: one mover backs out of the corridor](docs/media/i4sim-showcase-corridor-recovery-clip.gif) |
 | **Predictive passing**: movers on a head-on course agree on sides | ![i4sim predictive passing: two movers agree on sides and pass](docs/media/i4sim-showcase-predictive-passing-clip.gif) |
-| **H crossing**: four movers swap diagonal corners through the middle bar | ![i4sim H crossing: four movers swap diagonal corners](docs/media/i4sim-showcase-h-crossing-clip.gif) |
+| **H crossing**: four movers swap diagonal corners without path planning, straight through the middle bar | ![i4sim H crossing: four movers swap diagonal corners without path planning](docs/media/i4sim-showcase-h-crossing-clip.gif) |
 
 | Launcher | Dotio difficulty selection | i4sim loadscreen |
 | --- | --- | --- |

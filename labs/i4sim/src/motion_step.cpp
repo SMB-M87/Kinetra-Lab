@@ -70,7 +70,7 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
     // Congestion includes this mover's footprint; it is not evidence that
     // its route is obstructed. Replan only after sustained lack of progress.
     if (!m.detour && ++tracking.replan >= replan_ticks && tracking.no_progress >= obstruction_ticks) {
-        auto route = plan_route(goals.floor, goals.fleet, i, m.destination);
+        auto route = plan_route(goals.floor, goals.fleet, goals.motion, i, m.destination);
         if (!route.empty()) {
             m.route = std::move(route);
             tracking.best_remaining = route_remaining(m.body.position, m.route);

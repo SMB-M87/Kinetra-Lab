@@ -35,10 +35,17 @@ enum class SteeringProfile {
 constexpr bool supports_predictive_passing(SteeringProfile profile) {
     return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
 }
+/// Longest prediction horizon `Simulation::configure_motion` accepts, in ticks.
+inline constexpr float longest_motion_horizon = 64;
 /// Motion and traffic settings of a simulation; see `Simulation::configure_motion`.
 struct MotionSettings {
     /// How movers steer; Improved by default.
     SteeringProfile profile{SteeringProfile::improved};
+    /// Movers follow an A* route over the grid cells. Off, each mover steers straight at
+    /// its goal and only local steering and the borders keep it on the floor; a goal still
+    /// needs a grid route to be accepted. Suits open floors: steering alone cannot leave a
+    /// concave pocket.
+    bool path_planning{true};
     /// Route costs grow where movers stand, so A* routes around crowds.
     bool heatmap{true};
     /// Movers that make no progress get a Navigation route around blocked cells and movers.
