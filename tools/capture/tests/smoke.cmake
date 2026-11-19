@@ -1,18 +1,24 @@
-# Runs kinetra_capture for one screenshot, one clip and one showcase clip, whose blueprint
-# lies in a subdirectory of the catalog and whose length is measured, and checks the files.
+# Runs kinetra_capture for one screenshot and three clips, and checks the files: an i4sim
+# clip, whose script sets motion settings through the debug menu; the Dotio debug clip, whose
+# player is scripted against the session's world; and a showcase clip, whose blueprint lies
+# in a subdirectory of the catalog and whose length is measured.
 # Called by CTest as: cmake -DTOOL=<kinetra_capture> -DOUTPUT=<directory> -P smoke.cmake
 file(REMOVE_RECURSE "${OUTPUT}")
 set(showcase i4sim-showcase-junction-crossing-clip)
-execute_process(COMMAND "${TOOL}" "${OUTPUT}" launcher i4sim-debug-clip ${showcase} RESULT_VARIABLE result)
+set(clips i4sim-debug-clip dotio-debug-clip ${showcase})
+execute_process(COMMAND "${TOOL}" "${OUTPUT}" launcher ${clips} RESULT_VARIABLE result)
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "kinetra_capture failed with ${result}")
 endif()
-foreach(file launcher.png i4sim-debug-clip/frame-0001.png i4sim-debug-clip/framerate ${showcase}/frame-0001.png)
-    if(NOT EXISTS "${OUTPUT}/${file}")
-        message(FATAL_ERROR "kinetra_capture did not write ${file}")
-    endif()
-endforeach()
-foreach(clip i4sim-debug-clip ${showcase})
+if(NOT EXISTS "${OUTPUT}/launcher.png")
+    message(FATAL_ERROR "kinetra_capture did not write launcher.png")
+endif()
+foreach(clip ${clips})
+    foreach(file frame-0001.png framerate)
+        if(NOT EXISTS "${OUTPUT}/${clip}/${file}")
+            message(FATAL_ERROR "kinetra_capture did not write ${clip}/${file}")
+        endif()
+    endforeach()
     file(GLOB frames "${OUTPUT}/${clip}/frame-*.png")
     list(LENGTH frames frame_count)
     if(frame_count LESS 2)
