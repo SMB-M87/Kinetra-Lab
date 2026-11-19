@@ -169,7 +169,7 @@ ctest --preset release -R '^kinetra_dotio:'
 ctest --preset release -LE soak
 ```
 
-The test guides of [Demo](labs/demo/tests/README.md), [Dotio](labs/dotio/tests/README.md), [i4sim](labs/i4sim/tests/README.md) list each suite; the launcher's are in its [module guide](launcher/README.md#tests).
+The test sections of [Demo](labs/demo/README.md#tests) and [Dotio](labs/dotio/README.md#tests) and the [i4sim test guide](labs/i4sim/tests/README.md) list each suite; the launcher's are in its [module guide](launcher/README.md#tests).
 
 i4sim blueprints are copied next to each executable that opens them; see [i4sim usage](labs/i4sim/README.md#build-and-run). Shaders, bitmap text, terrain and drawing data are embedded or generated in code.
 

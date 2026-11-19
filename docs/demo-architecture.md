@@ -35,4 +35,4 @@ The application orders commands, camera updates and pointer interpretation befor
 
 ## Source navigation
 
-Start with the [application guide](../labs/demo/README.md), [headers](../labs/demo/include/README.md) and [presentation sources](../labs/demo/src/README.md). See the [system architecture](architecture.md) for target dependencies and shared session flow.
+Start with the [application guide](../labs/demo/README.md) and its [layout](../labs/demo/README.md#layout), which lists every header and source. See the [system architecture](architecture.md) for target dependencies and shared session flow.
