@@ -5,6 +5,7 @@
 // The `the bundled catalog holds fourteen blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "flow_metrics.h"
+#include "showcase.h"
 #include "simulation.h"
 
 #include <doctest/doctest.h>
@@ -41,7 +42,7 @@ Blueprint fixture() {
 }
 /// The junction fixture: a single-cell crossing with a west and a north mover.
 Blueprint crossing_fixture() {
-    return load_blueprint(std::filesystem::path(__FILE__).parent_path() / "junction-crossing.json");
+    return load_blueprint(i4sim::test::showcase_blueprint("junction-crossing"));
 }
 
 /// Starts the two crossing movers toward the opposite arms under reciprocal steering,
@@ -65,7 +66,7 @@ Blueprint opposing_fixture() {
 
 /// Two rooms joined by a straight single-cell corridor, with one mover in each room.
 Blueprint corridor_fixture() {
-    return load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json");
+    return load_blueprint(i4sim::test::showcase_blueprint("corridor-passing"));
 }
 
 /// Starts both corridor movers toward their goals under reciprocal steering, with or
@@ -82,12 +83,12 @@ void start_corridor(Simulation &s, bool enabled, Vec2 west_goal, Vec2 east_goal)
 
 /// The corridor fixture with both movers already inside the corridor.
 Blueprint recovery_fixture() {
-    return load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json");
+    return load_blueprint(i4sim::test::showcase_blueprint("corridor-recovery"));
 }
 
 /// The open-floor passing fixture with both movers moved next to the north wall.
 Blueprint near_wall_fixture() {
-    auto b = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json");
+    auto b = load_blueprint(i4sim::test::showcase_blueprint("predictive-passing"));
     b.movers[0].position.y = b.movers[1].position.y = 43.5f;
     return b;
 }
@@ -104,8 +105,7 @@ MotionSettings passing_motion(SteeringProfile profile) {
 /// The open-floor passing fixture with both movers sent to the other's start under
 /// `profile`, unpaused, with the event log on when `record` is set.
 Simulation passing_pair(SteeringProfile profile, bool record = true) {
-    Simulation pair(
-        load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+    Simulation pair(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
     pair.workload = false;
     pair.configure_motion(passing_motion(profile));
     REQUIRE_MESSAGE((pair.move_to(0, {1900, 800}) && pair.move_to(1, {500, 800})), "Passing goals rejected");
@@ -926,8 +926,7 @@ TEST_CASE("passing without free space keeps the original routes") {
 TEST_CASE("legacy steering profiles never form passing pairs") {
     for (auto profile : {SteeringProfile::original, SteeringProfile::experimental_rvo}) {
         CAPTURE(profile);
-        Simulation legacy(
-            load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+        Simulation legacy(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
         legacy.workload = false;
         legacy.configure_motion(passing_motion(profile));
         REQUIRE_MESSAGE((legacy.move_to(0, {1900, 800}) && legacy.move_to(1, {500, 800})),

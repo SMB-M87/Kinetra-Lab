@@ -99,12 +99,12 @@ in its regression.
 
 ## Crossing demonstration
 
-[junction-crossing.json](junction-crossing.json) is the shared headless/graphics
+[junction-crossing.json](../blueprints/showcase/junction-crossing.json) is the shared headless/graphics
 fixture and a manually controlled visual example, separate from the fourteen
 unchanged original blueprints:
 
 ```sh
-./build/kinetra_i4sim --blueprint labs/i4sim/tests/junction-crossing.json
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/junction-crossing.json
 ```
 
 Keep the simulation paused while setting up. Disable workload with `G`, choose
@@ -124,11 +124,11 @@ outbound corridor.
 
 ## Corridor demonstration
 
-[corridor-passing.json](corridor-passing.json) contains two wide rooms joined by a
+[corridor-passing.json](../blueprints/showcase/corridor-passing.json) contains two wide rooms joined by a
 straight single-cell corridor, with two manually controlled movers:
 
 ```sh
-./build/kinetra_i4sim --blueprint labs/i4sim/tests/corridor-passing.json
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/corridor-passing.json
 ```
 
 While paused, disable workload with `G`, select Reciprocal under DEBUG → Motion,
@@ -147,11 +147,11 @@ independent junction toggling, disabling without teleportation, dead-end exclusi
 and the 256-cell detection/indexing budget. Graphics tests exercise both the View
 toggle/statistics and the actual blue corridor/lime reservation with moving agents.
 
-[corridor-recovery.json](corridor-recovery.json) starts the movers inside the same
+[corridor-recovery.json](../blueprints/showcase/corridor-recovery.json) starts the movers inside the same
 corridor, so recovery can be inspected directly:
 
 ```sh
-./build/kinetra_i4sim --blueprint labs/i4sim/tests/corridor-recovery.json
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/corridor-recovery.json
 ```
 
 Disable workload, choose Reciprocal and enable CORRIDOR TRAFFIC as above. Select
@@ -278,7 +278,7 @@ rejection when no passing space exists. Congestion costs are disabled in these
 controlled encounters to prevent A* from resolving the conflict before coordination.
 Original and RVO are checked for absence of pair commitments.
 
-`predictive-passing.json` provides an open-floor graphical fixture. Disable workload
+[predictive-passing.json](../blueprints/showcase/predictive-passing.json) provides an open-floor graphical fixture. Disable workload
 with G, select Reciprocal, enable DEBUG → View → PREDICTIVE PASS, and assign swapped
 center goals (1900, 800) and (500, 800) with Shift-click. Mint arrows show temporary
 targets. The benchmark accepts `--predictive-passing` and

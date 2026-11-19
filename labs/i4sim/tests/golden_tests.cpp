@@ -14,6 +14,7 @@
 // The recorder and its floating-point caveats are in recorder.h, shared with the
 // pressure scenarios.
 #include "recorder.h"
+#include "showcase.h"
 #include "simulation.h"
 
 #include <doctest/doctest.h>
@@ -27,6 +28,7 @@ namespace {
 using namespace i4sim;
 
 using i4sim::test::Recorder;
+using i4sim::test::showcase_blueprint;
 
 /// Motion settings with every coordination feature on, on the steering profile they target.
 MotionSettings coordinated_motion() {
@@ -64,8 +66,7 @@ Simulation run_factory(Recorder &recorder, std::string_view blueprint, std::uint
 /// Sends the two movers of a traffic fixture to manual goals, without workload.
 Simulation run_pair(Recorder &recorder, std::string_view fixture, MotionSettings motion, Vec2 first_goal,
                     Vec2 second_goal, std::uint64_t ticks) {
-    const auto directory = std::filesystem::path(__FILE__).parent_path();
-    Simulation simulation(load_blueprint(directory / (std::string(fixture) + ".json")));
+    Simulation simulation(load_blueprint(showcase_blueprint(fixture)));
     simulation.workload = false;
     simulation.configure_motion(motion);
     REQUIRE_MESSAGE((simulation.move_to(0, first_goal) && simulation.move_to(1, second_goal)),

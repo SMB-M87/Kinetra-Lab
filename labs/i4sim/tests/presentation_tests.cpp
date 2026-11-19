@@ -5,6 +5,7 @@
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "session.h"
+#include "showcase.h"
 
 #include <kinetra/debug_view.h>
 #include <kinetra/launcher.h>
@@ -178,7 +179,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
                   "Repaired catalog did not load its blueprint");
     session->render(runtime);
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Catalog recovery rendering produced an OpenGL error");
-    const auto crossing_file = std::filesystem::path(__FILE__).parent_path() / "junction-crossing.json";
+    const auto crossing_file = i4sim::test::showcase_blueprint("junction-crossing");
     session = i4sim::create_session(42, repaired_catalog, crossing_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -219,7 +220,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     CHECK_MESSAGE((lime > 30 && cyan > 100 && session->status().find("RUNNING") != std::string::npos &&
                    glGetError() == GL_NO_ERROR),
                   "Actual crossing/zone rendering failed");
-    const auto corridor_file = std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json";
+    const auto corridor_file = i4sim::test::showcase_blueprint("corridor-passing");
     session = i4sim::create_session(42, repaired_catalog, corridor_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -258,7 +259,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     }
     CHECK_MESSAGE((blue > 50 && lime > 30 && glGetError() == GL_NO_ERROR),
                   "Actual corridor admission/exit rendering failed");
-    const auto recovery_file = std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json";
+    const auto recovery_file = i4sim::test::showcase_blueprint("corridor-recovery");
     session = i4sim::create_session(42, repaired_catalog, recovery_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -292,7 +293,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
             ++retreat_pixels;
     CHECK_MESSAGE((retreat_pixels > 20 && glGetError() == GL_NO_ERROR),
                   "Actual corridor retreat rendering failed");
-    const auto passing_file = std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json";
+    const auto passing_file = i4sim::test::showcase_blueprint("predictive-passing");
     session = i4sim::create_session(42, repaired_catalog, passing_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
