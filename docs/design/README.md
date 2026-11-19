@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-19 | [Record Kinetra main](2026-11-19-submodule-kinetra-main.md): the `external/Kinetra` pointer on Kinetra's `main` merge commit | implemented |
 | 2026-11-19 | [Smooth rendering and frame times](2026-11-19-smooth-rendering.md): draw between fixed ticks in all three applications, FRAME TIMES graph | implemented |
 | 2026-11-19 | [i4sim showcase scenes](2026-11-19-i4sim-showcase.md): a `scenario` section in blueprints and a SHOWCASE page on the loadscreen | implemented |
 | 2026-11-19 | [Window icon](2026-11-19-window-icon.md): the Kinetra icon on every window and Windows application executable | implemented |
