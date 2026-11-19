@@ -1,6 +1,6 @@
 # Screenshots, clips and demo video
 
-Real application captures used by the project's README gallery, what each one shows, and how to refresh them. Every screenshot and clip comes from [`kinetra_capture`](../../tools/capture/README.md), which renders the real sessions offscreen with a fixed seed and scripted input.
+Real application captures behind the project's README gallery, what each one shows, and how to refresh them. The gallery shows the clips and the launcher screenshots; the full-size application screenshots are listed here. Every screenshot and clip comes from [`kinetra_capture`](../../tools/capture/README.md), which renders the real sessions offscreen with a fixed seed and scripted input.
 
 ## Table of contents
 
@@ -25,7 +25,7 @@ Real application captures used by the project's README gallery, what each one sh
 | [i4sim.png](i4sim.png), [i4sim-debug.png](i4sim-debug.png) | i4sim `4320x2400` (29 movers, 18 producers) running with the Reciprocal profile and plain A*, with Debug Mode off, and on with the LAYERS section, every part and its swatch |
 | [i4sim-clip.gif](i4sim-clip.gif), [i4sim-debug-clip.gif](i4sim-debug-clip.gif) | The same floor and settings for twelve seconds at the session's 200 ticks per second, in both views; the debug clip has the menu closed |
 | [i4sim-showcase-junction-crossing-clip.gif](i4sim-showcase-junction-crossing-clip.gif), [i4sim-showcase-corridor-passing-clip.gif](i4sim-showcase-corridor-passing-clip.gif), [i4sim-showcase-corridor-recovery-clip.gif](i4sim-showcase-corridor-recovery-clip.gif), [i4sim-showcase-predictive-passing-clip.gif](i4sim-showcase-predictive-passing-clip.gif), [i4sim-showcase-h-crossing-clip.gif](i4sim-showcase-h-crossing-clip.gif) | The five i4sim [showcase scenes](../../labs/i4sim/blueprints/README.md#showcase-scenes), each one full cycle in Debug Mode at 200 ticks per second, so each lasts as long as its scene's cycle |
-| [kinetra-lab-tour.mp4](kinetra-lab-tour.mp4) | Tour video: 2 min 14 s, H.264 at 1920 × 1080 and 60 fps, with an AAC audio track; recorded by hand |
+| [kinetra-lab-tour.mp4](kinetra-lab-tour.mp4) | Tour video: 5 min 11 s, H.264 at 1920 × 1080 and 60 fps, without audio, 99 MB; the launcher and all three applications played by a scripted user. The README links the [YouTube copy](https://youtu.be/jkPwx831MOU) |
 
 ## Capture details
 
@@ -46,6 +46,6 @@ cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh
 ```
 
-The script needs ffmpeg for the GIFs. It writes every PNG and GIF into this directory; `tools/capture/capture_media.sh build-graphics <scene>...` refreshes only some. Look at every refreshed file before committing it: a script that clicks a menu row by number shows the wrong row when the menu changes. Keep the filenames synchronized with the [README gallery](../../README.md#screenshots-and-demo).
+The script needs ffmpeg for the GIFs. It writes every PNG and GIF into this directory; `tools/capture/capture_media.sh build-graphics <scene>...` refreshes only some. Look at every refreshed file before committing it: a script that clicks a menu row by number shows the wrong row when the menu changes. Keep the filenames synchronized with this guide and, for the clips, with the [README gallery](../../README.md#screenshots-and-demo); `kinetra_capture_tests` checks both.
 
-The tour video is not generated. Encode a new one as H.264 with `yuv420p` and MP4 fast start for broad playback support.
+The tour video is not made by `capture_media.sh`. Encode a new one as H.264 with `yuv420p` and MP4 fast start for broad playback support.

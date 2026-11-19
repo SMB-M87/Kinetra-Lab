@@ -98,7 +98,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - **Architecture pages:** the cross-application pages live in [docs/](docs/README.md).
 - **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md).
 - **ADRs:** Lab ADRs go in `docs/decisions/`, created with its README when the first Lab ADR is written.
-- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is recorded by hand.
+- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is not part of that script; keep its row in the media guide current when it is replaced.
 
 ## Functionality index
 
