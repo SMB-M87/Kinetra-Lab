@@ -65,6 +65,7 @@ Settled with the user on 2026-11-19; every answer matched the agent's recommenda
 | Scenario assertions | One recorded line per case: outcome counts plus a fingerprint of trajectory and events, after a check that the situation really occurs | The sharpest safety net for the refactor, and an exact baseline for phase 7 |
 | Launcher edge | Presentation may link `Kinetra::Launcher` for its menu widgets; recorded in the layer table | No cycle (Launcher is an engine library); removing it would move or duplicate `LaunchMenu` |
 | Agent defaults | Scenarios under Reciprocal and Improved; flow metrics outside `Simulation`; run state as an enum with operations; `configure_motion` allowed while running; constants in an internal header; component headers private; `Simulation` keeps its query API as a facade | Proposed in the chat as cosmetic choices with a recommendation; not contested |
+| Stuck definition | A mover is stuck when its distance to its destination does not drop 10 mm below its best value for 2000 ticks, instead of the confirmed "stays within 10 mm of one point for 2000 ticks" | Changed during step 1 and reported at hand-over. The three-oncoming scenario left two movers shuffling back and forth without arriving, and the confirmed definition counted neither. The new one also covers standing still |
 
 ## Design
 
@@ -108,19 +109,19 @@ Each plan gets an id from a counter, so the events of one plan can be correlated
 | Measure | Definition |
 | --- | --- |
 | Waiting ticks | Mover-ticks with an active goal, a speed below 0.05 mm/tick and more than 10 mm from the destination. The distance condition excludes the slow final approach |
-| Stuck movers | Distinct movers that, with an active goal, stayed within 10 mm of one point for at least 2000 ticks (10 s at 200 updates per second) |
+| Stuck movers | Distinct movers whose straight-line distance to their destination, with an active goal, did not drop 10 mm below its best value for 2000 ticks (10 s at 200 updates per second). Standing still and moving back and forth both count; a detour that leads away from the destination for that long counts too |
 | Stuck at end | Movers that are stuck at the last observation |
 
-**Benchmark.** `kinetra_i4sim_motion_benchmark` records events and observes flow metrics. Its CSV gains the columns `waiting_ticks`, `stuck_movers`, `stuck_at_end`, `passing_plans`, `passing_cancelled` and `passing_contacts`; `elapsed_ms` stays last. A new baseline is recorded below for the four roadmap configurations.
+**Benchmark.** `kinetra_i4sim_motion_benchmark` records events and observes flow metrics. Its CSV gains the columns `waiting_ticks`, `stuck_movers`, `stuck_at_end`, `passing_plans`, `passing_cancelled` and `passing_contacts`; `elapsed_ms` stays last. The new baseline for the four roadmap configurations is in the [i4sim test guide](../../labs/i4sim/tests/README.md#motion-benchmark).
 
 **Pressure scenarios.** A new doctest suite `kinetra_i4sim_pressure_tests` with blueprint fixtures in `labs/i4sim/tests/`. The golden suite's recorder moves to a test-only header shared by both suites; its fingerprint computation stays the same, so the golden lines do not change. Each scenario runs under Reciprocal and Improved with predictive passing on and the heatmap off, first checks that its situation actually occurs, and then compares one recorded line.
 
 | Scenario | Situation | Occurrence check |
 | --- | --- | --- |
 | Three oncoming movers | One mover meets two oncoming movers that drive in a column on the same line | A plan forms with the first oncoming mover |
-| Third mover in an active lane | Two movers pass head-on; a third crosses their path at right angles and reaches the lanes during the maneuver | The third mover comes close to a participant while their plan is active |
-| Simultaneous plans | Two pairs pass head-on on parallel lines at the same time | Two plans are active at once |
-| Little room to give way | Two movers meet in an aisle two cells wide | The movers meet in the aisle; whether a plan forms is part of the recorded outcome |
+| Third mover in an active lane | Two movers pass head-on; a third crosses their path at right angles and reaches the lanes during the maneuver | The third mover comes within 250 mm (center to center) of a participant while their plan is active |
+| Simultaneous plans | Two pairs pass head-on on parallel lines 400 mm apart | Two plans are active at once |
+| Little room to give way | A 113 mm mover and a 155 by 235 mm mover meet in a vertical aisle two cells (400 mm) wide; vertical, because the grid planner routes through cell centers and the long side does not fit a horizontal two-cell aisle | Both movers are in the aisle at the same time; whether a plan forms is part of the recorded outcome |
 
 The recorded line holds ticks, contacts, contact ticks, contacts during passing, plans formed, plans that reached crossing, ends per reason, movers that arrived, waiting ticks, stuck movers, and one fingerprint over the trajectory and the event log.
 
@@ -151,12 +152,12 @@ Step 1 adds observation only, so the existing golden lines are the proof that be
 | Behavior | Test | Level |
 | --- | --- | --- |
 | Behavior is unchanged | All ten golden cases pass unchanged | Targeted |
-| Recording does not influence decisions | The predictive passing golden scenario with recording on produces the same trajectory fingerprint as with recording off | Targeted |
+| Recording does not influence decisions | The passing fixture runs with and without recording, under Improved and Reciprocal; every position and velocity is identical, tick for tick | Targeted |
 | A passing plan logs its life cycle | Predictive passing fixture: `passing_formed` with the movers and targets that `passing_target` reports, then `passing_crossing`, then `passing_ended` with `completed` | Targeted |
 | Cancellation reasons | A manual goal for a participant logs `goal_changed`; holding a participant logs `participant_held` on the next tick | Targeted |
 | Contacts are logged with tick and pair | In a contact fixture the number of `contact` events equals `collisions()`, and each event's tick and pair match the run | Targeted |
 | Recording is opt-in | A run without `record_events(true)` logs nothing | Targeted |
-| Flow metrics | A free solo trip counts no stuck mover; the head-on corridor fixture without corridor traffic counts both movers as stuck and waiting; a held mover does not count | Targeted |
+| Flow metrics | A free solo trip counts no waiting and no stuck mover; the head-on corridor fixture without corridor traffic counts both movers as stuck and waiting; a held mover does not count; invalid limits and a second simulation are rejected | Targeted |
 | Pressure scenarios | Eight cases (four scenarios, two profiles), each with its occurrence check and recorded line | Targeted |
 | Benchmark columns | Manual run of the benchmark; new baseline recorded below | Manual |
 | Whole branch | `cmake --workflow --preset ci`, `cmake --workflow --preset headless`, `cmake --workflow --preset graphics` (pointer change) | Full |
