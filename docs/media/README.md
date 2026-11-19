@@ -31,7 +31,7 @@ Real application captures used by the project's README gallery, what each one sh
 - **Rendering.** SDL's offscreen driver with software Mesa, read back with `glReadPixels`; no window decoration.
 - **Sizes.** Screenshots 1920 × 1080. Clips are rendered at 960 × 540, so the bitmap font stays sharp, and play at 15 frames per second for four seconds. A showcase clip lasts one cycle of its scene instead, which the tool measures before recording, so the GIF loops as the application repeats the scene.
 - **Sessions.** Created as the bundled launcher creates them, with seed 42, 48 Demo agents and Dotio on Medium. Every step advances 1/60 s, so the statistics show 60 frames per second. Demo and Dotio run 2 s before a capture (Dotio 8 s, for its enemies to arrive), i4sim 20 s. The showcase scenes start at once, as after Space on the SHOWCASE page.
-- **GIFs.** One palette per clip without dithering, and only the changed rectangle per frame; about 2 MB for the six application clips and 2.7 MB for the five showcase clips.
+- **GIFs.** One palette per clip without dithering, and only the changed rectangle per frame; about 2 MB for the six application clips and 2.5 MB for the five showcase clips.
 - **Reproducibility.** A refresh gives the same files, except Dotio's: its AI still uses unseeded randomness ([quality roadmap](../design/2026-11-18-quality-roadmap.md)).
 - **What each script does** is in the [capture tool](../../tools/capture/README.md#how-it-works).
 
