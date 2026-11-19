@@ -1,6 +1,6 @@
 # Media capture
 
-`kinetra_capture` renders every screenshot and clip in [docs/media](../../docs/media/README.md) from the current code: it runs the real Demo, Dotio and i4sim sessions offscreen with a fixed seed and scripted input. `capture_media.sh` turns the clips into looping GIFs with ffmpeg and copies everything into `docs/media`. Maintainers run it when visible behavior changes.
+`kinetra_capture` renders every screenshot and clip in [docs/media](../../docs/media/README.md) from the current code: it runs the real Demo, Dotio and i4sim sessions offscreen with a fixed seed and scripted input. `capture_media.sh` turns the clips into looping GIFs with ffmpeg and copies everything into `docs/media`. `capture_tour.sh` renders the tour video: the launcher and all three applications played by a scripted user, with a visible pointer, keycaps and captions. Maintainers run both when visible behavior changes.
 
 ## Table of contents
 
@@ -24,6 +24,7 @@ cmake --preset graphics
 cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh                # all scenes, into docs/media
 tools/capture/capture_media.sh build-graphics dotio dotio-clip   # only these
+tools/capture/capture_tour.sh                 # the tour video, into docs/media
 ```
 
 It does not record from a running application, and it changes nothing an application or the launcher does: it calls the same `Session::advance` and `render` the launcher calls. The one thing an application offers it is `dotio::Session::application`, through which the scripted player sees Dotio's world. It is a Linux developer tool; it builds wherever zlib is found, and the script needs bash and ffmpeg.
@@ -42,6 +43,9 @@ It does not record from a running application, and it changes nothing an applica
 | Busiest stretch | The twelve seconds of the captured i4sim floor in which most movers drive; the i4sim clips record them |
 | Showcase cycle | One round of an i4sim showcase scene: out, pause, back and pause for a shuttle; run, pause and restart for corridor recovery. A showcase clip lasts exactly one |
 | Stage | The driver of one session: steps, key presses, clicks on overlay rows, and writing frames |
+| Tour | The launcher and its sessions played by a scripted user for the video: a pointer that travels, keys and buttons that go down and up, and a caption for what is shown |
+| Canvas | A frame of the tour as pixels, on which the tool draws what a screen recording would show: the pointer, click rings, the keys that are down, the caption |
+| Pointer path | One move of the tour's pointer: a slightly bent curve, traveled slowly at both ends, lasting longer for a longer way |
 
 ## Structure
 
@@ -65,14 +69,19 @@ flowchart LR
 
 | File | Responsibility |
 | --- | --- |
-| [src/main.cpp](src/main.cpp) | `kinetra_capture <output-directory> [scene...]`: one `Runtime` per scene, at the scene's size |
+| [src/main.cpp](src/main.cpp) | `kinetra_capture <output-directory> [scene...]`: one `Runtime` per scene, at the scene's size. `--tour <file \| ->` writes the tour's raw frames, `--tour-check <frames>` plays its start without writing, `--tour-format` prints frame size and rate |
 | [src/scenes.h](src/scenes.h), [src/scenes.cpp](src/scenes.cpp) | `Scene`, `scenes()`, `select_scenes()`, the script of every scene, and the menu rows the scripts click (`MenuClick`, `apply_menu_click`, `demo_motion_click`, `dotio_debug_clicks`, `i4sim_motion_clicks`) |
 | [src/dotio_player.h](src/dotio_player.h), [src/dotio_player.cpp](src/dotio_player.cpp) | The scripted Dotio player: `dotio_target`, `dotio_bolt_speed`, `lead_offset`, `dotio_aim`, `dotio_recovery_in_view` |
 | [src/showcase.h](src/showcase.h), [src/showcase.cpp](src/showcase.cpp) | `showcase_cycle_steps`: the steps of one showcase cycle, measured in a headless `FactoryController` |
 | [src/busy_stretch.h](src/busy_stretch.h), [src/busy_stretch.cpp](src/busy_stretch.cpp) | Where the busiest stretch of the captured i4sim floor begins: `apply_menu_clicks`, `driving_movers`, `busiest_window_start` |
 | [src/stage.h](src/stage.h), [src/stage.cpp](src/stage.cpp) | `Stage`: starting sessions as the launcher does, steps, `play_until()` a condition, the Ctrl and Shift+Ctrl shortcuts, clicks on settings and debug rows, `shot()`, `record()` |
 | [src/png.h](src/png.h), [src/png.cpp](src/png.cpp) | `write_png`: eight-bit RGB, rows filtered "none" or "up", one zlib stream |
+| [src/tour.h](src/tour.h), [src/tour.cpp](src/tour.cpp) | `Tour`: the launcher host and menu driven frame by frame, the verbs of the tour script (`move_to`, `click_at`, `hold`, `scroll`, `caption`, `click_row`, `step_row`, `click_setting`), and the overlays; `row_with_label` |
+| [src/tour_script.cpp](src/tour_script.cpp) | `play_tour`: what the tour shows, one function per chapter |
+| [src/canvas.h](src/canvas.h), [src/canvas.cpp](src/canvas.cpp) | `Canvas` and its drawing: blended rectangles, bitmap text, ring, pointer, keycap, dimming |
+| [src/pointer_path.h](src/pointer_path.h), [src/pointer_path.cpp](src/pointer_path.cpp) | `plan_pointer_path`, `PointerPath::at`, `minimum_jerk` |
 | [capture_media.sh](capture_media.sh) | Runs the tool offscreen into a temporary directory, makes the GIFs, copies into `docs/media` |
+| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `docs/media/kinetra-lab-tour.mp4` |
 | [tests/](tests/) | Window-free tests and the graphics smoke test |
 
 ## How it works
@@ -108,12 +117,44 @@ sequenceDiagram
 - **Frames.** `Runtime::end()` presents the frame, so the stage reads the front buffer, as the graphics tests do, flips the rows and writes the PNG.
 - **GIFs.** One palette per clip (`palettegen`), no dithering, because the applications draw flat colors, and only the changed rectangle per frame (`diff_mode=rectangle`). The six application GIFs are about 5.1 MB together, the five showcase GIFs about 2.5 MB.
 
+### The tour video
+
+```mermaid
+sequenceDiagram
+    participant Sh as capture_tour.sh
+    participant Sc as tour_script.cpp
+    participant T as Tour
+    participant H as SessionHost / LaunchMenu
+    participant F as ffmpeg
+    Sh->>Sc: kinetra_capture --tour -
+    loop every verb of the script
+        Sc->>T: move_to, click_row("MOTION"), hold({W}, 0.8), caption(...)
+        loop every 1/60 s
+            T->>H: advance or menu update with the pointer, buttons and keys
+            T->>H: render, then glReadPixels
+            T->>T: draw click rings, caption, keycaps and pointer on the frame
+            T->>F: raw RGB frame through the pipe
+        end
+    end
+    F->>Sh: kinetra-lab-tour.mp4 (H.264, yuv420p, fast start)
+```
+
+*Takeaway:* the script names what a viewer should see; the tour gives the input a person would give and draws on each frame what a screen recording would show.
+
+- **A real launcher.** `Tour` owns the engine's `SessionHost` and `LaunchMenu`, with Lab's registrations, and drives them as `kinetra::run_launcher` does. The video therefore shows the menu, Dotio's difficulty page, i4sim's loadscreen, LAUNCHER and EXIT with the launcher's own code.
+- **The pointer** is the tool's: sessions only ever get a position. `plan_pointer_path` bends each move sideways by a random amount of at most 12 % of its length and times it by Fitts' law; the position follows the minimum-jerk profile, so a move starts and ends at rest. Before a click the pointer rests a moment; pauses between actions vary. Both draw from one seeded generator.
+- **Moving targets.** `click_on` follows a point that moves, such as a Demo agent, and clicks when the pointer is on it. In Dotio the pointer tracks the aim point of the scripted player (`dotio_aim`) a part of the way per frame, as a hand does.
+- **Rows by label.** `click_row("WANDER")` and `step_row("MAX SPEED", true, 3)` ask the session for its rows (`lab::Session::debug_rows()`), find the label and click its place in the engine's public menu layout. A missing label stops the tour and names the rows that were there. Settings rows are found through a mirror panel that takes the same clicks, so an opened help section moves the rows below it in both.
+- **Overlays** are drawn on the frame after it was read back (`Canvas`): rings where a button went down, a caption at the top, a row of caps for the keys that are down or were a moment ago, the pointer, and a fade at the start and the end. The applications draw nothing of this and do not know they are filmed.
+- **Frames.** 1920 × 1080 at 60 per second, about a hundred megabytes per second as raw RGB, so they go through a pipe and never to disk. The tool switches the frame limit off; rendering takes about as long as the video lasts.
+
 ## Invariants and contracts
 
 - **Determinism.** Same code, same pixels: seed 42, fixed steps, software rendering. Dotio is the exception: its AI still draws from `std::random_device` and `std::rand` ([quality roadmap](../../docs/design/2026-11-18-quality-roadmap.md)), so its captures differ per run. Its scripts therefore react to the world instead of following a timeline.
 - **Input only.** A script changes a session through `kinetra::Input` alone. The scripted player reads Dotio's `Application` between frames and never writes to it.
 - **One Runtime at a time.** Each scene creates and destroys its own `Runtime`; the stage releases a session before it starts the next, because Dotio's world is a singleton.
 - **Names are file names.** A scene's name is its file name in `docs/media`; clip names end in `-clip`. The README gallery and the media guide refer to these names.
+- **The tour reads, it does not write.** Besides input, the tour only reads from a session: its debug rows, Demo's agents and Dotio's world. Its captions use only characters of the engine's bitmap font.
 
 ## Changing this module
 
@@ -124,6 +165,7 @@ sequenceDiagram
 | Change what a capture shows | Its script in `scenes.cpp` | Run the scene and inspect the PNG or the frames |
 | Change what the Dotio player does | `dotio_player.cpp` for target and aim, `dotio_shoot` and the movement functions in `scenes.cpp` for fire and steps | The player cases in `capture_tests.cpp`, which place enemies by hand in a world without walls; then look at a clip |
 | Change the i4sim floor or motion settings | `i4sim_capture_blueprint` and `i4sim_motion_clicks` in `scenes.h`; the busiest stretch follows by itself | The menu-click cases; look at the clips |
+| Show something new in the tour, or follow a renamed row | The chapter in `tour_script.cpp`; rows are named by label there | `ctest --preset graphics -R kinetra_capture_smoke` plays the first seconds; then `capture_tour.sh` and a look at frames of every chapter |
 | Follow a changed menu or settings layout | The rows in `scenes.h` (`demo_motion_click`, `dotio_debug_clicks`, `i4sim_motion_clicks`, `i4sim_layers_click`), or `SettingsRow` in `stage.h` | The menu cases in `capture_tests.cpp` name the row that moved; then the smoke test and a full refresh |
 
 Pitfalls: a script clicks rows by number. The debug-menu rows are checked by tests, but the settings rows are not, and no test sees a picture, so look at every refreshed capture. A pointer left on a menu highlights a row; scripts park it in the bottom-right corner before a shot. A Dotio capture differs per run: render the debug clip a few times and keep a take in which the enemies stay around the player.
@@ -132,8 +174,8 @@ Pitfalls: a script clicks rows by number. The debug-menu rows are checked by tes
 
 | Suite | Covers | Needs |
 | --- | --- | --- |
-| `kinetra_capture` (`kinetra_capture_tests`) | `write_png`: signature, header, CRCs and decoded pixels; invalid input; the scene list matches the files in `docs/media`; `select_scenes`; `showcase_cycle_steps` holds each scene's pauses, repeats exactly and rejects a blueprint without a repeating scenario; the i4sim menu clicks find the rows they name and leave Reciprocal with plain A*; the Dotio debug clicks turn on every layer but not the ghost camera; the Demo click opens MOTION; a click on a renamed or missing row, or on one without an action, is rejected; the count of driving movers repeats exactly, and the busiest window is the one with the largest sum; the scripted player's target (walls, crates, the edge of the screen), bolt speed, lead, aim point and recovery check | Nothing |
-| `kinetra_capture_smoke` | Runs `launcher`, `i4sim-debug-clip`, `dotio-debug-clip` and `i4sim-showcase-junction-crossing-clip` end to end and checks the files | Graphics (`KINETRA_TEST_GRAPHICS`) |
+| `kinetra_capture` (`kinetra_capture_tests`) | `write_png`: signature, header, CRCs and decoded pixels; invalid input; the scene list matches the files in `docs/media`; `select_scenes`; `showcase_cycle_steps` holds each scene's pauses, repeats exactly and rejects a blueprint without a repeating scenario; the i4sim menu clicks find the rows they name and leave Reciprocal with plain A*; the Dotio debug clicks turn on every layer but not the ghost camera; the Demo click opens MOTION; a click on a renamed or missing row, or on one without an action, is rejected; the count of driving movers repeats exactly, and the busiest window is the one with the largest sum; the scripted player's target (walls, crates, the edge of the screen), bolt speed, lead, aim point and recovery check; the tour's canvas (blending, clipping, text, pointer, ring, keycap), pointer path (end points, forward motion, bend, duration, seed) and row lookup | Nothing |
+| `kinetra_capture_smoke` | Runs `launcher`, `i4sim-debug-clip`, `dotio-debug-clip` and `i4sim-showcase-junction-crossing-clip` end to end and checks the files; then plays the first seven seconds of the tour (`--tour-check 420`) | Graphics (`KINETRA_TEST_GRAPHICS`) |
 
 ```sh
 cmake --build --preset dev --target kinetra_capture_tests && ctest --preset dev -R '^kinetra_capture'
@@ -144,5 +186,7 @@ cmake --build --preset graphics --target kinetra_capture && ctest --preset graph
 
 - A frame read-back helper on Kinetra's `Runtime` would replace the `glReadPixels` code here and in the graphics tests.
 - Dotio captures are not reproducible until Dotio's randomness is seeded. Until then the debug clip waits for a recovery instead of a fixed time, and its take is chosen by eye.
-- The scripts click rows by number. Tests check the debug-menu clicks against the applications' own rows, and the i4sim clicks are checked again at capture time; the settings rows still follow `lab::settings_rows` by hand.
+- The tour is only checked in full by looking at it: its smoke test plays seven seconds, and a wrong click later on shows as a scene that does not match its caption. A missing row stops it.
+- Dotio's part of the tour differs per run, like its captures.
+- The clip and screenshot scripts click rows by number, unlike the tour. Tests check the debug-menu clicks against the applications' own rows, and the i4sim clicks are checked again at capture time; the settings rows still follow `lab::settings_rows` by hand.
 - The two i4sim measurements repeat the session's frame order (`begin_frame`, `suspend`, `handle_input`) by hand. A helper in the i4sim logic that runs one session frame would serve both.
