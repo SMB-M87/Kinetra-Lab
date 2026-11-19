@@ -3,10 +3,16 @@
 #include "fuzzy.h"
 #include "grid.h"
 #include "portable.h"
+#include "wander.h"
 #include "world.h"
 
 namespace logic {
 void WanderState::Execute(const float delta) {
+    if (_enemy->GetWorld().enemy_tuning().wander == WanderMode::steering) {
+        SteerWander(*_enemy, delta);
+        return;
+    }
+
     if (_enemy->Path.empty())
         return;
 
@@ -31,7 +37,8 @@ void WanderState::Execute(const float delta) {
     gmath::Vec2 displacement((logic::Grid::CellSize)*std::cos(angle),
                              (logic::Grid::CellSize * 0.4f) * std::sin(angle));
     gmath::Vec2 target = pos + displacement;
-    gmath::Vec2 force = (target - _enemy->Position).GetNormalized() * 0.75f;
+    gmath::Vec2 force =
+        (target - _enemy->Position).GetNormalized() * _enemy->GetWorld().enemy_tuning().wander_force;
     _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                        0.5f * _enemy->GetMass());
 }
@@ -40,6 +47,11 @@ void WanderState::Update() {
     if (_enemy->LineOfSight) {
         _enemy->Path.clear();
         _enemy->SetState(_enemy->GetAttackState());
+        return;
+    }
+
+    if (_enemy->GetWorld().enemy_tuning().wander == WanderMode::steering) {
+        DriftWanderHeading(*_enemy);
         return;
     }
 
@@ -62,7 +74,7 @@ void AttackState::Execute(const float delta) {
 
     gmath::Vec2 force = {
         (boundary ? _enemy->Position - _enemy->Target : _enemy->Target - _enemy->Position).GetNormalized() *
-        0.85f};
+        _enemy->GetWorld().enemy_tuning().attack_force};
 
     _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                        0.5f * _enemy->GetMass());
@@ -122,7 +134,8 @@ void PursueState::Execute(const float delta) {
     }
 
     if (pos != _enemy->Position) {
-        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() * 0.85f};
+        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
+                             _enemy->GetWorld().enemy_tuning().pursue_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
     }
@@ -187,7 +200,8 @@ void RecoverState::Execute(const float delta) {
     }
 
     if (pos != _enemy->Position) {
-        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() * 1.1f};
+        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
+                             _enemy->GetWorld().enemy_tuning().recover_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
     }
@@ -228,7 +242,8 @@ void RecoverState::Update() {
 
 void KamikazeState::Execute(const float delta) {
     if (_enemy->LineOfSight) {
-        gmath::Vec2 force = {(_enemy->Target - _enemy->Position).GetNormalized() * 1.3f};
+        gmath::Vec2 force = {(_enemy->Target - _enemy->Position).GetNormalized() *
+                             _enemy->GetWorld().enemy_tuning().kamikaze_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
         _enemy->Path.clear();
@@ -256,7 +271,8 @@ void KamikazeState::Execute(const float delta) {
     }
 
     if (pos != _enemy->Position) {
-        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() * 1.3f};
+        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
+                             _enemy->GetWorld().enemy_tuning().kamikaze_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
     }

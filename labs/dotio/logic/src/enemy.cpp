@@ -3,6 +3,7 @@
 #include "physics_adapter.h"
 #include "portable.h"
 #include "state.h"
+#include "wander.h"
 #include "world.h"
 
 namespace logic {
@@ -182,6 +183,7 @@ void Enemy::SpatialPartitioning(const float delta) {
 
 void Enemy::Initialize() {
     HitsRemaining = _world->difficulty_settings().enemy_hits;
+    RandomizeWander(*this);
     if (_state == nullptr) {
         _state = &_wander;
         _attack.SetEnemy(*this);
@@ -287,6 +289,7 @@ void Enemy::Reset() {
     std::uniform_real_distribution<float> dis(2.0f, 10.0f);
     Fear = dis(gen);
     _state = &_wander;
+    RandomizeWander(*this);
     IsActive = true;
     ResetCooldown();
     _ammo = 1;

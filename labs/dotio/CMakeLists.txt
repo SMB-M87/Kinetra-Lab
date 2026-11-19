@@ -2,6 +2,7 @@ add_library(kinetra_dotio_logic
     gmath/src/gmath.cpp
     logic/src/arrow.cpp
     logic/src/bolt.cpp
+    logic/src/difficulty.cpp
     logic/src/enemy.cpp
     logic/src/fuzzy.cpp
     logic/src/graph.cpp
@@ -14,6 +15,7 @@ add_library(kinetra_dotio_logic
     logic/src/state.cpp
     logic/src/static_object.cpp
     logic/src/vertex.cpp
+    logic/src/wander.cpp
     logic/src/world.cpp
 )
 target_compile_features(kinetra_dotio_logic PUBLIC cxx_std_20)

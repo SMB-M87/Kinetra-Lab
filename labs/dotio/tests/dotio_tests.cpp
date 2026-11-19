@@ -6,13 +6,17 @@
 // on the order in which cases run or on what an earlier case left behind.
 #include "../include/application.h"
 #include "fuzzy.h"
+#include "wander.h"
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <numbers>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -123,6 +127,97 @@ Encounter encounter(logic::Difficulty difficulty) {
     for (int cycle = 0; cycle < 10; ++cycle)
         enemy.PursueCountdown();
     return Encounter{shots, speed, acceleration, cooldown, !enemy.PursueCountdownPassed()};
+}
+
+/// Fills the global grid with walls; carve() then opens the floor a case needs.
+void walled_map() {
+    for (auto &row : logic::Grid::Array)
+        std::fill(std::begin(row), std::end(row), 1);
+}
+
+/// Opens the cells from (row, column) through (last_row, last_column), both included.
+void carve(int row, int column, int last_row, int last_column) {
+    for (int y = row; y <= last_row; ++y)
+        for (int x = column; x <= last_column; ++x)
+            logic::Grid::Array[y][x] = 0;
+}
+
+/// Center of a cell in legacy coordinates.
+gmath::Vec2 cell_center(int row, int column) {
+    return {(float(column) + 0.5f) * logic::Grid::CellSize, (float(row) + 0.5f) * logic::Grid::CellSize};
+}
+
+/// A seeded Medium world on a grid of walls: the player stands in a sealed cell, so it sees
+/// no enemy and every enemy keeps wandering. The pool is dormant; a case carves its floor
+/// and wakes the enemies it needs with wanderer().
+std::unique_ptr<logic::World> walled_world(std::uint32_t seed = 42) {
+    auto world = std::make_unique<logic::World>();
+    world->Initialize(seed);
+    walled_map();
+    carve(150, 150, 150, 150);
+    world->GetPlayer().Position = cell_center(150, 150);
+    return world;
+}
+
+/// Wakes pool slot `index` as a wandering enemy at rest at `position`, facing `heading`
+/// radians in legacy coordinates.
+logic::Enemy &wanderer(logic::World &world, gmath::Vec2 position, float heading, int index = 0) {
+    auto &enemy = world.GetEnemies()[index];
+    enemy.Position = position;
+    enemy.Velocity = {};
+    enemy.IsActive = true;
+    enemy.Frozen = false;
+    enemy.WanderHeading = heading;
+    return enemy;
+}
+
+/// Runs `updates` 60 Hz updates the way the application does: before every third one the
+/// active enemies get their 20 Hz decision tick. `first` continues an earlier run.
+void run(logic::World &world, int updates, int first = 0) {
+    for (int update = first; update < first + updates; ++update) {
+        if (update % 3 == 2)
+            for (auto &enemy : world.GetEnemies())
+                if (enemy.IsActive && !enemy.Frozen)
+                    enemy.Tick();
+        world.UpdateEnemies(1, false);
+    }
+}
+
+/// Speed a wandering enemy settles at, in legacy pixels per update: every update it gains
+/// its force times the movement multiplier and then loses a fifth of its speed.
+float wander_speed(const logic::World &world) {
+    return 4 * world.enemy_tuning().wander_force * world.difficulty_settings().movement_multiplier;
+}
+
+/// Speed an enemy at rest gains from one update of `state`, in legacy pixels per update.
+/// The enemy gets a waypoint far along its row and sight of the player, so every state
+/// that needs a path or a target has one.
+float acceleration(logic::Enemy &enemy, logic::State &state) {
+    enemy.Velocity = {};
+    enemy.Path.clear();
+    enemy.Path.push({5, 60});
+    enemy.LineOfSight = true;
+    enemy.SetState(state);
+    state.Execute(1);
+    return enemy.Velocity.GetLength();
+}
+
+/// Distance the fixture's enemy covers in one second on the open arena at a movement
+/// multiplier, wandering east by steering or pursuing along a path to the east.
+float travelled(float movement_multiplier, bool pursuing) {
+    open_map();
+    auto world = fixture();
+    world->settings().movement_multiplier = movement_multiplier;
+    auto &enemy = world->GetEnemies()[0];
+    const auto start = enemy.Position;
+    enemy.WanderHeading = 0;
+    if (pursuing) {
+        enemy.SetState(enemy.GetPursueState());
+        enemy.Path.push({5, 60});
+    }
+    for (int update = 0; update < 60; ++update)
+        world->UpdateEnemies(1, false);
+    return (enemy.Position - start).GetLength();
 }
 } // namespace
 
@@ -836,4 +931,438 @@ TEST_CASE("legacy vector math and coordinate conversion keep their contracts") {
                   "Legacy signed angle changed");
     CHECK_MESSAGE((dotio::from_world(dotio::to_world({250, -125})) == gmath::Vec2{250, -125}),
                   "Legacy/world coordinate conversion changed");
+}
+
+TEST_CASE("a world starts with the preset of its difficulty and the default enemy tuning") {
+    for (auto difficulty : {logic::Difficulty::easy, logic::Difficulty::medium, logic::Difficulty::hard}) {
+        const auto constructed = std::make_unique<logic::World>(difficulty);
+        CHECK_MESSAGE(constructed->settings() == logic::settings_for(difficulty),
+                      "A constructed world does not start with its preset");
+        auto world = std::make_unique<logic::World>();
+        world->Initialize(42, difficulty);
+        CHECK_MESSAGE(world->settings() == logic::settings_for(difficulty),
+                      "An initialized world does not start with its preset");
+        CHECK_MESSAGE(&world->difficulty_settings() == &world->settings(),
+                      "Readers of the difficulty settings do not see the tunable copy");
+        CHECK_MESSAGE(world->enemy_tuning() == logic::EnemyTuning{},
+                      "Enemy tuning does not start at default");
+    }
+    const logic::EnemyTuning defaults;
+    CHECK_MESSAGE((defaults.wander == logic::WanderMode::steering && defaults.wander_force == 0.75f &&
+                   defaults.attack_force == 0.85f && defaults.pursue_force == 0.85f &&
+                   defaults.recover_force == 1.1f && defaults.kamikaze_force == 1.3f),
+                  "Default enemy tuning lost steering wander or a force of the original game");
+    open_map();
+}
+
+TEST_CASE("tuned balance survives the player's death and reset_tuning restores preset and defaults") {
+    auto world = std::make_unique<logic::World>();
+    world->Initialize(42, logic::Difficulty::hard);
+    open_map();
+    const auto preset = logic::settings_for(logic::Difficulty::hard);
+    world->settings().movement_multiplier = 2;
+    world->settings().enemy_hits = 5;
+    world->settings().active_spawn_limit = 3;
+    world->enemy_tuning().wander = logic::WanderMode::path;
+    world->enemy_tuning().pursue_force = 2;
+    const auto tuned_settings = world->settings();
+    const auto tuned_enemies = world->enemy_tuning();
+    world->Reset();
+    CHECK_MESSAGE((world->settings() == tuned_settings && world->enemy_tuning() == tuned_enemies),
+                  "The player's death discarded tuned values");
+    auto &enemy = world->GetEnemies()[0];
+    enemy.Reset();
+    CHECK_MESSAGE(enemy.HitsRemaining == 5, "A respawned enemy ignores the tuned hit points");
+    world->reset_tuning();
+    CHECK_MESSAGE(world->settings() == preset, "reset_tuning did not restore the preset of the difficulty");
+    CHECK_MESSAGE(world->enemy_tuning() == logic::EnemyTuning{},
+                  "reset_tuning did not restore the default enemy tuning");
+    CHECK_MESSAGE(world->difficulty_settings().name == "HARD", "reset_tuning changed the difficulty");
+    world->settings().movement_multiplier = 2;
+    world->enemy_tuning().wander_force = 2;
+    world->Initialize(42, logic::Difficulty::easy);
+    CHECK_MESSAGE((world->settings() == logic::settings_for(logic::Difficulty::easy) &&
+                   world->enemy_tuning() == logic::EnemyTuning{}),
+                  "A new world kept tuning of the previous one");
+    open_map();
+}
+
+TEST_CASE("a changed movement multiplier changes how far wandering and pursuing enemies get") {
+    for (const bool pursuing : {false, true}) {
+        CAPTURE(pursuing);
+        const float preset = logic::settings_for(logic::Difficulty::easy).movement_multiplier;
+        const float normal = travelled(preset, pursuing), doubled = travelled(2 * preset, pursuing);
+        CHECK_MESSAGE(normal > logic::Grid::CellSize, "The enemy hardly moved at its preset");
+        // Speed gained and speed lost are both proportional, so the distance scales with it.
+        CHECK_MESSAGE(std::abs(doubled - 2 * normal) < 0.01f * normal,
+                      "Twice the movement multiplier did not carry the enemy twice as far");
+        CHECK_MESSAGE(travelled(0, pursuing) == 0, "An enemy moved without a movement multiplier");
+    }
+}
+
+TEST_CASE("validation accepts the presets and rejects balance a world cannot run with") {
+    using Settings = logic::DifficultySettings;
+    using Tuning = logic::EnemyTuning;
+    for (const auto &preset : logic::difficulty_presets)
+        CHECK_NOTHROW_MESSAGE(logic::validate(preset), preset.name);
+    CHECK_NOTHROW(logic::validate(Tuning{}));
+    const std::vector<std::pair<const char *, void (*)(Settings &)>> accepted_settings{
+        {"no spawns", [](Settings &s) { s.active_spawn_limit = 0; }},
+        {"no spawn rate", [](Settings &s) { s.spawn_rate_multiplier = 0; }},
+        {"standing enemies", [](Settings &s) { s.movement_multiplier = 0; }},
+        {"fastest enemies", [](Settings &s) { s.movement_multiplier = logic::max_movement_multiplier; }},
+        {"a shot per decision", [](Settings &s) { s.fire_interval_multiplier = 0; }},
+        {"no prediction", [](Settings &s) { s.prediction = 0; }},
+        {"one pursuit cycle and one hit", [](Settings &s) { s.pursuit_cycles = s.enemy_hits = 1; }},
+    };
+    for (const auto &[what, change] : accepted_settings) {
+        auto settings = logic::settings_for(logic::Difficulty::medium);
+        change(settings);
+        CHECK_NOTHROW_MESSAGE(logic::validate(settings), what);
+    }
+    const std::vector<std::pair<const char *, void (*)(Settings &)>> rejected_settings{
+        {"negative spawn limit", [](Settings &s) { s.active_spawn_limit = -1; }},
+        {"negative spawn rate", [](Settings &s) { s.spawn_rate_multiplier = -0.5f; }},
+        {"nonfinite spawn rate", [](Settings &s) { s.spawn_rate_multiplier = std::nanf(""); }},
+        {"negative crowd load", [](Settings &s) { s.crowd_load_multiplier = -1; }},
+        {"nonfinite crowd load", [](Settings &s) { s.crowd_load_multiplier = std::nanf(""); }},
+        {"negative spawn spacing", [](Settings &s) { s.spawn_spacing = -1; }},
+        {"nonfinite spawn spacing", [](Settings &s) { s.spawn_spacing = std::nanf(""); }},
+        {"negative movement", [](Settings &s) { s.movement_multiplier = -1; }},
+        {"nonfinite movement", [](Settings &s) { s.movement_multiplier = std::nanf(""); }},
+        {"movement past walls",
+         [](Settings &s) { s.movement_multiplier = std::nextafter(logic::max_movement_multiplier, 100.f); }},
+        {"negative fire interval", [](Settings &s) { s.fire_interval_multiplier = -1; }},
+        {"nonfinite fire interval",
+         [](Settings &s) { s.fire_interval_multiplier = std::numeric_limits<float>::infinity(); }},
+        {"projectile without speed", [](Settings &s) { s.projectile_speed = 0; }},
+        {"negative projectile speed", [](Settings &s) { s.projectile_speed = -13; }},
+        {"nonfinite projectile speed",
+         [](Settings &s) { s.projectile_speed = std::numeric_limits<float>::infinity(); }},
+        {"negative prediction", [](Settings &s) { s.prediction = -0.1f; }},
+        {"nonfinite prediction", [](Settings &s) { s.prediction = std::nanf(""); }},
+        {"no pursuit cycle", [](Settings &s) { s.pursuit_cycles = 0; }},
+        {"no hit point", [](Settings &s) { s.enemy_hits = 0; }},
+    };
+    for (const auto &[what, change] : rejected_settings) {
+        auto settings = logic::settings_for(logic::Difficulty::medium);
+        change(settings);
+        CHECK_THROWS_AS_MESSAGE(logic::validate(settings), std::invalid_argument, what);
+    }
+    for (const auto force : {&Tuning::wander_force, &Tuning::attack_force, &Tuning::pursue_force,
+                             &Tuning::recover_force, &Tuning::kamikaze_force}) {
+        for (const float accepted : {0.f, logic::max_state_force}) {
+            Tuning tuning;
+            tuning.*force = accepted;
+            CHECK_NOTHROW_MESSAGE(logic::validate(tuning), accepted);
+        }
+        for (const float rejected : {-0.1f, std::nextafter(logic::max_state_force, 100.f), std::nanf(""),
+                                     std::numeric_limits<float>::infinity()}) {
+            Tuning tuning;
+            tuning.*force = rejected;
+            CHECK_THROWS_AS_MESSAGE(logic::validate(tuning), std::invalid_argument, rejected);
+        }
+    }
+    Tuning unknown_mode;
+    unknown_mode.wander = static_cast<logic::WanderMode>(2);
+    CHECK_THROWS_AS(logic::validate(unknown_mode), std::invalid_argument);
+}
+
+TEST_CASE("the largest accepted speed does not carry an enemy through a wall") {
+    auto world = walled_world();
+    // A corridor along row 10 that a single wall cell at column 21 cuts in two.
+    carve(10, 10, 10, 20);
+    carve(10, 22, 10, 30);
+    world->settings().movement_multiplier = logic::max_movement_multiplier;
+    world->enemy_tuning().attack_force = logic::max_state_force;
+    REQUIRE_NOTHROW(logic::validate(world->settings()));
+    REQUIRE_NOTHROW(logic::validate(world->enemy_tuning()));
+    world->GetPlayer().Position = cell_center(10, 29);
+    auto &enemy = wanderer(*world, cell_center(10, 11), 0);
+    enemy.Fear = 0; // Without fear an attacker charges the player instead of keeping its distance.
+    enemy.SetState(enemy.GetAttackState());
+    const float wall = 21 * logic::Grid::CellSize;
+    float fastest = 0, deepest = 0;
+    // Different starts make the last and longest step meet the wall at different depths.
+    for (int start = 0; start < 50; start += 5) {
+        enemy.Position = cell_center(10, 11) + gmath::Vec2{float(start), 0};
+        enemy.Velocity = {};
+        for (int update = 0; update < 120; ++update) {
+            const auto before = enemy.Position;
+            world->UpdateEnemies(1, false);
+            fastest = std::max(fastest, (enemy.Position - before).GetLength());
+            deepest = std::max(deepest, enemy.Position.X + enemy.Radius - wall);
+        }
+    }
+    CHECK_MESSAGE(fastest > 0.4f * logic::Grid::CellSize, "The enemy did not reach the speed under test");
+    // Contact resolution leaves a body a fraction of a pixel inside the face it hit.
+    CHECK_MESSAGE(deepest < 1, "An enemy at the largest accepted speed got into a wall");
+    open_map();
+}
+
+TEST_CASE("every state accelerates an enemy with its force from the enemy tuning") {
+    open_map();
+    auto world = fixture();
+    auto &enemy = world->GetEnemies()[0];
+    auto &tuning = world->enemy_tuning();
+    const float multiplier = world->difficulty_settings().movement_multiplier;
+    struct StateForce {
+        const char *name;
+        logic::State &state;
+        float logic::EnemyTuning::*force;
+        float original;
+    };
+    const std::array<StateForce, 5> states{
+        {{"wander", enemy.GetWanderState(), &logic::EnemyTuning::wander_force, 0.75f},
+         {"attack", enemy.GetAttackState(), &logic::EnemyTuning::attack_force, 0.85f},
+         {"pursue", enemy.GetPursueState(), &logic::EnemyTuning::pursue_force, 0.85f},
+         {"recover", enemy.GetRecoverState(), &logic::EnemyTuning::recover_force, 1.1f},
+         {"kamikaze", enemy.GetKamikazeState(), &logic::EnemyTuning::kamikaze_force, 1.3f}}};
+    const auto near = [](float actual, float expected) { return std::abs(actual - expected) < 0.0001f; };
+    for (const auto mode : {logic::WanderMode::steering, logic::WanderMode::path}) {
+        for (const auto &tuned : states) {
+            CAPTURE(tuned.name);
+            tuning = {};
+            tuning.wander = mode;
+            CHECK_MESSAGE(near(acceleration(enemy, tuned.state), tuned.original * multiplier),
+                          "The default force does not reproduce the original acceleration");
+            tuning.*tuned.force = 2;
+            for (const auto &measured : states)
+                CHECK_MESSAGE(near(acceleration(enemy, measured.state),
+                                   (&measured == &tuned ? 2 : measured.original) * multiplier),
+                              "A tuned force did not change exactly the acceleration of its own state");
+        }
+    }
+}
+
+TEST_CASE("a steering wanderer moves down a corridor without a path and stays off its walls") {
+    auto world = walled_world();
+    carve(10, 10, 10, 40);
+    auto &enemy = wanderer(*world, cell_center(10, 12), 0);
+    const float middle = cell_center(10, 12).Y;
+    float off_middle = 0;
+    bool path_free = true;
+    for (int update = 0; update < 300; ++update) {
+        run(*world, 1, update);
+        path_free = path_free && enemy.Path.empty();
+        off_middle = std::max(off_middle, std::abs(enemy.Position.Y - middle));
+    }
+    CHECK_MESSAGE(enemy.IsWandering(), "The enemy left its wander state without seeing the player");
+    CHECK_MESSAGE(path_free, "Steering wander planned a path");
+    CHECK_MESSAGE(enemy.Position.X > cell_center(10, 18).X, "The wanderer did not advance down the corridor");
+    CHECK_MESSAGE(off_middle + enemy.Radius < logic::Grid::CellSize / 2,
+                  "The wanderer's body touched a corridor wall");
+    open_map();
+}
+
+TEST_CASE("a steering wanderer turns away from a wall ahead before touching it and keeps moving") {
+    auto world = walled_world();
+    carve(10, 10, 30, 30);
+    const float wall = 10 * logic::Grid::CellSize; // The room's west face.
+    auto &enemy = wanderer(*world, cell_center(20, 12), std::numbers::pi_v<float>);
+    float nearest = enemy.Position.X, slowest_second = std::numeric_limits<float>::infinity();
+    float retreat = 0; // Furthest the enemy got from the wall again after its nearest approach.
+    for (int second = 0; second < 5; ++second) {
+        float walked = 0;
+        for (int update = second * 60; update < second * 60 + 60; ++update) {
+            const auto before = enemy.Position;
+            run(*world, 1, update);
+            walked += (enemy.Position - before).GetLength();
+            if (enemy.Position.X < nearest) {
+                nearest = enemy.Position.X;
+                retreat = 0;
+            }
+            retreat = std::max(retreat, enemy.Position.X - nearest);
+        }
+        slowest_second = std::min(slowest_second, walked);
+    }
+    CHECK_MESSAGE(nearest < cell_center(20, 11).X, "The wanderer never approached the wall");
+    CHECK_MESSAGE(nearest - enemy.Radius > wall, "The wanderer's body reached the wall it was heading for");
+    CHECK_MESSAGE(slowest_second > 0.5f * 60 * wander_speed(*world), "The wanderer stalled at the wall");
+    CHECK_MESSAGE(retreat > logic::Grid::CellSize, "The wanderer stayed at the wall");
+    open_map();
+}
+
+TEST_CASE("a steering wanderer turns around in a dead end and leaves it") {
+    auto world = walled_world();
+    carve(10, 10, 10, 20);
+    auto &enemy = wanderer(*world, cell_center(10, 18), 0);
+    float deepest = enemy.Position.X;
+    int updates = 0;
+    for (; updates < 600 && enemy.Position.X > cell_center(10, 14).X; ++updates) {
+        run(*world, 1, updates);
+        deepest = std::max(deepest, enemy.Position.X);
+    }
+    CHECK_MESSAGE(deepest > cell_center(10, 19).X, "The wanderer never walked into the dead end");
+    CHECK_MESSAGE(deepest + enemy.Radius < 21 * logic::Grid::CellSize, "The wanderer ran into the end wall");
+    CHECK_MESSAGE(updates < 600, "The wanderer did not leave the dead end within ten seconds");
+    CHECK_MESSAGE(enemy.Path.empty(), "Leaving a dead end planned a path");
+    open_map();
+}
+
+TEST_CASE("a steering wanderer heading into a corner keeps walking and gets out of it") {
+    const float pi = std::numbers::pi_v<float>;
+    // Toward the corner of a room at its top right, from straight at one wall to straight at the other.
+    for (const float heading : {0.f, -pi / 8, -pi / 4, -3 * pi / 8, -pi / 2}) {
+        CAPTURE(heading);
+        auto world = walled_world();
+        carve(10, 10, 30, 30);
+        const gmath::Vec2 corner{31 * logic::Grid::CellSize, 10 * logic::Grid::CellSize};
+        auto &enemy = wanderer(*world, cell_center(11, 29), heading);
+        float slowest_half_second = std::numeric_limits<float>::infinity();
+        float closest = std::numeric_limits<float>::infinity();
+        float retreat = 0; // Furthest the enemy got from the corner again after its closest approach.
+        int sharp_turns = 0;
+        for (int window = 0; window < 6; ++window) {
+            float walked = 0;
+            for (int update = window * 30; update < window * 30 + 30; ++update) {
+                const auto before = enemy.Position;
+                const float facing = enemy.WanderHeading;
+                run(*world, 1, update);
+                walked += (enemy.Position - before).GetLength();
+                const float distance = (enemy.Position - corner).GetLength();
+                if (distance < closest) {
+                    closest = distance;
+                    retreat = 0;
+                }
+                retreat = std::max(retreat, distance - closest);
+                // Drift and a side feeler turn less than this per update; a blocked forward feeler more.
+                sharp_turns += std::abs(std::remainder(enemy.WanderHeading - facing, 2 * pi)) > 0.75f;
+            }
+            if (window > 0) // The enemy starts at rest.
+                slowest_half_second = std::min(slowest_half_second, walked);
+        }
+        CHECK_MESSAGE(slowest_half_second > 0.5f * 30 * wander_speed(*world),
+                      "The wanderer stalled in the corner");
+        CHECK_MESSAGE(sharp_turns <= 4, "The wanderer kept turning back and forth in the corner");
+        CHECK_MESSAGE(retreat > logic::Grid::CellSize, "The wanderer did not get out of the corner");
+    }
+    open_map();
+}
+
+TEST_CASE("the wander feelers follow the heading and steering reacts to exactly those segments") {
+    auto world = walled_world();
+    carve(10, 10, 30, 30);
+    const float cell = logic::Grid::CellSize;
+    auto &enemy = wanderer(*world, cell_center(20, 20), 0.5f);
+    const auto feelers = logic::WanderFeelers(enemy);
+    const std::array<float, 3> lengths{logic::wander_forward_feeler_cells * cell,
+                                       logic::wander_side_feeler_cells * cell,
+                                       logic::wander_side_feeler_cells * cell};
+    const std::array<float, 3> angles{0.5f, 0.5f + logic::wander_side_feeler_angle_rad,
+                                      0.5f - logic::wander_side_feeler_angle_rad};
+    for (std::size_t i = 0; i < feelers.size(); ++i) {
+        const auto reach = feelers[i].End - feelers[i].Start;
+        CHECK_MESSAGE(feelers[i].Start == enemy.Position, "A feeler does not start at the enemy");
+        CHECK_MESSAGE(std::abs(reach.GetLength() - lengths[i]) < 0.001f, "A feeler has the wrong length");
+        CHECK_MESSAGE(std::abs(reach.GetDirection() - angles[i]) < 0.0001f, "A feeler has the wrong angle");
+    }
+    CHECK_MESSAGE((logic::wander_forward_feeler == 0 && logic::wander_positive_feeler == 1 &&
+                   logic::wander_negative_feeler == 2),
+                  "The feeler order changed");
+    const auto blocked = [](const gmath::Segment &feeler) {
+        gmath::Point2 hit{};
+        return logic::Grid::IsIntersectingAnyCell(feeler, &logic::Grid::Array[0][0], hit);
+    };
+    const auto blocked_feelers = [&](const logic::Enemy &subject) {
+        const auto tested = logic::WanderFeelers(subject);
+        return std::array<bool, 3>{blocked(tested[0]), blocked(tested[1]), blocked(tested[2])};
+    };
+    // In the middle of the room no feeler touches a wall and the heading is left alone.
+    CHECK_MESSAGE((blocked_feelers(enemy) == std::array{false, false, false}),
+                  "A feeler is blocked in the open");
+    enemy.GetState().Execute(1);
+    CHECK_MESSAGE(enemy.WanderHeading == 0.5f, "Steering changed the heading although no feeler was blocked");
+    // Along the east wall, close enough for the side feeler toward it only.
+    const float east_wall = 31 * cell;
+    enemy.Position = {east_wall - 30, cell_center(20, 30).Y};
+    enemy.WanderHeading = std::numbers::pi_v<float> / 2;
+    enemy.WanderSide = -1;
+    CHECK_MESSAGE((blocked_feelers(enemy) == std::array{false, false, true}),
+                  "Only the side feeler toward the wall should be blocked");
+    enemy.GetState().Execute(1);
+    CHECK_MESSAGE(std::abs(enemy.WanderHeading - (std::numbers::pi_v<float> / 2 +
+                                                  logic::wander_side_turn_rad_per_update)) < 0.0001f,
+                  "A blocked side feeler did not nudge the heading away from its side");
+    CHECK_MESSAGE(enemy.WanderSide == 1, "The side away from the wall did not become the preferred one");
+    // Straight at the east wall: the forward feeler is blocked and the heading turns until it is free.
+    enemy.Position = {east_wall - 50, cell_center(20, 30).Y};
+    enemy.Velocity = {};
+    enemy.WanderHeading = 0;
+    CHECK_MESSAGE(blocked_feelers(enemy)[logic::wander_forward_feeler], "The forward feeler misses the wall");
+    enemy.GetState().Execute(1);
+    CHECK_MESSAGE(!blocked_feelers(enemy)[logic::wander_forward_feeler],
+                  "Steering left the heading on a blocked forward feeler");
+    // The smallest turn points at the wall on both sides; the second is free on the preferred side.
+    CHECK_MESSAGE(std::abs(enemy.WanderHeading - logic::wander_fan_rad[1]) < 0.0001f,
+                  "The heading did not turn to the first free direction on the preferred side");
+    CHECK_MESSAGE(enemy.WanderSide == 1, "A turn to the preferred side changed the preference");
+    CHECK_MESSAGE(enemy.Velocity.X < 0, "The enemy still accelerates toward the wall");
+    // In the room's top right corner the preferred side is walled in, so the other side wins and
+    // becomes the preferred one.
+    enemy.Position = cell_center(10, 30);
+    enemy.WanderHeading = 0;
+    enemy.WanderSide = -1;
+    enemy.GetState().Execute(1);
+    CHECK_MESSAGE(std::abs(enemy.WanderHeading - logic::wander_fan_rad[1]) < 0.0001f,
+                  "The heading did not turn to the free side");
+    CHECK_MESSAGE(enemy.WanderSide == 1, "The side that was free did not become the preferred one");
+    open_map();
+}
+
+TEST_CASE("steering wander repeats for a world seed and differs between seeds") {
+    struct Pose {
+        float heading, x, y;
+        bool operator==(const Pose &) const = default;
+    };
+    // One wanderer in a room; the rest of the world is the same in every run. Dotio's other
+    // randomness is not seeded: an enemy's fear and the Ghost's start. Neither reaches a
+    // wandering enemy that never sees the player.
+    const auto wander = [](std::uint32_t seed) {
+        auto world = walled_world(seed);
+        carve(10, 10, 20, 20);
+        std::vector<std::pair<float, float>> initial;
+        for (const auto &enemy : world->GetEnemies())
+            initial.emplace_back(enemy.WanderHeading, enemy.WanderSide);
+        auto &enemy = wanderer(*world, cell_center(15, 15), world->GetEnemies()[7].WanderHeading, 7);
+        std::vector<Pose> poses;
+        for (int update = 0; update < 600; ++update) {
+            run(*world, 1, update);
+            poses.push_back({enemy.WanderHeading, enemy.Position.X, enemy.Position.Y});
+        }
+        return std::pair{initial, poses};
+    };
+    const auto first = wander(42), again = wander(42), other = wander(43);
+    CHECK_MESSAGE(first.first == again.first, "Enemies of one seed start with different headings or sides");
+    CHECK_MESSAGE(first.second == again.second, "Steering wander is not repeatable for a world seed");
+    CHECK_MESSAGE(first.first != other.first, "Another seed gave the same starting headings");
+    CHECK_MESSAGE(first.second != other.second, "Another seed gave the same wander");
+    open_map();
+}
+
+TEST_CASE("path mode still plans wander paths and steering drops them again") {
+    auto world = walled_world();
+    carve(10, 10, 20, 20);
+    world->ExtractGraph();
+    world->enemy_tuning().wander = logic::WanderMode::path;
+    auto &enemy = wanderer(*world, cell_center(15, 15), 0);
+    // The random goal can be the enemy's own cell, which gives an empty path; the next
+    // decision tick plans again.
+    int updates = 0;
+    for (; updates < 60 && enemy.Path.empty(); ++updates)
+        run(*world, 1, updates);
+    REQUIRE_MESSAGE(!enemy.Path.empty(), "Path mode planned no wander path");
+    for (int i = 0; i < enemy.Path.size(); ++i) {
+        const auto cell = enemy.Path.get(i);
+        CHECK_MESSAGE(logic::Grid::Array[cell.Row][cell.Column] == 0, "A wander path enters a wall");
+    }
+    const float heading = enemy.WanderHeading;
+    run(*world, 30, updates);
+    CHECK_MESSAGE(enemy.WanderHeading == heading, "Path mode changed the steering heading");
+    CHECK_MESSAGE(enemy.IsWandering(), "The enemy left its wander state without seeing the player");
+    world->enemy_tuning().wander = logic::WanderMode::steering;
+    enemy.Path.push({15, 15});
+    world->UpdateEnemies(1, false);
+    CHECK_MESSAGE(enemy.Path.empty(), "Steering wander kept a path from path mode");
+    open_map();
 }
