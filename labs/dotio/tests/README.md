@@ -38,11 +38,11 @@ Dotio's collision grid, `logic::Grid::Array`, is global state. Generating or ini
 Run from the repository root for the tests that need no window:
 
 ```sh
-cmake -S . -B build-headless -DKINETRA_LAB_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON
-cmake --build build-headless --target kinetra_dotio_tests --parallel
-ctest --test-dir build-headless -R '^kinetra_dotio:' --output-on-failure
+cmake --preset headless
+cmake --build --preset headless --target kinetra_dotio_tests
+ctest --preset headless -R '^kinetra_dotio:'
 ```
 
 One case runs on its own through CTest (`-R 'kinetra_dotio:a failed escape'`) or the executable (`./build-headless/kinetra_dotio_tests --test-case='a failed escape*'`).
 
-For `kinetra_dotio_graphics`, use a runtime build with `KINETRA_TEST_GRAPHICS=ON` and an OpenGL context as described in [Tests and resources](../../../README.md#tests-and-resources). Filter that build's CTest run with `-R '^kinetra_dotio_graphics:'`.
+For `kinetra_dotio_graphics`, use the `graphics` preset, which needs an OpenGL context as described in [Tests and resources](../../../README.md#tests-and-resources): `cmake --preset graphics`, `cmake --build --preset graphics --target kinetra_dotio_presentation_tests`, then `ctest --preset graphics -R '^kinetra_dotio_graphics:'`.

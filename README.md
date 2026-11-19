@@ -230,19 +230,26 @@ In `git submodule status`, a leading space means the checkout matches Lab's reco
 
 ## Tests and resources
 
-`BUILD_TESTING` defaults to ON. `KINETRA_TEST_GRAPHICS=ON` adds presentation and launcher integration tests requiring a real OpenGL context:
+`BUILD_TESTING` defaults to ON. `KINETRA_TEST_GRAPHICS=ON` adds presentation and launcher integration tests requiring a real OpenGL context; CTest labels them `graphics`. The `graphics` preset turns it on and runs CTest with SDL offscreen and software Mesa:
 
 ```sh
-cmake -S . -B build -DKINETRA_TEST_GRAPHICS=ON
-cmake --build build --parallel
-SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir build --output-on-failure
-SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build/kinetra --variant demo --frames 120
+cmake --workflow --preset graphics      # build-graphics/: everything, including graphics tests
+cmake --workflow --preset headless      # build-headless/: logic and its tests, no SDL2/OpenGL
+SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build-graphics/kinetra --variant demo --frames 120
 ```
 
-`cmake --workflow --preset graphics` does the same in `build-graphics/`. Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb.
-Software rendering does not establish desktop feel or performance.
+Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb. Software rendering does not establish desktop feel or performance.
 
-For headless Demo/Dotio logic tests, configure a separate directory with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`. Launcher and graphical executables are omitted in that configuration.
+The `headless` preset builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`, which omits the launcher and graphical executables. The `dev`, `release` and `ci` test presets skip the `graphics` label.
+
+The Demo, Dotio and i4sim tests and the launcher settings tests are [doctest](external/Kinetra/docs/testing.md#writing-a-doctest-suite) suites. CTest names every case `<suite>:<case>`, for example `kinetra_dotio:a failed escape triggers kamikaze only at exactly one health`. Select a suite or a single case with `-R`, and skip the two 60-second Demo crowd cases with `-LE soak`:
+
+```sh
+ctest --preset release -R '^kinetra_dotio:'
+ctest --preset release -LE soak
+```
+
+The test guides of [Demo](labs/demo/tests/README.md), [Dotio](labs/dotio/tests/README.md), [i4sim](labs/i4sim/tests/README.md) and the [launcher](launcher/tests/README.md) list each suite.
 
 i4sim additionally requires the header-only nlohmann JSON package (3.11+; Debian: `nlohmann-json3-dev`). Its blueprints are copied into the build tree; see [i4sim usage](labs/i4sim/README.md). Shaders, bitmap text, terrain and drawing data are embedded or generated in code.
 Build directories and generated artifacts are ignored. Follow the included `.clang-format`; first-party C++ uses `.h` and `.cpp`.

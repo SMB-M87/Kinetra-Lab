@@ -40,9 +40,9 @@ flowchart TD
 Run from the repository root for the tests that need no window:
 
 ```sh
-cmake -S . -B build-headless -DKINETRA_LAB_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON
-cmake --build build-headless --target kinetra_terrain_tests kinetra_sandbox_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests --parallel
-ctest --test-dir build-headless -R '^kinetra_(terrain|sandbox_application|demo_contacts|demo_crowd|demo_crowd_characterization):' --output-on-failure
+cmake --preset headless
+cmake --build --preset headless --target kinetra_terrain_tests kinetra_sandbox_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
+ctest --preset headless -R '^kinetra_(terrain|sandbox_application|demo_contacts|demo_crowd|demo_crowd_characterization):'
 ```
 
 Add `-LE soak` to skip the two 60-second crowd runs. One case runs on its own through CTest (`-R 'kinetra_terrain:a ghost camera'`) or the executable (`./build-headless/kinetra_terrain_tests --test-case='a ghost camera*'`).
@@ -53,4 +53,4 @@ After a deliberate change to crowd behavior, print the new characterization line
 KINETRA_PRINT_GOLDEN=1 ./build-headless/kinetra_demo_crowd_characterization_tests
 ```
 
-For `kinetra_demo_graphics`, use a runtime build with `KINETRA_TEST_GRAPHICS=ON` and an OpenGL context as described in [Tests and resources](../../../README.md#tests-and-resources). Filter that build's CTest run with `-R '^kinetra_demo_graphics:'`.
+For `kinetra_demo_graphics`, use the `graphics` preset, which needs an OpenGL context as described in [Tests and resources](../../../README.md#tests-and-resources): `cmake --preset graphics`, `cmake --build --preset graphics --target kinetra_demo_presentation_tests`, then `ctest --preset graphics -R '^kinetra_demo_graphics:'`.

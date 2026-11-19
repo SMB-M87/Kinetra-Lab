@@ -64,12 +64,14 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | --- | --- | --- |
 | `labs/i4sim/` logic (`simulation`, `predictive_passing`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim` | `^kinetra_i4sim` |
 | `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
-| `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio$` |
+| `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/settings.h`, `launcher/include/menu.h` | `kinetra_settings_tests kinetra_menu_tests` | `^kinetra_(settings\|menu)` |
 | Any `session.cpp`, presentation, launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 
-The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), `kinetra_i4sim` and the Demo crowd soak tests take minutes. For a quick targeted run, use the `release` preset.
+The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the two 60-second Demo crowd cases.
+
+The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 
 **Warnings.** `KINETRA_LAB_WARNINGS` (on in `dev` and `ci`) reports the shared warning set for `labs/` and `launcher/`. Engine warnings are errors in CI.
 - Lab code had 119 warnings when this was introduced. New or changed Lab code must not add any.
