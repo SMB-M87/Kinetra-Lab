@@ -1,9 +1,9 @@
 #pragma once
 
 #include "demo/input/sandbox_commands.h"
-#include "demo/presentation/zoom.h"
 #include "demo/world/sandbox_scene.h"
 #include "demo/world/tuning.h"
+#include "demo/zoom.h"
 #include <kinetra/runtime/timing.h>
 
 namespace demo {

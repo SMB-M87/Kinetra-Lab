@@ -1,8 +1,8 @@
 #pragma once
 
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/presentation/zoom.h"
 #include "dotio/world.h"
+#include "dotio/zoom.h"
 #include "kinetra_lab/debug.h"
 #include <array>
 #include <kinetra/runtime/debug_view.h>
@@ -352,7 +352,8 @@ class Application {
         std::uint64_t resets_before_tick = 0;
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->GetPlayer();
-            player.Heading = ghost ? dotio::math::Vec2{} : dotio::math::Vec2{commands.direction.x, -commands.direction.y};
+            player.Heading =
+                ghost ? dotio::math::Vec2{} : dotio::math::Vec2{commands.direction.x, -commands.direction.y};
             if (!running)
                 continue;
             if (step == steps - 1) {

@@ -33,10 +33,10 @@ flowchart LR
 ```text
 labs/demo/
   include/demo/
-    sandbox_application.h  debug_panel.h
+    sandbox_application.h  debug_panel.h  zoom.h
     world/          agent.h  terrain.h  sandbox_scene.h  tuning.h
     input/          sandbox_input.h  sandbox_commands.h  player_control.h
-    presentation/   session.h  sandbox_renderer.h  help_overlay.h  zoom.h
+    presentation/   session.h  sandbox_renderer.h  help_overlay.h
   src/              sandbox_application.cpp  debug_panel.cpp  main.cpp
     presentation/   sandbox_renderer.cpp  session.cpp
   tests/            one doctest suite per behavior area
@@ -49,7 +49,7 @@ Headers are included by their path below `include/`, for example `"demo/world/ag
 | `include/demo/`, `src/` | The headless application coordinator and the debug menu rows | `kinetra_sandbox_application` |
 | `world/` | Headless scene state: the physics world, streamed terrain, agents and their tuning | `kinetra_sandbox_application` |
 | `input/` | Window-free input mapping and the per-frame commands it produces | `kinetra_sandbox_application` |
-| `presentation/` | Session and drawing; needs `Kinetra::Runtime`. `zoom.h` holds only constants and is also read by the logic | `kinetra_demo_presentation` |
+| `presentation/` | Session and drawing; needs `Kinetra::Runtime` | `kinetra_demo_presentation` |
 | `src/main.cpp` | The direct executable | `kinetra_demo` |
 
 The application owns the scene and the fixed clock; the scene owns the world, terrain and navigation and drives the agents. Solid diamonds denote owned values; dashed arrows show supplied commands and lifecycle control.
@@ -79,7 +79,7 @@ classDiagram
 | [presentation/session.h](include/demo/presentation/session.h) | Demo Session factory and default initial population |
 | [presentation/sandbox_renderer.h](include/demo/presentation/sandbox_renderer.h) | Scene rendering interface |
 | [presentation/help_overlay.h](include/demo/presentation/help_overlay.h) | Application help content |
-| [presentation/zoom.h](include/demo/presentation/zoom.h) | Zoom limits in and outside Debug Mode, apart from the scene headers so the launcher can start a Demo without compiling the scene |
+| [zoom.h](include/demo/zoom.h) | Zoom limits in and outside Debug Mode, apart from the scene headers so the launcher can start a Demo without compiling the scene |
 
 | Source | Responsibility |
 | --- | --- |

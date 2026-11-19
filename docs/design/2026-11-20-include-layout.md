@@ -68,22 +68,22 @@ labs/shared/                                 (was labs/common, labs/test_support
 
 labs/demo/
   include/demo/
-    sandbox_application.h debug_panel.h
+    sandbox_application.h debug_panel.h zoom.h
     world/         agent.h terrain.h sandbox_scene.h tuning.h
     input/         sandbox_input.h sandbox_commands.h player_control.h
-    presentation/  session.h sandbox_renderer.h help_overlay.h zoom.h
+    presentation/  session.h sandbox_renderer.h help_overlay.h
   src/  sandbox_application.cpp debug_panel.cpp main.cpp
         presentation/ sandbox_renderer.cpp session.cpp
 
 labs/dotio/                                  (logic/, gmath/ and their sub-READMEs disappear)
   include/dotio/
-    application.h world.h difficulty.h renderer.h
+    application.h world.h difficulty.h renderer.h zoom.h
     entities/      arrow.h bolt.h enemy.h player.h moving_object.h
                    physics_object.h static_object.h physics_adapter.h
     ai/            state.h wander.h fuzzy.h tracker.h
     navigation/    graph.h grid.h vertex.h priority_queue.h stack.h
     math/          gmath.h portable.h
-    presentation/  session.h presentation.h zoom.h
+    presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
         entities/ ai/ navigation/ math/ presentation/   (mirroring)
 

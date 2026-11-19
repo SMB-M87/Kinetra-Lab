@@ -1,8 +1,8 @@
 #include "launcher/applications.h"
 #include "demo/presentation/session.h"
-#include "demo/presentation/zoom.h"
+#include "demo/zoom.h"
 #include "dotio/presentation/session.h"
-#include "dotio/presentation/zoom.h"
+#include "dotio/zoom.h"
 #include "i4sim/presentation/session.h"
 
 namespace launcher {

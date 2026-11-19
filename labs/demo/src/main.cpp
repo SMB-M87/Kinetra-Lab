@@ -1,5 +1,5 @@
 #include "demo/presentation/session.h"
-#include "demo/presentation/zoom.h"
+#include "demo/zoom.h"
 #include <cstdlib>
 #include <iostream>
 #include <kinetra/runtime/engine.h>

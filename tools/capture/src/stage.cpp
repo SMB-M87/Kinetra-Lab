@@ -3,7 +3,7 @@
 #include "capture/png.h"
 #include "demo/presentation/session.h"
 #include "dotio/presentation/session.h"
-#include "dotio/presentation/zoom.h"
+#include "dotio/zoom.h"
 #include "i4sim/presentation/session.h"
 
 #include "kinetra_lab/settings.h"

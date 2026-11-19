@@ -85,13 +85,13 @@ Headers live under `include/dotio/` and are included as `"dotio/<folder>/<file>.
 ```text
 labs/dotio/
   include/dotio/
-    application.h world.h difficulty.h renderer.h
+    application.h world.h difficulty.h renderer.h zoom.h
     entities/      arrow.h bolt.h enemy.h player.h moving_object.h
                    physics_object.h static_object.h physics_adapter.h
     ai/            state.h wander.h fuzzy.h tracker.h
     navigation/    graph.h grid.h vertex.h priority_queue.h stack.h
     math/          gmath.h portable.h
-    presentation/  session.h presentation.h zoom.h
+    presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
         entities/ ai/ navigation/ math/ presentation/
   tests/  dotio_tests.cpp presentation_tests.cpp
@@ -114,6 +114,7 @@ labs/dotio/
 | [world.h](include/dotio/world.h) | [world.cpp](src/world.cpp) | World ownership, streaming, pools, population, progression and projectile ordering |
 | [difficulty.h](include/dotio/difficulty.h) | [difficulty.cpp](src/difficulty.cpp) | Difficulty presets, the enemy tuning a world can change while it runs, and their validation |
 | [renderer.h](include/dotio/renderer.h) | header only | Legacy drawing interface; the presentation adapter implements it and owns the Y-axis conversion |
+| [zoom.h](include/dotio/zoom.h) | header only | Zoom limits and initial zoom in pixels per world unit, apart from the world headers so the launcher can start Dotio without compiling the world; the application reads it too, so it stays outside `presentation/` |
 
 ### entities/
 
@@ -179,7 +180,6 @@ classDiagram
 | --- | --- | --- |
 | [session.h](include/dotio/presentation/session.h) | [session.cpp](src/presentation/session.cpp) | `dotio::Session`: input mapping, pointer capture and lifecycle; it also gives its `Application` to a tool that plays the game (the [capture tool](../../tools/capture/README.md)'s scripted player). Holds the factory shared by direct and bundled launch |
 | [presentation.h](include/dotio/presentation/presentation.h) | [presentation.cpp](src/presentation/presentation.cpp) | Drawing adapter: coordinates, camera, terrain, actors and overlays |
-| [zoom.h](include/dotio/presentation/zoom.h) | header only | Zoom limits and initial zoom in pixels per world unit, apart from the world headers so the launcher can start Dotio without compiling the world |
 | – | [main.cpp](src/main.cpp) | Direct executable `kinetra_dotio`: difficulty and frame-limit arguments |
 
 ## World and residency
