@@ -197,8 +197,8 @@ template <> struct hash<gmath::GridEntry> {
     std::size_t operator()(const gmath::GridEntry &entry) const noexcept {
         std::hash<float> hasher;
         std::size_t hashValue = 0;
-        hashValue ^= hasher(entry.Row) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
-        hashValue ^= hasher(entry.Column) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+        hashValue ^= hasher(float(entry.Row)) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+        hashValue ^= hasher(float(entry.Column)) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
         return hashValue;
     }
 };

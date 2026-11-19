@@ -26,6 +26,8 @@ Movement consumes 60 Hz ticks; AI runs at 20 Hz, sequentially on the owning thre
 
 Source: [Application](../labs/dotio/include/application.h), [session](../labs/dotio/src/session.cpp), [presentation](../labs/dotio/src/presentation.cpp), [logic](../labs/dotio/logic/). The engine imports none of these headers.
 
+The session is a `dotio::Session` ([session.h](../labs/dotio/include/session.h)): a Lab session that also returns its Application. A tool that plays the game reads the world through it between frames and answers with ordinary input; the [capture tool](../tools/capture/README.md#how-it-works)'s scripted player aims that way, because the AI is not seeded. The launcher uses only the base type.
+
 ## Lifecycle and constraints
 
 Application owns logic::World through a unique_ptr to keep the address stable: enemies and AI states reference that world. World owns actor/projectile pools, navigation graph and props. Static Grid storage limits the process to one active Dotio world. Return to the launcher menu and destroy the session before creating its replacement.

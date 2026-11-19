@@ -13,6 +13,10 @@
 #include <string>
 #include <string_view>
 
+namespace dotio {
+class Application;
+}
+
 namespace capture {
 /// Seed of every captured session, so a refresh shows the same worlds.
 inline constexpr std::uint32_t capture_seed = 42;
@@ -58,16 +62,28 @@ class Stage {
     /// Starts `variant` exactly as the bundled launcher does, with capture_seed, the default
     /// Demo agent count and the default Dotio difficulty. i4sim starts on its blueprint screen.
     void start(launcher::Variant variant);
+    /// Starts Dotio as the bundled launcher does, at the default difficulty with capture_seed,
+    /// and keeps its application for dotio(), so a script can play against the world.
+    void start_dotio();
+    /// The application of the session start_dotio() started, for reading between steps; valid
+    /// until the next start. Throws std::logic_error when the running session is not such one.
+    dotio::Application &dotio();
     /// Starts i4sim with the blueprint file `blueprint` from the bundled catalog, paused, at
     /// i4sim_updates_per_second. `blueprint` is relative to the catalog directory.
     void start_i4sim(std::string_view blueprint);
 
     /// Advances the session one step with `input`; its pointer is replaced by the stage's.
     void step(kinetra::Input input = {});
+    /// Advances `count` steps without input or drawing.
+    void steps(int count);
     /// Advances `seconds` of steps without input or drawing.
     void wait(double seconds);
     /// Advances `frames` clip frames with `input`, without drawing.
     void play(int frames, const FrameInput &input);
+    /// Advances clip frames with `input`, without drawing, until `done()` holds or `limit`
+    /// frames have passed; `done` is asked before every frame. Returns the frames advanced,
+    /// so a recording can continue the count.
+    int play_until(int limit, const FrameInput &input, const std::function<bool()> &done);
     /// One step with `key` pressed.
     void press(kinetra::Key key);
     /// Moves the pointer to `point` (logical window pixels) and clicks there.
@@ -114,6 +130,8 @@ class Stage {
     std::filesystem::path output_;
     std::string scene_;
     std::unique_ptr<kinetra::Session> session_;
+    /// The application inside session_ after start_dotio(); null for every other session.
+    dotio::Application *dotio_{};
     kinetra::Vec2 pointer_;
 };
 

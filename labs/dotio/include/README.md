@@ -16,7 +16,7 @@ Ownership stays in Application; presentation and physics adapters translate at e
 
 ```mermaid
 flowchart LR
-    Session["session.h: factory"] --> Application["application.h: Application owns World"]
+    Session["session.h: Session and its factory"] --> Application["application.h: Application owns World"]
     Presentation["presentation.h: drawing boundary"] --> Application
     Presentation --> Runtime["Kinetra Runtime"]
     World["Game logic World"] --> Adapter["physics_adapter.h: conversion helpers"]
@@ -32,7 +32,7 @@ flowchart LR
 | [physics_adapter.h](physics_adapter.h) | Legacy body and physics conversion helpers |
 | [portable.h](portable.h) | Portable compatibility includes and definitions |
 | [presentation.h](presentation.h) | Rendering and input presentation boundary |
-| [session.h](session.h) | Session factory shared by direct and bundled launch |
+| [session.h](session.h) | `dotio::Session`, a Lab session that also gives its `Application` to a tool that plays the game (the [capture tool](../../../tools/capture/README.md)'s scripted player), and the factory shared by direct and bundled launch |
 
 ## Architecture and build
 

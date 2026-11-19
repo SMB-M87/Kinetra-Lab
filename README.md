@@ -56,8 +56,8 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 | Application | Normal view | Debug view |
 | --- | --- | --- |
 | **Demo** | ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with steering probes, paths, vectors and collision shapes](docs/media/demo-debug-clip.gif) |
-| **Dotio** | ![Dotio: the player runs through the corridors and fires](docs/media/dotio-clip.gif) | ![Dotio with AI states, paths, probes and collision shapes](docs/media/dotio-debug-clip.gif) |
-| **i4sim** | ![i4sim: movers drive between the stations of the MAS demonstrator](docs/media/i4sim-clip.gif) | ![i4sim with debug layers and the debug menu](docs/media/i4sim-debug-clip.gif) |
+| **Dotio** | ![Dotio: the player runs through the corridors and shoots at the enemies in sight](docs/media/dotio-clip.gif) | ![Dotio zoomed out with AI states, paths and sight lines: enemies attack, run for shelter to reload, and come back](docs/media/dotio-debug-clip.gif) |
+| **i4sim** | ![i4sim: 29 movers drive between the stations of the 4320x2400 floor under the Reciprocal profile](docs/media/i4sim-clip.gif) | ![i4sim with the debug layers: routes, forces, borders and detection ranges](docs/media/i4sim-debug-clip.gif) |
 
 The i4sim [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes) from the loadscreen's SHOWCASE page, each one full cycle in Debug Mode at 200 ticks per second:
 

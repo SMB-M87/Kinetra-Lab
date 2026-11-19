@@ -6,7 +6,7 @@
 #include <stdexcept>
 namespace dotio {
 namespace {
-class DotioSession final : public lab::Session {
+class DotioSession final : public Session {
     dotio::Application application_;
     // Declared after the application whose flags it borrows.
     kinetra::SettingsOverlay settings_{
@@ -46,6 +46,7 @@ class DotioSession final : public lab::Session {
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Dotio"; }
     std::string status() override { return dotio::status_text(application_); }
+    Application &application() override { return application_; }
 };
 } // namespace
 std::vector<std::string> difficulty_names() {
@@ -57,7 +58,7 @@ std::vector<std::string> difficulty_names() {
 std::size_t difficulty_index(std::string_view name) {
     return static_cast<std::size_t>(logic::parse_difficulty(name));
 }
-std::unique_ptr<lab::Session> create_session(std::uint32_t seed, std::size_t difficulty) {
+std::unique_ptr<Session> create_session(std::uint32_t seed, std::size_t difficulty) {
     if (difficulty >= logic::difficulty_presets.size())
         throw std::invalid_argument("Unsupported Dotio difficulty");
     return std::make_unique<DotioSession>(seed, static_cast<logic::Difficulty>(difficulty));
