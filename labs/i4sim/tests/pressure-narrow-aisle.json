@@ -1,0 +1,19 @@
+{
+  "name": "Two-cell aisle with a long mover (manual)",
+  "tickCap": 100000,
+  "dimension": {"x": 1600, "y": 2200},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 235,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "north", "model": "APM4220", "position": {"x": 743.5, "y": 243.5}},
+    {"id": "south", "model": "APM4350", "position": {"x": 722.5, "y": 1782.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": [
+    {"id": "west", "position": {"x": 0, "y": 0}, "dimension": {"x": 200, "y": 2200}},
+    {"id": "east", "position": {"x": 1400, "y": 0}, "dimension": {"x": 200, "y": 2200}},
+    {"id": "west of aisle", "position": {"x": 200, "y": 600}, "dimension": {"x": 400, "y": 1000}},
+    {"id": "east of aisle", "position": {"x": 1000, "y": 600}, "dimension": {"x": 400, "y": 1000}}
+  ]
+}

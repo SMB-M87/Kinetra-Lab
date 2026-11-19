@@ -1,0 +1,15 @@
+{
+  "name": "Third mover crossing a passing lane (manual)",
+  "tickCap": 100000,
+  "dimension": {"x": 2400, "y": 1600},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 155,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "west", "model": "APM4220", "position": {"x": 443.5, "y": 743.5}},
+    {"id": "east", "model": "APM4220", "position": {"x": 1843.5, "y": 743.5}},
+    {"id": "north", "model": "APM4220", "position": {"x": 1243.5, "y": 43.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": []
+}
