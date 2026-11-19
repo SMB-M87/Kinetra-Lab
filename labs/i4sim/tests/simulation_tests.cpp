@@ -4,6 +4,7 @@
 //
 // The `the bundled catalog holds fourteen blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
+#include "flow_metrics.h"
 #include "simulation.h"
 
 #include <doctest/doctest.h>
@@ -14,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -1041,6 +1043,66 @@ TEST_CASE("recording events is opt-in and does not change the run") {
         CHECK(quiet.events().empty());
         CHECK(!recorded.events().empty());
     }
+}
+
+TEST_CASE("flow metrics count no waiting or stuck mover on a free trip") {
+    auto b = fixture();
+    b.producers.clear();
+    b.movers[0].position = {300, 700};
+    Simulation solo(b);
+    solo.workload = false;
+    REQUIRE(solo.move_to(0, {1900, 750}));
+    solo.paused = false;
+    FlowMetrics flow;
+    for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick) {
+        solo.tick();
+        flow.observe(solo);
+    }
+    REQUIRE(!solo.movers()[0].moving);
+    CHECK(flow.waiting_ticks() == 0);
+    CHECK(flow.stuck_movers() == 0);
+    CHECK(flow.stuck_now() == 0);
+}
+
+TEST_CASE("flow metrics count a head-on corridor standstill as waiting and stuck") {
+    Simulation standstill(corridor_fixture());
+    start_corridor(standstill, false, {1900, 700}, {300, 700});
+    FlowMetrics flow;
+    for (int tick = 0; tick < 5000; ++tick) {
+        standstill.tick();
+        flow.observe(standstill);
+    }
+    REQUIRE((standstill.movers()[0].moving && standstill.movers()[1].moving));
+    CHECK(flow.waiting_ticks() > 0);
+    CHECK(flow.stuck_movers() == 2);
+    CHECK(flow.stuck_now() == 2);
+}
+
+TEST_CASE("flow metrics ignore a held mover") {
+    auto b = fixture();
+    b.producers.clear();
+    Simulation held(b);
+    held.workload = false;
+    REQUIRE(held.move_to(0, {1900, 750}));
+    held.toggle_mover(0);
+    held.paused = false;
+    FlowMetrics flow({.stuck_ticks = 100});
+    for (int tick = 0; tick < 1000; ++tick) {
+        held.tick();
+        flow.observe(held);
+    }
+    CHECK(flow.waiting_ticks() == 0);
+    CHECK(flow.stuck_movers() == 0);
+}
+
+TEST_CASE("flow metrics reject invalid limits and a second simulation") {
+    CHECK_THROWS_AS(FlowMetrics({.waiting_speed = 0}), std::invalid_argument);
+    CHECK_THROWS_AS(FlowMetrics({.arrival_distance = -1}), std::invalid_argument);
+    CHECK_THROWS_AS(FlowMetrics({.progress_distance = std::nanf("")}), std::invalid_argument);
+    CHECK_THROWS_AS(FlowMetrics({.stuck_ticks = 0}), std::invalid_argument);
+    FlowMetrics flow;
+    flow.observe(Simulation(fixture()));
+    CHECK_THROWS_AS(flow.observe(Simulation(corridor_fixture())), std::invalid_argument);
 }
 
 TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock consistent") {
