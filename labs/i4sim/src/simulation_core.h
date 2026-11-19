@@ -4,19 +4,17 @@
 #include "fleet.h"
 #include "floor_plan.h"
 #include "goals.h"
+#include "motion_step.h"
 #include "predictive_passing.h"
 #include "production.h"
 #include "simulation.h"
 #include "traffic.h"
 
-#include <kinetra/spatial_grid.h>
 #include <kinetra/timing.h>
-#include <kinetra/traffic.h>
 
-#include <array>
+#include <cstdint>
+#include <filesystem>
 #include <optional>
-#include <random>
-#include <set>
 #include <span>
 #include <vector>
 
@@ -35,9 +33,9 @@ class SimulationCore {
     std::span<const kinetra::Segment> borders() const { return floor_.borders(); }
     std::uint64_t ticks() const { return ticks_; }
     std::uint64_t completed() const { return production_.completed(); }
-    std::uint64_t collisions() const { return collisions_; }
+    std::uint64_t collisions() const { return motion_step_.collisions(); }
     /// Movers with infeasible reciprocal constraints or overridden avoidance in the last movement tick.
-    std::size_t avoidance_limited() const { return avoidance_limited_; }
+    std::size_t avoidance_limited() const { return motion_step_.avoidance_limited(); }
     /// Automatic parking returns temporarily staged outside active departure routes.
     std::size_t parking_waiting() const;
     std::size_t junction_count() const { return floor_.junction_count(); }
@@ -64,7 +62,7 @@ class SimulationCore {
     /// an unknown profile or a speed, force or horizon that is not finite and positive
     /// (horizon at most 64 ticks); the settings are then unchanged.
     void configure_motion(MotionSettings settings);
-    std::uint64_t contact_ticks() const { return contact_ticks_; }
+    std::uint64_t contact_ticks() const { return motion_step_.contact_ticks(); }
     /// Seed of the workload generator. With the blueprint, the motion settings and the
     /// commands given, it reproduces a run tick for tick.
     std::uint32_t seed() const { return seed_; }
@@ -112,14 +110,13 @@ class SimulationCore {
   private:
     /// The goal view over this simulation's components at the current tick.
     Goals goals() { return {floor_, fleet_, traffic_, passing_, log_, motion_, ticks_}; }
-    RouteProgress &progress(const Mover &mover) { return fleet_.progress[fleet_.index(mover)]; }
-    const RouteProgress &progress(const Mover &mover) const { return fleet_.progress[fleet_.index(mover)]; }
+    /// Aligns every mover's previous position with its current one.
+    void settle_previous_positions();
+
     RunState state_{RunState::paused};
     bool workload_{true};
     MotionSettings motion_;
-    std::size_t avoidance_limited_{};
-    std::set<std::pair<std::size_t, std::size_t>> contacts_;
-    std::uint64_t contact_ticks_{};
+    // Declared before the components that are built from it.
     Blueprint blueprint_;
     FloorPlan floor_;
     Traffic traffic_;
@@ -127,16 +124,13 @@ class SimulationCore {
     EventLog log_;
     Fleet fleet_;
     Production production_;
+    MotionStep motion_step_;
     std::uint32_t seed_;
-    /// Set while paused; the first running advance() then aligns previous positions with the
-    /// current ones, so drawing does not step back behind the state shown while paused.
+    /// Set while not running; the first running advance() then aligns previous positions
+    /// with the current ones, so drawing does not step back behind the state shown.
     bool resume_pending_{true};
-    void settle_previous_positions();
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
-    std::uint64_t ticks_{}, collisions_{};
-    bool prepare_route(Mover &mover);
-    void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
-    void move_agents();
+    std::uint64_t ticks_{};
 };
 } // namespace i4sim::detail
