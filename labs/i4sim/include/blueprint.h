@@ -66,5 +66,8 @@ struct Blueprint {
 /// Throws runtime_error with path and validation details; never partially loads.
 Blueprint load_blueprint(const std::filesystem::path &path);
 std::vector<std::filesystem::path> discover_blueprints(const std::filesystem::path &directory);
+/// The `i4sim-blueprints` directory beside the running executable, where CMake copies
+/// the bundled catalog. Linux resolves the executable through /proc/self/exe, Windows
+/// through GetModuleFileNameW.
 std::filesystem::path default_blueprint_directory();
 } // namespace i4sim
