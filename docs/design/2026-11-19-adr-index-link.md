@@ -1,6 +1,6 @@
 # Link the architecture decisions from the Lab docs
 
-Status: accepted · Branch: `docs/lab-adr-index` · Related: [Kinetra architecture decisions](../../external/Kinetra/docs/decisions/README.md), [ADR rule in Lab](../../AGENTS.md#documentation-in-lab)
+Status: implemented · Branch: `docs/lab-adr-index` · Related: [Kinetra architecture decisions](../../external/Kinetra/docs/decisions/README.md), [ADR rule in Lab](../../AGENTS.md#documentation-in-lab)
 
 The Lab documentation index gets a link to Kinetra's architecture decisions. Readers who start in Lab can then find the decisions behind Demo, Dotio and the Kinetra/Lab boundary, and see why Lab has no `docs/decisions/` of its own yet.
 
@@ -22,7 +22,7 @@ The Lab documentation index gets a link to Kinetra's architecture decisions. Rea
 ## Problem
 
 - [docs/README.md](../README.md) has no link to any ADR. Only [labs/demo/README.md](../../labs/demo/README.md#verification-and-limits) links three of them, inline.
-- ADR 0001 to 0007 record Demo and Dotio decisions from before the applications moved to Lab, and ADR 0009 defines the Kinetra/Lab boundary. They stay in Kinetra because ADRs are history and are not moved.
+- ADR 0002 to 0007 record Demo and Dotio decisions from before the applications moved to Lab, and ADR 0009 defines the Kinetra/Lab boundary. They stay in Kinetra because ADRs are history and are not moved.
 - Lab has no `docs/decisions/` directory. [AGENTS.md](../../AGENTS.md#documentation-in-lab) creates it with the first Lab ADR, and every decision so far belonged in Kinetra. A reader of the Lab docs sees neither the Kinetra ADRs nor this rule, so the missing directory looks like an omission.
 
 ## Goals and non-goals
@@ -46,7 +46,7 @@ No decision meets the ADR criteria.
 One new row in the *Architecture guides* table, between *Launcher and overlays* and *Design documents*:
 
 - the question it answers: why the boundaries are the way they are;
-- a link to the Kinetra ADR index, naming 0001 to 0007 as the Demo and Dotio history and linking 0009 as the boundary;
+- a link to the Kinetra ADR index, naming 0002 to 0007 as the Demo and Dotio history and linking 0009 as the boundary;
 - one sentence on where Lab-only ADRs go, linking the rule in `AGENTS.md`.
 
 ## Affected areas
@@ -60,15 +60,55 @@ Documentation only, so the **Docs** level applies: `python3 external/Kinetra/too
 
 ## Review
 
-Filled in after the review.
+A read of `git diff main...HEAD` against the review list in the [workflow](../../external/Kinetra/docs/workflow.md#6-review); for a one-row documentation diff this replaces `/code-review`.
+
+| Finding | Resolution |
+| --- | --- |
+| The row named ADR 0001 to 0007 as Demo and Dotio decisions, but 0001 records the engine foundation | Changed to 0002 to 0007 in the row and in this document |
+| The link targets must survive the pointer move on the open i4sim branch | Checked: `docs/decisions/README.md` and `0009-core-and-lab.md` exist at both Kinetra commits; at the newer one the README holds the full numbered index |
+| "Lab has no ADRs yet" goes stale with the first Lab ADR | Kept: the `adr` skill names `docs/README.md` as the Lab ADR index, so that change updates this row. Listed under open points |
 
 ## Verification
 
-Filled in after verification.
+Level **Docs**; no build, because only Markdown changed.
+
+- `python3 external/Kinetra/tools/check_docs.py`: "All links resolve in 37 Markdown files", with the submodule at the Kinetra commit recorded on `main`.
+- `git -C external/Kinetra cat-file -e d6ffdc6:<path>` for both link targets: present at the Kinetra commit of the open i4sim branch.
 
 ## Pull request
 
-Filled in before the pull request.
+Title: `docs: link the architecture decisions from the documentation index`
+
+```markdown
+## Summary
+
+The Lab documentation index had no link to any ADR, so the decisions behind Demo, Dotio and the Kinetra/Lab boundary were hard to find, and the missing `docs/decisions/` looked like an omission. One new row in `docs/README.md` links Kinetra's ADR index and states where Lab-only ADRs will go.
+
+## Changes
+
+- `docs/README.md`: a row in *Architecture guides* that links the Kinetra ADR index, names 0002 to 0007 as the Demo and Dotio history, links 0009 as the boundary, and points to the Lab ADR rule in `AGENTS.md`.
+- `docs/design/`: the design document and its index row.
+
+## Design
+
+[docs/design/2026-11-19-adr-index-link.md](docs/design/2026-11-19-adr-index-link.md). No ADR.
+
+## Verification
+
+Docs level: `python3 external/Kinetra/tools/check_docs.py` passes (all links resolve in 37 Markdown files). Both link targets also exist at the newer Kinetra commit on the open i4sim branch. No build: only Markdown changed.
+
+## Review notes
+
+The link goes to `external/Kinetra/docs/decisions/README.md` rather than an anchor in Kinetra's `docs/README.md`, because Kinetra's documentation cleanup moved the numbered index there.
+
+## Dependencies and merge order
+
+None. Independent of the open i4sim pull request; both add a row at the top of the design index, so the second to merge may need a one-line conflict resolution there.
+
+## Follow-up
+
+The first Lab ADR (likely the i4sim presentation's `Kinetra::Launcher` edge, roadmap phase 4) creates `docs/decisions/README.md` and updates this row.
+```
 
 ## Open points
 
