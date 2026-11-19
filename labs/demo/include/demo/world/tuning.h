@@ -7,7 +7,7 @@
 /// Values of the Demo scene that can change while it runs: how movers accelerate and avoid
 /// each other, and how agents wander. The defaults are the scene's former literals, so an
 /// untouched Tuning reproduces the scene as it was before the values became adjustable.
-namespace sandbox {
+namespace demo {
 
 /// How an agent without a commanded goal roams around its home.
 enum class WanderMode {
@@ -90,4 +90,4 @@ inline void validate(const Tuning &tuning) {
         throw std::invalid_argument("Demo tuning: unknown wander mode");
 }
 
-} // namespace sandbox
+} // namespace demo

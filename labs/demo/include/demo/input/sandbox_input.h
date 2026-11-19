@@ -4,7 +4,7 @@
 #include "kinetra_lab/input.h"
 #include <kinetra/runtime/engine.h>
 
-namespace sandbox {
+namespace demo {
 
 /// Adapt runtime key transitions and held state to application-owned commands.
 inline FrameCommands read_commands(const kinetra::Input &input) {
@@ -26,4 +26,4 @@ inline FrameCommands read_commands(const kinetra::Input &input) {
     return commands;
 }
 
-} // namespace sandbox
+} // namespace demo

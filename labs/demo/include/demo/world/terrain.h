@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace sandbox {
+namespace demo {
 
 /// Camera-driven, disposable obstacle chunks. A seed and chunk coordinate fully
 /// determine terrain; no visited-area history or SDL state is retained.
@@ -118,4 +118,4 @@ class Terrain {
     }
 };
 
-} // namespace sandbox
+} // namespace demo

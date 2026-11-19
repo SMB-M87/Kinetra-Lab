@@ -7,14 +7,14 @@
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/timing.h>
 
-namespace sandbox {
+namespace demo {
 namespace {
 /// The graphical Demo session: it orders a frame and owns the panels. What the debug menu
 /// holds and decides is the DebugPanel's; the scene is drawn by the renderer.
 class DemoSession final : public kinetra_lab::Session {
-    sandbox::SandboxApplication application_;
+    demo::SandboxApplication application_;
     // Declared after the application it borrows.
-    sandbox::DebugPanel panel_{application_};
+    demo::DebugPanel panel_{application_};
     kinetra::DebugMenu menu_;
     bool debug_{true}, statistics_{true}, frame_times_{};
     kinetra_lab::FrameLimitSwitch frame_limit_;
@@ -45,7 +45,7 @@ class DemoSession final : public kinetra_lab::Session {
         const bool modal = settings_.update(input, camera);
         const auto entries = menu_rows();
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
-        auto commands = sandbox::read_commands(modal ? kinetra::Input{} : input);
+        auto commands = demo::read_commands(modal ? kinetra::Input{} : input);
         commands.toggle_pause =
             pause_.update(settings_.visible(), application_.paused()) != application_.paused();
         panel_.apply(commands, debug_, captured, modal ? 0 : input.wheel);
@@ -55,7 +55,7 @@ class DemoSession final : public kinetra_lab::Session {
     void render(kinetra::Runtime &runtime) override {
         frame_limit_.apply(runtime);
         const auto entries = menu_rows();
-        sandbox::render(runtime, application_, panel_.layers(debug_),
+        demo::render(runtime, application_, panel_.layers(debug_),
                         {.menu = &menu_,
                          .entries = entries,
                          .statistics = statistics_,
@@ -66,10 +66,10 @@ class DemoSession final : public kinetra_lab::Session {
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Demo"; }
-    std::string status() override { return sandbox::status_text(application_); }
+    std::string status() override { return demo::status_text(application_); }
 };
 } // namespace
 std::unique_ptr<kinetra_lab::Session> create_session(int count, std::uint32_t seed) {
     return std::make_unique<DemoSession>(count, seed);
 }
-} // namespace sandbox
+} // namespace demo

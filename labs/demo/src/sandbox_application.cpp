@@ -3,7 +3,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace sandbox {
+namespace demo {
 namespace {
 std::vector<SandboxApplication::Pose> poses(const kinetra::World &world) {
     std::vector<SandboxApplication::Pose> result;
@@ -123,4 +123,4 @@ SandboxApplication::Pose SandboxApplication::presented_pose(std::size_t id) cons
             kinetra::lerp_angle(before.angle, body.angle, blend)};
 }
 
-} // namespace sandbox
+} // namespace demo

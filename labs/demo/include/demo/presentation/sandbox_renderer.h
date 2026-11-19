@@ -7,7 +7,7 @@
 #include <span>
 #include <string>
 
-namespace sandbox {
+namespace demo {
 
 /// What a Demo frame draws in screen space, over the scene. Everything is borrowed for the
 /// call; a null pointer or a false flag leaves that piece out.
@@ -35,4 +35,4 @@ void render(kinetra::Runtime &runtime, const SandboxApplication &application,
 /// avoidance and the last pointer action.
 std::string status_text(const SandboxApplication &application);
 
-} // namespace sandbox
+} // namespace demo

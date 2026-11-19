@@ -3,7 +3,7 @@
 #include "kinetra_lab/camera.h"
 #include <string_view>
 
-namespace sandbox {
+namespace demo {
 using namespace kinetra;
 namespace {
 
@@ -198,4 +198,4 @@ std::string status_text(const SandboxApplication &application) {
            std::string(action_text(application.last_action()));
 }
 
-} // namespace sandbox
+} // namespace demo

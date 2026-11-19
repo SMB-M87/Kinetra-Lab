@@ -2,7 +2,7 @@
 
 #include <kinetra/simulation/math.h>
 
-namespace sandbox {
+namespace demo {
 
 /// Player intent, independent of keyboard bindings and windowing.
 struct PlayerControl {
@@ -10,4 +10,4 @@ struct PlayerControl {
     bool turn_left{}, turn_right{};
 };
 
-} // namespace sandbox
+} // namespace demo

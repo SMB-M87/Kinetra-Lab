@@ -9,7 +9,7 @@
 #include <random>
 #include <span>
 
-namespace sandbox {
+namespace demo {
 
 /// Sandbox patrol entity referencing a scene-owned physics body by a scene-remapped index.
 /// Seeded wander, commanded travel, route, visibility and replanning share one lifecycle.
@@ -209,4 +209,4 @@ class Agent {
     std::mt19937 random_;
 };
 
-} // namespace sandbox
+} // namespace demo

@@ -17,7 +17,7 @@ How Lab composes Kinetra's launcher, session requests and settings overlay into 
 ```mermaid
 flowchart LR
     Main["launcher/src/main.cpp<br/>arguments, seed"] --> Apps["launcher::applications()<br/>registrations in menu order"]
-    Apps --> Demo["sandbox::create_session"]
+    Apps --> Demo["demo::create_session"]
     Apps --> Dotio["dotio::create_session<br/>difficulty index"]
     Apps --> I4sim["i4sim::create_session"]
     Main --> Run["kinetra::run_launcher<br/>launcher::bindings"]
@@ -26,7 +26,7 @@ flowchart LR
 
 *Takeaway:* the launcher only decides which applications exist, in which order and with which camera; each application owns its session.
 
-- [applications.cpp](../launcher/src/applications.cpp) registers Demo, Dotio and i4sim in `launcher::Variant` order. Each factory resets the camera to the origin at the application's initial zoom (`sandbox::initial_zoom`, `dotio::initial_zoom`, `i4sim::initial_zoom`) and creates a fresh session.
+- [applications.cpp](../launcher/src/applications.cpp) registers Demo, Dotio and i4sim in `launcher::Variant` order. Each factory resets the camera to the origin at the application's initial zoom (`demo::initial_zoom`, `dotio::initial_zoom`, `i4sim::initial_zoom`) and creates a fresh session.
 - Dotio's configurations are its difficulty names from `dotio::difficulty_names()`; the launcher passes the chosen index back to `dotio::create_session`. The launcher never sees Dotio's difficulty type.
 - `--variant` starts an application directly through `launcher::selection()`, with the `--difficulty` from the command line.
 - Dotio's world is a singleton. `SessionHost` destroys the old session before the factory creates the next one, so two Dotio worlds never coexist.

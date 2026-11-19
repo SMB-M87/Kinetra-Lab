@@ -3,7 +3,7 @@
 #include "demo/input/player_control.h"
 #include <optional>
 
-namespace sandbox {
+namespace demo {
 
 enum class PointerAction { walk, teleport, target_agents, clear_selection };
 struct PointerCommand {
@@ -35,4 +35,4 @@ struct PresentationOptions {
 
 enum class ActionResult { none, walking, no_route, teleported, teleport_blocked, agent_goals_set };
 
-} // namespace sandbox
+} // namespace demo

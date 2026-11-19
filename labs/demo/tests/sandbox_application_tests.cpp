@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
-using namespace sandbox;
+using namespace demo;
 using namespace kinetra;
 
 namespace {
@@ -499,27 +499,27 @@ TEST_CASE("the command adapter keeps held controls and maps clicks to walking") 
     input.held[static_cast<std::size_t>(Key::space)] = true;
     input.pressed[static_cast<std::size_t>(Key::h)] = true;
     input.wheel = -2;
-    auto commands = sandbox::read_commands(input);
+    auto commands = demo::read_commands(input);
     CHECK_MESSAGE((commands.player.direction.y == 1 && commands.player.turn_left &&
                    commands.player.turn_right && commands.camera_pan.x == 1 && commands.zoom_steps == -2),
                   "Held controls lost in command adapter");
     CHECK_MESSAGE((!commands.toggle_pause && !commands.toggle_help && !commands.pointer),
                   "Held keys became toggles or an unclicked pointer became a command");
     input.held[static_cast<std::size_t>(Key::shift)] = true;
-    commands = sandbox::read_commands(input);
+    commands = demo::read_commands(input);
     CHECK_MESSAGE((commands.player.turn_right && commands.player.direction.x == 0),
                   "Shift+arrow rotation also translated the player");
     input.clicked = true;
     input.mouse = {12, 34};
-    commands = sandbox::read_commands(input);
-    CHECK_MESSAGE((commands.pointer->action == sandbox::PointerAction::walk &&
+    commands = demo::read_commands(input);
+    CHECK_MESSAGE((commands.pointer->action == demo::PointerAction::walk &&
                    commands.pointer->screen_position.x == 12 && commands.pointer->screen_position.y == 34),
                   "Plain click was not mapped to walking at logical mouse coordinates");
     input.held[static_cast<std::size_t>(Key::c)] = true;
-    CHECK_MESSAGE(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
+    CHECK_MESSAGE(demo::read_commands(input).pointer->action == demo::PointerAction::walk,
                   "Agent click mapping changed");
     input.held[static_cast<std::size_t>(Key::t)] = true;
-    CHECK_MESSAGE(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
+    CHECK_MESSAGE(demo::read_commands(input).pointer->action == demo::PointerAction::walk,
                   "T must not change click behavior");
 }
 

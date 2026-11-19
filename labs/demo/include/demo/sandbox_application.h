@@ -6,7 +6,7 @@
 #include "demo/world/tuning.h"
 #include <kinetra/runtime/timing.h>
 
-namespace sandbox {
+namespace demo {
 
 /// Coordinates a sandbox session without a window or renderer. The caller supplies
 /// elapsed time, intent and the current logical camera viewport, including on paused frames.
@@ -58,4 +58,4 @@ class SandboxApplication {
     void apply_pointer(const PointerCommand &command, const kinetra::Camera2D &camera);
 };
 
-} // namespace sandbox
+} // namespace demo

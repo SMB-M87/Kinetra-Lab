@@ -3,7 +3,7 @@
 #include <string>
 #include <utility>
 
-namespace sandbox {
+namespace demo {
 namespace {
 using kinetra::DebugEntry;
 using kinetra::DebugEntryKind;
@@ -160,4 +160,4 @@ void DebugPanel::apply(FrameCommands &commands, bool debug_mode, bool pointer_ca
              commands.pointer->action == PointerAction::walk)
         commands.pointer->action = PointerAction::target_agents;
 }
-} // namespace sandbox
+} // namespace demo

@@ -38,7 +38,7 @@ constexpr float settings_click_below_top = 5;
 constexpr float debug_click_x = kinetra::DebugMenu::label_left(2) + 2;
 
 launcher::Options capture_options() {
-    return {sandbox::default_agent_count, capture_seed, dotio::default_difficulty};
+    return {demo::default_agent_count, capture_seed, dotio::default_difficulty};
 }
 } // namespace
 

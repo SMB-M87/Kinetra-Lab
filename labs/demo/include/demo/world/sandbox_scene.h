@@ -12,7 +12,7 @@
 #include <optional>
 #include <set>
 
-namespace sandbox {
+namespace demo {
 using namespace kinetra;
 
 /// Largest number of circles that stand in for one terrain box in reciprocal avoidance.
@@ -486,4 +486,4 @@ class Sandbox {
         return true;
     }
 };
-} // namespace sandbox
+} // namespace demo

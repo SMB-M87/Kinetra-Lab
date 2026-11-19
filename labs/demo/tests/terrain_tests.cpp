@@ -29,7 +29,7 @@ bool same(const Body &a, const Body &b) {
            a.acceleration.y == b.acceleration.y && a.angular_velocity == b.angular_velocity &&
            a.mass == b.mass;
 }
-bool same(const sandbox::Terrain::Chunks &a, const sandbox::Terrain::Chunks &b) {
+bool same(const demo::Terrain::Chunks &a, const demo::Terrain::Chunks &b) {
     if (a.size() != b.size())
         return false;
     for (const auto &[coordinate, bodies] : a) {
@@ -43,7 +43,7 @@ bool same(const sandbox::Terrain::Chunks &a, const sandbox::Terrain::Chunks &b) 
     return true;
 }
 /// Checks that `terrain` rejects `view` with std::invalid_argument and keeps its chunks.
-void rejects(sandbox::Terrain &terrain, Aabb view) {
+void rejects(demo::Terrain &terrain, Aabb view) {
     const auto before = terrain.chunks();
     bool rejected = false;
     try {
@@ -66,16 +66,16 @@ Body wall_box(float angle) {
 }
 
 /// The default tuning, but with wander by planned routes; the home range stays 12 world units.
-sandbox::Tuning route_wander() {
-    sandbox::Tuning tuning;
-    tuning.wander.mode = sandbox::WanderMode::route;
+demo::Tuning route_wander() {
+    demo::Tuning tuning;
+    tuning.wander.mode = demo::WanderMode::route;
     return tuning;
 }
 
 /// Route wander that never turns back toward home. The cases that pin the legs of a freely
 /// roaming agent use it: they were written before agents had a home range.
-sandbox::Tuning free_route_wander() {
-    sandbox::Tuning tuning = route_wander();
+demo::Tuning free_route_wander() {
+    demo::Tuning tuning = route_wander();
     tuning.wander.range = 1e6f;
     return tuning;
 }
@@ -88,13 +88,13 @@ constexpr Aabb everywhere{{-1000, -1000}, {1000, 1000}};
 
 /// Moves `body` one tick toward `target` the way the scene moves an agent that has open
 /// space around it.
-void follow(Body &body, Vec2 target, const sandbox::Tuning &tuning) {
+void follow(Body &body, Vec2 target, const demo::Tuning &tuning) {
     Steering settings;
     settings.max_speed = tuning.motion.max_speed;
     settings.max_acceleration = tuning.motion.max_acceleration;
     settings.response_time = tuning.motion.response_time;
-    settings.slow_radius = sandbox::slow_radius;
-    settings.stop_radius = sandbox::stop_radius;
+    settings.slow_radius = demo::slow_radius;
+    settings.stop_radius = demo::stop_radius;
     body.acceleration = steer(body, target, {}, settings);
     integrate(body, tick_seconds);
 }
@@ -112,7 +112,7 @@ Body follower_player(Vec2 position) {
 } // namespace
 
 TEST_CASE("the demo population includes triangle pentagon and hexagon agents") {
-    sandbox::Sandbox shape_scene(10, 42);
+    demo::Sandbox shape_scene(10, 42);
     std::set<std::size_t> polygon_sides;
     for (const auto &agent : shape_scene.agents()) {
         const auto &body = shape_scene.world.body(agent.body_id());
@@ -125,7 +125,7 @@ TEST_CASE("the demo population includes triangle pentagon and hexagon agents") {
 }
 
 TEST_CASE("seeded terrain unloads distant chunks reloads unchanged and rejects invalid views") {
-    sandbox::Terrain terrain(42), repeat(42), different(43);
+    demo::Terrain terrain(42), repeat(42), different(43);
     const Aabb origin{{-40, -30}, {40, 30}};
     CHECK_MESSAGE(terrain.update(origin), "Initial terrain not loaded");
     const auto original = terrain.chunks();
@@ -158,7 +158,7 @@ TEST_CASE("seeded terrain unloads distant chunks reloads unchanged and rejects i
 }
 
 TEST_CASE("generated obstacles are static and disjoint inside their chunk and outside the spawn clearing") {
-    sandbox::Terrain terrain(736);
+    demo::Terrain terrain(736);
     terrain.update({{-160, -160}, {160, 160}});
     std::size_t count = 0;
     for (const auto &[coordinate, bodies] : terrain.chunks()) {
@@ -183,7 +183,7 @@ TEST_CASE("generated obstacles are static and disjoint inside their chunk and ou
 }
 
 TEST_CASE("scene streaming keeps the player and gravity and loads physics only near the view") {
-    sandbox::Sandbox scene(12, 42);
+    demo::Sandbox scene(12, 42);
     Camera2D camera;
     scene.stream(camera);
     const auto movers = scene.moving_body_count;
@@ -238,7 +238,7 @@ TEST_CASE("scene streaming keeps the player and gravity and loads physics only n
 }
 // Wander resumes at the destination, while dormant navigation remains frozen.
 TEST_CASE("agents wander on from reached goals and distant patrols are evicted") {
-    sandbox::Sandbox scene(12, 42);
+    demo::Sandbox scene(12, 42);
     // The assertions below are about wander routes; steering wander plans none.
     scene.tuning = route_wander();
     const auto id = scene.agents().front().body_id();
@@ -277,7 +277,7 @@ TEST_CASE("agent navigation stays frozen while dormant and holds position for un
     kinetra::Navigation navigation;
     navigation.rebuild({{-20, -20}, {20, 20}}, {});
     Body body;
-    sandbox::Agent agent(7, body.position);
+    demo::Agent agent(7, body.position);
     CHECK_MESSAGE((agent.body_id() == 7 && !agent.active()), "Agent identity or initial visibility changed");
     const auto tuning = route_wander();
     CHECK_MESSAGE((length(agent.advance_navigation(0.1f, body, navigation, tuning) - body.position) == 0 &&
@@ -308,7 +308,7 @@ TEST_CASE("seeded wandering picks new reachable destinations and yields to expli
     kinetra::Navigation nav;
     nav.rebuild({{-100, -100}, {100, 100}}, {});
     Body body;
-    sandbox::Agent a(0, {}, 123), repeat(0, {}, 123), other(0, {}, 456);
+    demo::Agent a(0, {}, 123), repeat(0, {}, 123), other(0, {}, 456);
     for (auto *agent : {&a, &repeat, &other})
         agent->update_visibility({{-100, -100}, {100, 100}}, body);
     // The twelve legs below leave the default home range, so the agent roams freely.
@@ -338,7 +338,7 @@ TEST_CASE("seeded wandering picks new reachable destinations and yields to expli
                   "Arrival must resume wandering around the new location");
     nav.rebuild({{-1, -1}, {1, 1}}, {});
     body.position = {};
-    sandbox::Agent enclosed(1, {});
+    demo::Agent enclosed(1, {});
     enclosed.update_visibility({{-1, -1}, {1, 1}}, body);
     enclosed.advance_navigation(1.f / 120, body, nav, tuning);
     CHECK_MESSAGE((enclosed.route().empty() && enclosed.replan_in() == 2),
@@ -348,7 +348,7 @@ TEST_CASE("seeded wandering picks new reachable destinations and yields to expli
 TEST_CASE("wandering curves before arrival and short timers do not interrupt commanded travel") {
     Navigation navigation;
     navigation.rebuild({{-100, -100}, {100, 100}}, {});
-    sandbox::Agent agent(0, {}, 123);
+    demo::Agent agent(0, {}, 123);
     Body body;
     body.motion = Motion::controlled;
     agent.update_visibility({{-100, -100}, {100, 100}}, body);
@@ -385,9 +385,9 @@ TEST_CASE("wandering curves before arrival and short timers do not interrupt com
 TEST_CASE("steering wander moves an agent on a curved course without planning a route") {
     // Never rebuilt, so every route query fails: steering wander must not need one.
     const Navigation navigation;
-    const sandbox::Tuning tuning;
-    REQUIRE_MESSAGE(tuning.wander.mode == sandbox::WanderMode::steering, "Steering is not the default");
-    sandbox::Agent agent(0, {}, 123);
+    const demo::Tuning tuning;
+    REQUIRE_MESSAGE(tuning.wander.mode == demo::WanderMode::steering, "Steering is not the default");
+    demo::Agent agent(0, {}, 123);
     Body body;
     body.motion = Motion::controlled;
     agent.update_visibility(everywhere, body);
@@ -417,8 +417,8 @@ TEST_CASE("steering wander moves an agent on a curved course without planning a 
 
 TEST_CASE("steering wander is repeatable for a seed and differs between seeds") {
     const Navigation navigation;
-    const sandbox::Tuning tuning;
-    sandbox::Agent agent(0, {}, 123), repeat(0, {}, 123), other(0, {}, 456);
+    const demo::Tuning tuning;
+    demo::Agent agent(0, {}, 123), repeat(0, {}, 123), other(0, {}, 456);
     Body body;
     body.motion = Motion::controlled;
     for (auto *each : {&agent, &repeat, &other})
@@ -438,9 +438,9 @@ TEST_CASE("steering wander is repeatable for a seed and differs between seeds") 
 
 TEST_CASE("steering wander returns an agent to its home range and keeps it there") {
     const Navigation navigation;
-    const sandbox::Tuning tuning;
+    const demo::Tuning tuning;
     const Vec2 home{3, -2};
-    sandbox::Agent agent(0, home, 123);
+    demo::Agent agent(0, home, 123);
     Body body;
     body.motion = Motion::controlled;
     // Well beyond the home range of 12 units.
@@ -464,8 +464,8 @@ TEST_CASE("steering wander returns an agent to its home range and keeps it there
 TEST_CASE("commanded travel plans a route for a steering wanderer and steering resumes on arrival") {
     Navigation navigation;
     navigation.rebuild({{-20, -20}, {20, 20}}, {});
-    const sandbox::Tuning tuning;
-    sandbox::Agent agent(0, {}, 123);
+    const demo::Tuning tuning;
+    demo::Agent agent(0, {}, 123);
     Body body;
     agent.update_visibility(everywhere, body);
     agent.advance_navigation(tick_seconds, body, navigation, tuning);
@@ -488,7 +488,7 @@ TEST_CASE("route wander starts its legs toward home beyond the home range") {
     navigation.rebuild({{-100, -100}, {100, 100}}, {});
     const auto tuning = route_wander();
     const Vec2 home{};
-    sandbox::Agent agent(0, home, 123);
+    demo::Agent agent(0, home, 123);
     Body body;
     body.position = {40, 0};
     agent.update_visibility(everywhere, body);
@@ -509,7 +509,7 @@ TEST_CASE("route wander starts its legs toward home beyond the home range") {
 }
 
 TEST_CASE("a crowded population spawns visible near the initial camera without overlapping the player") {
-    sandbox::Sandbox scene(240, 42);
+    demo::Sandbox scene(240, 42);
     CHECK_MESSAGE(scene.agents().size() == 240, "Crowded initial population was not created");
     Camera2D camera;
     camera.viewport = {1280, 800};
@@ -573,7 +573,7 @@ TEST_CASE("navigation rejects invalid areas and routes around walls to reachable
 }
 
 TEST_CASE("teleport walking and camera follow respect free space and manual input") {
-    sandbox::Sandbox scene(0, 42);
+    demo::Sandbox scene(0, 42);
     Camera2D camera;
     scene.stream(camera);
     CHECK_MESSAGE(scene.teleport({0, 0}), "Free teleport rejected");
@@ -588,7 +588,7 @@ TEST_CASE("teleport walking and camera follow respect free space and manual inpu
     CHECK_MESSAGE(length(scene.world.body(scene.player).position - Vec2{12, 0}) < 0.6f,
                   "Player failed to follow route to destination");
     CHECK_MESSAGE(scene.walk_to({-12, 0}), "Second walk route missing");
-    sandbox::PlayerControl input;
+    demo::PlayerControl input;
     input.direction = {0, 1};
     scene.update(1.f / 120, input);
     CHECK_MESSAGE((!scene.player_goal && scene.player_path.empty()),
@@ -617,7 +617,7 @@ TEST_CASE("the player and agents depart from static geometry they touch") {
             obstacle.radius = 1;
             obstacle.half_extents = {1, 4};
             obstacle.angle = angle;
-            sandbox::Sandbox scene(0, 42);
+            demo::Sandbox scene(0, 42);
             scene.world.clear();
             Body player;
             player.motion = Motion::controlled;
@@ -638,7 +638,7 @@ TEST_CASE("the player and agents depart from static geometry they touch") {
                 scene.update(1.f / 120, {});
             CHECK_MESSAGE(length(scene.world.body(scene.player).position - goal) < 0.45f,
                           "Player stayed stuck at static geometry");
-            sandbox::Agent agent(0, player.position, 42);
+            demo::Agent agent(0, player.position, 42);
             Body walker = player;
             walker.shape = Shape::circle;
             walker.radius = 0.32f;
@@ -685,7 +685,7 @@ TEST_CASE("open-space routes go straight and rotated boxes block only their own 
 
 TEST_CASE("the player follower detours around a wall and keeps a projected click endpoint") {
     const Body obstacle = wall_box(0);
-    sandbox::Sandbox scene(0, 42);
+    demo::Sandbox scene(0, 42);
     scene.world.clear();
     const Body player = follower_player({-12, 0});
     scene.player = scene.world.add(player);
@@ -713,7 +713,7 @@ TEST_CASE("the player follower detours around a wall and keeps a projected click
 // Agents use the same follower through the actual scene/physics integration.
 TEST_CASE("an agent follower arrives around a wall and physically resumes wandering") {
     const Body obstacle = wall_box(0);
-    sandbox::Sandbox crowd(1, 42);
+    demo::Sandbox crowd(1, 42);
     // The wall is added by hand below, so only a planned route knows about it: the scene
     // indexes the terrain it streamed in itself for agents that steer without a route.
     crowd.tuning = route_wander();
@@ -768,7 +768,7 @@ TEST_CASE("circle obstacles keep swept route clearance and occupied goals resolv
         CHECK_MESSAGE(nav.clear(previous, point), "Smoothed circle route lacks swept clearance");
         previous = point;
     }
-    sandbox::Agent agent(0, {-8, 0});
+    demo::Agent agent(0, {-8, 0});
     Body body;
     body.position = {-8, 0};
     agent.update_visibility({{-20, -20}, {20, 20}}, body);
@@ -780,7 +780,7 @@ TEST_CASE("circle obstacles keep swept route clearance and occupied goals resolv
 }
 
 TEST_CASE("a ghost camera neither activates agents nor rejects free teleports") {
-    sandbox::Sandbox scene(12, 42);
+    demo::Sandbox scene(12, 42);
     Camera2D camera;
     scene.stream(camera);
     std::vector<bool> active;
@@ -813,7 +813,7 @@ TEST_CASE("a ghost camera neither activates agents nor rejects free teleports") 
 }
 
 TEST_CASE("the population is seeded and dispersed and streams without duplicates or invalid handles") {
-    sandbox::Sandbox scene(100, 42), repeat(100, 42), different(100, 43);
+    demo::Sandbox scene(100, 42), repeat(100, 42), different(100, 43);
     bool spread = false, changed = false;
     for (std::size_t i = 0; i < scene.agents().size(); ++i) {
         const auto &body = scene.world.body(scene.agents()[i].body_id());
@@ -844,10 +844,10 @@ TEST_CASE("the population is seeded and dispersed and streams without duplicates
     camera.position = {};
     scene.stream(camera);
     CHECK_MESSAGE(same(player_before, scene.world.body(scene.player)), "Eviction mutated player");
-    CHECK_MESSAGE(scene.agents().size() <= sandbox::Sandbox::maximum_agents, "Population cap exceeded");
+    CHECK_MESSAGE(scene.agents().size() <= demo::Sandbox::maximum_agents, "Population cap exceeded");
 }
 TEST_CASE("orders reach only their agents and stalled commands resume wandering") {
-    sandbox::Sandbox scene(2, 42);
+    demo::Sandbox scene(2, 42);
     Camera2D selection_camera;
     selection_camera.viewport = {4000, 4000};
     scene.stream(selection_camera);
@@ -864,7 +864,7 @@ TEST_CASE("orders reach only their agents and stalled commands resume wandering"
     kinetra::Navigation navigation;
     navigation.rebuild({{-30, -30}, {30, 30}}, {});
     Body body;
-    sandbox::Agent agent(0, {});
+    demo::Agent agent(0, {});
     agent.update_visibility({{-30, -30}, {30, 30}}, body);
     agent.retarget({500, 500});
     for (int elapsed = 0; elapsed < 21; ++elapsed)

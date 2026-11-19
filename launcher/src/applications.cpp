@@ -18,8 +18,8 @@ std::vector<kinetra::ApplicationRegistration> applications(const Options &option
     std::vector<kinetra::ApplicationRegistration> result;
     result.push_back({{"DEMO", "PHYSICS AND NAVIGATION", {}, 0},
                       [options](kinetra::Camera2D &camera, std::size_t) -> std::unique_ptr<kinetra::Session> {
-                          reset(camera, sandbox::initial_zoom);
-                          return sandbox::create_session(options.agents, options.seed);
+                          reset(camera, demo::initial_zoom);
+                          return demo::create_session(options.agents, options.seed);
                       }});
     result.push_back(
         {{"DOTIO", "SURVIVAL", dotio::difficulty_names(), options.dotio_difficulty},

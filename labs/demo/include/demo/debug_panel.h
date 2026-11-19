@@ -10,7 +10,7 @@
 
 #include <vector>
 
-namespace sandbox {
+namespace demo {
 /// The colors of the Demo's debug layers: what the renderer draws them in and what their
 /// menu rows show as swatches.
 namespace layer_color {
@@ -37,7 +37,7 @@ struct DebugLayers {
 };
 
 /// Limits of the tuning rows, as {minimum, maximum, step, whether the step is a factor}.
-/// They keep every value valid for sandbox::validate() and for the steering code.
+/// They keep every value valid for demo::validate() and for the steering code.
 namespace tuning_step {
 inline constexpr kinetra::DebugStep max_speed{0.5f, 16, 1.25f, true}, max_acceleration{1, 64, 1.25f, true},
     response_time{0.05f, 2, 1.25f, true}, lookahead{0, 3, 0.1f}, clearance{0, 1, 0.05f},
@@ -106,4 +106,4 @@ class DebugPanel {
     /// Set by the RUNNING and SINGLE TICK rows; the next apply() turns them into commands.
     bool pause_requested_{}, step_requested_{};
 };
-} // namespace sandbox
+} // namespace demo

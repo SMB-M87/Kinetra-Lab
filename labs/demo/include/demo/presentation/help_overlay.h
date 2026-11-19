@@ -5,7 +5,7 @@
 #include <kinetra/runtime/help_view.h>
 #include <string_view>
 
-namespace sandbox {
+namespace demo {
 
 /// Draw a dependency-free bitmap legend in logical screen pixels, after the world.
 /// Converting each rectangle through the camera keeps the HUD independent of zoom and pan.
@@ -25,4 +25,4 @@ inline void draw_help(kinetra::Runtime &runtime, bool expanded) {
     kinetra::draw_help(runtime, lines, expanded);
 }
 
-} // namespace sandbox
+} // namespace demo

@@ -22,7 +22,7 @@ int argument(const char *value, int minimum, int maximum) {
 
 int main(int argc, char **argv) {
     try {
-        launcher::Options options{sandbox::default_agent_count, 0, dotio::default_difficulty};
+        launcher::Options options{demo::default_agent_count, 0, dotio::default_difficulty};
         int frame_limit = 0;
         std::optional<launcher::Variant> initial_variant;
         for (int i = 1; i < argc; ++i) {

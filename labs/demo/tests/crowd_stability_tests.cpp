@@ -20,8 +20,8 @@ constexpr int soak_ticks = 7200;
 /// Runs a 240-agent crowd that wanders by `wander` for `soak_ticks` frames and checks
 /// every tick that contact never exhausts the swept-event budget and that all motion
 /// stays finite.
-void soak(unsigned seed, sandbox::WanderMode wander) {
-    sandbox::SandboxApplication application(240, seed);
+void soak(unsigned seed, demo::WanderMode wander) {
+    demo::SandboxApplication application(240, seed);
     application.tuning().wander.mode = wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
@@ -44,10 +44,10 @@ void soak(unsigned seed, sandbox::WanderMode wander) {
 /// Checks that the agents around a player who stands still are still there a minute
 /// later. Before agents had a home range they walked out of the active area, fell asleep
 /// there and left the surroundings of the player empty: 1 of 48 was still awake.
-void check_agents_stay_around_a_standing_player(sandbox::WanderMode wander) {
+void check_agents_stay_around_a_standing_player(demo::WanderMode wander) {
     // One simulated second lets the first streaming pass populate and wake the area.
     constexpr int warm_up_ticks = 120;
-    sandbox::SandboxApplication application(48, 42);
+    demo::SandboxApplication application(48, 42);
     application.tuning().wander.mode = wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
@@ -71,21 +71,21 @@ void check_agents_stay_around_a_standing_player(sandbox::WanderMode wander) {
 } // namespace
 
 TEST_CASE("a dense crowd with seed 123 keeps finite motion and its sweep budget for 60 seconds") {
-    soak(123, sandbox::WanderMode::steering);
+    soak(123, demo::WanderMode::steering);
 }
 
 TEST_CASE("a dense crowd with seed 456 keeps finite motion and its sweep budget for 60 seconds") {
-    soak(456, sandbox::WanderMode::steering);
+    soak(456, demo::WanderMode::steering);
 }
 
 TEST_CASE("a dense crowd of route wanderers keeps finite motion and its sweep budget for 60 seconds") {
-    soak(123, sandbox::WanderMode::route);
+    soak(123, demo::WanderMode::route);
 }
 
 TEST_CASE("agents stay around a standing player when they wander by steering") {
-    check_agents_stay_around_a_standing_player(sandbox::WanderMode::steering);
+    check_agents_stay_around_a_standing_player(demo::WanderMode::steering);
 }
 
 TEST_CASE("agents stay around a standing player when they wander by route") {
-    check_agents_stay_around_a_standing_player(sandbox::WanderMode::route);
+    check_agents_stay_around_a_standing_player(demo::WanderMode::route);
 }
