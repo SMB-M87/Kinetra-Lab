@@ -22,7 +22,6 @@ Lab adopts the development cycle, verification levels and skills that are define
 
 - **Weak agent rules.** Lab's `AGENTS.md` (25 lines) contained only a build requirement and a copied documentation section. It required a full rebuild after every change, documentation included.
 - **Docs that contradict the code.** The architecture page and both launcher READMEs claimed that `kinetra::SessionHost` owns sessions. In reality, `launcher::run` (`launcher/src/session.cpp`, replaced by `run_launcher` in phase 3) runs its own loop with a `std::unique_ptr<lab::Session>`.
-- **Unprotected private material.** The local reference folders `files/` and `bms_files/` sat untracked in a public repository, one `git add -A` away from being published.
 
 ## Goals and non-goals
 
@@ -44,13 +43,11 @@ The decisions are recorded in the [Kinetra design document](../../external/Kinet
 | --- | --- | --- |
 | Skills in Lab | Symlinks `.agents/skills` and `.claude/skills` to `external/Kinetra/.agents/skills` | One skill set for both repositories; Codex and Claude Code each find their own path |
 | Drift in session ownership | Correct the docs to match the code now; change the code in a later phase | Documentation must describe implemented behavior |
-| Local reference folders | Ignore `files/` and `bms_files/` in `.gitignore` | They hold machine-local global rules and work examples that must not be published |
 
 ## Affected areas
 
 - `AGENTS.md`: rewritten (Lab-specific rules, test mapping, layers, submodule git).
 - `.agents/skills`, `.claude/skills`: symlinks.
-- `.gitignore`.
 - `docs/architecture.md`: build diagram, session sequence and text.
 - `launcher/src/README.md`, `launcher/include/README.md`: diagrams.
 - `docs/README.md`, `README.md`: links to the process and design documents.
