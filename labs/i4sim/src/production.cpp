@@ -23,7 +23,9 @@ std::uint64_t Production::add_product(ProductKind kind, std::size_t movers, std:
     if (products_.size() >= std::max<std::size_t>(1, movers))
         throw std::runtime_error("Local workload capacity reached");
     const auto id = next_product_++;
-    Product p{id, kind};
+    Product p;
+    p.id = id;
+    p.kind = kind;
     p.created = tick;
     products_.push_back(p);
     return id;
@@ -72,7 +74,7 @@ void Production::schedule(Product &product, Goals &goals) {
                 continue;
             const double transport =
                 product.mover ? 1 + distance(fleet.movers[*product.mover].body.position, goal) : 1;
-            const double cost = (3 + 5 * p.queue.size()) * transport;
+            const double cost = double(3 + 5 * p.queue.size()) * transport;
             if (cost < best) {
                 best = cost;
                 product.producer = i;

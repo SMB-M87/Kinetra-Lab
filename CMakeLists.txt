@@ -37,4 +37,6 @@ if(KINETRA_LAB_WARNINGS)
     endif()
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs RECURSE ${lab_warning_mode})
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/launcher RECURSE ${lab_warning_mode})
+    # Modules that a roadmap phase made warning-free keep it that way.
+    kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/i4sim RECURSE AS_ERRORS)
 endif()

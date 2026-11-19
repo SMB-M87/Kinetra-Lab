@@ -113,8 +113,8 @@ struct Producer {
     std::uint64_t interactions{}, processing_ticks{}, idle_ticks{};
 };
 struct Product {
-    std::uint64_t id;
-    ProductKind kind;
+    std::uint64_t id{};
+    ProductKind kind{};
     ProductState state{ProductState::waiting};
     std::size_t step{};
     std::optional<std::size_t> mover, producer;
