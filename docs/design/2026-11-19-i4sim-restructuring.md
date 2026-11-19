@@ -221,5 +221,5 @@ Not run: a desktop playtest, because the session did not change.
 ## Open points
 
 - `stalled` in `Mover` is written but never read. Step 2 removes it.
-- Parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory can race: a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`, and passed on a rerun. This predates this branch.
+- Resolved in [blueprint copy race](2026-11-19-blueprint-copy-race.md): parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory raced, and a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`. The catalog is now copied once per build.
 - The `disabled` end reason is effectively unreachable, because `configure_motion` sets every moving mover's goal again and so ends plans as `goal_changed` first. Phase 7 decides whether disabling should end plans with their own reason.

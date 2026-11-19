@@ -6,14 +6,38 @@ target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation PRIVA
 target_compile_features(kinetra_i4sim_application PUBLIC cxx_std_20)
 # Keep resources beside every executable that can open the factory. Resolve their
 # location at runtime so moving a complete bundle does not retain a build-machine path.
+# All executables share CMAKE_RUNTIME_OUTPUT_DIRECTORY, so one target copies the catalog
+# once per build. A copy per executable raced: concurrent `cmake -E copy_directory` runs
+# into one directory fail with "No such file or directory" when executables link in parallel.
+if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    message(FATAL_ERROR "The i4sim blueprint copy needs CMAKE_RUNTIME_OUTPUT_DIRECTORY, "
+        "which the root CMakeLists.txt sets for all executables")
+endif()
+get_property(kinetra_i4sim_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+set(kinetra_i4sim_blueprint_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+if(kinetra_i4sim_multi_config)
+    # Multi-config generators append the configuration to the output directory.
+    string(APPEND kinetra_i4sim_blueprint_directory "/$<CONFIG>")
+endif()
+# Always out of date, so every build refreshes the catalog: edited, added or renamed
+# blueprints arrive without a file list or a relink (the former copy ran only after a
+# relink). Dependents wait for it but do not relink because of it.
+add_custom_target(kinetra_i4sim_blueprints ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
+        "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"
+    COMMENT "Copying i4sim blueprints"
+    VERBATIM)
+# Makes `target` build after the blueprint copy. Fails at configure time when the target
+# writes its executable outside the shared output directory, where it would miss the catalog.
 function(kinetra_i4sim_bundle_blueprints target)
-    add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "$<TARGET_PROPERTY:kinetra_i4sim_application,SOURCE_DIR>/blueprints"
-            "$<TARGET_FILE_DIR:${target}>/i4sim-blueprints"
-        VERBATIM)
+    get_target_property(output_directory ${target} RUNTIME_OUTPUT_DIRECTORY)
+    if(NOT output_directory STREQUAL CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+        message(FATAL_ERROR "${target} writes to '${output_directory}', but the i4sim blueprints "
+            "are copied to CMAKE_RUNTIME_OUTPUT_DIRECTORY '${CMAKE_RUNTIME_OUTPUT_DIRECTORY}'")
+    endif()
+    add_dependencies(${target} kinetra_i4sim_blueprints)
 endfunction()
-file(COPY blueprints/ DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/i4sim-blueprints")
 add_executable(kinetra_i4sim src/main.cpp)
 target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_application)
 kinetra_i4sim_bundle_blueprints(kinetra_i4sim)
