@@ -76,7 +76,19 @@ git commit -m "<type>(<scope>): <summary>"
 git push -u origin <type>/<topic>
 ```
 
-Once Kinetra merges with a merge commit, the pointer stays reachable from Kinetra's `main` and no further Lab commit is needed. If the Kinetra pull request was squashed instead, move the pointer to the merged commit in a follow-up Lab commit. To record the merge commit itself, see [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main).
+Once Kinetra merges, move the pointer on the Lab branch to Kinetra's merge commit before the Lab pull request merges, so Lab `main` always records a commit on Kinetra `main` ([rule](../AGENTS.md#git-with-the-engine-submodule)). The branch commit stays reachable after a merge-commit merge, but it is not the tip of `main`, so a submodule on `main` would show as modified:
+
+```sh
+git -C external/Kinetra fetch origin
+git -C external/Kinetra switch main
+git -C external/Kinetra pull --ff-only
+git -C external/Kinetra diff --stat <recorded commit> HEAD   # empty: the verification stands
+git add external/Kinetra
+git commit -m "build(deps): record Kinetra main (<commit>)"
+git push
+```
+
+When the diff is not empty, Kinetra `main` gained other changes; verify the Lab branch again before pushing. If the Kinetra pull request was squashed, the same steps move the pointer to the squashed commit. If the Lab pull request merged first, [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main) in a small pointer pull request.
 
 ## Change Kinetra in a standalone checkout
 

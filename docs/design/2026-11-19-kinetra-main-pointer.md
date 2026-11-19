@@ -35,6 +35,7 @@ Lab records `d0877b6`, the last commit of Kinetra's `feat/debug-menu-steppers` b
 | --- | --- | --- |
 | Record the merge commit | Yes | Asked by the user on 2026-11-19 ("die moet weer gepushed worden") |
 | Kinetra pull request | Not needed | `4af2d97` is already on Kinetra `main` |
+| Prevent a third time | A rule in Lab [AGENTS.md](../../AGENTS.md#git-with-the-engine-submodule) and the steps in [External dependencies](../../external/README.md#change-kinetra-from-inside-lab): after the Kinetra merge, move the Lab branch's pointer to the merge commit before the Lab pull request merges | Chosen by the user. The old text said no further Lab commit was needed after a merge-commit merge, which is true for reachability but leaves Lab off Kinetra `main` |
 
 ## Design
 
@@ -43,6 +44,7 @@ One pointer commit, following [External dependencies](../../external/README.md).
 ## Affected areas
 
 - `external/Kinetra` pointer; this document and the design index.
+- `AGENTS.md` (Git with the engine submodule) and `external/README.md` (the step after the Kinetra merge).
 
 ## Test plan
 
@@ -53,7 +55,7 @@ One pointer commit, following [External dependencies](../../external/README.md).
 
 ## Review
 
-- The diff is the pointer line, this document and its index row; nothing else.
+- The diff is the pointer line, this document, its index row, and the new rule with its steps; no code.
 
 ## Verification
 
@@ -74,6 +76,7 @@ Records Kinetra's `main` merge commit `4af2d97` (SMB-M87/Kinetra#10) instead of 
 
 ## Changes
 - `external/Kinetra`: `d0877b6` → `4af2d97`.
+- `AGENTS.md` and `external/README.md`: once the Kinetra pull request is merged, the Lab branch's pointer moves to the Kinetra merge commit before the Lab pull request merges, so this does not happen a third time.
 - Design document and index row.
 
 ## Design
@@ -86,7 +89,7 @@ Records Kinetra's `main` merge commit `4af2d97` (SMB-M87/Kinetra#10) instead of 
 - `check_docs.py`: all links resolve.
 
 ## Review notes
-Only the pointer line and the design document change.
+No code changes: the pointer line, the new rule and its steps, and the design document.
 
 ## Dependencies and merge order
 None; `4af2d97` is already on Kinetra `main`.
