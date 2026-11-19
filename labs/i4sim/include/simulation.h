@@ -27,6 +27,9 @@ std::vector<Interaction> recipe(ProductKind kind);
 struct Mover {
     MoverDefinition definition;
     kinetra::Body body;
+    /// Center at the start of the last tick, in millimeters; drawing blends it with
+    /// `body.position` by Simulation::interpolation(). Never read by the simulation.
+    Vec2 previous_position;
     Vec2 parking, destination;
     bool blocked{}, moving{}, unreachable{};
     std::optional<std::uint64_t> product;
@@ -105,6 +108,10 @@ class Simulation {
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const { return events_; }
     void single_step();
+    /// Fraction of the next tick that advance() has accumulated, in [0, 1): how far drawing
+    /// should blend from each mover's `previous_position` to its `body.position`. One while
+    /// paused, so a paused or single-stepped scene shows its exact state.
+    double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
     bool paused{true}, workload{true};
     void advance(double elapsed);
     void tick();

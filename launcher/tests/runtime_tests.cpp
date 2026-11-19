@@ -62,11 +62,11 @@ std::array<unsigned char, 4> pixel(Runtime &runtime, Vec2 point) {
 /// A panel with the same rows as a Lab session's, used to address its buttons and to
 /// mirror which help sections are open.
 struct PanelLayout {
-    bool statistics{}, debug{};
+    bool statistics{}, debug{}, frame_times{};
     SettingsOverlay overlay;
     Camera2D camera;
     explicit PanelLayout(std::size_t sim_lines, Vec2 viewport)
-        : overlay(lab::settings_rows([] { return ZoomLimits{1, 2}; }, statistics, debug,
+        : overlay(lab::settings_rows([] { return ZoomLimits{1, 2}; }, statistics, debug, frame_times,
                                      std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
         camera.viewport = viewport;
         Input open;
@@ -85,7 +85,7 @@ struct PanelLayout {
         return pointer;
     }
 };
-constexpr std::size_t sim_row = 3, debug_controls_row = 4;
+constexpr std::size_t sim_row = 4, debug_controls_row = 5;
 } // namespace
 
 TEST_CASE("the debug toolbar button shows its full label") {

@@ -168,7 +168,7 @@ Simulation::Simulation(Blueprint b, std::uint32_t seed)
         mover_max_half_.x = std::max(mover_max_half_.x, m.body.half_extents.x);
         mover_max_half_.y = std::max(mover_max_half_.y, m.body.half_extents.y);
         m.body.position = definition.position + m.body.half_extents;
-        m.parking = m.destination = m.body.position;
+        m.parking = m.destination = m.previous_position = m.body.position;
         if (grid_.blocked(grid_.cell(m.parking)))
             throw std::runtime_error("Mover starts in a forbidden cell: " + definition.id);
         movers_.push_back(m);
@@ -1269,6 +1269,8 @@ void Simulation::tick() {
         return;
     }
     ++ticks_;
+    for (auto &m : movers_)
+        m.previous_position = m.body.position;
     if (workload && products_.size() < movers_.size())
         add_product((random_() % 2) ? ProductKind::trimmer : ProductKind::personalized);
     if (ticks_ % 10 == 1)

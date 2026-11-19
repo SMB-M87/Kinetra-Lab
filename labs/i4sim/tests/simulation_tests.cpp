@@ -1364,6 +1364,28 @@ TEST_CASE("crossing encounters reach both goals without contacts") {
     check_encounters(true);
 }
 
+TEST_CASE("drawing interpolates between a mover's last two ticks") {
+    Simulation simulation(
+        load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+    simulation.workload = false;
+    REQUIRE(simulation.move_to(0, {1900, 800}));
+    CHECK_MESSAGE(simulation.interpolation() == 1, "A paused simulation shows its exact state");
+    CHECK(distance(simulation.movers()[0].previous_position, simulation.movers()[0].body.position) == 0);
+    simulation.paused = false;
+    simulation.updates_per_second(4); // binary fractions keep the clock exact
+    for (int tick = 0; tick < 20; ++tick)
+        simulation.advance(0.25);
+    const auto before = simulation.movers()[0].body.position;
+    simulation.advance(0.375);
+    const auto &mover = simulation.movers()[0];
+    CHECK_MESSAGE(distance(mover.previous_position, before) == 0,
+                  "previous_position is the start of the last tick");
+    CHECK(distance(mover.body.position, before) > 0);
+    CHECK(simulation.interpolation() == doctest::Approx(0.5));
+    simulation.paused = true;
+    CHECK(simulation.interpolation() == 1);
+}
+
 TEST_CASE("the bundled catalog holds fourteen blueprints that all load") {
     const auto files = discover_blueprints(default_blueprint_directory());
     REQUIRE_MESSAGE(files.size() == 14, "Original blueprint bundle is incomplete");

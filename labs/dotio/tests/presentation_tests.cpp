@@ -20,7 +20,8 @@ namespace {
 /// The settings toolbar a Dotio session draws over the world, over `application`'s flags.
 kinetra::SettingsOverlay settings_for(dotio::Application &application) {
     return kinetra::SettingsOverlay(lab::settings_rows([] { return dotio::zoom_limits; },
-                                                       application.statistics, application.debug, {}, {}),
+                                                       application.statistics, application.debug,
+                                                       application.frame_times, {}, {}),
                                     &application.debug);
 }
 } // namespace
@@ -139,6 +140,34 @@ int statistics_bands() {
     return bands;
 }
 } // namespace
+
+TEST_CASE("drawing interpolates the player and leaves the simulation untouched") {
+    Runtime reopened("Dotio interpolation", 320, 240);
+    dotio::Application application(42);
+    dotio::Commands commands;
+    commands.direction = {1, 0};
+    application.advance(0, commands, reopened.camera);
+    // Five whole 60 Hz ticks and half of the next one; the clock runs at most eight a frame.
+    application.advance(5.5 / 60, commands, reopened.camera);
+    CHECK(application.interpolation() == doctest::Approx(0.5).epsilon(0.01));
+    const auto objects = application.moving_objects().size();
+    REQUIRE((application.before_tick().size() == objects && application.after_tick().size() == objects));
+    auto &player = application.world().GetPlayer();
+    const auto simulated = player.Position;
+    const auto offset = application.world().WorldOffset();
+    REQUIRE(application.after_tick()[0]);
+    CHECK_MESSAGE((application.after_tick()[0]->X == simulated.X + offset.X &&
+                   application.after_tick()[0]->Y == simulated.Y + offset.Y),
+                  "The snapshot after the last tick must match the simulated player");
+    CHECK_MESSAGE(application.before_tick()[0]->X != application.after_tick()[0]->X,
+                  "The moving player did not move during the last tick");
+    const auto camera = reopened.camera.position;
+    dotio::render(reopened, application, settings_for(application));
+    CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
+                  "Drawing left the interpolated position in the simulation");
+    CHECK_MESSAGE((reopened.camera.position.x == camera.x && reopened.camera.position.y == camera.y),
+                  "Drawing left the camera on the interpolated player");
+}
 
 TEST_CASE("wall colors vary across the map without seams or low contrast") {
     const auto first_color = dotio::wall_color(-120, 30);

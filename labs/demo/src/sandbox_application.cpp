@@ -3,6 +3,15 @@
 #include <cmath>
 
 namespace sandbox {
+namespace {
+std::vector<SandboxApplication::Pose> poses(const kinetra::World &world) {
+    std::vector<SandboxApplication::Pose> result;
+    result.reserve(world.bodies().size());
+    for (const auto &body : world.bodies())
+        result.push_back({body.position, body.angle});
+    return result;
+}
+} // namespace
 
 SandboxApplication::SandboxApplication(int agent_count, std::uint32_t seed) : scene_(agent_count, seed) {
 }
@@ -73,10 +82,31 @@ void SandboxApplication::advance(double elapsed, const FrameCommands &commands, 
     // Consume clock time even when paused, so resuming cannot replay paused time.
     const int steps = clock_.advance(elapsed);
     if (!paused_)
-        for (int i = 0; i < steps; ++i)
+        for (int i = 0; i < steps; ++i) {
+            if (i == steps - 1)
+                before_tick_ = poses(scene_.world);
             scene_.update(float(clock_.step()),
                           commands.debug && commands.ghost ? PlayerControl{} : commands.player);
+            if (i == steps - 1)
+                after_tick_ = poses(scene_.world);
+        }
     scene_.follow(camera);
+}
+
+SandboxApplication::Pose SandboxApplication::presented_pose(std::size_t id) const {
+    const auto &body = scene_.world.body(id);
+    const Pose exact{body.position, body.angle};
+    if (paused_ || id >= after_tick_.size() || id >= before_tick_.size())
+        return exact;
+    // Anything but the last tick moved this body, or the id now names another body.
+    const auto &after = after_tick_[id];
+    if (after.position.x != body.position.x || after.position.y != body.position.y ||
+        after.angle != body.angle)
+        return exact;
+    const auto blend = float(clock_.interpolation());
+    const auto &before = before_tick_[id];
+    return {kinetra::lerp(before.position, body.position, blend),
+            kinetra::lerp_angle(before.angle, body.angle, blend)};
 }
 
 } // namespace sandbox

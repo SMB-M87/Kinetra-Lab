@@ -1,5 +1,5 @@
 // Headless tests for the Demo application layer: input commands, pause, camera,
-// pointer actions, avoidance mode and player intent, without a window.
+// pointer actions, avoidance mode, player intent and drawn poses, without a window.
 #include "../include/sandbox_application.h"
 #include "../include/sandbox_input.h"
 
@@ -207,4 +207,33 @@ TEST_CASE("the command adapter keeps held controls and maps clicks to walking") 
     input.held[static_cast<std::size_t>(Key::t)] = true;
     CHECK_MESSAGE(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
                   "T must not change click behavior");
+}
+
+TEST_CASE("drawn poses lie between the last two ticks and snap after a teleport or pause") {
+    SandboxApplication application(0, 42);
+    Camera2D camera;
+    FrameCommands commands;
+    commands.player.direction = {1, 0};
+    // Ten whole ticks and half of the next one.
+    application.advance(10.5 / 120, commands, camera);
+    const auto player = application.scene().player;
+    const auto exact = player_position(application);
+    const auto drawn = application.presented_pose(player).position;
+    CHECK_MESSAGE(length(exact - drawn) > 0, "A moving player was drawn at its simulated position");
+    // The player moves at most 4 units per second, so half a tick is under 4 / 240 units.
+    CHECK_MESSAGE(length(exact - drawn) < 4.f / 240, "The drawn player is not within the last tick");
+    commands = {};
+    commands.debug = commands.ghost = true;
+    commands.pointer = PointerCommand{PointerAction::walk, camera.world_to_screen({0, 0})};
+    application.advance(0, commands, camera);
+    REQUIRE(application.last_action() == ActionResult::teleported);
+    CHECK_MESSAGE(length(application.presented_pose(player).position - player_position(application)) == 0,
+                  "A teleported player was drawn between its old and new place");
+    commands = {};
+    commands.player.direction = {1, 0};
+    application.advance(10.5 / 120, commands, camera);
+    commands.toggle_pause = true;
+    application.advance(0, commands, camera);
+    CHECK_MESSAGE(length(application.presented_pose(player).position - player_position(application)) == 0,
+                  "A paused scene must show its exact state");
 }

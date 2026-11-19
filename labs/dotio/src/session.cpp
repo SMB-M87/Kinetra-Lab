@@ -11,7 +11,7 @@ class DotioSession final : public lab::Session {
     // Declared after the application whose flags it borrows.
     kinetra::SettingsOverlay settings_{
         lab::settings_rows([this] { return application_.debug ? debug_zoom_limits : zoom_limits; },
-                           application_.statistics, application_.debug,
+                           application_.statistics, application_.debug, application_.frame_times,
                            {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
                            {"GHOST CLICK  TELEPORT"}),
         &application_.debug};

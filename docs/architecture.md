@@ -77,7 +77,15 @@ sequenceDiagram
 
 The bundled launcher calls `kinetra::run_launcher` with Lab's registrations and bindings ([launcher](../launcher/README.md)). `SessionHost` owns at most one session. Each session returns its `kinetra::SettingsOverlay`'s request (LAUNCHER gives `menu`, EXIT gives `exit`), and i4sim's blueprint screen adds its own `menu` request on Escape or M.
 
-Runtime outlives every session; sessions own application state. Applications choose timing, bindings, pause behavior and world residency. Debug overlay pointers and callbacks borrow application state and must remain valid during update and draw. The direct executables (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) use the core `run_session` loop.
+Runtime outlives every session; sessions own application state. Applications choose timing, bindings, pause behavior and world residency.
+
+**Drawing between ticks.** Each application keeps the state of its moving objects before and after the last fixed tick and draws them at the fraction of the next tick already accumulated (`FixedClock::interpolation()`), so motion stays even when one frame runs more ticks than the next. A paused scene, and any object that changed outside the last tick (a teleport, Demo's chunk streaming renumbering bodies, a Dotio slot reused by a new enemy), is drawn at its exact state. The snapshots are presentation state: no simulation decision reads them, so seeded runs and characterization fingerprints are unchanged.
+
+| Application | Snapshot | How drawing uses it |
+| --- | --- | --- |
+| i4sim | `Mover::previous_position`, set at the start of every tick | `Simulation::interpolation()`; the session draws movers, their labels and debug vectors at the blended position |
+| Demo | Every world body's position and angle before and after the last tick, in `SandboxApplication` | `presented_pose(id)`; the renderer draws moving bodies, routes and markers there and moves the camera with the drawn player for that frame only |
+| Dotio | Positions of the player and every enemy, arrow and bolt slot, with the world offset added so a streaming shift cancels out | The ported logic draws itself from `Position`, so the presentation swaps the blended positions in for one frame and restores them afterwards | Debug overlay pointers and callbacks borrow application state and must remain valid during update and draw. The direct executables (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) use the core `run_session` loop.
 
 [Launcher and overlays](launcher-overlays.md) details factory failure and transition isolation. [Demo architecture](demo-architecture.md) and [Dotio architecture](dotio-architecture.md) describe their different simulation ownership and coordinate policies.
 

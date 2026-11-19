@@ -17,6 +17,17 @@ class SandboxApplication {
     const PresentationOptions &presentation() const { return presentation_; }
     bool paused() const { return paused_; }
     ActionResult last_action() const { return last_action_; }
+    /// Position and angle of a body as drawn.
+    struct Pose {
+        kinetra::Vec2 position;
+        float angle{};
+    };
+    /// Pose of world body `id` for drawing: between its states before and after the last
+    /// fixed tick, by how much of the next tick has accumulated, so motion stays even when
+    /// frames run different numbers of ticks. A body that changed since that tick (teleport,
+    /// streaming that renumbered bodies) or a paused scene shows its exact state. Throws
+    /// std::out_of_range for an invalid id.
+    Pose presented_pose(std::size_t id) const;
 
   private:
     Sandbox scene_;
@@ -24,6 +35,8 @@ class SandboxApplication {
     PresentationOptions presentation_;
     bool paused_{}, gravity_{};
     ActionResult last_action_{};
+    /// Every world body's pose before and after the last tick; presentation only.
+    std::vector<Pose> before_tick_, after_tick_;
 
     void apply_actions(const FrameCommands &commands);
     void update_camera(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);

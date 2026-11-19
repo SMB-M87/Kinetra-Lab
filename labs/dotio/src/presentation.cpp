@@ -62,6 +62,39 @@ Color state_color(logic::Enemy &enemy) {
            : enemy.IsAttacking()  ? Color{1, 0, 0}
                                   : Color{0, 0.5f, 1};
 }
+/// Moves the player, enemies, arrows and bolts to their interpolated positions for one
+/// frame's drawing and puts the simulated positions back on destruction. The ported logic
+/// draws itself from `Position`, so the positions are swapped in rather than passed down.
+class PresentedPositions {
+    std::vector<std::pair<logic::StaticObject *, gmath::Vec2>> simulated_;
+
+  public:
+    explicit PresentedPositions(Application &application) {
+        const auto &before = application.before_tick();
+        const auto &after = application.after_tick();
+        const auto objects = application.moving_objects();
+        const auto offset = application.world().WorldOffset();
+        const auto blend = float(application.interpolation());
+        for (std::size_t i = 0; i < objects.size() && i < before.size() && i < after.size(); ++i) {
+            auto *object = objects[i];
+            if (!object->IsActive || !before[i] || !after[i])
+                continue;
+            // Anything but the last tick moved it (teleport, respawn into the slot): exact.
+            const auto absolute = object->Position + offset;
+            if (absolute.X != after[i]->X || absolute.Y != after[i]->Y)
+                continue;
+            simulated_.emplace_back(object, object->Position);
+            object->Position = {before[i]->X + (after[i]->X - before[i]->X) * blend - offset.X,
+                                before[i]->Y + (after[i]->Y - before[i]->Y) * blend - offset.Y};
+        }
+    }
+    ~PresentedPositions() {
+        for (auto &[object, position] : simulated_)
+            object->Position = position;
+    }
+    PresentedPositions(const PresentedPositions &) = delete;
+    PresentedPositions &operator=(const PresentedPositions &) = delete;
+};
 void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
     runtime.box(runtime.camera.screen_to_world(center), half / runtime.camera.pixels_per_unit, 0, color);
 }
@@ -69,6 +102,13 @@ void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
 
 void render(Runtime &runtime, Application &application, const SettingsOverlay &settings) {
     auto &world = application.world();
+    // The camera follows the drawn player, not the simulated one, or the player would jitter
+    // on screen; Ghost moves per frame and needs no correction. Restored after the frame.
+    const Vec2 simulated_camera = runtime.camera.position;
+    const auto simulated_player = to_world(world.GetPlayer().Position);
+    const PresentedPositions presented(application);
+    if (!application.ghost)
+        runtime.camera.position += to_world(world.GetPlayer().Position) - simulated_player;
     runtime.begin({0, 0, 0});
     Renderer renderer(runtime);
     // Cull generated arena geometry against the active camera.
@@ -216,8 +256,11 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     }
     const auto options = application.debug_options();
     application.menu.draw(runtime, options);
+    if (application.frame_times)
+        draw_frame_times(runtime, runtime.frame_times());
     settings.draw(runtime);
     runtime.end();
+    runtime.camera.position = simulated_camera;
 }
 
 std::string status_text(Application &application) {

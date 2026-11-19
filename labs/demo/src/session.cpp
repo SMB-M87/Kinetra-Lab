@@ -13,11 +13,12 @@ class DemoSession final : public lab::Session {
     kinetra::DebugMenu menu_;
     bool vectors_{true}, paths_{true}, collisions_{true}, agents_{true}, debug_{true}, probes_{true};
     bool ghost_{}, gravity_{}, goals_{};
-    bool statistics_{true};
+    bool statistics_{true}, frame_times_{};
     bool reciprocal_{true};
     // Declared after the flags it borrows.
     kinetra::SettingsOverlay settings_{
         lab::settings_rows([this] { return debug_ ? debug_zoom_limits : zoom_limits; }, statistics_, debug_,
+                           frame_times_,
                            {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL", "Q / E  ROTATE PLAYER",
                             "SHIFT + LEFT / RIGHT  ROTATE"},
                            {"GHOST CLICK  TELEPORT"}),
@@ -71,7 +72,8 @@ class DemoSession final : public lab::Session {
     void render(kinetra::Runtime &runtime) override {
         const auto entries = options();
         sandbox::render(runtime, application_, &menu_, entries, debug_ && collisions_, debug_ && agents_,
-                        statistics_, fps_.rate(), &settings_);
+                        statistics_, fps_.rate(), &settings_,
+                        frame_times_ ? &runtime.frame_times() : nullptr);
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Demo"; }
