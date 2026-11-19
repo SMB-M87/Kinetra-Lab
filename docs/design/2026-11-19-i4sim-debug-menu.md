@@ -1,6 +1,6 @@
 # i4sim debug menu: sections, lists and layer parts
 
-Status: accepted · Branch: `feat/i4sim-debug-menu` · Related: [Kinetra design: debug menu steppers](https://github.com/SMB-M87/Kinetra/blob/feat/debug-menu-steppers/docs/design/2026-11-19-debug-menu-steppers.md), [i4sim](../../labs/i4sim/README.md), [launcher and overlays](../launcher-overlays.md)
+Status: implemented · Branch: `feat/i4sim-debug-menu` · Related: [Kinetra design: debug menu steppers](https://github.com/SMB-M87/Kinetra/blob/feat/debug-menu-steppers/docs/design/2026-11-19-debug-menu-steppers.md), [i4sim](../../labs/i4sim/README.md), [launcher and overlays](../launcher-overlays.md)
 
 The user finds i4sim's debug menu clumsy compared with Dotio, where clicking PATHS opens a list of sub-paths under it. This change rebuilds the i4sim menu into sections that open under their heading, with lists for the settings that have named values, `[-] [+]` buttons next to every number, and parts under the PATHS, FORCES and BORDERS layers, so each one can be turned off on its own. The `[-] [+]` buttons are a Kinetra change that merges first.
 
@@ -190,16 +190,75 @@ classDiagram
 
 ## Review
 
-Filled in after the review.
+`/code-review` (high) on `main...feat/i4sim-debug-menu`, three findings:
+
+| Finding | Resolution |
+| --- | --- |
+| Choosing the value a list already has still ran `change_motion`, which replans every route and clears the message | Fixed in `fix(i4sim)`: the choice only closes the list. Test "choosing the current value only closes the list", which fails without the fix |
+| PREDICTIVE PASS returned an empty value, so the engine appended a trailing space | Fixed: the value is set only for a legacy profile |
+| The full LAYERS section (24 rows) overflows windows lower than about 650 pixels | Kept: it fits the default 1280 × 800 window and one section is open at a time. Recorded as an open point in the [module README](../../labs/i4sim/README.md#open-points) |
+
+The Kinetra half was reviewed in its own design document.
 
 ## Verification
 
-Filled in after verification.
+Full level with graphics (presentation, session, launcher test and pointer change), in WSL2 with WSLg, on the final commit with `external/Kinetra` at `d0877b6`:
+
+| Command | Result |
+| --- | --- |
+| `cmake --build --preset dev --target kinetra_i4sim_controller_tests kinetra_i4sim_presentation kinetra_i4sim` and `ctest --preset dev -R '^kinetra_i4sim_controller'` | 40/40 passed, no warnings (after each commit; 33, 37 and 39 cases on the way) |
+| `ctest --preset graphics -R kinetra_i4sim_graphics` | Passed after each feature commit |
+| `cmake --workflow --preset ci` | 194/194 passed, no warnings |
+| `cmake --workflow --preset headless` | 187/187 passed |
+| `cmake --workflow --preset graphics` | 207/207 passed. The first full run failed `kinetra_graphics: demo and i4sim start with every visual debug layer on`, which read the old View page's check boxes; fixed in `test(launcher)` |
+| `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build-graphics/kinetra --variant demo --frames 120`, and the same with `--variant i4sim` | Both exit 0 |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| Visual check | Offscreen captures of the LAYERS and MOTION sections (swatches, indentation, `[*]` list, `[-] [+]` with hover); the LAYERS capture is the new `docs/media/i4sim-debug.png` |
+
+Not run: the Windows cross build (no Windows-specific file changed) and a desktop playtest on real hardware.
 
 ## Pull request
 
-Filled in when the branch is complete.
+Title: `feat(i4sim): sectioned debug menu with lists, [-] [+] buttons and layer parts`
+
+```markdown
+## Summary
+i4sim's debug menu was clumsy: two hidden pages, eight `+`/`-` rows that never showed their value, a profile that cycled on every click and three idioms for on/off. It now has sections that open below their heading, like PATHS in Dotio, `[-] [+]` buttons next to every number, `[*]` lists for named values, and parts under PATHS, FORCES and BORDERS so each piece, the route included, can be turned off on its own.
+
+## Changes
+- **Layer model** (refactor): a `Layer` enum and a `ViewLayers` set replace seven `bool` members and the `hidden_layers` constant.
+- **Menu**: SIMULATION, LAYERS, MOTION and TRAFFIC headings, one open at a time (SIMULATION at the start), then FRAME SCENE and BLUEPRINTS. UPS, SPEED, FORCE and HORIZON show their value with `[-] [+]`. PROFILE and PLANNER open a `[*]` list that closes on a choice; choosing the current value only closes it. Every on/off setting is an `[X]` check box.
+- **Layer parts**: ROUTES, RETREAT TARGETS, PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY, ACCELERATION; WALLS, TRAFFIC ZONES. They are listed while their layer is on and drawn only while both are on; keys 1–6 still toggle whole layers. Each row drawn in one color has a color swatch as a legend.
+- **Help**: DEBUG CONTROLS lists the layer keys, Q / E and G / F.
+- **Tests**: controller cases for every section, list, number row and part; the i4sim graphics suite clicks the new rows and buttons and checks the swatches; the launcher default-layers case reads the LAYERS section.
+- **Docs**: i4sim README, test guide, architecture page, and a fresh `docs/media/i4sim-debug.png`.
+- **Pointer**: `external/Kinetra` at the stepper branch.
+
+## Design
+[docs/design/2026-11-19-i4sim-debug-menu.md](https://github.com/SMB-M87/Kinetra-Lab/blob/feat/i4sim-debug-menu/docs/design/2026-11-19-i4sim-debug-menu.md); engine half: [Kinetra design](https://github.com/SMB-M87/Kinetra/blob/feat/debug-menu-steppers/docs/design/2026-11-19-debug-menu-steppers.md).
+
+## Verification
+- `cmake --workflow --preset ci`: 194/194, no warnings.
+- `cmake --workflow --preset headless`: 187/187.
+- `cmake --workflow --preset graphics`: 207/207.
+- Offscreen smoke runs of `kinetra --variant demo` and `--variant i4sim` (120 frames): exit 0.
+- `check_docs.py`: all links resolve.
+- Not run: Windows cross build, desktop playtest.
+
+## Review notes
+- The menu state (open section, open list) lives in the headless controller, so it is tested without a window; the session only decorates rows.
+- With LAYERS open and every layer on, the menu is 24 rows. It fits 1280 × 800; smaller windows are an open point.
+- `presentation_tests.cpp` still clicks rows by number, now named in `menu_row`.
+
+## Dependencies and merge order
+Depends on SMB-M87/Kinetra#10. **Merge the Kinetra pull request first, with a merge commit** (not a squash), so this branch's `external/Kinetra` pointer (`d0877b6`) stays reachable. Then merge this one.
+
+## Follow-up
+- Indentation in the engine's `DebugMenu` rows, so applications need not build it into labels.
+- A menu that fits short windows (scrolling or a smaller scale).
+```
 
 ## Open points
 
-- None yet.
+- The full LAYERS section overflows windows lower than about 650 pixels (see Review).
+- The graphics suite still clicks rows by number; `menu_row` names them, but they follow the layout by hand.
