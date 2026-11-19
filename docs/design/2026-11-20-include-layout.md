@@ -1,0 +1,152 @@
+# Include layout
+
+Status: accepted · Branch: `refactor/include-layout` · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md), [ADR 0015](../../external/Kinetra/docs/decisions/0015-include-layout.md), [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout)
+
+Lab's modules each grew their own layout: 17 headers in `labs/i4sim/src/`, 7 in `tools/capture/src/`, helper headers loose in `tests/`, and four Dotio folders for one `gmath` file. Includes carry no module name, so three `session.h` and two `zoom.h` meet, and the launcher reaches them with `../../labs/demo/include/session.h`. This change moves every Lab module to the shared [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout), groups the larger ones by topic, and then aligns the namespaces with the include roots. The engine side, with the new `<kinetra/simulation|view|runtime/...>` paths, is the [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md).
+
+## Table of contents
+
+- [Problem](#problem)
+- [Goals and non-goals](#goals-and-non-goals)
+- [Decisions](#decisions)
+- [Design](#design)
+- [Affected areas](#affected-areas)
+- [Test plan](#test-plan)
+- [Review](#review)
+- [Verification](#verification)
+- [Pull request](#pull-request)
+- [Open points](#open-points)
+
+[Directory guide](README.md) · [Project overview](../../README.md) · [Documentation index](../README.md)
+
+## Problem
+
+- **Headers in `src/`:** `labs/i4sim/src/` (17), `tools/capture/src/` (7; its include directory *is* `src/`).
+- **Headers loose in `tests/`:** `labs/i4sim/tests/{event_counts,recorder,showcase}.h`, `labs/test_support/test_support.h`.
+- **Folders for one file:** `labs/dotio/gmath/{include,src}/` for `gmath.h` and `gmath.cpp`, next to `labs/dotio/include/` and `labs/dotio/logic/{include,src}/`.
+- **Unnamed include roots:** `#include "session.h"` resolves by include-path order. [applications.cpp:2](../../launcher/src/applications.cpp) uses `../../labs/demo/include/session.h`, [scenes.cpp:8](../../tools/capture/src/scenes.cpp) `../../../labs/i4sim/include/blueprint.h`; the conventions ask for target include directories instead.
+- **Vague shared name:** `labs/common/include/lab/` with namespace `lab`.
+- **Namespaces differ from module names:** Demo uses `sandbox`; Dotio `logic`, `gmath` and `dotio`.
+
+## Goals and non-goals
+
+- Goal: every Lab module follows the [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout); no `.h` outside an include root.
+- Goal: every include starts with its module (`<i4sim/...>`, `<dotio/...>`, `<kinetra_lab/...>`); no `../` include remains.
+- Goal: namespace equals include root, in separate commits after the moves.
+- Goal: the engine's new include paths are used everywhere.
+- Non-goal: behavior changes, renamed types or functions, renamed CMake targets or CTest names (CI, presets and AGENTS.md regexes depend on them).
+- Non-goal: the i4sim blueprint catalog (`labs/i4sim/blueprints/` is data and stays).
+
+## Decisions
+
+Settled with the user in three grilling rounds; choices that differ from the first recommendation are marked.
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Module layout | `include/<name>/` and `src/` per module; layers as subfolders (`presentation/`) in both | Same shape as Kinetra; one include root per module |
+| Internal headers | `detail/` inside their topic | Visible public/internal split without a third root |
+| Test helper headers | `tests/include/<name>/testing/`, linked to test targets only | Test code stays out of the production include root |
+| Shared Lab code | `labs/shared/include/kinetra_lab/`, namespace `kinetra_lab` | Names the owner without looking like an engine header |
+| Namespaces | Equal to the include root (`demo`, `dotio`, `i4sim`, `capture`, `launcher`, `kinetra_lab`), in separate commits after the moves | Moves stay reviewable; targets keep their names |
+| i4sim topics | `simulation/`, `blueprint/`, `presentation/`, each with `detail/` *(differs: recommended was public/detail only)* | User's choice: the logic folder had grown too large |
+| Engine | Moves in the same round to `simulation/`, `view/`, `runtime/` *(differs: recommended was Lab only)* | User's choice; [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md) |
+| Dotio topics | `entities/`, `ai/`, `navigation/`, `math/`, `presentation/` *(differs: recommended was flat)* | User's choice; `gmath` folds into `math/` |
+| Demo topics | `world/`, `input/`, `presentation/` *(differs: recommended was flat)* | User's choice; topics chosen so no folder holds one file |
+| Compatibility | Hard break, Kinetra merges first | User's choice; no forwarding headers |
+| Start | After Kinetra-Lab #31 and #32 are merged | They touch files that move |
+| Commits | One `git mv` commit per module, include and CMake fixes in the same commit, namespaces after | History follows the files; every commit builds |
+
+## Design
+
+The rule itself is in [conventions](../../external/Kinetra/docs/conventions.md#directory-layout). The target tree per module:
+
+```text
+labs/shared/                                 (was labs/common, labs/test_support)
+  include/kinetra_lab/   camera.h debug.h input.h session.h settings.h
+  tests/include/kinetra_lab/testing/test_support.h
+  tests/shared_tests.cpp                     (was common_tests.cpp)
+
+labs/demo/
+  include/demo/
+    sandbox_application.h debug_panel.h
+    world/         agent.h terrain.h sandbox_scene.h tuning.h
+    input/         sandbox_input.h sandbox_commands.h player_control.h
+    presentation/  session.h sandbox_renderer.h help_overlay.h zoom.h
+  src/  sandbox_application.cpp debug_panel.cpp main.cpp
+        presentation/ sandbox_renderer.cpp session.cpp
+
+labs/dotio/                                  (logic/, gmath/ and their sub-READMEs disappear)
+  include/dotio/
+    application.h world.h difficulty.h renderer.h
+    entities/      arrow.h bolt.h enemy.h player.h moving_object.h
+                   physics_object.h static_object.h physics_adapter.h
+    ai/            state.h wander.h fuzzy.h tracker.h
+    navigation/    graph.h grid.h vertex.h priority_queue.h stack.h
+    math/          gmath.h portable.h
+    presentation/  session.h presentation.h zoom.h
+  src/  world.cpp difficulty.cpp main.cpp
+        entities/ ai/ navigation/ math/ presentation/   (mirroring)
+
+labs/i4sim/
+  include/i4sim/
+    controller.h
+    simulation/    simulation.h events.h flow_metrics.h view.h
+      detail/      simulation_core.h simulation_constants.h motion_step.h routing.h
+                   traffic.h shuttle.h predictive_passing.h production.h goals.h
+                   fleet.h floor_plan.h geometry.h event_log.h
+    blueprint/     blueprint.h scenario.h
+      detail/      json_fields.h
+    presentation/  session.h
+      detail/      world_view.h hud.h blueprint_screen.h
+  src/  controller.cpp main.cpp
+        simulation/ blueprint/ presentation/            (mirroring, without detail/)
+  tests/include/i4sim/testing/  event_counts.h recorder.h showcase.h
+  blueprints/                                       (unchanged)
+
+launcher/include/launcher/applications.h
+tools/capture/include/capture/  busy_stretch.h dotio_player.h png.h scenes.h showcase.h stage.h
+```
+
+- Every target's `target_include_directories` points at its module's `include/`; test targets add `tests/include/`. The launcher and capture link the presentation targets and include `<demo/presentation/session.h>` and friends instead of `../../`.
+- Includes inside a module also use the full form (`<i4sim/simulation/detail/routing.h>`), so moving a file never depends on the directory of its includer.
+- Thin sub-READMEs in `include/`, `src/` and `tests/` folders (Demo, Dotio, Dotio's `logic/` and `gmath/`) fold into their module README, as [AGENTS.md](../../AGENTS.md#documentation-in-lab) plans; each module README gets a layout section that shows its tree.
+- Namespace commits: `sandbox` → `demo`; `logic`, `gmath`, `gamef` → `dotio`; `lab` → `kinetra_lab`; `lab::test` → `kinetra_lab::testing`. Helper namespaces inside a file (`layer_color`, `tuning_step`, `menu_row`) stay.
+
+## Affected areas
+
+- Every header and source under `labs/`, `launcher/`, `tools/capture/`; every `CMakeLists.txt` there and the root one (`kinetra_directory_warnings` paths, `labs/` subdirectories).
+- The `external/Kinetra` pointer: the Kinetra merge commit with the engine layout.
+- [AGENTS.md](../../AGENTS.md): layer table, verification table, functionality index (paths only; CTest regexes stay).
+- [README.md](../../README.md) repository layout, [architecture](../architecture.md), the three application architecture pages, module READMEs, [capture tool](../../tools/capture/README.md), [launcher](../../launcher/README.md).
+- Not affected: blueprint JSON, media, CTest names, presets, CI workflow (it calls presets).
+
+## Test plan
+
+| Behavior | Test | Level |
+| --- | --- | --- |
+| Behavior unchanged | Every Lab suite, unchanged apart from include lines and namespaces | Full: `cmake --workflow --preset ci` and `--preset headless` |
+| Logic still builds without the runtime | `headless` preset (`KINETRA_LAB_BUILD_RUNTIME=OFF`) | Full |
+| Sessions, launcher and capture | `cmake --workflow --preset graphics`, smoke runs from the README, `kinetra_capture_smoke` | Full with graphics |
+| Windows build | `cmake --workflow --preset windows` from WSL | Windows |
+| No header outside an include root, no `../` include | `find labs launcher tools -path '*/src/*' -name '*.h'`, `find ... -path '*/tests/*.h' -not -path '*/tests/include/*'`, `grep -rn '#include "\.\./'` all empty | Manual |
+| No warning added | `KINETRA_LAB_WARNINGS` count not above the baseline | Full |
+| Docs | `python3 external/Kinetra/tools/check_docs.py` | Docs |
+
+A refactor: no new tests and no changed assertions. Each module commit builds and passes its targeted suite before the next.
+
+## Review
+
+To be filled in after implementation.
+
+## Verification
+
+To be filled in after implementation.
+
+## Pull request
+
+To be filled in after implementation.
+
+## Open points
+
+- CMake target names keep their history (`kinetra_sandbox_*` for Demo, `kinetra_lab_common` for `labs/shared`). Renaming them touches CI, presets and the AGENTS.md regexes; a separate change if wanted.
+- Demo's file names keep their `sandbox_` prefix (`sandbox_application.h`); with the `demo` namespace it could drop. Same reason, same follow-up.
