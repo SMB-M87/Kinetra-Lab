@@ -17,6 +17,7 @@
 using namespace kinetra;
 using i4sim::FactoryController;
 using i4sim::flip_y;
+using i4sim::Layer;
 using i4sim::MenuEntry;
 using i4sim::PanelState;
 using i4sim::RunState;
@@ -25,6 +26,8 @@ namespace {
 const auto factory = i4sim::test::original_blueprint("MAS-demonstrator");
 /// An open floor of 2400 by 1600 mm with two movers at (500, 800) and (1900, 800).
 const auto open_floor = i4sim::test::showcase_blueprint("predictive-passing");
+const Layer all_layers[]{Layer::grid,    Layer::heatmap,   Layer::paths,         Layer::forces,
+                         Layer::borders, Layer::detection, Layer::contact_shapes};
 
 Input key(Key pressed) {
     Input input;
@@ -210,23 +213,23 @@ TEST_CASE("the keys one to six toggle their layers") {
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     const auto &layers = controller.layers();
-    CHECK((layers.grid && layers.heatmap && layers.paths && layers.forces && layers.borders &&
-           layers.detection && layers.contact_shapes));
+    for (auto layer : all_layers)
+        CHECK(layers.selected(layer));
     frame(controller, camera, key(Key::one));
-    CHECK_FALSE(layers.grid);
+    CHECK_FALSE(layers.selected(Layer::grid));
     frame(controller, camera, key(Key::two));
-    CHECK_FALSE(layers.heatmap);
+    CHECK_FALSE(layers.selected(Layer::heatmap));
     frame(controller, camera, key(Key::three));
-    CHECK_FALSE(layers.paths);
+    CHECK_FALSE(layers.selected(Layer::paths));
     frame(controller, camera, key(Key::four));
-    CHECK_FALSE(layers.forces);
+    CHECK_FALSE(layers.selected(Layer::forces));
     frame(controller, camera, key(Key::five));
-    CHECK_FALSE(layers.borders);
+    CHECK_FALSE(layers.selected(Layer::borders));
     frame(controller, camera, key(Key::six));
-    CHECK_FALSE(layers.detection);
-    CHECK_MESSAGE(layers.contact_shapes, "contact shapes have a menu entry only");
+    CHECK_FALSE(layers.selected(Layer::detection));
+    CHECK_MESSAGE(layers.selected(Layer::contact_shapes), "contact shapes have a menu entry only");
     frame(controller, camera, key(Key::one));
-    CHECK(layers.grid);
+    CHECK(layers.selected(Layer::grid));
 }
 
 TEST_CASE("q and e halve and double the update rate within its bounds") {
@@ -525,11 +528,11 @@ TEST_CASE("the layer entries are check boxes on the layers") {
     choose(controller, "BORDERS");
     choose(controller, "DETECTION");
     choose(controller, "CONTACT SHAPES");
-    CHECK_FALSE((layers.grid || layers.heatmap || layers.paths || layers.forces || layers.borders ||
-                 layers.detection || layers.contact_shapes));
+    for (auto layer : all_layers)
+        CHECK_FALSE(layers.selected(layer));
     CHECK_FALSE(entry(controller, "CONTACT SHAPES").checked());
     choose(controller, "CONTACT SHAPES");
-    CHECK(layers.contact_shapes);
+    CHECK(layers.selected(Layer::contact_shapes));
     CHECK(entry(controller, "CONTACT SHAPES").checked());
     CHECK_MESSAGE(!entry(controller, "PAUSE / RUN").checked, "a command is a button, not a check box");
 }

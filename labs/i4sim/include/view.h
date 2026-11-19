@@ -4,6 +4,10 @@
 #include <kinetra/camera.h>
 #include <kinetra/math.h>
 
+#include <bitset>
+#include <cstddef>
+#include <cstdint>
+
 namespace i4sim {
 /// Camera zoom range in pixels per millimeter: from a whole hall to a single mover.
 inline constexpr kinetra::ZoomLimits zoom_limits{0.005f, 10};
@@ -15,21 +19,47 @@ constexpr kinetra::Vec2 flip_y(kinetra::Vec2 point) {
     return {point.x, -point.y};
 }
 
-/// The debug layers of the world view. All start on; they are drawn only in debug mode.
-struct ViewLayers {
+/// A debug layer of the world view. Every layer starts selected; layers are drawn only in
+/// debug mode.
+enum class Layer : std::uint8_t {
     /// Cell outlines of the route grid.
-    bool grid{true};
+    grid,
     /// Free cells tinted by their heatmap weight.
-    bool heatmap{true};
+    heatmap,
     /// Each mover's remaining route, and its retreat and passing targets.
-    bool paths{true};
+    paths,
     /// Steering components, velocity and acceleration of each mover.
-    bool forces{true};
+    forces,
     /// Walls, and the junction and corridor zones with their exit reservations.
-    bool borders{true};
+    borders,
     /// The radius within which a mover predicts conflicts.
-    bool detection{true};
+    detection,
     /// Outline of each mover's collision box.
-    bool contact_shapes{true};
+    contact_shapes,
+};
+/// Number of Layer values.
+inline constexpr std::size_t layer_count = 7;
+
+/// Which debug layers are selected: a set of Layer values.
+class ViewLayers {
+  public:
+    /// Every layer selected: what a session starts with.
+    ViewLayers() { selected_.set(); }
+    /// No layer selected: what the world view draws outside debug mode.
+    static ViewLayers none() {
+        ViewLayers layers;
+        layers.selected_.reset();
+        return layers;
+    }
+    /// Whether `layer` is selected.
+    bool selected(Layer layer) const { return selected_.test(index(layer)); }
+    /// Selects `layer` when it is not, and the other way around.
+    void toggle(Layer layer) { selected_.flip(index(layer)); }
+    /// Whether the world view draws `layer`.
+    bool shows(Layer layer) const { return selected(layer); }
+
+  private:
+    static std::size_t index(Layer layer) { return static_cast<std::size_t>(layer); }
+    std::bitset<layer_count> selected_;
 };
 } // namespace i4sim

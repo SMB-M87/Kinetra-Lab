@@ -218,13 +218,12 @@ void FactoryController::handle_keys(const Input &input, Camera2D &camera) {
         simulation_->set_workload(!simulation_->workload());
     if (input.hit(Key::f))
         fit(camera);
-    const std::pair<Key, bool ViewLayers::*> layer_keys[]{
-        {Key::one, &ViewLayers::grid},     {Key::two, &ViewLayers::heatmap},
-        {Key::three, &ViewLayers::paths},  {Key::four, &ViewLayers::forces},
-        {Key::five, &ViewLayers::borders}, {Key::six, &ViewLayers::detection}};
+    const std::pair<Key, Layer> layer_keys[]{{Key::one, Layer::grid},     {Key::two, Layer::heatmap},
+                                             {Key::three, Layer::paths},  {Key::four, Layer::forces},
+                                             {Key::five, Layer::borders}, {Key::six, Layer::detection}};
     for (const auto &[key, layer] : layer_keys)
         if (input.hit(key))
-            layers_.*layer = !(layers_.*layer);
+            layers_.toggle(layer);
     if (input.hit(Key::q))
         change_update_rate(false);
     if (input.hit(Key::e))
@@ -298,19 +297,19 @@ MenuEntry FactoryController::motion_switch(std::string_view label, bool MotionSe
 }
 
 void FactoryController::add_view_entries(std::vector<MenuEntry> &entries) {
-    const auto layer = [this](std::string_view label, bool ViewLayers::*flag) {
+    const auto layer = [this](std::string_view label, Layer which) {
         return MenuEntry{label,
-                         [this, flag] { layers_.*flag = !(layers_.*flag); },
+                         [this, which] { layers_.toggle(which); },
                          {},
-                         [this, flag] { return layers_.*flag; }};
+                         [this, which] { return layers_.selected(which); }};
     };
-    entries.push_back(layer("GRID", &ViewLayers::grid));
-    entries.push_back(layer("HEATMAP", &ViewLayers::heatmap));
-    entries.push_back(layer("PATHS", &ViewLayers::paths));
-    entries.push_back(layer("FORCES", &ViewLayers::forces));
-    entries.push_back(layer("BORDERS", &ViewLayers::borders));
-    entries.push_back(layer("DETECTION", &ViewLayers::detection));
-    entries.push_back(layer("CONTACT SHAPES", &ViewLayers::contact_shapes));
+    entries.push_back(layer("GRID", Layer::grid));
+    entries.push_back(layer("HEATMAP", Layer::heatmap));
+    entries.push_back(layer("PATHS", Layer::paths));
+    entries.push_back(layer("FORCES", Layer::forces));
+    entries.push_back(layer("BORDERS", Layer::borders));
+    entries.push_back(layer("DETECTION", Layer::detection));
+    entries.push_back(layer("CONTACT SHAPES", Layer::contact_shapes));
     entries.push_back({"PAUSE / RUN", [this] { toggle_pause(); }});
     entries.push_back({"SINGLE TICK", [this] { simulation_->single_step(); }});
     entries.push_back({"WORKLOAD",

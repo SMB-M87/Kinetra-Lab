@@ -68,11 +68,11 @@ void draw_floor(Runtime &runtime, const Simulation &simulation, const ViewLayers
         const auto center = flip_y(grid.center(id));
         if (grid.blocked(id))
             runtime.box(center, blueprint.cell_size / 2, 0, blocked_cell_color);
-        else if (layers.heatmap) {
+        else if (layers.shows(Layer::heatmap)) {
             const float weight = std::min(1.f, grid.weight(id) / full_heat_weight);
             runtime.box(center, blueprint.cell_size / 2, 0, {0.13f + weight * 0.6f, 0.15f, 0.2f});
         }
-        if (layers.grid) {
+        if (layers.shows(Layer::grid)) {
             // The top and left edge of every cell make the grid; the floor's far edges
             // stay open.
             const auto corner = grid.center(id) - blueprint.cell_size / 2,
@@ -108,12 +108,12 @@ void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size
     const auto &mover = simulation.movers()[index];
     const auto &motion = simulation.motion_settings();
     const auto center = flip_y(position);
-    if (layers.contact_shapes)
+    if (layers.shows(Layer::contact_shapes))
         draw_debug_box(runtime, center, mover.body.half_extents, 0, mover_alert_color);
-    if (layers.detection)
+    if (layers.shows(Layer::detection))
         draw_debug_circle(runtime, center, length(mover.body.half_extents) + motion.speed * motion.horizon,
                           {0.25f, 0.4f, 0.6f});
-    if (layers.paths) {
+    if (layers.shows(Layer::paths)) {
         Vec2 from = position;
         for (auto target : mover.route) {
             runtime.line(flip_y(from), flip_y(target), screen_pixels(runtime, 2), route_color);
@@ -124,7 +124,7 @@ void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size
         if (const auto target = simulation.passing_target(index))
             draw_debug_vector(runtime, center, flip_y(*target - position), passing_target_color);
     }
-    if (layers.forces) {
+    if (layers.shows(Layer::forces)) {
         const auto &forces = mover.forces;
         draw_debug_vector(runtime, center, flip_y(forces.border * steering_arrow_scale), {1, .5f, 0});
         draw_debug_vector(runtime, center, flip_y(forces.collision * steering_arrow_scale), {1, 0, 0});
@@ -222,7 +222,7 @@ void draw_world(Runtime &runtime, const Simulation &simulation, const ViewLayers
     draw_floor(runtime, simulation, layers);
     draw_producers(runtime, simulation);
     draw_movers(runtime, simulation, layers, selected_mover, blend);
-    if (layers.borders) {
+    if (layers.shows(Layer::borders)) {
         draw_traffic_zones(runtime, simulation);
         for (const auto &segment : simulation.borders())
             runtime.line(flip_y(segment.start), flip_y(segment.end), screen_pixels(runtime, 2), border_color);
