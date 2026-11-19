@@ -28,7 +28,7 @@ flowchart TD
 
 | Source | CTest suite (cases) | Coverage |
 | --- | --- | --- |
-| [dotio_tests.cpp](dotio_tests.cpp) | `kinetra_dotio` (21) | Geometry, routing, streaming, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands |
+| [dotio_tests.cpp](dotio_tests.cpp) | `kinetra_dotio` (38) | Geometry, routing, streaming, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom |
 | [presentation_tests.cpp](presentation_tests.cpp) | `kinetra_dotio_graphics` (2) | Wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime` (label `graphics`) |
 
 Dotio's collision grid, `logic::Grid::Array`, is global state. Generating or initializing a world overwrites all of it; cases that build on the plain bordered arena call `open_map()` first. No case depends on another case or on the order in which they run.

@@ -34,7 +34,7 @@ flowchart TD
 
 Code shared between applications stays application-neutral ([Lab boundaries](../AGENTS.md#lab-boundaries)):
 
-- [common/include/lab](common/include/lab/) (target `kinetra_lab_common`, header-only) holds the policy every application shares: `lab::Session` (Escape never closes a Lab window), `lab::settings_rows` (the settings panel's rows), `lab::direction` (WASD and arrows) and `lab::ModalPause` (pause while the panel is open). The last two are in `lab/input.h`, which needs no window, so an application's logic library may use it; the others need the runtime. The mechanisms behind them are Kinetra's; see [launcher and overlays](../docs/launcher-overlays.md#settings-policy).
+- [common/include/lab](common/include/lab/) (target `kinetra_lab_common`, header-only) holds the policy every application shares: `lab::Session` (Escape never closes a Lab window), `lab::settings_rows` and `lab::FrameLimitSwitch` (the settings panel's rows and its FRAME LIMIT setting), `lab::direction` (WASD and arrows), `lab::ModalPause` (pause while the panel is open), and `lab::ZoomControl` and `lab::time_scale_entry` (the ZOOM and SPEED rows of every debug menu). Input and pause are in `lab/input.h` and the debug rows in `lab/debug.h`; both need no window, so an application's logic library may use them. The others need the runtime. The mechanisms behind them are Kinetra's; see [launcher and overlays](../docs/launcher-overlays.md#settings-policy).
 - [test_support/test_support.h](test_support/test_support.h) holds header-only helpers for the test programs (target `kinetra_lab_test_support`, built only with `BUILD_TESTING`).
 
 ## Build and run

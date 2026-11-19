@@ -40,11 +40,11 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 
 | Layer | Targets | May depend on |
 | --- | --- | --- |
-| Logic: headless rules, state and window-free input mapping | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation`, and the headless Lab input policy in `lab/input.h` |
+| Logic: headless rules, state, window-free input mapping and debug-menu rows | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation`, and the headless Lab policy in `lab/input.h` and `lab/debug.h` |
 | Presentation: session, panels, drawing | `kinetra_demo_presentation`, `kinetra_dotio_presentation`, `kinetra_i4sim_presentation` | Its own logic, `Kinetra::Runtime`, shared Lab helpers, and `Kinetra::Launcher` for its menu widgets |
 | Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions`, and the developer tool `kinetra_capture` | Presentation libraries, `Kinetra::Launcher`; `kinetra_capture` also `kinetra_sessions` and zlib |
 
-- Input mapping that needs no window belongs in the logic layer, where it is tested headless: Demo's `sandbox_input.h` and i4sim's `FactoryController`. From `kinetra_lab_common`, logic may include only `lab/input.h`, which uses Kinetra's plain input types; `lab/settings.h` and `lab/session.h` need the runtime.
+- Input mapping that needs no window belongs in the logic layer, where it is tested headless: Demo's `sandbox_input.h` and i4sim's `FactoryController`. So do the rows of a debug menu, as `kinetra::DebugEntry` values: Demo's `DebugPanel`, Dotio's `Application::debug_entries()` and `FactoryController::menu()`. From `kinetra_lab_common`, logic may include only `lab/input.h` and `lab/debug.h`, which use Kinetra's plain input, camera and menu types; `lab/settings.h` and `lab/session.h` need the runtime.
 - A presentation may link `Kinetra::Launcher` to reuse its menu widgets, as i4sim does with `LaunchMenu` for its blueprint screen. It never depends on the bundled launcher in `launcher/`.
 - Applications never include each other's headers. Shared Lab code is application-neutral: today the Lab policy in [labs/common](labs/common/include/lab/) (target `kinetra_lab_common`) and the test helpers in [labs/test_support/test_support.h](labs/test_support/test_support.h) (target `kinetra_lab_test_support`).
 - Logic must build and test with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`.
@@ -108,6 +108,6 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 | Demo | [labs/demo](labs/demo/) | [labs/demo/tests](labs/demo/tests/) | [Demo](labs/demo/README.md), [architecture](docs/demo-architecture.md) |
 | Dotio | [labs/dotio](labs/dotio/) | [labs/dotio/tests](labs/dotio/tests/) | [Dotio](labs/dotio/README.md), [architecture](docs/dotio-architecture.md) |
 | i4sim | [labs/i4sim](labs/i4sim/) | [labs/i4sim/tests](labs/i4sim/tests/) | [i4sim](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md) |
-| Shared Lab policy (settings rows, input, pause, session base) | [labs/common](labs/common/include/lab/) | [common tests](labs/common/tests/common_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
+| Shared Lab policy (settings rows, debug rows, input, pause, session base) | [labs/common](labs/common/include/lab/) | [common tests](labs/common/tests/common_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
 | Build | [CMakeLists.txt](CMakeLists.txt), [build.sh](build.sh) | `ctest --test-dir build` | [README](README.md#quick-start) |
 | Media capture (screenshots and GIF clips) | [tools/capture](tools/capture/) | [capture tests](tools/capture/tests/) | [capture tool](tools/capture/README.md), [media guide](docs/media/README.md) |

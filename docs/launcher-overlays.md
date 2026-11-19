@@ -46,7 +46,14 @@ The window title is "Launcher" in the menu and the application's name in a sessi
 
 ## Settings policy
 
-Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/common](../labs/common/include/lab/settings.h)), so every Lab panel has the same rows in the same order: ZOOM, STATISTICS, DEBUG MODE, FRAME TIMES, SIM CONTROLS and DEBUG CONTROLS. FRAME TIMES (off by default) draws Kinetra's frame-time graph in the top-right corner of the window: the time between the last 240 presented frames, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)). Applications supply only their zoom limits and their help lines; DEBUG CONTROLS always starts with `WHEEL  ZOOM`.
+Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/common](../labs/common/include/lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
+
+| Row | Effect |
+| --- | --- |
+| STATISTICS | The application's statistics line |
+| DEBUG MODE | The debug layers, the DEBUG toolbar button and the debug zoom range. Shift+Ctrl switches it on as well |
+| FRAME TIMES | Off by default. Draws Kinetra's frame-time graph in the top-right corner: the time between the last 240 presented frames and what paces them, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)) |
+| FRAME LIMIT | On by default. Where the platform has no VSync (WSLg), the runtime paces frames at the display's refresh rate; off shows the unpaced loop for comparison. Without effect where VSync works. The choice belongs to the window (`lab::FrameLimitSwitch`), so it carries over to the next application started from the launcher |
 
 | Application | Zoom limits (pixels per unit) | Sim controls lines |
 | --- | --- | --- |
@@ -55,22 +62,37 @@ Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` (
 | i4sim | 0.005–10 (pixels per millimeter) | 4 |
 
 While the panel is open:
-- the application is paused by `lab::ModalPause`, which restores the earlier pause state on close (i4sim may have been paused before);
+- the application is paused by `lab::ModalPause`, which restores the earlier pause state on close (the application may have been paused before);
 - every gameplay input is suppressed, including the click that closes the panel;
 - the debug menu is hidden.
 
-Wheel zoom uses `kinetra::zoom` with the same limits, and works only in Debug Mode while the panel is closed. Movement keys come from `lab::direction` (WASD or arrows).
+Ctrl opens and closes the panel when the key is released. Movement keys come from `lab::direction` (WASD or arrows).
 
 ## Debug menu
 
-With Debug Mode on, the toolbar shows a DEBUG button next to SETTINGS. The button, or Backquote, opens the application's `kinetra::DebugMenu` at screen pixels (8, 32). The menu captures pointer input inside its panel, including held shooting; the session drops captured pointer commands before they reach the application. Demo and i4sim start with Debug Mode and every debug layer on; Dotio starts with them off.
+Shift+Ctrl opens and closes the application's `kinetra::DebugMenu` at screen pixels (8, 32), and switches Debug Mode on when it was off. With Debug Mode on, the toolbar also shows a DEBUG button next to SETTINGS. The menu captures pointer input inside its panel, including held shooting and the wheel; the session drops captured pointer commands before they reach the application. Demo and i4sim start with Debug Mode and every debug layer on; Dotio starts with them off.
+
+Every application builds its rows in its logic layer, as `kinetra::DebugEntry` values, so the menu is tested without a window. All three menus have the same shape:
+
+| Part | Content |
+| --- | --- |
+| SIMULATION | RUNNING, SINGLE TICK, the speed of time (SPEED, or UPS in i4sim) and the application's own switches |
+| LAYERS | What Debug Mode draws, each row with the color it is drawn in |
+| Tuning sections | Values the simulation reads while it runs: MOTION and AGENTS in Demo, ENEMIES and SPAWNING in Dotio, MOTION and TRAFFIC in i4sim |
+| Below the rule | ZOOM, then the application's commands (GHOST CAMERA and RESET PARAMETERS, or FRAME SCENE and BLUEPRINTS) |
+
+One section is open at a time (`kinetra::DebugFolds`). The rows of each application are listed in its README: [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md), [i4sim](../labs/i4sim/README.md).
+
+**Zoom** is a debug tool. The ZOOM row (`lab::ZoomControl` in [lab/debug.h](../labs/common/include/lab/debug.h)) and the wheel both zoom through `kinetra::zoom` with the application's limits; the wheel only in Debug Mode and not over a panel. Leaving Debug Mode clamps the zoom to the normal range.
 
 ## Tests
 
 | Behavior | Test |
 | --- | --- |
-| Overlay layout, rows, capture and actions | Kinetra `kinetra_settings_view`, with Demo- and Dotio-shaped row sets |
+| Overlay layout, rows, capture and actions, Ctrl and Shift+Ctrl | Kinetra `kinetra_settings_view` |
+| Debug-menu clicks and buttons | Kinetra `kinetra_launcher` |
 | `run_launcher` requests, menu key and Escape policy | Kinetra `kinetra_engine_graphics` |
-| Movement mapping and modal pause | `kinetra_lab_common` |
+| Movement mapping, modal pause, the settings rows, the ZOOM and SPEED rows | `kinetra_lab_common` |
+| Each application's menu rows and what they change | `kinetra_sandbox_application`, `kinetra_dotio`, `kinetra_i4sim_controller` |
 | The registrations: names, order, Dotio difficulties and default | `kinetra_menu` |
 | Real sessions: settings, zoom, debug gating and navigation with an OpenGL context | `kinetra_graphics` and the application `*_graphics` suites |
