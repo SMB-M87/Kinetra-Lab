@@ -102,7 +102,8 @@ TEST_CASE("the debug toolbar button shows its full label") {
 }
 
 TEST_CASE("demo and i4sim start with every visual debug layer on") {
-    Runtime runtime("Default debug views", 640, 480);
+    // Tall enough for i4sim's LAYERS section with every part listed (24 menu rows).
+    Runtime runtime("Default debug views", 640, 800);
     runtime.poll(false);
     for (auto variant : {Variant::demo, Variant::i4sim}) {
         CAPTURE(static_cast<int>(variant));
@@ -118,17 +119,29 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
         Input menu;
         menu.pressed[std::size_t(Key::backquote)] = true;
         session->advance(0, menu, runtime.camera);
+        const float scale = DebugMenu::scale(runtime.camera.viewport);
+        // The middle of the X in "[X]" on menu row `row`, indented by `depth` two-space levels.
+        const auto checkbox = [&](int row, int depth = 0) {
+            return Vec2{8, 32} + Vec2{12.5f + 12.f * float(depth), 29.5f + float(row) * 16} * scale;
+        };
+        if (variant == Variant::i4sim) {
+            // SIMULATION is open with four rows; its LAYERS heading on row 5 opens the layers.
+            Input open_layers;
+            open_layers.clicked = true;
+            open_layers.mouse = checkbox(5);
+            session->advance(0, open_layers, runtime.camera);
+            Input away;
+            away.mouse = {600, 780};
+            session->advance(0, away, runtime.camera);
+        }
         session->render(runtime);
         glFinish();
-        const float scale = DebugMenu::scale(runtime.camera.viewport);
-        const auto checkbox = [&](int row) {
-            return Vec2{8, 32} + Vec2{12.5f, 29.5f + float(row) * 16} * scale;
-        };
-        for (int row = 1; row <= (variant == Variant::demo ? 5 : 7); ++row) {
-            CAPTURE(row);
-            CHECK_MESSAGE(pixel(runtime, checkbox(row))[0] > 150, "visual debug layer did not start enabled");
-        }
         if (variant == Variant::demo) {
+            for (int row = 1; row <= 5; ++row) {
+                CAPTURE(row);
+                CHECK_MESSAGE(pixel(runtime, checkbox(row))[0] > 150,
+                              "visual debug layer did not start enabled");
+            }
             CHECK_MESSAGE(pixel(runtime, checkbox(8))[0] > 150,
                           "Demo reciprocal avoidance did not start enabled");
             for (int row : {0, 6, 7}) {
@@ -139,6 +152,14 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
             const auto statistics = pixel(runtime, {10.5f, runtime.camera.viewport.y - 19.5f});
             CHECK_MESSAGE((statistics[0] > 200 && statistics[1] > 200 && statistics[2] < 100),
                           "Demo statistics did not start enabled");
+        } else {
+            // LAYERS heading on row 1, then the seven layers (depth 1) with their parts (depth 2).
+            for (int row = 2; row <= 19; ++row) {
+                const bool part = (row >= 5 && row <= 7) || (row >= 9 && row <= 14) || row == 16 || row == 17;
+                CAPTURE(row);
+                CHECK_MESSAGE(pixel(runtime, checkbox(row, part ? 2 : 1))[0] > 150,
+                              "visual debug layer or part did not start enabled");
+            }
         }
     }
 }
