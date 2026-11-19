@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-19 | [H crossing without stations](2026-11-19-h-crossing-without-stations.md): the unused stations out of the H showcase scene | implemented |
 | 2026-11-19 | [Debug workbench](2026-11-19-debug-workbench.md): tree debug menus with live tuning in Demo and Dotio, steering wander, Shift+Ctrl, zoom in the debug menu, FRAME LIMIT | implemented |
 | 2026-11-19 | [Record the Kinetra corner slide fix](2026-11-19-record-kinetra-corner-slide.md): the pointer back on a Kinetra `main` with the corner slide fix, so i4sim passes again | implemented |
 | 2026-11-19 | [README icon](2026-11-19-readme-icon.md): the Kinetra icon at the top of the README | implemented |

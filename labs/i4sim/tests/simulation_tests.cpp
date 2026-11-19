@@ -2051,3 +2051,23 @@ TEST_CASE("an invalid blueprint is rejected with its file name") {
     }
     CHECK_MESSAGE(rejected, "Invalid blueprint was accepted or error lacks file context");
 }
+
+TEST_CASE("a station may stand outside the floor up to twice its size, with its processing place inside") {
+    // The reference's H layout draws its stations below the hall; the blueprint format keeps
+    // accepting that, so only the processing place has to be reachable.
+    const auto dir = std::filesystem::temp_directory_path() / "kinetra-i4sim-regression";
+    std::filesystem::create_directories(dir);
+    const auto with_station = [&](const std::string &name, float y) {
+        const auto file = dir / (name + ".json");
+        std::ofstream(file) << R"({"name": "station", "dimension": {"X": 1440, "Y": 960},
+            "cellsize": {"X": 240, "Y": 240}, "moverMaxExtent": 155, "producerMaxQueue": 1,
+            "producers": [{"id": "1", "model": "Kuka", "position": {"X": 120, "Y": )"
+                            << y << R"(}, "processingPos": {"X": 38.75, "Y": 38.75}}],
+            "movers": [{"id": 1, "model": "APM4220", "position": {"X": 659.75, "Y": 459.75}}]})";
+        return file;
+    };
+    const auto below = load_blueprint(with_station("below", 1080));
+    REQUIRE(below.producers.size() == 1);
+    CHECK(below.producers.front().position.y == 1080);
+    CHECK_THROWS_AS(load_blueprint(with_station("beyond", 1921)), std::runtime_error);
+}
