@@ -28,7 +28,7 @@ The PNG files are window captures of about 1915 × 1055 pixels; the exact size v
 
 - **Demo:** `demo-debug.png` has every visual layer enabled (vectors, steering probes, paths, collision shapes, active agents); its statistics show 71 of 193 agents active. The two Demo captures are not the same scene.
 - **Dotio:** `dotio-debug.png` has Debug Mode with vectors, AI states, paths and their filters, steering probes, collision shapes, active agents, hiding hits and Invulnerable enabled.
-- **i4sim:** both captures show the `MAS-demonstrator` blueprint (`MAS-demonstrator.json`), paused at 200 UPS, at tick 83 (`i4sim.png`) and tick 116 (`i4sim-debug.png`, with the View page of the debug menu open). They lack the CORRIDOR TRAFFIC and PREDICTIVE PASS rows of today's View page, so they are due for a refresh.
+- **i4sim:** both captures show the `MAS-demonstrator` blueprint (`MAS-demonstrator.json`), seed 42, paused at 200 UPS, at tick 83 (`i4sim.png`) and tick 116 (`i4sim-debug.png`, with the LAYERS section of the debug menu open and every layer and part on). `i4sim-debug.png` is rendered offscreen like the loadscreen below, at 1915 × 1055.
 - **i4sim loadscreen:** `launcher-loadscreen.png` shows the first catalog page with the SHOWCASE row first and highlighted, then `1680x960+` to `8640x4800`. Unlike the other captures it is not a window capture: it was rendered offscreen (`SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1`) at 1915 × 1054 from a fresh i4sim session and read back with `glReadPixels`, so it has no window decoration and RGB instead of RGBA pixels.
 
 ## Refreshing the media
