@@ -30,7 +30,8 @@ int showcase_cycle_steps(const std::filesystem::path &blueprint) {
     const auto advance = [&](const kinetra::Input &input) {
         controller.begin_frame(Stage::step_seconds);
         controller.suspend(false);
-        controller.handle_input(Stage::step_seconds, input, camera, {false, true});
+        controller.handle_input(Stage::step_seconds, input, camera,
+                                {.pointer_captured = false, .debug_mode = true});
     };
     kinetra::Input space;
     space.pressed[std::size_t(kinetra::Key::space)] = space.held[std::size_t(kinetra::Key::space)] = true;
