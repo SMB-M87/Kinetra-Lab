@@ -33,13 +33,6 @@ Camera2D session_camera() {
     return camera;
 }
 
-/// Number of agents that are simulated, rather than asleep outside the active area.
-std::size_t active_agents(const SandboxApplication &application) {
-    const auto agents = application.scene().agents();
-    return static_cast<std::size_t>(
-        std::count_if(agents.begin(), agents.end(), [](const Agent &agent) { return agent.active(); }));
-}
-
 /// Summed path length in world units that the active agents cover in `frames` frames.
 float distance_covered(SandboxApplication &application, Camera2D &camera, int frames) {
     float covered = 0;

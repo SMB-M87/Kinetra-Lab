@@ -143,9 +143,13 @@ TEST_CASE("the debug toolbar button shows beside settings only in debug mode") {
     SettingsOverlay overlay({}, &debug);
     // The buttons are drawn three pixels inside their cells: SETTINGS to x 64, DEBUG to 112.
     const auto button = [&](float x) {
-        runtime.begin({0, 0, 0});
-        overlay.draw(runtime);
-        runtime.end();
+        // Drawn twice, so both swap buffers hold the frame: which one a read returns right
+        // after a swap differs between drivers, most of all for a window's first frame.
+        for (int frame = 0; frame < 2; ++frame) {
+            runtime.begin({0, 0, 0});
+            overlay.draw(runtime);
+            runtime.end();
+        }
         glFinish();
         const auto color = pixel(runtime, {x, 5.5f});
         return color[2] > 40;
