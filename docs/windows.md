@@ -110,6 +110,8 @@ Two details of the dependency module that are easy to break:
 
 Each executable imports only `SDL2.dll` and the Windows Universal C Runtime, which is part of Windows 10 and later.
 
+The five application executables (`kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) embed the Kinetra icon through Kinetra's `kinetra_executable_icon(<target>)` ([runtime guide](../external/Kinetra/docs/engine/runtime.md#lifecycle)), so Explorer and shortcuts show it. Every window also sets it at run time.
+
 ## Tests
 
 `cmake --workflow --preset windows` (or `ctest --preset windows` after a build) runs every test through WSL interop on Windows, the graphics tests included: they open their windows on the Windows desktop with the real GPU driver.

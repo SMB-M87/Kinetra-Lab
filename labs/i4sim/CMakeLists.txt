@@ -41,6 +41,7 @@ endfunction()
 add_executable(kinetra_i4sim src/main.cpp)
 target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_application)
 kinetra_i4sim_bundle_blueprints(kinetra_i4sim)
+kinetra_executable_icon(kinetra_i4sim)
 if(KINETRA_BUILD_RUNTIME)
     add_library(kinetra_i4sim_presentation src/session.cpp)
     # Launcher: the blueprint screen reuses LaunchMenu's pagination.
