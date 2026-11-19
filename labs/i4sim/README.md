@@ -379,6 +379,7 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 - RESET PARAMETERS sets the horizon to 8 ticks, while a new simulation starts at 32.
 - `create_session` accepts an `output` directory and ignores it; a graphical session writes no summary.
 - A message that should expire, such as a rejected goal, stays on the blueprint screen when the blueprint is closed within its four seconds: the message ages only while a blueprint is loaded.
+- With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge until a section or layer is closed.
 - The graphics suite is one long case that clicks debug-menu rows by number. The numbers are named in `menu_row`, but they still follow the menu's layout by hand.
 - Predictive passing is not safe under pressure yet: a third mover in a passing lane, and three oncoming movers, are recorded as today's outcomes. Roadmap [phase 7](../../docs/design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure) addresses them, and [phase 8](../../docs/design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism) moves the proven mechanism to Kinetra.
 - Desktop playtests and performance checks stay manual.

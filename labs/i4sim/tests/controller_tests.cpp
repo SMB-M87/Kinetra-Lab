@@ -659,6 +659,20 @@ TEST_CASE("the profile list shows the four profiles and closes on a choice") {
     CHECK(labels(controller).size() == 13);
 }
 
+TEST_CASE("choosing the current value only closes the list") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    // A motion change would replan every route and clear the message; the message shows that
+    // no change ran.
+    controller.report_error("KEEP");
+    choose_value(controller, "PROFILE", "IMPROVED");
+    choose_value(controller, "PLANNER", "HEAT A*");
+    CHECK(controller.message() == "KEEP");
+    CHECK_FALSE(entry(controller, "PLANNER").active());
+    choose_value(controller, "PLANNER", "A*");
+    CHECK(controller.message().empty());
+}
+
 TEST_CASE("the planner list chooses between heat A* and A*") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
@@ -732,7 +746,7 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     }
     CHECK((motion.corridor_traffic && motion.junction_traffic && motion.parking_traffic &&
            motion.predictive_passing));
-    CHECK(entry(controller, "PREDICTIVE PASS").value().empty());
+    CHECK_FALSE(entry(controller, "PREDICTIVE PASS").value);
 
     open_section(controller, "MOTION");
     CHECK_FALSE(entry(controller, "RECOVERY").active());

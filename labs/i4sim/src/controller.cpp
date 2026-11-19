@@ -411,7 +411,11 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
             entries.push_back({.label = profile_name(profile),
                                .action =
                                    [this, profile] {
-                                       change_motion([profile](MotionSettings &m) { m.profile = profile; });
+                                       // Configuring motion replans every route, so choosing the
+                                       // current value only closes the list.
+                                       if (simulation_->motion_settings().profile != profile)
+                                           change_motion(
+                                               [profile](MotionSettings &m) { m.profile = profile; });
                                        open_list_ = MenuList::none;
                                    },
                                .kind = EntryKind::choice,
@@ -424,7 +428,9 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
             entries.push_back({.label = planner_name(heatmap),
                                .action =
                                    [this, heatmap] {
-                                       change_motion([heatmap](MotionSettings &m) { m.heatmap = heatmap; });
+                                       if (simulation_->motion_settings().heatmap != heatmap)
+                                           change_motion(
+                                               [heatmap](MotionSettings &m) { m.heatmap = heatmap; });
                                        open_list_ = MenuList::none;
                                    },
                                .kind = EntryKind::choice,
@@ -461,10 +467,9 @@ void FactoryController::add_traffic_entries(std::vector<MenuEntry> &entries) {
     entries.push_back(motion_check("PARKING TRAFFIC", &MotionSettings::parking_traffic));
     auto passing = motion_check("PREDICTIVE PASS", &MotionSettings::predictive_passing);
     // The legacy profiles keep the setting but ignore it; say so instead of hiding the row.
-    passing.value = [this] {
-        return std::string(supports_predictive_passing(simulation_->motion_settings().profile) ? ""
-                                                                                               : "LEGACY");
-    };
+    // Entries are built anew after every change, so the value can be decided here.
+    if (!supports_predictive_passing(simulation_->motion_settings().profile))
+        passing.value = [] { return std::string("LEGACY"); };
     entries.push_back(std::move(passing));
 }
 
