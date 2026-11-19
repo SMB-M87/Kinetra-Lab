@@ -42,7 +42,7 @@ The user sees short freezes and uneven motion in WSL and on a Linux desktop that
 | What a snapshot holds | i4sim: each mover's position at the start of a tick. Demo: position and angle of every world body before and after the last tick. Dotio: absolute positions (world offset added) of player, enemy, arrow and bolt slots before and after the last tick | Each application's state model. Dotio's streaming shifts every position, so absolute positions make the shift cancel out |
 | Objects that jumped | Drawn exactly when the current state differs from the state after the last tick | Covers teleports, Demo's chunk streaming renumbering bodies, and a Dotio slot taken by a new enemy, without tracking each cause |
 | Paused scenes | Drawn exactly (interpolation 1) | A paused or single-stepped scene must show the state the statistics describe |
-| Camera | Demo and Dotio move the camera by the player's interpolation offset while drawing, then restore it | A camera on the simulated player would make the drawn player jitter on screen. Restoring keeps the session's camera, and Demo's characterization fingerprint (which hashes it), unchanged |
+| Camera | Demo and Dotio move the camera by the player's interpolation offset while drawing (`lab::ScopedCameraShift`), then restore it | A camera on the simulated player would make the drawn player jitter on screen. Restoring keeps the session's camera, and Demo's characterization fingerprint (which hashes it), unchanged |
 | Dotio drawing | Swap the blended positions into the entities for one frame (RAII) and restore them | The ported logic draws itself from `Position`; passing poses down would mean rewriting its drawing |
 | i4sim settings click in the presentation test | Compute LAUNCHER's position from a panel with the same Lab rows | The test had the panel height and offset as numbers, which every new row breaks |
 
@@ -92,7 +92,20 @@ Presentation, sessions and the engine pointer change: Full level with graphics.
 
 ## Review
 
-To be filled after the review.
+An independent review of both branches (a separate agent, given the code but not this document's reasoning) confirmed the `FrameTimes` ring, `lerp_angle`, the Dotio world-shift handling, Demo's streaming order and that no simulation code reads the snapshots. Its findings and their resolution:
+
+| Finding | Resolution |
+| --- | --- |
+| Dotio: a death respawns the player inside a tick (`World::Reset`), so the drawn player and the camera streaked from the place of death to the spawn point for a frame | `World::ResetCount()`; a tick that reset the world is not blended |
+| `docs/architecture.md`: a paragraph was glued to the new table's last row | Moved below the table |
+| The engine graph test read only `GL_FRONT`, which is undefined after a swap on some drivers | Reads both buffers, like the other runtime cases (Kinetra) |
+| After a pause, and in i4sim after a UPS change, the first running frames drew up to one tick behind the state shown while paused | The first running frame starts from the current state; `Simulation::updates_per_second` aligns previous positions |
+| The graph at the top center overlapped Lab's debug menu (top left, at `{8, 32}`) on narrow windows | Moved to the top-right corner (Kinetra) |
+| The Dotio test passed even if `PresentedPositions` did nothing | `PresentedPositions` moved to `presentation.h`; the test checks the player sits between its last two ticks while drawing |
+| The camera was restored by a plain statement after `end()`, not on an exception | `lab::ScopedCameraShift` restores it on every path |
+| The module READMEs did not mention drawing between ticks | Demo, Dotio and i4sim READMEs link the architecture section |
+
+Not changed: the FRAME TIMES row order has no direct test. The launcher panel cases address SIM CONTROLS and DEBUG CONTROLS by row index, and the i4sim presentation test finds LAUNCHER through a mirrored panel, so a misplaced row fails them. The in-tick respawn is not provoked by a test: it needs a scripted death; the reset counter is a one-line check.
 
 ## Verification
 

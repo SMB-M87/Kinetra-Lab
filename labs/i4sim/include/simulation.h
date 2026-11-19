@@ -187,6 +187,10 @@ class Simulation {
     std::vector<Product> products_, completed_products_;
     std::mt19937 random_;
     std::uint32_t seed_;
+    /// Set while paused; the first running advance() then aligns previous positions with the
+    /// current ones, so drawing does not step back behind the state shown while paused.
+    bool resume_pending_{true};
+    void settle_previous_positions();
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
     std::uint64_t ticks_{}, completed_{}, collisions_{}, next_product_{1};

@@ -152,6 +152,8 @@ For diagnosis, a simulation can record an event log (`Simulation::record_events`
 
 Both recipes are implemented: Trimmer has four interactions; TrimmerPersonalized has six. Producers advertise the original capabilities and spend 1000 ticks per interaction. Allocation retains the original linear queue/distance cost structure and keeps a mover with its product between interactions. Queue reservations are bounded; only the queue head approaches a processor. Other movers wait at reserved parking or free staging cells. A blocked mover stops; an ongoing blocked producer pauses processing until restored. Before processing, blocked producers release their reservation so the product can retry another producer.
 
+Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+
 Units remain millimeters and ticks: maximum speed 2 mm/tick, maximum acceleration 0.6 mm/tick per tick, original mover dimensions/payloads, default 200 UPS. Changing UPS changes wall-clock speed. Physics is fixed per tick and the update backlog is bounded. Blueprint `tickCap` pauses the simulation exactly at its limit.
 
 ## Provenance and differences

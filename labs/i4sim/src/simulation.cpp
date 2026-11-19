@@ -223,12 +223,25 @@ void Simulation::updates_per_second(unsigned rate) {
         throw std::invalid_argument("UPS must be in 1..10000");
     ups_ = rate;
     clock_ = FixedClock(1.0 / rate, 256);
+    // The new clock starts with no accumulated time; blending from the last tick's start
+    // would draw the movers a tick back.
+    settle_previous_positions();
+}
+void Simulation::settle_previous_positions() {
+    for (auto &m : movers_)
+        m.previous_position = m.body.position;
 }
 void Simulation::advance(double elapsed) {
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Invalid elapsed time");
-    if (paused)
+    if (paused) {
+        resume_pending_ = true;
         return;
+    }
+    if (resume_pending_) {
+        settle_previous_positions();
+        resume_pending_ = false;
+    }
     const int count = clock_.advance(elapsed);
     for (int i = 0; i < count && !paused; ++i)
         tick();

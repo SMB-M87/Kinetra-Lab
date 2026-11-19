@@ -37,6 +37,8 @@ class Application {
     int tick_{};
     /// moving_positions() before and after the last tick; presentation only.
     std::vector<std::optional<gmath::Vec2>> before_tick_, after_tick_;
+    /// Whether the previous frame was paused; the first running frame drops the old snapshots.
+    bool was_paused_{};
 
   public:
     bool paused{}, help{}, debug{}, ghost{};
@@ -188,13 +190,21 @@ class Application {
                               paused ? 0.f : float(steps * clock_.step()));
         auto aim = from_world(commands.aim) - initial_shift;
         frame_rate.count();
+        // Snapshots from before a pause would draw the first running frames behind the state
+        // shown while paused; start from the current state instead.
+        if (!paused && was_paused_)
+            before_tick_ = after_tick_ = moving_positions();
+        was_paused_ = paused;
+        std::uint64_t resets_before_tick = 0;
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->GetPlayer();
             player.Heading = ghost ? gmath::Vec2{} : gmath::Vec2{commands.direction.x, -commands.direction.y};
             if (paused)
                 continue;
-            if (step == steps - 1)
+            if (step == steps - 1) {
                 before_tick_ = moving_positions();
+                resets_before_tick = world_->ResetCount();
+            }
             player.Speed = 1;
             player.Update(1);
             update_rate.count();
@@ -218,8 +228,12 @@ class Application {
             // Clamp rewards from contact kills as well as projectile kills.
             player.Health = std::clamp(player.Health, 0.f, player.MaxHealth);
             player.Mana = std::clamp(player.Mana, 0.f, player.MaxMana);
-            if (step == steps - 1)
+            if (step == steps - 1) {
                 after_tick_ = moving_positions();
+                // A death respawned the player and cleared the projectiles: nothing to blend.
+                if (world_->ResetCount() != resets_before_tick)
+                    before_tick_ = after_tick_;
+            }
         }
         frame_rate.advance(elapsed);
         update_rate.advance(elapsed);

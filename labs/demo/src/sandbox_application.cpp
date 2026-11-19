@@ -81,6 +81,11 @@ void SandboxApplication::advance(double elapsed, const FrameCommands &commands, 
     }
     // Consume clock time even when paused, so resuming cannot replay paused time.
     const int steps = clock_.advance(elapsed);
+    // Snapshots from before a pause would draw the first running frames behind the state
+    // shown while paused; start from the current state instead.
+    if (!paused_ && was_paused_)
+        before_tick_ = after_tick_ = poses(scene_.world);
+    was_paused_ = paused_;
     if (!paused_)
         for (int i = 0; i < steps; ++i) {
             if (i == steps - 1)

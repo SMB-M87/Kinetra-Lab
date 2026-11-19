@@ -37,6 +37,8 @@ class SandboxApplication {
     ActionResult last_action_{};
     /// Every world body's pose before and after the last tick; presentation only.
     std::vector<Pose> before_tick_, after_tick_;
+    /// Whether the previous frame was paused; the first running frame drops the old snapshots.
+    bool was_paused_{};
 
     void apply_actions(const FrameCommands &commands);
     void update_camera(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);

@@ -1,5 +1,6 @@
 #include "../include/sandbox_renderer.h"
 #include "../include/help_overlay.h"
+#include <lab/camera.h>
 #include <string_view>
 
 namespace sandbox {
@@ -76,10 +77,10 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     };
     const auto position = [&](std::size_t id) { return application.presented_pose(id).position; };
     // The camera follows the drawn player, not the simulated one, or the player would
-    // jitter on screen. Only for this frame's drawing: the session's camera is restored below.
-    const Vec2 simulated_camera = runtime.camera.position;
-    if (scene.following)
-        runtime.camera.position += position(scene.player) - scene.world.body(scene.player).position;
+    // jitter on screen. Only for this frame's drawing: the session keeps its camera.
+    const lab::ScopedCameraShift follow_drawn_player(
+        runtime.camera,
+        scene.following ? position(scene.player) - scene.world.body(scene.player).position : Vec2{});
     runtime.begin();
     // Distant Ghost terrain is sampled for presentation only; it owns no physics or agents.
     if (!scene.following) {
@@ -166,7 +167,6 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     if (settings)
         settings->draw(runtime);
     runtime.end();
-    runtime.camera.position = simulated_camera;
 }
 
 std::string status_text(const SandboxApplication &application) {

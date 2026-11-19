@@ -59,6 +59,8 @@ Paths expands into wander, pursue, kamikaze, recovery and hiding-intersection fi
 
 See [Dotio architecture](../../docs/dotio-architecture.md) for component ownership, lifecycle and the engine boundary.
 
+Drawing runs between fixed ticks: `Application` keeps absolute positions of the player, enemies, arrows and bolts before and after the last 60 Hz tick, and `PresentedPositions` swaps the blended positions in for one frame's drawing. A tick that respawned the player is not blended ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+
 Dotio links only the public `Kinetra::Simulation` and `Kinetra::Runtime` targets. Its direct executable `kinetra_dotio` needs no Demo or launcher sources.
 
 ## World and residency

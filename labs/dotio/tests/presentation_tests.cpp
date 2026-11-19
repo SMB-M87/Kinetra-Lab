@@ -141,7 +141,7 @@ int statistics_bands() {
 }
 } // namespace
 
-TEST_CASE("drawing interpolates the player and leaves the simulation untouched") {
+TEST_CASE("drawing interpolates the player and leaves the simulation and camera untouched") {
     Runtime reopened("Dotio interpolation", 320, 240);
     dotio::Application application(42);
     dotio::Commands commands;
@@ -161,6 +161,17 @@ TEST_CASE("drawing interpolates the player and leaves the simulation untouched")
                   "The snapshot after the last tick must match the simulated player");
     CHECK_MESSAGE(application.before_tick()[0]->X != application.after_tick()[0]->X,
                   "The moving player did not move during the last tick");
+    {
+        const dotio::PresentedPositions presented(application);
+        const auto &before = *application.before_tick()[0], &after = *application.after_tick()[0];
+        const float blend = float(application.interpolation());
+        CHECK_MESSAGE(
+            (std::abs(player.Position.X + offset.X - (before.X + (after.X - before.X) * blend)) < 1e-3f &&
+             std::abs(player.Position.Y + offset.Y - (before.Y + (after.Y - before.Y) * blend)) < 1e-3f),
+            "While drawing, the player must sit between its last two ticks");
+    }
+    CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
+                  "PresentedPositions did not restore the simulated position");
     const auto camera = reopened.camera.position;
     dotio::render(reopened, application, settings_for(application));
     CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
