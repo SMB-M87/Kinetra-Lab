@@ -21,7 +21,10 @@ enum class EventKind {
 };
 
 /// Why a passing plan was removed. When several reasons apply in the same tick, the
-/// first one in this order is recorded, which is the order the simulation checks them.
+/// simulation records the first it finds: `disabled`; then for each participant in
+/// turn `participant_stopped`, `participant_held`, `traffic_control`; then
+/// `no_progress`; and only when none applies, `completed`. `goal_changed` is recorded
+/// immediately when a participant receives a goal.
 enum class PassingEnd {
     /// Both participants reached their exit targets after crossing.
     completed,

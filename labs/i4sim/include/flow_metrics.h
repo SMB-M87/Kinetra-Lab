@@ -41,7 +41,8 @@ class FlowMetrics {
     /// straight-line distance to the destination did not drop `progress_distance` below
     /// its best value for `stuck_ticks` observations. This covers standing still as well
     /// as moving back and forth without getting closer. A detour that leads away from the
-    /// destination for that long also counts.
+    /// destination for that long also counts. A mover within `arrival_distance` of its
+    /// destination is in its final approach and never counts, even if it stays there.
     std::size_t stuck_movers() const;
     /// Movers that were stuck at the latest observation.
     std::size_t stuck_now() const;

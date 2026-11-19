@@ -101,7 +101,8 @@ class Simulation {
     void record_events(bool enabled) { recording_ = enabled; }
     bool recording_events() const { return recording_; }
     /// Passing and contact events recorded while recording was on, oldest first. The
-    /// log grows without bound while recording is on.
+    /// log grows without bound while recording is on. The span is valid until the next
+    /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const { return events_; }
     void single_step();
     bool paused{true}, workload{true};

@@ -123,9 +123,9 @@ std::string run(const Scenario &scenario, SteeringProfile profile, const Watch &
     return outcome(recorder, simulation, flow);
 }
 
-/// True while movers 0 and 1 share a passing plan.
+/// True while movers 0 and 1 share a passing plan: they hold the only plan.
 bool first_pair_passing(const Simulation &simulation) {
-    return simulation.passing_target(0) && simulation.passing_target(1);
+    return simulation.predictive_pairs() == 1 && simulation.passing_target(0) && simulation.passing_target(1);
 }
 
 /// Mover 0 meets movers 1 and 2, which drive in a column on its line toward it.
