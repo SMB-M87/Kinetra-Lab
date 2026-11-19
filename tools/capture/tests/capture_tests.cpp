@@ -136,15 +136,18 @@ static std::string source_text(const std::filesystem::path &relative) {
     return {std::istreambuf_iterator<char>(in), {}};
 }
 
-TEST_CASE("every scene has its file in docs/media, the media guide and the gallery") {
+TEST_CASE("every scene has its file in docs/media and the media guide, and every clip is in the gallery") {
+    // The media guide lists every file; the README gallery shows the clips and leaves the full-size
+    // application screenshots to the guide.
     const auto readme = source_text("README.md"), guide = source_text("docs/media/README.md");
     for (const auto &scene : capture::scenes()) {
-        const std::string file =
-            std::string(scene.name) + (scene.kind == capture::SceneKind::clip ? ".gif" : ".png");
+        const bool clip = scene.kind == capture::SceneKind::clip;
+        const std::string file = std::string(scene.name) + (clip ? ".gif" : ".png");
         CAPTURE(file);
         CHECK(std::filesystem::exists(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "docs/media" / file));
         CHECK(guide.find("(" + file + ")") != std::string::npos);
-        CHECK(readme.find("docs/media/" + file) != std::string::npos);
+        if (clip)
+            CHECK(readme.find("docs/media/" + file) != std::string::npos);
     }
 }
 
