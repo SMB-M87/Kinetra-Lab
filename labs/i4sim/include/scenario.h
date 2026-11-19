@@ -32,7 +32,7 @@ struct Scenario {
 /// Throws std::runtime_error with the path and the problem.
 std::optional<Scenario> load_scenario(const std::filesystem::path &path);
 /// Configures `simulation` as `scenario` describes and sends the goals in order. Leaves
-/// `paused` unchanged. Throws std::runtime_error when a goal names no mover, names several,
+/// the run state unchanged. Throws std::runtime_error when a goal names no mover, names several,
 /// or is rejected by Simulation::move_to; the simulation may then hold part of the setup,
 /// so the caller discards it.
 void apply_scenario(const Scenario &scenario, Simulation &simulation);

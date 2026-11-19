@@ -58,7 +58,7 @@ Simulation run_factory(Recorder &recorder, std::string_view blueprint, std::uint
     Simulation simulation(load_blueprint(default_blueprint_directory() / (std::string(blueprint) + ".json")),
                           seed);
     simulation.configure_motion(motion);
-    simulation.paused = false;
+    simulation.run();
     recorder.run(simulation, ticks);
     return simulation;
 }
@@ -67,11 +67,11 @@ Simulation run_factory(Recorder &recorder, std::string_view blueprint, std::uint
 Simulation run_pair(Recorder &recorder, std::string_view fixture, MotionSettings motion, Vec2 first_goal,
                     Vec2 second_goal, std::uint64_t ticks) {
     Simulation simulation(load_blueprint(showcase_blueprint(fixture)));
-    simulation.workload = false;
+    simulation.set_workload(false);
     simulation.configure_motion(motion);
     REQUIRE_MESSAGE((simulation.move_to(0, first_goal) && simulation.move_to(1, second_goal)),
                     "Traffic fixture goals rejected");
-    simulation.paused = false;
+    simulation.run();
     recorder.run(simulation, ticks);
     return simulation;
 }
@@ -81,10 +81,10 @@ Simulation run_pair(Recorder &recorder, std::string_view fixture, MotionSettings
 Simulation run_corridor_recovery(Recorder &recorder) {
     auto motion = profile_motion(SteeringProfile::reciprocal);
     auto simulation = run_pair(recorder, "corridor-recovery", motion, {1900, 700}, {300, 700}, 1500);
-    simulation.paused = true;
+    simulation.pause();
     motion.corridor_traffic = true;
     simulation.configure_motion(motion);
-    simulation.paused = false;
+    simulation.run();
     recorder.run(simulation, 6000);
     return simulation;
 }

@@ -52,13 +52,13 @@ Blueprint crossing_fixture() {
 /// Starts the two crossing movers toward the opposite arms under reciprocal steering,
 /// with or without junction traffic.
 void start_crossing(Simulation &s, bool enabled) {
-    s.workload = false;
+    s.set_workload(false);
     auto config = s.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.junction_traffic = enabled;
     s.configure_motion(config);
     REQUIRE_MESSAGE((s.move_to(0, {1100, 700}) && s.move_to(1, {700, 1100})), "Crossing goals rejected");
-    s.paused = false;
+    s.run();
 }
 
 /// The crossing fixture plus a third mover approaching the junction from the east.
@@ -76,13 +76,13 @@ Blueprint corridor_fixture() {
 /// Starts both corridor movers toward their goals under reciprocal steering, with or
 /// without corridor traffic.
 void start_corridor(Simulation &s, bool enabled, Vec2 west_goal, Vec2 east_goal) {
-    s.workload = false;
+    s.set_workload(false);
     auto config = s.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.corridor_traffic = enabled;
     s.configure_motion(config);
     REQUIRE_MESSAGE((s.move_to(0, west_goal) && s.move_to(1, east_goal)), "Corridor goals rejected");
-    s.paused = false;
+    s.run();
 }
 
 /// The corridor fixture with both movers already inside the corridor.
@@ -110,11 +110,11 @@ MotionSettings passing_motion(SteeringProfile profile) {
 /// `profile`, unpaused, with the event log on when `record` is set.
 Simulation passing_pair(SteeringProfile profile, bool record = true) {
     Simulation pair(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
-    pair.workload = false;
+    pair.set_workload(false);
     pair.configure_motion(passing_motion(profile));
     REQUIRE_MESSAGE((pair.move_to(0, {1900, 800}) && pair.move_to(1, {500, 800})), "Passing goals rejected");
     pair.record_events(record);
-    pair.paused = false;
+    pair.run();
     return pair;
 }
 
@@ -136,7 +136,7 @@ void check_encounters(bool crossing) {
         b.movers = {{"A", Model::APM4220, {500, 700}},
                     {"B", Model::APM4220, crossing ? Vec2{1000, 200} : Vec2{1500, 700}}};
         Simulation trial(b);
-        trial.workload = false;
+        trial.set_workload(false);
         auto settings = trial.motion_settings();
         settings.profile = profile;
         trial.configure_motion(settings);
@@ -144,7 +144,7 @@ void check_encounters(bool crossing) {
         const auto c = trial.movers()[1].body.position;
         REQUIRE_MESSAGE(trial.move_to(0, crossing ? Vec2{1700, a.y} : c), "Encounter goal A rejected");
         REQUIRE_MESSAGE(trial.move_to(1, crossing ? Vec2{c.x, 1300} : a), "Encounter goal B rejected");
-        trial.paused = false;
+        trial.run();
         for (int tick = 0; tick < 5000; ++tick)
             trial.tick();
         INFO("contacts " << trial.collisions() << " moving " << trial.movers()[0].moving
@@ -168,7 +168,7 @@ void check_large_factory_recovery(const char *name) {
     auto recovery_settings = recovery.motion_settings();
     recovery_settings.recovery = true;
     recovery.configure_motion(recovery_settings);
-    recovery.paused = false;
+    recovery.run();
     bool recovered = false;
     for (int i = 0; i < 50000; ++i) {
         recovery.tick();
@@ -184,7 +184,7 @@ void check_large_factory_recovery(const char *name) {
 /// The fixture with seed 7, run unpaused for 2000 ticks.
 Simulation seeded_run() {
     Simulation simulation(fixture(), 7);
-    simulation.paused = false;
+    simulation.run();
     for (int i = 0; i < 2000; ++i)
         simulation.tick();
     return simulation;
@@ -218,7 +218,7 @@ std::string workload_diagnostics(const Simulation &factory) {
 TEST_CASE("reciprocal control keeps physical tick units at any update rate") {
     Simulation normal(fixture()), accelerated(fixture());
     for (auto *simulation : {&normal, &accelerated}) {
-        simulation->workload = false;
+        simulation->set_workload(false);
         auto config = simulation->motion_settings();
         config.profile = SteeringProfile::reciprocal;
         simulation->configure_motion(config);
@@ -244,7 +244,7 @@ TEST_CASE("reciprocal departure through a narrow gap stays bounded and leaves pa
                 {"left", Model::APM4220, home - Vec2{size.x + 8, 0}},
                 {"right", Model::APM4220, home + Vec2{size.x + 8, 0}}};
     Simulation narrow(b);
-    narrow.workload = false;
+    narrow.set_workload(false);
     auto config = narrow.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     narrow.configure_motion(config);
@@ -324,7 +324,7 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
             CHECK_MESSAGE((!blocked.movers()[0].moving && !blocked.movers()[1].moving),
                           "Crossing did not resume after its occupant was unblocked");
             auto disabled = trial;
-            disabled.paused = true;
+            disabled.pause();
             auto config = disabled.motion_settings();
             config.junction_traffic = false;
             disabled.configure_motion(config);
@@ -356,7 +356,7 @@ TEST_CASE("crossing admission works for every approach orientation") {
         for (auto &m : b.movers)
             m.position = Vec2{700, 700} + kinetra::rotated(m.position + half - Vec2{700, 700}, angle) - half;
         Simulation rotated(b);
-        rotated.workload = false;
+        rotated.set_workload(false);
         auto config = rotated.motion_settings();
         config.profile = SteeringProfile::reciprocal;
         config.junction_traffic = true;
@@ -364,7 +364,7 @@ TEST_CASE("crossing admission works for every approach orientation") {
         REQUIRE_MESSAGE((rotated.move_to(0, Vec2{700, 700} + kinetra::rotated({400, 0}, angle)) &&
                          rotated.move_to(1, Vec2{700, 700} + kinetra::rotated({0, 400}, angle))),
                         "Rotated crossing goal rejected");
-        rotated.paused = false;
+        rotated.run();
         for (int t = 0; t < 1500; ++t)
             rotated.tick();
         CHECK_MESSAGE(
@@ -377,14 +377,14 @@ TEST_CASE("a T-junction admits a turning movement") {
     auto tee_blueprint = crossing_fixture();
     tee_blueprint.zones.push_back({"closed south", {600, 800}, {200, 600}});
     Simulation tee(tee_blueprint);
-    tee.workload = false;
+    tee.set_workload(false);
     auto config = tee.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.junction_traffic = true;
     tee.configure_motion(config);
     CHECK_MESSAGE((tee.junction_count() == 1 && tee.move_to(0, {1100, 700}) && tee.move_to(1, {300, 700})),
                   "T-junction detection or goals failed");
-    tee.paused = false;
+    tee.run();
     for (int t = 0; t < 2000; ++t)
         tee.tick();
     CHECK_MESSAGE((!tee.movers()[0].moving && !tee.movers()[1].moving && tee.collisions() == 0),
@@ -416,7 +416,7 @@ TEST_CASE("a mover waits outside a junction until its blocked exit clears in eve
         for (auto &m : b.movers)
             m.position = rotate(m.position + half) - half;
         Simulation trial(b);
-        trial.workload = false;
+        trial.set_workload(false);
         auto config = trial.motion_settings();
         config.profile = SteeringProfile::reciprocal;
         config.junction_traffic = true;
@@ -424,7 +424,7 @@ TEST_CASE("a mover waits outside a junction until its blocked exit clears in eve
         trial.toggle_mover(2);
         REQUIRE_MESSAGE((trial.move_to(0, rotate({1100, 700})) && trial.move_to(1, rotate({700, 1100}))),
                         "Blocked-exit goals rejected");
-        trial.paused = false;
+        trial.run();
         bool saw_exit_wait = false, saw_free_exit = false;
         for (int t = 0; t < 1000; ++t) {
             trial.tick();
@@ -440,7 +440,7 @@ TEST_CASE("a mover waits outside a junction until its blocked exit clears in eve
         CHECK_MESSAGE((saw_exit_wait && saw_free_exit && !trial.junction_exit_reservation(0)),
                       "Blocked request prevented another exit from clearing or retained stale space");
         auto disabled = trial;
-        disabled.paused = true;
+        disabled.pause();
         config.junction_traffic = false;
         disabled.configure_motion(config);
         CHECK_MESSAGE(
@@ -465,7 +465,7 @@ TEST_CASE("a mover waits outside a junction until its blocked exit clears in eve
 // so the admitted body can fully clear the junction before local avoidance.
 TEST_CASE("an exit reservation keeps an opposing approach outside its pocket") {
     Simulation protected_exit(opposing_fixture());
-    protected_exit.workload = false;
+    protected_exit.set_workload(false);
     auto config = protected_exit.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.junction_traffic = true;
@@ -473,7 +473,7 @@ TEST_CASE("an exit reservation keeps an opposing approach outside its pocket") {
     REQUIRE_MESSAGE((protected_exit.move_to(0, {1100, 700}) && protected_exit.move_to(1, {700, 1100}) &&
                      protected_exit.move_to(2, {300, 700})),
                     "Opposing-approach goals rejected");
-    protected_exit.paused = false;
+    protected_exit.run();
     bool held_outside_exit = false;
     for (int t = 0; t < 200; ++t) {
         protected_exit.tick();
@@ -494,18 +494,18 @@ TEST_CASE("an exit reservation keeps an opposing approach outside its pocket") {
 // empty pocket must not treat that pocket as safely reservable.
 TEST_CASE("a coasting approach prevents an unsafe exit reservation") {
     Simulation coasting(opposing_fixture());
-    coasting.workload = false;
+    coasting.set_workload(false);
     auto config = coasting.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.junction_traffic = false;
     coasting.configure_motion(config);
     REQUIRE_MESSAGE(coasting.move_to(2, {300, 700}), "Coasting approach goal rejected");
-    coasting.paused = false;
+    coasting.run();
     for (int t = 0; t < 109; ++t)
         coasting.tick();
     CHECK_MESSAGE(coasting.movers()[2].body.position.x - coasting.movers()[2].body.half_extents.x > 925.2f,
                   "Coasting fixture already physically occupied the exit pocket");
-    coasting.paused = true;
+    coasting.pause();
     config.junction_traffic = true;
     coasting.configure_motion(config);
     REQUIRE_MESSAGE((coasting.move_to(0, {1100, 700}) && coasting.move_to(1, {700, 1100})),
@@ -596,7 +596,7 @@ TEST_CASE("corridor admission passes opposing movers one at a time in every orie
                     (!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0),
                     "Corridor traffic failed to resume after unblocking");
                 auto independent = trial;
-                independent.paused = true;
+                independent.pause();
                 auto config = independent.motion_settings();
                 config.junction_traffic = true;
                 independent.configure_motion(config);
@@ -605,7 +605,7 @@ TEST_CASE("corridor admission passes opposing movers one at a time in every orie
                 CHECK_MESSAGE(independent.corridor_exit_reservation(0).has_value(),
                               "Junction toggle cancelled an active corridor reservation");
                 auto disabled = trial;
-                disabled.paused = true;
+                disabled.pause();
                 config = disabled.motion_settings();
                 config.corridor_traffic = false;
                 disabled.configure_motion(config);
@@ -626,14 +626,14 @@ TEST_CASE("a parked corridor occupant keeps its exit space and can depart") {
     auto parked = corridor_fixture();
     parked.movers[0].position.x = 1043.5f;
     Simulation stopped(parked);
-    stopped.workload = false;
+    stopped.set_workload(false);
     auto config = stopped.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.corridor_traffic = true;
     stopped.configure_motion(config);
     stopped.toggle_mover(0);
     REQUIRE_MESSAGE(stopped.move_to(1, {300, 700}), "Occupied corridor goal rejected");
-    stopped.paused = false;
+    stopped.run();
     for (int t = 0; t < 300; ++t)
         stopped.tick();
     CHECK_MESSAGE((stopped.movers()[0].body.position.x == 1100 && stopped.movers()[1].corridor_waiting &&
@@ -681,21 +681,21 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
             zone.dimension = {std::round(std::abs(a.x - c.x)), std::round(std::abs(a.y - c.y))};
         }
         Simulation trial(b);
-        trial.workload = false;
+        trial.set_workload(false);
         auto config = trial.motion_settings();
         config.profile = SteeringProfile::reciprocal;
         trial.configure_motion(config);
         REQUIRE_MESSAGE((trial.move_to(0, rotate({1900, 700})) && trial.move_to(1, rotate({300, 700}))),
                         "Recovery goals rejected");
-        trial.paused = false;
+        trial.run();
         for (int t = 0; t < 1500; ++t)
             trial.tick();
         CHECK_MESSAGE((trial.movers()[0].moving && trial.movers()[1].moving),
                       "Recovery fixture did not stall");
-        trial.paused = true;
+        trial.pause();
         config.corridor_traffic = true;
         trial.configure_motion(config);
-        trial.paused = false;
+        trial.run();
         auto replay = trial;
         bool saw_retreat = false, saw_reverse = false, checked_lifecycle = false;
         for (int t = 0; t < 6000; ++t) {
@@ -724,7 +724,7 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
                                kinetra::distance(cancelled.movers()[i].body.position, m.body.position) == 0),
                               "New manual goal failed to cancel retreat without teleporting");
                 auto disabled = trial;
-                disabled.paused = true;
+                disabled.pause();
                 auto off = disabled.motion_settings();
                 off.corridor_traffic = false;
                 disabled.configure_motion(off);
@@ -765,14 +765,14 @@ TEST_CASE("retreat refuges fit long rectangular movers") {
     rectangular.movers = {{"long north", Model::APM4350, {622.5f, 782.5f}},
                           {"long south", Model::APM4350, {622.5f, 1182.5f}}};
     Simulation long_movers(rectangular);
-    long_movers.workload = false;
+    long_movers.set_workload(false);
     auto long_config = long_movers.motion_settings();
     long_config.profile = SteeringProfile::reciprocal;
     long_config.corridor_traffic = true;
     long_movers.configure_motion(long_config);
     REQUIRE_MESSAGE((long_movers.move_to(0, {700, 2050}) && long_movers.move_to(1, {700, 300})),
                     "Long rectangular mover goals rejected");
-    long_movers.paused = false;
+    long_movers.run();
     bool long_recovery = false;
     for (int t = 0; t < 8000; ++t) {
         long_movers.tick();
@@ -789,14 +789,14 @@ TEST_CASE("recovery avoids occupied refuges and retries once one is free") {
         b.movers.push_back({"occupied refuge " + std::to_string(b.movers.size()), Model::APM4220,
                             point - Vec2{56.5f, 56.5f}});
     Simulation obstructed(b);
-    obstructed.workload = false;
+    obstructed.set_workload(false);
     auto config = obstructed.motion_settings();
     config.profile = SteeringProfile::reciprocal;
     config.corridor_traffic = true;
     obstructed.configure_motion(config);
     REQUIRE_MESSAGE((obstructed.move_to(0, {1900, 700}) && obstructed.move_to(1, {300, 700})),
                     "Obstructed recovery goals rejected");
-    obstructed.paused = false;
+    obstructed.run();
     for (int t = 0; t < 1500; ++t) {
         obstructed.tick();
         CHECK_MESSAGE(obstructed.corridor_recovering() == 0, "Recovery selected an occupied refuge");
@@ -828,14 +828,14 @@ TEST_CASE("predictive passing completes open-floor encounters in every orientati
             b.movers = {{"first", Model::APM4220, first - Vec2{56.5f, 56.5f}},
                         {"second", Model::APM4350, second - Vec2{77.5f, 117.5f}}};
             Simulation trial(b);
-            trial.workload = false;
+            trial.set_workload(false);
             auto config = trial.motion_settings();
             config.profile = profile;
             config.predictive_passing = true;
             config.heatmap = false;
             trial.configure_motion(config);
             REQUIRE_MESSAGE((trial.move_to(0, second) && trial.move_to(1, first)), "Passing goals rejected");
-            trial.paused = false;
+            trial.run();
             auto replay = trial;
             bool saw_pair = false, checked_lifecycle = false;
             for (int tick = 0; tick < 5000; ++tick) {
@@ -871,7 +871,7 @@ TEST_CASE("predictive passing completes open-floor encounters in every orientati
                                                  trial.movers()[0].body.position) == 0),
                               "Manual command did not cancel passing without teleportation");
                 auto disabled = trial;
-                disabled.paused = true;
+                disabled.pause();
                 auto off = disabled.motion_settings();
                 off.predictive_passing = false;
                 disabled.configure_motion(off);
@@ -896,11 +896,11 @@ TEST_CASE("predictive passing completes open-floor encounters in every orientati
 
 TEST_CASE("shared passing lanes shift away from a wall") {
     Simulation wall(near_wall_fixture());
-    wall.workload = false;
+    wall.set_workload(false);
     wall.configure_motion(passing_motion(SteeringProfile::reciprocal));
     REQUIRE_MESSAGE((wall.move_to(0, {1900, 100}) && wall.move_to(1, {500, 100})),
                     "Near-wall goals rejected");
-    wall.paused = false;
+    wall.run();
     bool shifted = false;
     for (int t = 0; t < 5000; ++t) {
         wall.tick();
@@ -914,11 +914,11 @@ TEST_CASE("passing without free space keeps the original routes") {
     auto b = near_wall_fixture();
     b.dimension.y = 200;
     Simulation narrow(b);
-    narrow.workload = false;
+    narrow.set_workload(false);
     narrow.configure_motion(passing_motion(SteeringProfile::reciprocal));
     REQUIRE_MESSAGE((narrow.move_to(0, {1900, 100}) && narrow.move_to(1, {500, 100})),
                     "Narrow goals rejected");
-    narrow.paused = false;
+    narrow.run();
     for (int t = 0; t < 1000; ++t) {
         narrow.tick();
         CHECK_MESSAGE((narrow.predictive_pairs() == 0 && !narrow.movers()[0].route.empty() &&
@@ -931,11 +931,11 @@ TEST_CASE("legacy steering profiles never form passing pairs") {
     for (auto profile : {SteeringProfile::original, SteeringProfile::experimental_rvo}) {
         CAPTURE(profile);
         Simulation legacy(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
-        legacy.workload = false;
+        legacy.set_workload(false);
         legacy.configure_motion(passing_motion(profile));
         REQUIRE_MESSAGE((legacy.move_to(0, {1900, 800}) && legacy.move_to(1, {500, 800})),
                         "Legacy goals rejected");
-        legacy.paused = false;
+        legacy.run();
         for (int t = 0; t < 1000; ++t) {
             legacy.tick();
             CHECK_MESSAGE(legacy.predictive_pairs() == 0,
@@ -997,7 +997,7 @@ TEST_CASE("the event log records each contact once with its tick and participant
     b.producers.clear();
     b.movers.push_back({"overlap", Model::APM4220, b.movers[0].position + Vec2{10, 0}});
     Simulation movers(b);
-    movers.workload = false;
+    movers.set_workload(false);
     movers.record_events(true);
     movers.single_step();
     movers.single_step();
@@ -1016,7 +1016,7 @@ TEST_CASE("the event log records each contact once with its tick and participant
     b.movers[0].position = {1100, 650};
     b.zones.push_back({"wall", {1200, 600}, {200, 200}});
     Simulation wall(b);
-    wall.workload = false;
+    wall.set_workload(false);
     wall.record_events(true);
     wall.single_step();
     REQUIRE(wall.events().size() == 1);
@@ -1053,9 +1053,9 @@ TEST_CASE("flow metrics count no waiting or stuck mover on a free trip") {
     b.producers.clear();
     b.movers[0].position = {300, 700};
     Simulation solo(b);
-    solo.workload = false;
+    solo.set_workload(false);
     REQUIRE(solo.move_to(0, {1900, 750}));
-    solo.paused = false;
+    solo.run();
     FlowMetrics flow;
     for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick) {
         solo.tick();
@@ -1085,10 +1085,10 @@ TEST_CASE("flow metrics ignore a held mover") {
     auto b = fixture();
     b.producers.clear();
     Simulation held(b);
-    held.workload = false;
+    held.set_workload(false);
     REQUIRE(held.move_to(0, {1900, 750}));
     held.toggle_mover(0);
-    held.paused = false;
+    held.run();
     FlowMetrics flow({.stuck_ticks = 100});
     for (int tick = 0; tick < 1000; ++tick) {
         held.tick();
@@ -1116,7 +1116,7 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
         config.profile = SteeringProfile::reciprocal;
         config.parking_traffic = true;
         trial->configure_motion(config);
-        trial->paused = false;
+        trial->run();
     }
     bool saw_wait = false, checked_release = false, checked_manual = false;
     bool saw_return = false;
@@ -1144,7 +1144,7 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
             saw_wait = true;
             if (!checked_release) {
                 auto disabled = simulation;
-                disabled.paused = true;
+                disabled.pause();
                 auto config = disabled.motion_settings();
                 config.parking_traffic = false;
                 disabled.configure_motion(config);
@@ -1153,8 +1153,8 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
                                kinetra::distance(disabled.movers()[i].body.position, m.body.position) == 0),
                               "Disabling parking traffic lost the original goal or teleported a mover");
                 auto blocked = simulation;
-                blocked.workload = false;
-                blocked.paused = true;
+                blocked.set_workload(false);
+                blocked.pause();
                 for (std::size_t j = 0; j < blocked.movers().size(); ++j)
                     if (j != i && !blocked.movers()[j].blocked)
                         blocked.toggle_mover(j);
@@ -1183,14 +1183,15 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
 
 TEST_CASE("manual goals and single steps work under every profile and invalid motion settings are rejected") {
     Simulation probe(fixture());
-    probe.workload = false;
+    probe.set_workload(false);
     const auto start = probe.movers()[0].body.position;
     REQUIRE_MESSAGE(probe.move_to(0, {1300, 800}), "Manual goal rejected");
     CHECK_MESSAGE(probe.movers()[0].manual, "Manual mover not reserved");
     probe.add_product(ProductKind::trimmer);
     probe.single_step();
     CHECK_MESSAGE(!probe.movers()[0].product, "Manual mover allocated by factory");
-    CHECK_MESSAGE((probe.paused && probe.ticks() == 1), "Single step did not retain pause");
+    CHECK_MESSAGE((probe.state() == RunState::paused && probe.ticks() == 1),
+                  "Single step did not retain pause");
     CHECK_MESSAGE(kinetra::distance(start, probe.movers()[0].body.position) > 0, "Single step did not move");
     for (auto profile : {SteeringProfile::improved, SteeringProfile::original,
                          SteeringProfile::experimental_rvo, SteeringProfile::reciprocal}) {
@@ -1240,7 +1241,7 @@ TEST_CASE("movers return to their reservations beside walls and in corners and b
                 b.movers.push_back({"right", Model::APM4220, home + Vec2{size.x + 8, 0}});
             }
             Simulation parking(b);
-            parking.workload = false;
+            parking.set_workload(false);
             auto config = parking.motion_settings();
             config.profile = profile;
             parking.configure_motion(config);
@@ -1249,7 +1250,7 @@ TEST_CASE("movers return to their reservations beside walls and in corners and b
                           "Manual goal accepted a footprint outside the world");
             for (const auto goal : {Vec2{800, 950} + size / 2, reserved}) {
                 REQUIRE_MESSAGE(parking.move_to(0, goal), "Parking approach rejected");
-                parking.paused = false;
+                parking.run();
                 for (int tick = 0; tick < 8000 && parking.movers()[0].moving; ++tick) {
                     parking.tick();
                     const auto &m = parking.movers()[0];
@@ -1282,7 +1283,7 @@ TEST_CASE("allocation skips a mover trapped behind blocked neighbors") {
                 {"side", Model::APM4220, {123, 5}},
                 {"available", Model::APM4220, {800, 500}}};
     Simulation departure(b);
-    departure.workload = false;
+    departure.set_workload(false);
     departure.toggle_mover(1);
     departure.toggle_mover(2);
     departure.add_product(ProductKind::trimmer);
@@ -1296,7 +1297,7 @@ TEST_CASE("a persistent contact pair counts once and accumulates its duration") 
     b.producers.clear();
     b.movers.push_back({"overlap", Model::APM4220, b.movers[0].position + Vec2{10, 0}});
     Simulation contacts(b);
-    contacts.workload = false;
+    contacts.set_workload(false);
     contacts.single_step();
     CHECK_MESSAGE((contacts.collisions() == 1 && contacts.contact_ticks() == 1),
                   "Contact pair was counted more than once");
@@ -1312,9 +1313,9 @@ TEST_CASE("a solo mover ignores its own heatmap footprint and arrives without co
     b.producers.clear();
     b.movers[0].position = {300, 700};
     Simulation solo(b);
-    solo.workload = false;
+    solo.set_workload(false);
     REQUIRE_MESSAGE(solo.move_to(0, {1900, 750}), "Solo goal rejected");
-    solo.paused = false;
+    solo.run();
     for (int tick = 0; tick < 80; ++tick)
         solo.tick();
     CHECK_MESSAGE(solo.movers()[0].replan == 80, "A mover replanned because of its own heatmap footprint");
@@ -1329,10 +1330,10 @@ TEST_CASE("contact does not displace a parked mover") {
     b.producers.clear();
     b.movers = {{"moving", Model::APM4220, {500, 700}}, {"parked", Model::APM4220, {510, 700}}};
     Simulation parked(b);
-    parked.workload = false;
+    parked.set_workload(false);
     const auto position = parked.movers()[1].body.position;
     REQUIRE_MESSAGE(parked.move_to(0, {1700, 700}), "Departure goal rejected");
-    parked.paused = false;
+    parked.run();
     for (int tick = 0; tick < 1000; ++tick) {
         parked.tick();
         CHECK_MESSAGE((kinetra::distance(parked.movers()[1].body.position, position) == 0 &&
@@ -1347,9 +1348,9 @@ TEST_CASE("a valid detour counts as progress and arrives without contact") {
     b.movers[0].position = {650, 700};
     b.zones.push_back({"wall", {1000, 400}, {200, 800}});
     Simulation detour(b);
-    detour.workload = false;
+    detour.set_workload(false);
     REQUIRE_MESSAGE(detour.move_to(0, {1300, 750}), "Detour goal rejected");
-    detour.paused = false;
+    detour.run();
     for (int tick = 0; tick < 5000 && detour.movers()[0].moving; ++tick) {
         detour.tick();
         CHECK_MESSAGE(detour.movers()[0].no_progress < 100,
@@ -1369,11 +1370,11 @@ TEST_CASE("crossing encounters reach both goals without contacts") {
 
 TEST_CASE("drawing interpolates between a mover's last two ticks") {
     Simulation simulation(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
-    simulation.workload = false;
+    simulation.set_workload(false);
     REQUIRE(simulation.move_to(0, {1900, 800}));
     CHECK_MESSAGE(simulation.interpolation() == 1, "A paused simulation shows its exact state");
     CHECK(distance(simulation.movers()[0].previous_position, simulation.movers()[0].body.position) == 0);
-    simulation.paused = false;
+    simulation.run();
     simulation.updates_per_second(4); // binary fractions keep the clock exact
     for (int tick = 0; tick < 20; ++tick)
         simulation.advance(0.25);
@@ -1384,7 +1385,7 @@ TEST_CASE("drawing interpolates between a mover's last two ticks") {
                   "previous_position is the start of the last tick");
     CHECK(distance(mover.body.position, before) > 0);
     CHECK(simulation.interpolation() == doctest::Approx(0.5));
-    simulation.paused = true;
+    simulation.pause();
     CHECK(simulation.interpolation() == 1);
 }
 
@@ -1406,12 +1407,13 @@ TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply
                       "Showcase scenario lacks a description, disables no workload or misses goals");
         Simulation simulation(load_blueprint(file));
         apply_scenario(*scenario, simulation);
-        CHECK_MESSAGE(simulation.paused, "Applying a scenario must not start the simulation");
+        CHECK_MESSAGE(simulation.state() == RunState::paused,
+                      "Applying a scenario must not start the simulation");
         Simulation running(load_blueprint(file));
-        running.paused = false;
+        running.run();
         apply_scenario(*scenario, running);
-        CHECK_MESSAGE(!running.paused, "Applying a scenario must keep a running simulation running");
-        CHECK_MESSAGE(!simulation.workload, "Scenario workload not applied");
+        CHECK_MESSAGE(running.running(), "Applying a scenario must keep a running simulation running");
+        CHECK_MESSAGE(!simulation.workload(), "Scenario workload not applied");
         CHECK_MESSAGE((simulation.movers()[0].manual && simulation.movers()[1].manual),
                       "Scenario goals were not sent");
     }
@@ -1448,16 +1450,16 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
         motion.profile = SteeringProfile::reciprocal;
         scene.enable(motion);
         Simulation by_hand(load_blueprint(file));
-        by_hand.workload = false;
+        by_hand.set_workload(false);
         by_hand.configure_motion(motion);
         REQUIRE((by_hand.move_to(0, scene.first_goal) && by_hand.move_to(1, scene.second_goal)));
-        by_hand.paused = false;
+        by_hand.run();
         i4sim::test::Recorder hand_recorder;
         hand_recorder.run(by_hand, ticks);
 
         Simulation from_scenario(load_blueprint(file));
         apply_scenario(*load_scenario(file), from_scenario);
-        from_scenario.paused = false;
+        from_scenario.run();
         i4sim::test::Recorder scenario_recorder;
         scenario_recorder.run(from_scenario, ticks);
 
@@ -1523,9 +1525,9 @@ TEST_CASE("every bundled blueprint expands its groups and starts paused") {
         Simulation simulation(b);
         CHECK_MESSAGE((!simulation.movers().empty() && !simulation.producers().empty()),
                       "Blueprint groups were not expanded");
-        CHECK_MESSAGE(simulation.paused, "Blueprint must start paused");
-        simulation.workload = false;
-        simulation.paused = false;
+        CHECK_MESSAGE(simulation.state() == RunState::paused, "Blueprint must start paused");
+        simulation.set_workload(false);
+        simulation.run();
         for (int i = 0; i < 20; ++i)
             simulation.tick();
     }
@@ -1546,11 +1548,11 @@ TEST_CASE("both product recipes complete with the original production timing") {
     for (const auto kind : {ProductKind::trimmer, ProductKind::personalized}) {
         CAPTURE(kind);
         Simulation simulation(fixture());
-        simulation.workload = false;
+        simulation.set_workload(false);
         simulation.advance(5);
         CHECK_MESSAGE(simulation.ticks() == 0, "Paused simulation advanced");
         simulation.add_product(kind);
-        simulation.paused = false;
+        simulation.run();
         for (int i = 0; i < 30000 && !simulation.completed(); ++i)
             simulation.tick();
         INFO(recipe_diagnostics(simulation));
@@ -1570,7 +1572,7 @@ TEST_CASE("both product recipes complete with the original production timing") {
 TEST_CASE("the original MAS workload completes recipes within producer queue capacity") {
     const auto mas = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
     Simulation factory(mas, 42);
-    factory.paused = false;
+    factory.run();
     for (int i = 0; i < 50000; ++i)
         factory.tick();
     INFO(workload_diagnostics(factory));
@@ -1589,9 +1591,9 @@ TEST_CASE("the 8640x4800 factory exercises route recovery and completes products
 
 TEST_CASE("a blocked producer pauses its recipe and resumes it") {
     Simulation blocked(fixture());
-    blocked.workload = false;
+    blocked.set_workload(false);
     blocked.add_product(ProductKind::trimmer);
-    blocked.paused = false;
+    blocked.run();
     for (int i = 0; i < 5000 && blocked.producers()[0].remaining == 0; ++i)
         blocked.tick();
     REQUIRE_MESSAGE(blocked.producers()[0].remaining > 0, "Fixture never started production");
@@ -1626,10 +1628,65 @@ TEST_CASE("the tick cap pauses the simulation") {
     auto limited = fixture();
     limited.tick_cap = 3;
     Simulation cap(limited);
-    cap.paused = false;
+    cap.run();
     for (int i = 0; i < 10; ++i)
         cap.tick();
-    CHECK_MESSAGE((cap.ticks() == 3 && cap.paused), "Tick cap ignored");
+    CHECK_MESSAGE((cap.ticks() == 3 && cap.state() == RunState::finished), "Tick cap ignored");
+}
+
+TEST_CASE("run and pause move between the run states and the tick cap finishes a run") {
+    auto limited = fixture();
+    limited.tick_cap = 2;
+    Simulation simulation(limited);
+    simulation.set_workload(false);
+    CHECK(simulation.state() == RunState::paused);
+    simulation.tick();
+    simulation.advance(1);
+    CHECK_MESSAGE(simulation.ticks() == 0, "A paused simulation ran a tick");
+    simulation.pause();
+    CHECK(simulation.state() == RunState::paused);
+    simulation.run();
+    CHECK(simulation.running());
+    simulation.run();
+    CHECK(simulation.running());
+    simulation.pause();
+    CHECK(simulation.state() == RunState::paused);
+    simulation.single_step();
+    CHECK((simulation.state() == RunState::paused && simulation.ticks() == 1));
+    simulation.single_step();
+    CHECK_MESSAGE((simulation.state() == RunState::finished && simulation.ticks() == 2),
+                  "The tick that reaches the cap did not finish the run");
+    for (auto change : {&Simulation::run, &Simulation::pause, &Simulation::single_step}) {
+        (simulation.*change)();
+        CHECK(simulation.state() == RunState::finished);
+    }
+    simulation.tick();
+    simulation.advance(1);
+    CHECK_MESSAGE(simulation.ticks() == 2, "A finished simulation ran another tick");
+    CHECK(simulation.interpolation() == 1);
+}
+
+TEST_CASE("changing motion settings while running equals pausing around the change") {
+    auto paused_change = passing_pair(SteeringProfile::reciprocal, false);
+    auto running_change = paused_change;
+    for (int tick = 0; tick < 200; ++tick) {
+        paused_change.tick();
+        running_change.tick();
+    }
+    auto config = paused_change.motion_settings();
+    config.profile = SteeringProfile::improved;
+    paused_change.pause();
+    paused_change.configure_motion(config);
+    paused_change.run();
+    running_change.configure_motion(config);
+    CHECK(running_change.running());
+    for (int tick = 0; tick < 2000; ++tick) {
+        paused_change.tick();
+        running_change.tick();
+        for (std::size_t i = 0; i < 2; ++i)
+            REQUIRE(kinetra::distance(paused_change.movers()[i].body.position,
+                                      running_change.movers()[i].body.position) == 0);
+    }
 }
 
 TEST_CASE("a run exports its summary") {

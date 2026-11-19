@@ -178,8 +178,6 @@ Simulation::Simulation(Blueprint b, std::uint32_t seed)
     update_heatmap();
 }
 void Simulation::configure_motion(MotionSettings settings) {
-    if (!paused)
-        throw std::logic_error("Pause before changing motion settings");
     if (int(settings.profile) < int(SteeringProfile::improved) ||
         int(settings.profile) > int(SteeringProfile::reciprocal) || !std::isfinite(settings.speed) ||
         settings.speed <= 0 || !std::isfinite(settings.force) || settings.force <= 0 ||
@@ -214,11 +212,20 @@ void Simulation::configure_motion(MotionSettings settings) {
     }
 }
 void Simulation::single_step() {
-    if (!paused)
+    if (state_ != RunState::paused)
         return;
-    paused = false;
+    state_ = RunState::running;
     tick();
-    paused = true;
+    if (state_ == RunState::running)
+        state_ = RunState::paused;
+}
+void Simulation::run() {
+    if (state_ == RunState::paused)
+        state_ = RunState::running;
+}
+void Simulation::pause() {
+    if (state_ == RunState::running)
+        state_ = RunState::paused;
 }
 void Simulation::updates_per_second(unsigned rate) {
     if (rate < 1 || rate > 10000)
@@ -236,7 +243,7 @@ void Simulation::settle_previous_positions() {
 void Simulation::advance(double elapsed) {
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Invalid elapsed time");
-    if (paused) {
+    if (!running()) {
         resume_pending_ = true;
         return;
     }
@@ -245,7 +252,7 @@ void Simulation::advance(double elapsed) {
         resume_pending_ = false;
     }
     const int count = clock_.advance(elapsed);
-    for (int i = 0; i < count && !paused; ++i)
+    for (int i = 0; i < count && running(); ++i)
         tick();
 }
 std::uint64_t Simulation::add_product(ProductKind kind) {
@@ -1284,16 +1291,16 @@ void Simulation::update_product(Product &p) {
     }
 }
 void Simulation::tick() {
-    if (paused)
+    if (!running())
         return;
     if (ticks_ >= blueprint_.tick_cap) {
-        paused = true;
+        state_ = RunState::finished;
         return;
     }
     ++ticks_;
     for (auto &m : movers_)
         m.previous_position = m.body.position;
-    if (workload && products_.size() < movers_.size())
+    if (workload_ && products_.size() < movers_.size())
         add_product((random_() % 2) ? ProductKind::trimmer : ProductKind::personalized);
     if (ticks_ % heatmap_period_ticks == 1)
         update_heatmap();
@@ -1306,7 +1313,7 @@ void Simulation::tick() {
         update_product(p);
     std::erase_if(products_, [](const Product &p) { return p.state == ProductState::completed; });
     if (ticks_ >= blueprint_.tick_cap)
-        paused = true;
+        state_ = RunState::finished;
 }
 void Simulation::dump(const std::filesystem::path &directory) const {
     using Json = nlohmann::json;

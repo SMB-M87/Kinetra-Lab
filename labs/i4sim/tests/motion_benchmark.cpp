@@ -85,12 +85,12 @@ int main(int argc, char **argv) {
                 settings.profile = profile;
                 simulation.configure_motion(settings);
                 simulation.record_events(true);
-                simulation.paused = false;
+                simulation.run();
                 FlowMetrics flow;
                 double acceleration_change = 0;
                 const auto started = std::chrono::steady_clock::now();
                 std::vector<Vec2> previous(simulation.movers().size());
-                for (std::uint64_t tick = 0; tick < ticks && !simulation.paused; ++tick) {
+                for (std::uint64_t tick = 0; tick < ticks && simulation.running(); ++tick) {
                     simulation.tick();
                     flow.observe(simulation);
                     for (std::size_t i = 0; i < previous.size(); ++i) {

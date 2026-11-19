@@ -62,8 +62,8 @@ int main(int argc, char **argv) {
             if (const auto scenario = i4sim::load_scenario(*blueprint))
                 i4sim::apply_scenario(*scenario, simulation);
             simulation.updates_per_second(ups);
-            simulation.paused = false;
-            for (std::uint64_t i = 0; i < ticks && !simulation.paused; ++i)
+            simulation.run();
+            for (std::uint64_t i = 0; i < ticks && simulation.running(); ++i)
                 simulation.tick();
             if (output)
                 simulation.dump(*output);

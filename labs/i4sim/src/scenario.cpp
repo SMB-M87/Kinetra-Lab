@@ -107,12 +107,8 @@ std::optional<Scenario> load_scenario(const std::filesystem::path &path) {
 }
 
 void apply_scenario(const Scenario &scenario, Simulation &simulation) {
-    const bool was_paused = simulation.paused;
-    // Motion settings may only change while paused.
-    simulation.paused = true;
     simulation.configure_motion(scenario.motion);
-    simulation.workload = scenario.workload;
-    simulation.paused = was_paused;
+    simulation.set_workload(scenario.workload);
     const auto &movers = simulation.blueprint().movers;
     for (const auto &target : scenario.goals) {
         // load_blueprint prefixes IDs with the model, so match the blueprint's own form.

@@ -21,6 +21,15 @@ struct MotionSettings {
     bool predictive_passing{};
     float speed{2}, force{0.6f}, horizon{32};
 };
+/// Whether a simulation advances. Every simulation starts `paused`.
+enum class RunState {
+    /// Stopped by the operator; `Simulation::run` resumes it.
+    paused,
+    /// `tick` and `advance` move the simulation forward.
+    running,
+    /// The blueprint's tick cap was reached; no further tick runs.
+    finished,
+};
 enum class ProductKind { trimmer, personalized };
 enum class ProductState { waiting, transporting, queued, processing, completed };
 std::vector<Interaction> recipe(ProductKind kind);
@@ -93,6 +102,11 @@ class Simulation {
     std::size_t predictive_pairs() const { return passing_plans_.size(); }
     std::optional<Vec2> passing_target(std::size_t mover) const;
     const MotionSettings &motion_settings() const { return motion_; }
+    /// Replaces the motion settings, in any run state. Clears the coordination state of the
+    /// features it turns off and sets every moving mover's goal again, which ends passing
+    /// plans and corridor recoveries; bodies do not move. Throws std::invalid_argument for
+    /// an unknown profile or a speed, force or horizon that is not finite and positive
+    /// (horizon at most 64 ticks); the settings are then unchanged.
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return contact_ticks_; }
     /// Seed of the workload generator. With the blueprint, the motion settings and the
@@ -107,13 +121,28 @@ class Simulation {
     /// log grows without bound while recording is on. The span is valid until the next
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const { return events_; }
+    /// Runs one tick when `paused` and stays `paused`, or ends `finished` at the tick cap.
+    /// Does nothing in any other state.
     void single_step();
     /// Fraction of the next tick that advance() has accumulated, in [0, 1): how far drawing
-    /// should blend from each mover's `previous_position` to its `body.position`. One while
-    /// paused, so a paused or single-stepped scene shows its exact state.
-    double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
-    bool paused{true}, workload{true};
+    /// should blend from each mover's `previous_position` to its `body.position`. One unless
+    /// `running`, so a paused, finished or single-stepped scene shows its exact state.
+    double interpolation() const { return running() ? clock_.interpolation() : 1.0; }
+    RunState state() const { return state_; }
+    bool running() const { return state_ == RunState::running; }
+    /// Moves a `paused` simulation to `running`; a `finished` one stays finished.
+    void run();
+    /// Moves a `running` simulation to `paused`; a `finished` one stays finished.
+    void pause();
+    /// Whether `tick` adds a random product while fewer products than movers are open.
+    bool workload() const { return workload_; }
+    void set_workload(bool enabled) { workload_ = enabled; }
+    /// Runs as many ticks as `elapsed` seconds hold at the current update rate, while
+    /// `running`; the remainder carries over. Throws std::invalid_argument for a negative or
+    /// non-finite `elapsed`.
     void advance(double elapsed);
+    /// Runs one tick while `running`, and does nothing otherwise. Reaching the blueprint's
+    /// tick cap moves the simulation to `finished`.
     void tick();
     void updates_per_second(unsigned rate);
     unsigned updates_per_second() const { return ups_; }
@@ -125,6 +154,8 @@ class Simulation {
     void dump(const std::filesystem::path &directory) const;
 
   private:
+    RunState state_{RunState::paused};
+    bool workload_{true};
     struct PassingPlan {
         std::uint64_t id{};
         std::array<std::size_t, 2> movers;
