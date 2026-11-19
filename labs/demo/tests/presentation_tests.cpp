@@ -60,8 +60,6 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
                     "Missing route for renderer check");
     sandbox::render(reopened, application);
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Sandbox renderer reported an OpenGL error");
-    CHECK_MESSAGE(sandbox::window_title(application).find("CTRL settings") != std::string::npos,
-                  "Sandbox title lost help controls");
     sandbox::FrameCommands probes;
     probes.probes = true;
     probes.toggle_paths = probes.toggle_vectors = true;

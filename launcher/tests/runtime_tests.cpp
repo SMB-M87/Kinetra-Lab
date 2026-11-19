@@ -8,6 +8,7 @@
 #include <kinetra/debug_view.h>
 #include <kinetra/engine.h>
 #include <kinetra/settings_view.h>
+#include <lab/session.h>
 #include <lab/settings.h>
 
 #include <doctest/doctest.h>
@@ -30,8 +31,13 @@ std::unique_ptr<Session> start(Variant variant, Camera2D &camera,
     return registrations.at(selection.application).create(camera, selection.configuration);
 }
 
+/// The state summary of a Lab session; every launcher registration creates one.
+std::string status(Session &session) {
+    return dynamic_cast<lab::Session &>(session).status();
+}
+
 bool paused(Session &session) {
-    return session.title().find("PAUSED") != std::string::npos;
+    return status(session).find("PAUSED") != std::string::npos;
 }
 
 /// Reads one pixel at a logical window position from whichever buffer holds the frame.
@@ -213,6 +219,7 @@ TEST_CASE("every launch creates a clean session with its own camera") {
     Runtime runtime("Launcher integration", 160, 120);
     runtime.poll(false);
     auto session = start(Variant::demo, runtime.camera);
+    CHECK(session->title() == "Demo");
     Input pause;
     pause.pressed[std::size_t(Key::control)] = true;
     session->advance(0, pause, runtime.camera);
@@ -221,8 +228,7 @@ TEST_CASE("every launch creates a clean session with its own camera") {
     session.reset();
     session = start(Variant::dotio, runtime.camera);
     session->advance(0, {}, runtime.camera);
-    CHECK_MESSAGE((session->title().find("Dotio") != std::string::npos && !paused(*session) &&
-                   runtime.camera.pixels_per_unit == 25),
+    CHECK_MESSAGE((session->title() == "Dotio" && !paused(*session) && runtime.camera.pixels_per_unit == 25),
                   "variant switch leaked pause or camera state");
     session->render(runtime);
     session.reset();
@@ -235,14 +241,15 @@ TEST_CASE("every launch creates a clean session with its own camera") {
         CAPTURE(difficulty);
         session.reset();
         session = start(Variant::dotio, runtime.camera, difficulty);
-        CHECK_MESSAGE(session->title().find(names[difficulty]) != std::string::npos,
+        CHECK_MESSAGE(status(*session).find(names[difficulty]) != std::string::npos,
                       "the launcher lost the difficulty when creating Dotio");
     }
     session.reset();
     session = start(Variant::i4sim, runtime.camera);
+    CHECK(session->title() == "i4sim");
     session->advance(0, {}, runtime.camera);
     session->render(runtime);
-    CHECK_MESSAGE(session->title().find("Loadscreen") != std::string::npos,
+    CHECK_MESSAGE(status(*session).find("Loadscreen") != std::string::npos,
                   "i4sim skipped its blueprint screen");
     Input blueprint_choice;
     blueprint_choice.pressed[std::size_t(Key::enter)] = true;
@@ -308,7 +315,7 @@ TEST_CASE("dotio debug layers and ghost camera work through the debug menu") {
     pan.held[std::size_t(Key::right)] = true;
     session->advance(0.05, pan, runtime.camera);
     CHECK_MESSAGE(
-        (runtime.camera.position.x > 0 && session->title().find("camera FREE") != std::string::npos),
+        (runtime.camera.position.x > 0 && status(*session).find("camera FREE") != std::string::npos),
         "Demo debug Ghost did not route arrow input to the camera");
     demo_debug = {};
     demo_debug.pressed[std::size_t(Key::backquote)] = true;
@@ -317,7 +324,7 @@ TEST_CASE("dotio debug layers and ghost camera work through the debug menu") {
     teleport.clicked = true;
     teleport.mouse = runtime.camera.viewport / 2;
     session->advance(0, teleport, runtime.camera);
-    CHECK_MESSAGE(session->title().find("teleported") != std::string::npos,
+    CHECK_MESSAGE(status(*session).find("teleported") != std::string::npos,
                   "Demo Ghost click failed to teleport into free space");
     session->render(runtime);
     CHECK(glGetError() == GL_NO_ERROR);
@@ -344,6 +351,7 @@ TEST_CASE("lab bindings keep m and escape inside the running session") {
             REQUIRE(SDL_PushEvent(&event) == 1);
         }
         std::string title() override { return "LOOP TEST"; }
+        std::string status() override { return {}; }
     };
     int updates = 0, destroyed = 0;
     SDL_Event enter{};

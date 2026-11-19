@@ -74,7 +74,8 @@ class DemoSession final : public lab::Session {
                         statistics_, fps_.rate(), &settings_);
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
-    std::string title() override { return sandbox::window_title(application_) + " | CTRL settings"; }
+    std::string title() override { return "Demo"; }
+    std::string status() override { return sandbox::status_text(application_); }
 };
 } // namespace
 std::unique_ptr<lab::Session> create_session(int count, std::uint32_t seed) {

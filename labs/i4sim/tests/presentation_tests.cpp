@@ -28,12 +28,12 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     auto session = i4sim::create_session();
     session->advance(0, {}, runtime.camera);
     session->render(runtime);
-    CHECK_MESSAGE(session->title().find("Loadscreen") != std::string::npos, "Missing loadscreen");
+    CHECK_MESSAGE(session->status().find("Loadscreen") != std::string::npos, "Missing loadscreen");
     Input choose;
     choose.pressed[std::size_t(Key::enter)] = true;
     session->advance(0, choose, runtime.camera);
     session->render(runtime);
-    CHECK_MESSAGE(session->title().find("PAUSED") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Loadscreen did not load paused blueprint");
     Input run;
     run.pressed[std::size_t(Key::space)] = true;
@@ -44,7 +44,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
         session->advance(1.0 / 60, toggle, runtime.camera);
     }
     session->render(runtime);
-    CHECK_MESSAGE(session->title().find("RUNNING") != std::string::npos, "Pause control failed");
+    CHECK_MESSAGE(session->status().find("RUNNING") != std::string::npos, "Pause control failed");
     Input debug_menu;
     debug_menu.pressed[std::size_t(Key::backquote)] = true;
     session->advance(0, debug_menu, runtime.camera);
@@ -96,12 +96,12 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     click_row(0);
     for (unsigned row = 1; row <= 14; ++row) {
         click_row(row);
-        CHECK_MESSAGE(session->title().find("RUNNING") != std::string::npos,
+        CHECK_MESSAGE(session->status().find("RUNNING") != std::string::npos,
                       "Motion edit did not preserve running state");
     }
     session->advance(0, run, runtime.camera);
     click_row(1);
-    CHECK_MESSAGE(session->title().find("PAUSED") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Motion edit resumed a paused simulation");
     session->advance(0, run, runtime.camera);
     session->advance(0, debug_menu, runtime.camera);
@@ -132,17 +132,17 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     Input panel;
     panel.pressed[std::size_t(Key::control)] = true;
     session->advance(0, panel, runtime.camera);
-    CHECK_MESSAGE(session->title().find("PAUSED") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Settings did not suspend simulation");
     Input suppressed;
     suppressed.pressed[std::size_t(Key::space)] = true;
     suppressed.clicked = true;
     suppressed.mouse = {1, 479};
     session->advance(1, suppressed, runtime.camera);
-    CHECK_MESSAGE(session->title().find("PAUSED") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Modal settings leaked simulation input");
     session->advance(0, panel, runtime.camera);
-    CHECK_MESSAGE(session->title().find("RUNNING") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("RUNNING") != std::string::npos,
                   "Settings did not restore running state");
     Input back;
     back.pressed[std::size_t(Key::control)] = true;
@@ -158,23 +158,23 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
                                     i4sim::default_blueprint_directory() / "missing.json");
     session->render(runtime);
-    CHECK_MESSAGE(session->title().find("Loadscreen") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("Loadscreen") != std::string::npos,
                   "Failed load left a partial simulation");
     const auto repaired_catalog =
         std::filesystem::temp_directory_path() /
         ("i4sim-catalog-recovery-" +
          std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     session = i4sim::create_session(42, repaired_catalog);
-    CHECK_MESSAGE(session->title().find(repaired_catalog.string()) != std::string::npos,
+    CHECK_MESSAGE(session->status().find(repaired_catalog.string()) != std::string::npos,
                   "Missing catalog error does not identify its directory");
     session->render(runtime);
     std::filesystem::create_directories(repaired_catalog);
     std::filesystem::copy_file(i4sim::default_blueprint_directory() / "MAS-demonstrator.json",
                                repaired_catalog / "factory.json");
     session->advance(0, choose, runtime.camera);
-    CHECK_MESSAGE(session->title() == "i4sim | Loadscreen", "Enter did not rediscover a repaired catalog");
+    CHECK_MESSAGE(session->status() == "Loadscreen", "Enter did not rediscover a repaired catalog");
     session->advance(0, choose, runtime.camera);
-    CHECK_MESSAGE(session->title().find("PAUSED") != std::string::npos,
+    CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Repaired catalog did not load its blueprint");
     session->render(runtime);
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Catalog recovery rendering produced an OpenGL error");
@@ -216,7 +216,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
             crossing_pixels[i + 2] < 30)
             ++lime;
     }
-    CHECK_MESSAGE((lime > 30 && cyan > 100 && session->title().find("RUNNING") != std::string::npos &&
+    CHECK_MESSAGE((lime > 30 && cyan > 100 && session->status().find("RUNNING") != std::string::npos &&
                    glGetError() == GL_NO_ERROR),
                   "Actual crossing/zone rendering failed");
     const auto corridor_file = std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json";
