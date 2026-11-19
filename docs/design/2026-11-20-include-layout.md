@@ -1,6 +1,6 @@
 # Include layout
 
-Status: accepted · Branch: `refactor/include-layout` · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md), [ADR 0015](../../external/Kinetra/docs/decisions/0015-include-layout.md), [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout)
+Status: implemented · Branch: `refactor/include-layout` · Kinetra pull request: [SMB-M87/Kinetra#14](https://github.com/SMB-M87/Kinetra/pull/14) · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md), [ADR 0015](../../external/Kinetra/docs/decisions/0015-include-layout.md), [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout)
 
 Lab's modules each grew their own layout: 17 headers in `labs/i4sim/src/`, 7 in `tools/capture/src/`, helper headers loose in `tests/`, and four Dotio folders for one `gmath` file. Includes carry no module name, so three `session.h` and two `zoom.h` meet, and the launcher reaches them with `../../labs/demo/include/session.h`. This change moves every Lab module to the shared [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout), groups the larger ones by topic, and then aligns the namespaces with the include roots. The engine side, with the new `<kinetra/simulation|view|runtime/...>` paths, is the [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md).
 
@@ -54,7 +54,9 @@ Settled with the user in three grilling rounds; choices that differ from the fir
 | Demo topics | `world/`, `input/`, `presentation/` *(differs: recommended was flat)* | User's choice; topics chosen so no folder holds one file |
 | Compatibility | Hard break, Kinetra merges first | User's choice; no forwarding headers |
 | Start | After Kinetra-Lab #31 and #32 are merged | They touch files that move |
-| Commits | One `git mv` commit per module, include and CMake fixes in the same commit, namespaces after | History follows the files; every commit builds |
+| Commits | One `git mv` commit for all modules, include and CMake fixes in the same commit, then one commit per namespace *(changed while building: planned was one commit per module)* | The modules include each other and the engine, so a commit per module would not build on its own |
+| `gmath` namespace | `dotio::math`, not `dotio` *(changed while building)* | Merged into `dotio`, its `Vec2` met `kinetra::Vec2` in the presentation, which uses `using namespace kinetra`; the sub-namespace matches its folder |
+| `zoom.h` in Demo and Dotio | Top of the include root, not `presentation/` *(changed while building)* | The logic (`SandboxApplication`, `dotio::Application`) includes it; a logic header must not reach into `presentation/` |
 
 ## Design
 
@@ -110,7 +112,7 @@ tools/capture/include/capture/  busy_stretch.h dotio_player.h png.h scenes.h sho
 - Every target's `target_include_directories` points at its module's `include/`; test targets add `tests/include/`. The launcher and capture link the presentation targets and include `"demo/presentation/session.h"` and friends instead of `../../`.
 - Includes inside a module also use the full form (`"i4sim/simulation/detail/routing.h"`), so moving a file never depends on the directory of its includer.
 - Thin sub-READMEs in `include/`, `src/` and `tests/` folders (Demo, Dotio, Dotio's `logic/` and `gmath/`) fold into their module README, as [AGENTS.md](../../AGENTS.md#documentation-in-lab) plans; each module README gets a layout section that shows its tree.
-- Namespace commits: `sandbox` → `demo`; `logic`, `gmath`, `gamef` → `dotio`; `lab` → `kinetra_lab`; `lab::test` → `kinetra_lab::testing`. Helper namespaces inside a file (`layer_color`, `tuning_step`, `menu_row`) stay.
+- Namespace commits: `sandbox` → `demo`; `logic` and `gamef` → `dotio`; `gmath` → `dotio::math`; `lab` → `kinetra_lab`; `lab::test` → `kinetra_lab::testing`. Helper namespaces inside a file (`layer_color`, `tuning_step`, `menu_row`) stay.
 
 ## Affected areas
 
@@ -136,15 +138,46 @@ A refactor: no new tests and no changed assertions. Each module commit builds an
 
 ## Review
 
-To be filled in after implementation.
+The full diff was read as a reviewer would; most of it is renames, which `git diff -M` pairs with their old paths.
+
+| Finding | Resolution |
+| --- | --- |
+| `dotio/ai/tracker.h` had no includes and relied on its includer's order, which `clang-format` changed after the new paths | It includes `<concepts>` and `<cstddef>` itself (folded into the move commit) |
+| `showcase.h` found the blueprints through `__FILE__`, one folder deeper after the move | The new `kinetra_i4sim_test_support` target passes `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR` |
+| `terrain_tests.cpp` reached Demo headers through `../include/` while linking only `Kinetra::Simulation` | It links `kinetra_sandbox_application` |
+| Merging `gamef` into `dotio` made the presentation's private `Renderer` adapter ambiguous with `dotio::Renderer` | The adapter is `RuntimeRenderer` |
+| `zoom.h` sat in `presentation/` but logic includes it | Moved to the top of each include root |
+| Namespace renames changed line lengths | A separate `style` commit reformats the touched files |
+| Comments and guides still named `tools/capture/src/*.h`, `labs/common` and the old helper location | Updated |
+
+Historical design documents keep their text; only link targets moved.
 
 ## Verification
 
-To be filled in after implementation.
+| Check | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | 268/268 passed |
+| `cmake --workflow --preset headless` (`KINETRA_LAB_BUILD_RUNTIME=OFF`) | 241/241 passed |
+| `cmake --workflow --preset graphics` | 283/283 passed |
+| Smoke runs: `kinetra --variant demo\|dotio\|i4sim --frames 120` and `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim --frames 120`, offscreen | All six exit 0 |
+| `cmake --workflow --preset windows` | 257/257 passed (MinGW-w64 cross build; the tests run on Windows through WSL interop) |
+| Warnings under `KINETRA_LAB_WARNINGS` | 46 distinct Lab warnings, the same as `main` built with the `ci` preset |
+| `clang-format --dry-run --Werror` on every changed file | Clean |
+| No header in `src/`, none loose in `tests/`, no `#include "../` | All three searches empty |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| Kinetra `ci` 251/251, `graphics` 263/264 | The one failure is the known WSLg mouse-input test, which fails on `main` too |
 
 ## Pull request
 
-To be filled in after implementation.
+**refactor(layout): one include root per module, topic folders and matching namespaces**
+
+Summary: every Lab module now follows the shared [directory layout](../../external/Kinetra/docs/conventions.md#directory-layout): one `include/<name>/` and a mirroring `src/`, no header in `src/` or loose in `tests/`, topic folders in i4sim, Dotio and Demo, internal headers in `detail/`. Includes carry their module path instead of bare names and `../`, namespaces match the include roots, and the engine pointer records Kinetra's matching layout. No behavior changes.
+
+Changes: the move (`git mv`, includes, CMake), the folded directory READMEs, three namespace commits (`kinetra_lab`, `demo`, `dotio` and `dotio::math`), `zoom.h` beside the logic that reads it, a format commit and comment fixes.
+
+Dependencies and merge order: the Kinetra pull request merges first, with a merge commit; then the pointer on this branch moves to that merge commit, and this pull request merges.
+
+Follow-up: target names (`kinetra_sandbox_*`, `kinetra_lab_common`) and Demo's `sandbox_` file names, see open points.
 
 ## Open points
 
