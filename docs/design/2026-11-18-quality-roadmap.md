@@ -82,7 +82,7 @@ Settled with the user on 2026-11-18. ⚑ marks answers that differ from the agen
 flowchart LR
     P1["1 Process and rules<br/>(done)"] --> P2["2 Tooling and CI<br/>(done)"]
     P2 --> P3["3 Safety net and<br/>shared presentation"]
-    P3 --> P4["4 i4sim<br/>(passing scenarios first)"]
+    P3 --> P4["4 i4sim<br/>(done)"]
     P3 --> P5["5 Demo"]
     P3 --> P6["6 Dotio"]
     P4 --> P7["7 Predictive passing<br/>under pressure"]
@@ -95,14 +95,14 @@ flowchart LR
 
 ## Status
 
-Updated on 2026-11-19.
+Updated on 2026-11-19, after phase 4.
 
 | Phase | State | Where |
 | --- | --- | --- |
 | 1 Process and rules | Implemented | [Development process](2026-11-18-development-process.md) |
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
-| 4 i4sim | In progress: step 1 (passing safety net) merged in Lab #6; step 2 (simulation components) on `refactor/i4sim-simulation`; step 3 (session) next | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
+| 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
 | 5–8 | Not started | This page |
 
 ## Phase 2: tooling and CI
@@ -144,6 +144,8 @@ Repositories: Kinetra (overlay, glyphs, ADR) and Lab.
 ## Phase 4: i4sim
 
 Repository: Lab.
+
+**Status: implemented.** See [i4sim restructuring](2026-11-19-i4sim-restructuring.md). Against the plan below: the mover's state became one value per axis instead of one `MoverState` enum, because several of the old flags are true together; `Simulation` is a facade over private components; and the session's controller lives in the headless library. The golden lines never changed.
 
 - **Predictive passing safety net (first, before any restructuring).** Pins today's passing behavior, so the refactor cannot change it silently and phase 7 has its baseline. No behavior change; the golden values stay identical.
   - *Diagnostics.* A passing event log in the simulation: participants, chosen lanes, phase transitions and the reason for every cancellation. On a contact it records seed and tick, so a failing situation can be replayed directly.
@@ -229,4 +231,5 @@ Two read-only audits on 2026-11-18 (Lab at `4eb5dba`, Kinetra at `b107142`) foun
 
 - Desktop playtests and performance checks remain manual; CI cannot replace them.
 - Phase 6 starts with a short video of today's Dotio enemy behavior. Recording it needs the user's desktop.
-- The i4sim presentation links `Kinetra::Launcher` for its blueprint screen, which the [layer rule](../../AGENTS.md#lab-boundaries) does not list. Phase 4 either documents it as the rule or removes the dependency.
+- Resolved in phase 4: the [layer rule](../../AGENTS.md#lab-boundaries) allows a presentation to link `Kinetra::Launcher` for its menu widgets, as i4sim's blueprint screen does.
+- Phase 4 left three session oddities as they were, for a decision on the intended behavior: `R` drops a `--ups` rate, RESET PARAMETERS sets a horizon of 8 against the default 32, and the session ignores its `output` argument ([i4sim open points](../../labs/i4sim/README.md#open-points)).

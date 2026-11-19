@@ -1,8 +1,12 @@
 find_package(nlohmann_json 3.11 REQUIRED)
-add_library(kinetra_i4sim_application src/blueprint.cpp src/flow_metrics.cpp src/floor_plan.cpp src/geometry.cpp src/goals.cpp src/motion_step.cpp src/production.cpp src/routing.cpp src/simulation.cpp src/simulation_core.cpp src/traffic.cpp
-    src/predictive_passing.cpp src/scenario.cpp)
+# Headless: the simulation, its loaders and the session's controller.
+add_library(kinetra_i4sim_application src/blueprint.cpp src/controller.cpp src/flow_metrics.cpp src/floor_plan.cpp
+    src/geometry.cpp src/goals.cpp src/motion_step.cpp src/predictive_passing.cpp src/production.cpp
+    src/routing.cpp src/scenario.cpp src/simulation.cpp src/simulation_core.cpp src/traffic.cpp)
 target_include_directories(kinetra_i4sim_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation PRIVATE nlohmann_json::nlohmann_json)
+# kinetra_lab_common: the controller uses the headless input policy in lab/input.h.
+target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation kinetra_lab_common
+    PRIVATE nlohmann_json::nlohmann_json)
 target_compile_features(kinetra_i4sim_application PUBLIC cxx_std_20)
 # Keep resources beside every executable that can open the factory. Resolve their
 # location at runtime so moving a complete bundle does not retain a build-machine path.
@@ -43,7 +47,7 @@ target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_application)
 kinetra_i4sim_bundle_blueprints(kinetra_i4sim)
 kinetra_executable_icon(kinetra_i4sim)
 if(KINETRA_BUILD_RUNTIME)
-    add_library(kinetra_i4sim_presentation src/session.cpp)
+    add_library(kinetra_i4sim_presentation src/blueprint_screen.cpp src/hud.cpp src/session.cpp src/world_view.cpp)
     # Launcher: the blueprint screen reuses LaunchMenu's pagination.
     target_link_libraries(kinetra_i4sim_presentation PUBLIC kinetra_i4sim_application kinetra_lab_common Kinetra::Launcher)
     target_compile_definitions(kinetra_i4sim PRIVATE I4SIM_RUNTIME)
@@ -63,6 +67,9 @@ if(BUILD_TESTING)
     # Recorded passing outcomes under pressure; reads its fixtures from tests/.
     kinetra_add_doctest(kinetra_i4sim_pressure_tests PREFIX kinetra_i4sim_pressure
         SOURCES tests/pressure_tests.cpp LIBRARIES kinetra_i4sim_application kinetra_lab_test_support)
+    # The session's controller without a window; reads its blueprints from the source tree.
+    kinetra_add_doctest(kinetra_i4sim_controller_tests PREFIX kinetra_i4sim_controller
+        SOURCES tests/controller_tests.cpp LIBRARIES kinetra_i4sim_application)
     # Runs the catalog case of kinetra_i4sim_tests from a relocated copy of the executable.
     add_test(NAME kinetra_i4sim_relocation COMMAND ${CMAKE_COMMAND}
         "-DPROBE=$<TARGET_FILE:kinetra_i4sim_tests>"
