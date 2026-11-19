@@ -81,8 +81,10 @@ class FactoryController {
 
     /// Which debug layers are selected.
     const ViewLayers &layers() const { return layers_; }
-    /// The mover or the producer that is inspected, by index; at most one of them is set.
+    /// The mover that is inspected, by index into Simulation::movers(). At most one of the
+    /// mover and the producer is selected.
     std::optional<std::size_t> selected_mover() const { return selected_mover_; }
+    /// The producer that is inspected, by index into Simulation::producers().
     std::optional<std::size_t> selected_producer() const { return selected_producer_; }
 
     /// The message for the operator; empty for none. A rejected command sets one that
