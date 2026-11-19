@@ -60,7 +60,7 @@ One pointer commit, following [Submodule detached HEAD](../../external/README.md
 | --- | --- |
 | `git -C external/Kinetra diff --stat b0076a9 59295f9` | Empty: identical tree |
 | `git -C external/Kinetra branch -r --contains 59295f9` | `origin/main` |
-| `./build.sh` with the submodule at `59295f9` (the run that verified pull request #16) | Kinetra 200/200, Lab 146/146 |
+| `./build.sh` with the submodule at `59295f9` (the run in [build.sh builds Windows](2026-11-19-build-sh-windows.md#verification)) | Kinetra 200/200, Lab 146/146 |
 | `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
 
 ## Pull request
