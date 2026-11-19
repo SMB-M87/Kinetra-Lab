@@ -20,8 +20,8 @@ using launcher::Variant;
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
-/// Clip frames per second (Stage::steps_per_frame steps of Stage::step_seconds each).
-constexpr int clip_fps = 15;
+/// Clip frames per second.
+constexpr int clip_fps = Stage::clip_fps;
 /// Seconds a session runs before it is captured, so agents and enemies are under way. Dotio's
 /// enemies first have to find the player; i4sim's movers need time to spread over the hall.
 constexpr double warm_up_seconds = 2, dotio_warm_up_seconds = 8, i4sim_warm_up_seconds = 20;
@@ -80,7 +80,7 @@ void launcher_loadscreen(Stage &stage) {
 Input demo_walk(Stage &stage, int frame) {
     Input input;
     if (frame == 0 || frame == clip_frames / 2) {
-        stage.point_at(frame == 0 ? at(stage, .72f, .38f) : at(stage, .32f, .66f));
+        stage.aim(frame == 0 ? at(stage, .72f, .38f) : at(stage, .32f, .66f));
         input.clicked = input.mouse_down = true;
     }
     return input;

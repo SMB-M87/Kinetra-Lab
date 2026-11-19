@@ -114,7 +114,25 @@ TEST_CASE("write_png rejects empty images, wrong sizes and unwritable paths") {
     CHECK_FALSE(std::filesystem::exists(path));
 }
 
-TEST_CASE("the scenes cover every file in docs/media once") {
+/// The text of a file in the Lab source tree.
+static std::string source_text(const std::filesystem::path &relative) {
+    std::ifstream in(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / relative);
+    return {std::istreambuf_iterator<char>(in), {}};
+}
+
+TEST_CASE("every scene has its file in docs/media, the media guide and the gallery") {
+    const auto readme = source_text("README.md"), guide = source_text("docs/media/README.md");
+    for (const auto &scene : capture::scenes()) {
+        const std::string file =
+            std::string(scene.name) + (scene.kind == capture::SceneKind::clip ? ".gif" : ".png");
+        CAPTURE(file);
+        CHECK(std::filesystem::exists(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "docs/media" / file));
+        CHECK(guide.find("(" + file + ")") != std::string::npos);
+        CHECK(readme.find("docs/media/" + file) != std::string::npos);
+    }
+}
+
+TEST_CASE("the scenes are the expected list, each once") {
     std::set<std::string> names;
     for (const auto &scene : capture::scenes()) {
         CHECK_MESSAGE(names.insert(std::string(scene.name)).second, scene.name << " appears twice");

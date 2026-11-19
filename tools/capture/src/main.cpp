@@ -8,6 +8,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <stdlib.h>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,13 @@ int main(int argc, char **argv) {
         std::cerr << '\n';
         return argc < 2 ? EXIT_FAILURE : EXIT_SUCCESS;
     }
+#ifndef _WIN32
+    // Offscreen software rendering, unless the caller chose otherwise: the frames are read
+    // from the front buffer, which is only reliable offscreen, and software Mesa gives the
+    // same pixels on every machine.
+    setenv("SDL_VIDEODRIVER", "offscreen", 0);
+    setenv("LIBGL_ALWAYS_SOFTWARE", "1", 0);
+#endif
     try {
         const std::filesystem::path output = argv[1];
         const std::vector<std::string> names(argv + 2, argv + argc);

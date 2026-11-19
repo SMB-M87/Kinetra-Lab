@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <fstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -161,6 +162,8 @@ void Stage::shot() {
 void Stage::record(int frames, const FrameInput &input) {
     const auto directory = output_ / scene_;
     std::filesystem::create_directories(directory);
+    // The encoder reads the rate from here, so it cannot disagree with the steps.
+    std::ofstream(directory / "framerate") << clip_fps << '\n';
     for (int frame = 0; frame < frames; ++frame) {
         advance_frame(input(frame));
         session().render(runtime_);

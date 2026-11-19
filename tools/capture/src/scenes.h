@@ -21,6 +21,7 @@ enum class SceneKind {
 struct Scene {
     /// File name without extension, as used in docs/media.
     std::string_view name;
+    /// Whether the scene writes a screenshot or the frames of a clip.
     SceneKind kind;
     /// Window size in logical pixels.
     int width, height;

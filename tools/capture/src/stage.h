@@ -39,8 +39,10 @@ class Stage {
     /// Time one step advances a session, in seconds: a 60 Hz display, so the rate counters
     /// in the statistics read as in the real application.
     static constexpr double step_seconds = 1.0 / 60;
-    /// Steps per clip frame: clips play at 15 frames per second.
+    /// Steps per clip frame.
     static constexpr int steps_per_frame = 4;
+    /// Frames per second a clip plays at: one clip frame per steps_per_frame steps.
+    static constexpr int clip_fps = static_cast<int>(1 / (step_seconds * steps_per_frame) + 0.5);
     /// Scripted input for clip frame `frame` (counted from 0). Its key presses, clicks and
     /// wheel apply to the frame's first step only; held keys and buttons to all its steps.
     using FrameInput = std::function<kinetra::Input(int frame)>;
@@ -66,8 +68,11 @@ class Stage {
     void press(kinetra::Key key);
     /// Moves the pointer to `point` (logical window pixels) and clicks there.
     void click(kinetra::Vec2 point);
-    /// Moves the pointer to `point` for the next frames.
+    /// Moves the pointer to `point` and advances one step with it there.
     void point_at(kinetra::Vec2 point);
+    /// Moves the pointer to `point` for the following steps, without advancing; for a
+    /// FrameInput that aims or clicks somewhere else.
+    void aim(kinetra::Vec2 point) { pointer_ = point; }
     /// Opens the settings panel with Ctrl, clicks `row`, and closes it again. Requires that
     /// no help section is expanded, because the clicks use the collapsed layout.
     void toggle_setting(SettingsRow row);
@@ -81,7 +86,8 @@ class Stage {
     /// Draws the session and writes `<output>/<scene>.png`.
     void shot();
     /// Records a clip: frame `i` advances with `input(i)`, draws and is written as
-    /// `<output>/<scene>/frame-NNNN.png`, counted from 1.
+    /// `<output>/<scene>/frame-NNNN.png`, counted from 1. Also writes
+    /// `<output>/<scene>/framerate`, holding clip_fps, for the GIF encoder.
     void record(int frames, const FrameInput &input);
     /// Writes the frame the Runtime presented last as `<output>/<scene>.png`, for scenes
     /// that draw without a session.
