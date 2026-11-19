@@ -308,6 +308,23 @@ Step 1, on the final branch state (Full level, because the Kinetra pointer moved
 
 Not run: a desktop playtest, because the session did not change.
 
+Step 2, on the final branch state (Full level: public API, build configuration and several files changed):
+
+| Command | Result |
+| --- | --- |
+| `ctest --preset release -R '^kinetra_i4sim'` after every commit | passed; the ten golden and eight pressure lines unchanged throughout (80/80 at the end) |
+| `cmake --workflow --preset ci` | passed: 150/150 tests; no Lab warning in `labs/i4sim` |
+| `cmake --workflow --preset headless` | passed: 143/143 tests |
+| `cmake --workflow --preset graphics` | passed: 163/163 tests, including the i4sim presentation tests |
+| `cmake --workflow --preset windows` | passed: 161/161 tests; i4sim builds warning-free with `-Werror` under MinGW |
+| `dev` build of every i4sim target | no warning; 19 i4sim compile commands carry `-Werror` |
+| `kinetra_i4sim_motion_benchmark --profile reciprocal --ticks 50000` | completed products, contacts, waiting ticks and stuck movers equal the step 1 baseline for all six runs; run time on `8640x4800` 11.2 / 11.4 s against 12.1 / 11.9 s for `main` built the same way on the same machine |
+| `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output ...` | 16 completed products; `summary.json` written. A showcase scene with its scenario also runs |
+| `python3 external/Kinetra/tools/check_docs.py` | all links resolve |
+| Function length in the simulation sources | longest 68 lines (`MotionStep::resolve_contacts`); `load_blueprint` (99) is outside this step |
+
+Not run: a desktop playtest. The session changed only in how it reads and sets the run state, workload and mover status, and the graphics tests cover those paths.
+
 ## Pull request
 
 **Title:** `test(i4sim): passing safety net with event log, flow metrics and pressure scenarios`
@@ -333,8 +350,33 @@ Not run: a desktop playtest, because the session did not change.
 >
 > **Follow-up.** Step 2 (`refactor/i4sim-simulation`) and step 3 (`refactor/i4sim-session`).
 
+Step 2:
+
+**Title:** `refactor(i4sim): split the simulation into components with explicit mover state`
+
+**Description:**
+
+> **Summary.** Step 2 of roadmap phase 4 ([design](#step-2-simulation)). Splits `Simulation` (1230 + 197 lines, eight responsibilities) into components with their own state, makes each axis of a mover's state one explicit value, and puts the run state behind operations. The ten golden lines and the eight pressure lines are bit-identical after every commit.
+>
+> **Changes.**
+> - `Simulation` is a facade over a private `detail::SimulationCore`, which composes `FloorPlan`, `Fleet`, routing, `Traffic`, `PredictivePassing`, `Goals`, `Production`, `MotionStep` and `EventLog` and keeps the tick order. Component headers are private in `labs/i4sim/src/`; copies stay deep.
+> - `Mover`: twelve flags become `MoverLifecycle`, `GoalKind`, `held` and one `Coordination` value; the progress counters are private; `Simulation::stalled()` and `mover_status()` replace the session's nested ternary.
+> - Run state: `paused` and `workload` are private behind `run()`, `pause()`, `state()` and `set_workload()`. **Behavior changes:** the tick cap now ends in `RunState::finished`, and `configure_motion` is allowed while running, so the session and `apply_scenario` drop their pause round trip. The HUD text is unchanged.
+> - Named constants in `simulation_constants.h` and at their use; no function in the simulation is over 70 lines.
+> - i4sim warnings are errors (`dev`, `ci`, `windows`).
+> - Docs: [simulation structure](../factory-simulation-architecture.md#simulation-structure) with component diagram, tick order and mover state diagram; `///` contracts on the facade and every component header.
+>
+> **Verification.** See the design document's Verification section: `ci`, `headless`, `graphics` and `windows` workflows, golden and pressure lines, benchmark and smoke run.
+>
+> **Review notes.** `/code-review` at high effort found no correctness issue; four cleanup findings were fixed, four were recorded with a reason (design document, Review).
+>
+> **Dependencies and merge order.** None; Lab only, no Kinetra change. Merge with a merge commit. Step 3 starts on the merged result.
+>
+> **Follow-up.** Step 3 (`refactor/i4sim-session`): headless controller with a test for the WORKLOAD row, HUD, world renderer, the launcher edge in the layer table, and the module README. `load_blueprint` (99 lines) and the shared event counting from step 1's review are carried there.
+
 ## Open points
 
-- `stalled` in `Mover` is written but never read. Step 2 removes it.
+- Resolved in step 2: the unread `stalled` counter in `Mover` is gone.
 - Resolved in [blueprint copy race](2026-11-19-blueprint-copy-race.md): parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory raced, and a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`. The catalog is now copied once per build.
+- Carried to step 3: `load_blueprint` is 99 lines, over the roadmap's ~80-line guide; the event counting that the benchmark and the pressure suite both write (step 1 review) still waits for a shared helper.
 - The `disabled` end reason is effectively unreachable, because `configure_motion` sets every moving mover's goal again and so ends plans as `goal_changed` first. Phase 7 decides whether disabling should end plans with their own reason.
