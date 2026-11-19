@@ -1,5 +1,6 @@
 #include "scenes.h"
 
+#include "dotio_player.h"
 #include "showcase.h"
 #include "stage.h"
 
@@ -10,6 +11,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -25,16 +27,22 @@ using launcher::Variant;
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
+/// Length of the Dotio debug clip: twelve seconds, long enough for an enemy to run for
+/// shelter, reload and come back.
+constexpr int long_clip_frames = 180;
 /// Clip frames per second.
 constexpr int clip_fps = Stage::clip_fps;
 /// Seconds a session runs before it is captured, so agents and enemies are under way. Dotio's
 /// enemies first have to find the player; i4sim's movers need time to spread over the hall.
 constexpr double warm_up_seconds = 2, dotio_warm_up_seconds = 8, i4sim_warm_up_seconds = 20;
-/// Debug-menu rows. Dotio: the last of its rows once PATHS (row 3) has opened its four
-/// filters, INVULNERABLE. i4sim: the LAYERS heading while SIMULATION and its four rows are open.
-constexpr std::size_t dotio_last_row = 12, i4sim_layers_heading_row = 5;
-/// Wheel notches the Dotio debug scenes zoom out, for a wider view of the agents.
-constexpr float dotio_debug_zoom_out = -3;
+/// Debug-menu row of i4sim's LAYERS heading while SIMULATION and its four rows are open.
+constexpr std::size_t i4sim_layers_heading_row = 5;
+/// Wheel notches the Dotio debug scenes zoom out: the screenshot for a wider view of the
+/// agents, the clip far enough to show the whole area the enemies spawn in.
+constexpr float dotio_debug_zoom_out = -3, dotio_debug_clip_zoom_out = -9;
+/// Longest the Dotio debug clip waits for an enemy to recover before it records anyway, in
+/// seconds. A recovery needs nine shots at the player; it usually comes within twenty.
+constexpr int dotio_recovery_wait_seconds = 60;
 
 /// A point at a fraction of the window, for clicks and aiming.
 Vec2 at(const Stage &stage, float x, float y) {
@@ -120,33 +128,57 @@ void demo_debug_clip(Stage &stage) {
     stage.record(clip_frames, [&](int frame) { return demo_walk(stage, frame); });
 }
 
-// Dotio: debug is opt-in; the debug view turns on Debug Mode and every visual row.
+// Dotio: debug is opt-in; the debug view turns on Debug Mode and every visual row. The AI is
+// not seeded, so the player is scripted against the world of the running session
+// (dotio_player.h) instead of along a fixed timeline.
 
-/// The player runs a square through the corridors, one second per side, and fires in
-/// half-second bursts, so mana lasts and bolts are in the air.
-Input dotio_play(int frame) {
-    constexpr Key route[]{Key::d, Key::s, Key::a, Key::w};
-    Input input = held({route[(frame / clip_fps) % 4]});
-    input.mouse_down = frame % clip_fps < clip_fps / 2;
+/// Aims the pointer at the enemy the scripted player would shoot (dotio_aim) and adds the
+/// fire button to `input` for the first half of every second, so mana lasts and bolts are
+/// in the air. Without an enemy in sight the pointer rests and the player holds fire.
+Input dotio_shoot(Stage &stage, int frame, Input input) {
+    if (const auto aim = dotio_aim(stage.dotio(), stage.runtime().camera)) {
+        stage.aim(*aim);
+        input.mouse_down = frame % clip_fps < clip_fps / 2;
+    }
     return input;
 }
 
+/// The four directions the scripted player moves in, in turn.
+constexpr Key dotio_route[]{Key::d, Key::s, Key::a, Key::w};
+
+/// The player runs a square through the corridors, one second per side, and shoots at the
+/// enemies it sees.
+Input dotio_play(Stage &stage, int frame) {
+    return dotio_shoot(stage, frame, held({dotio_route[(frame / clip_fps) % 4]}));
+}
+
+/// The player of the debug clip holds its ground, so paths and sight lines stay readable:
+/// every two seconds it sidesteps for half a second, in turn right, down, left and up.
+Input dotio_sidestep(int frame) {
+    constexpr int period = 2 * clip_fps, step = clip_fps / 2;
+    return frame % period < step ? held({dotio_route[(frame / period) % 4]}) : Input{};
+}
+
+/// Turns on Debug Mode and every visual row of the debug menu, and zooms `notches` wheel
+/// notches (negative zooms out). Leaves the menu open and the pointer in the field.
+void dotio_debug_view(Stage &stage, float notches) {
+    stage.toggle_setting(SettingsRow::debug_mode);
+    stage.press(Key::backquote);
+    for (std::size_t row = dotio_first_debug_row; row <= dotio_last_debug_row; ++row)
+        stage.click_debug_row(row);
+    Input zoom;
+    zoom.wheel = notches;
+    stage.point_at(at(stage, .7f, .5f));
+    stage.step(zoom);
+}
+
 void dotio_start(Stage &stage, bool debug) {
-    stage.start(Variant::dotio);
-    if (debug) {
-        stage.toggle_setting(SettingsRow::debug_mode);
-        stage.press(Key::backquote);
-        // Every row but GHOST CAMERA (row 0). PATHS opens its four filters right below it,
-        // so the rows after it are clicked in their new places.
-        for (std::size_t row = 1; row <= dotio_last_row; ++row)
-            stage.click_debug_row(row);
-        Input zoom;
-        zoom.wheel = dotio_debug_zoom_out;
-        stage.point_at(at(stage, .7f, .5f));
-        stage.step(zoom);
-    }
+    stage.start_dotio();
+    if (debug)
+        dotio_debug_view(stage, dotio_debug_zoom_out);
     stage.point_at(at(stage, .7f, .45f));
-    stage.play(static_cast<int>(dotio_warm_up_seconds * clip_fps), dotio_play);
+    stage.play(static_cast<int>(dotio_warm_up_seconds * clip_fps),
+               [&](int frame) { return dotio_play(stage, frame); });
 }
 
 void dotio(Stage &stage) {
@@ -168,19 +200,31 @@ void dotio_settings(Stage &stage) {
     stage.shot();
 }
 
-/// Continues dotio_play() where the warm-up stopped.
-Input dotio_clip_play(int frame) {
-    return dotio_play(static_cast<int>(dotio_warm_up_seconds * clip_fps) + frame);
-}
-
 void dotio_clip(Stage &stage) {
     dotio_start(stage, false);
-    stage.record(clip_frames, dotio_clip_play);
+    // Continues dotio_play() where the warm-up stopped.
+    const int played = static_cast<int>(dotio_warm_up_seconds * clip_fps);
+    stage.record(clip_frames, [&](int frame) { return dotio_play(stage, played + frame); });
 }
 
+/// The debug clip shows the AI cycle from a wide view with the menu closed. The player first
+/// holds fire until an enemy has spent its ammunition on it and runs for shelter (Recover),
+/// because one that is shot at from the start dies long before. Then it shoots back, and
+/// the clip shows the flight, the reload out of sight and the return.
 void dotio_debug_clip(Stage &stage) {
-    dotio_start(stage, true);
-    stage.record(clip_frames, dotio_clip_play);
+    stage.start_dotio();
+    dotio_debug_view(stage, dotio_debug_clip_zoom_out);
+    stage.press(Key::backquote);
+    const int limit = dotio_recovery_wait_seconds * clip_fps;
+    const int waited = stage.play_until(limit, dotio_sidestep, [&] {
+        return dotio_recovery_on_screen(stage.dotio(), stage.runtime().camera);
+    });
+    if (waited == limit)
+        std::cerr << "kinetra_capture: no Dotio enemy recovered within " << dotio_recovery_wait_seconds
+                  << " s; dotio-debug-clip shows none at its start\n";
+    stage.record(long_clip_frames, [&](int frame) {
+        return dotio_shoot(stage, waited + frame, dotio_sidestep(waited + frame));
+    });
 }
 
 // i4sim: the MAS-demonstrator blueprint, running; Debug Mode is on at the start.

@@ -1,0 +1,34 @@
+#pragma once
+// What the scripted player of the Dotio captures sees: the enemy to shoot at and where to
+// aim, read from the world of the running session.
+#include "../../../labs/dotio/include/application.h"
+
+#include <kinetra/camera.h>
+
+#include <optional>
+
+namespace capture {
+/// The enemy the player shoots at: the nearest live enemy that is on screen for `camera`
+/// with no wall between it and the player, the same sight line the enemies' own AI uses.
+/// Null when no enemy is in sight. The pointer is valid until the session advances.
+logic::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera);
+
+/// Where a bolt fired now at `bolt_speed` meets a target at `offset` from the shooter that
+/// moves on at `velocity`, relative to the shooter. Lengths in legacy pixels, speeds in
+/// legacy pixels per tick. Returns `offset` when the bolt cannot catch the target or would
+/// need more than `longest_lead_ticks`, so the shot goes at the target itself.
+gmath::Vec2 lead_offset(gmath::Vec2 offset, gmath::Vec2 velocity, float bolt_speed);
+
+/// Longest flight a shot is led for, in ticks of 1/60 s: beyond it the enemy has turned
+/// long before the bolt arrives.
+inline constexpr float longest_lead_ticks = 90;
+
+/// The screen point, in logical window pixels inside `camera`'s viewport, the player aims at
+/// to hit dotio_target() with a bolt fired now; empty when no enemy is in sight. Read it
+/// between two advances of the session, when the camera is on the player.
+std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const kinetra::Camera2D &camera);
+
+/// Whether an enemy on screen for `camera` is in its Recover state: out of ammunition and
+/// on its way to shelter, or reloading there.
+bool dotio_recovery_on_screen(dotio::Application &application, const kinetra::Camera2D &camera);
+} // namespace capture

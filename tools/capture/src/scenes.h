@@ -1,5 +1,6 @@
 #pragma once
 // The captures in docs/media: every screenshot and clip, with its size and its script.
+#include <cstddef>
 #include <span>
 #include <string>
 #include <string_view>
@@ -7,6 +8,11 @@
 
 namespace capture {
 class Stage;
+
+/// The rows of Dotio's debug menu the debug scenes click, first to last in this order:
+/// every row but GHOST CAMERA (row 0). PATHS (row 3) opens its four filters right below
+/// it, so the rows after it are clicked in their new places, down to INVULNERABLE.
+inline constexpr std::size_t dotio_first_debug_row = 1, dotio_last_debug_row = 12;
 
 /// What a scene writes.
 enum class SceneKind {

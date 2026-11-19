@@ -2,6 +2,7 @@
 
 #include "../../../labs/demo/include/session.h"
 #include "../../../labs/dotio/include/session.h"
+#include "../../../labs/dotio/include/zoom.h"
 #include "../../../labs/i4sim/include/session.h"
 #include "png.h"
 
@@ -55,14 +56,33 @@ Stage::Stage(kinetra::Runtime &runtime, std::filesystem::path output, std::strin
 void Stage::start(launcher::Variant variant) {
     // Release the old session first: Dotio's world is a singleton.
     session_.reset();
+    dotio_ = nullptr;
     const auto options = capture_options();
     auto registrations = launcher::applications(options);
     const auto selection = launcher::selection(variant, options);
     session_ = registrations.at(selection.application).create(runtime_.camera, selection.configuration);
 }
 
+void Stage::start_dotio() {
+    session_.reset();
+    dotio_ = nullptr;
+    // What the launcher's Dotio entry does, but keeping the session's own type.
+    runtime_.camera.position = {};
+    runtime_.camera.pixels_per_unit = dotio::initial_zoom;
+    auto session = dotio::create_session(capture_seed, dotio::default_difficulty);
+    dotio_ = &session->application();
+    session_ = std::move(session);
+}
+
+dotio::Application &Stage::dotio() {
+    if (!dotio_)
+        throw std::logic_error("Scene " + scene_ + " asked for Dotio's application without start_dotio()");
+    return *dotio_;
+}
+
 void Stage::start_i4sim(std::string_view blueprint) {
     session_.reset();
+    dotio_ = nullptr;
     runtime_.camera.position = {};
     runtime_.camera.pixels_per_unit = i4sim::initial_zoom;
     const auto directory = i4sim::default_blueprint_directory();
@@ -101,6 +121,13 @@ void Stage::advance_frame(const Input &input) {
 void Stage::play(int frames, const FrameInput &input) {
     for (int frame = 0; frame < frames; ++frame)
         advance_frame(input(frame));
+}
+
+int Stage::play_until(int limit, const FrameInput &input, const std::function<bool()> &done) {
+    int frame = 0;
+    while (frame < limit && !done())
+        advance_frame(input(frame++));
+    return frame;
 }
 
 void Stage::press(Key key) {

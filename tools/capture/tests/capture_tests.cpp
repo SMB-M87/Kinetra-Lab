@@ -1,6 +1,8 @@
 // Window-free tests for kinetra_capture: the PNG writer (tools/capture/src/png.h), the
-// scene list (tools/capture/src/scenes.h) and the showcase cycle measurement
-// (tools/capture/src/showcase.h). No Runtime or session is created.
+// scene list and the menu rows the scripts click (tools/capture/src/scenes.h), the showcase
+// cycle measurement (tools/capture/src/showcase.h) and the scripted Dotio player
+// (tools/capture/src/dotio_player.h). No Runtime or session is created.
+#include "dotio_player.h"
 #include "png.h"
 #include "scenes.h"
 #include "showcase.h"
@@ -13,6 +15,8 @@
 #include <doctest/doctest.h>
 
 #include <chrono>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -210,4 +214,149 @@ TEST_CASE("showcase_cycle_steps rejects a blueprint without a repeating scenario
                                                   "labs/i4sim/blueprints/MAS-demonstrator.json"),
                     std::invalid_argument);
     CHECK_THROWS_AS(capture::showcase_cycle_steps(showcase_file("no-such-scene")), std::runtime_error);
+}
+
+TEST_CASE("the Dotio debug rows the scripts click turn on every row but GHOST CAMERA") {
+    dotio::Application application(capture::capture_seed);
+    for (std::size_t row = capture::dotio_first_debug_row; row <= capture::dotio_last_debug_row; ++row) {
+        // The rows are built anew for every click, as the session does: PATHS adds rows.
+        const auto options = application.debug_options();
+        REQUIRE(row < options.size());
+        REQUIRE(options[row].enabled != nullptr);
+        *options[row].enabled = !*options[row].enabled;
+    }
+    const auto options = application.debug_options();
+    REQUIRE(options.size() == capture::dotio_last_debug_row + 1);
+    CHECK(options.front().label == "GHOST CAMERA");
+    CHECK_FALSE(*options.front().enabled);
+    CHECK(options.back().label == "INVULNERABLE");
+    for (std::size_t row = capture::dotio_first_debug_row; row < options.size(); ++row)
+        CHECK_MESSAGE(*options[row].enabled, options[row].label << " is off");
+}
+
+namespace {
+/// A Dotio world without walls or enemies, and a camera on its player at clip size and the
+/// game's own zoom: one legacy pixel is one screen pixel, and the view reaches 480 legacy
+/// pixels to the sides and 270 up and down.
+struct OpenDotioWorld {
+    dotio::Application application{capture::capture_seed};
+    kinetra::Camera2D camera;
+
+    OpenDotioWorld() {
+        for (auto &row : logic::Grid::Array)
+            for (auto &cell : row)
+                cell = 0;
+        for (auto &enemy : world().GetEnemies())
+            enemy.IsActive = false;
+        camera.viewport = {960, 540};
+        camera.pixels_per_unit = 25;
+        camera.position = dotio::to_world(player().Position);
+    }
+    logic::World &world() { return application.world(); }
+    logic::Player &player() { return world().GetPlayer(); }
+    /// Puts the enemy of pool slot `slot` at `offset` from the player, alive and simulated.
+    logic::Enemy &place(int slot, gmath::Vec2 offset, gmath::Vec2 velocity = {}) {
+        auto &enemy = world().GetEnemies()[slot];
+        enemy.Reset();
+        enemy.Frozen = false;
+        enemy.Position = player().Position + offset;
+        enemy.Velocity = velocity;
+        return enemy;
+    }
+    /// Blocks the grid cell that holds the point at `offset` from the player.
+    void wall(gmath::Vec2 offset) {
+        const auto point = player().Position + offset;
+        logic::Grid::Array[int(point.Y / logic::Grid::CellSize)][int(point.X / logic::Grid::CellSize)] = 1;
+    }
+};
+} // namespace
+
+TEST_CASE("lead_offset aims where a bolt meets a moving target, and at the target when it cannot") {
+    constexpr float bolt = 6;
+    SUBCASE("a resting target is aimed at directly") {
+        const auto aim = capture::lead_offset({300, -40}, {}, bolt);
+        CHECK(aim.X == doctest::Approx(300));
+        CHECK(aim.Y == doctest::Approx(-40));
+    }
+    SUBCASE("a crossing target is led to the point both reach at the same time") {
+        const gmath::Vec2 offset{300, 0}, velocity{0, 2};
+        const auto aim = capture::lead_offset(offset, velocity, bolt);
+        CHECK(aim.X == doctest::Approx(300));
+        CHECK(aim.Y > 0);
+        // The target needs as long to its part of the way as the bolt to the whole.
+        const float target_ticks = (aim.Y - offset.Y) / velocity.Y;
+        CHECK(aim.GetLength() / bolt == doctest::Approx(target_ticks));
+    }
+    SUBCASE("a target that outruns the bolt is aimed at directly") {
+        const auto aim = capture::lead_offset({300, 0}, {7, 0}, bolt);
+        CHECK(aim.X == doctest::Approx(300));
+        CHECK(aim.Y == doctest::Approx(0));
+    }
+    SUBCASE("a flight longer than the longest lead is not led") {
+        // 5 px per tick closing speed against 600 px: 120 ticks.
+        const auto aim = capture::lead_offset({600, 0}, {1, 0}, bolt);
+        CHECK(600 / (bolt - 1) > capture::longest_lead_ticks);
+        CHECK(aim.X == doctest::Approx(600));
+    }
+    SUBCASE("a target as fast as the bolt is caught only when it comes closer") {
+        const auto approaching = capture::lead_offset({300, 0}, {-bolt, 0}, bolt);
+        CHECK(approaching.X == doctest::Approx(150));
+        const auto fleeing = capture::lead_offset({300, 0}, {bolt, 0}, bolt);
+        CHECK(fleeing.X == doctest::Approx(300));
+    }
+}
+
+TEST_CASE("the scripted Dotio player targets the nearest enemy it can see") {
+    OpenDotioWorld world;
+    CHECK(capture::dotio_target(world.application, world.camera) == nullptr);
+    CHECK_FALSE(capture::dotio_aim(world.application, world.camera).has_value());
+
+    auto &far = world.place(0, {300, 0});
+    CHECK(capture::dotio_target(world.application, world.camera) == &far);
+    // Nearer candidates that do not count: behind a wall, frozen, dead, and off screen.
+    auto &hidden = world.place(1, {-200, 0});
+    world.wall({-100, 0});
+    world.place(2, {0, 120}).Frozen = true;
+    world.place(3, {0, -120}).IsActive = false;
+    world.place(4, {0, 280});
+    CHECK(capture::dotio_target(world.application, world.camera) == &far);
+
+    // Without the wall the hidden enemy is the nearest in sight.
+    for (auto &row : logic::Grid::Array)
+        for (auto &cell : row)
+            cell = 0;
+    CHECK(capture::dotio_target(world.application, world.camera) == &hidden);
+}
+
+TEST_CASE("dotio_aim points at the target on screen, ahead of one that moves, inside the window") {
+    OpenDotioWorld world;
+    auto &enemy = world.place(0, {300, 0});
+    auto aim = capture::dotio_aim(world.application, world.camera);
+    REQUIRE(aim.has_value());
+    CHECK(aim->x == doctest::Approx(480 + 300));
+    CHECK(aim->y == doctest::Approx(270));
+
+    // Legacy Y points down, as the screen's does: a target moving down is led downward.
+    enemy.Velocity = {0, 2};
+    aim = capture::dotio_aim(world.application, world.camera);
+    REQUIRE(aim.has_value());
+    CHECK(aim->x == doctest::Approx(480 + 300));
+    CHECK(aim->y > 270 + 50);
+
+    // A lead that runs past the window's edge stops at the edge.
+    enemy.Position = world.player().Position + gmath::Vec2{460, 0};
+    enemy.Velocity = {0.5f, 0};
+    aim = capture::dotio_aim(world.application, world.camera);
+    REQUIRE(aim.has_value());
+    CHECK(aim->x == doctest::Approx(960));
+}
+
+TEST_CASE("dotio_recovery_on_screen finds a recovering enemy only in view") {
+    OpenDotioWorld world;
+    auto &enemy = world.place(0, {300, 0});
+    CHECK_FALSE(capture::dotio_recovery_on_screen(world.application, world.camera));
+    enemy.SetState(enemy.GetRecoverState());
+    CHECK(capture::dotio_recovery_on_screen(world.application, world.camera));
+    enemy.Position = world.player().Position + gmath::Vec2{0, 400};
+    CHECK_FALSE(capture::dotio_recovery_on_screen(world.application, world.camera));
 }
