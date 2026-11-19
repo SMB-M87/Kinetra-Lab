@@ -137,8 +137,9 @@ void apply_scenario(const Scenario &scenario, Simulation &simulation) {
         }
         if (!index)
             throw std::runtime_error("Scenario goal names no mover: " + target.mover);
-        const bool sent = scenario.repeat == ScenarioRepeat::shuttle ? simulation.shuttle(*index, target.position)
-                                           : simulation.move_to(*index, target.position);
+        const bool sent = scenario.repeat == ScenarioRepeat::shuttle
+                              ? simulation.shuttle(*index, target.position)
+                              : simulation.move_to(*index, target.position);
         if (!sent)
             throw std::runtime_error("Scenario goal rejected for mover " + target.mover);
     }

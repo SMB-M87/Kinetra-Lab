@@ -49,8 +49,8 @@ std::optional<Scenario> load_scenario(const std::filesystem::path &path);
 /// Configures `simulation` as `scenario` describes and sends the goals in order, as
 /// shuttles when `scenario.repeat` is `ScenarioRepeat::shuttle`. Leaves
 /// the run state unchanged. Throws std::runtime_error when a goal names no mover, names several,
-/// or is rejected by Simulation::move_to or Simulation::shuttle; the simulation may then hold part of the setup,
-/// so the caller discards it.
+/// or is rejected by Simulation::move_to or Simulation::shuttle; the simulation may then hold part of the
+/// setup, so the caller discards it.
 void apply_scenario(const Scenario &scenario, Simulation &simulation);
 /// Decides when a `ScenarioRepeat::restart` scene starts again: once every mover of the
 /// simulation, not only those with a scenario goal, has stood idle for `shuttle_pause_ticks`

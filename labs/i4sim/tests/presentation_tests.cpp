@@ -422,7 +422,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     down.pressed[std::size_t(Key::down)] = true;
     session->advance(0, down, runtime.camera);
     session->advance(0, choose, runtime.camera);
-    REQUIRE_MESSAGE(session->status() == "Corridor retreat recovery | PAUSED", "Restarting scene did not load");
+    REQUIRE_MESSAGE(session->status() == "Corridor retreat recovery | PAUSED",
+                    "Restarting scene did not load");
     session->advance(0, run, runtime.camera);
     const auto run_ticks = [&](int ticks) {
         // 0.25 s holds exactly 50 ticks at the default 200 ticks per second.
