@@ -33,6 +33,7 @@ A showcase scene shows its traffic situation once: both movers reach their goals
 - Non-goal: shuttling in the debug menu or with the mouse; only a scenario starts it.
 - Goal: corridor recovery, whose movers cannot drive back, repeats its retreat by starting again from its blueprint.
 - Goal: the SHOWCASE row is the first row of the blueprint screen (added at the user's request after the first review).
+- Goal: the original `H` layout leaves the catalog and returns as a shuttling showcase scene (added at the user's request after the first review).
 - Non-goal: more than two ends per mover, or a pause per scene.
 
 ## Decisions
@@ -50,6 +51,7 @@ A showcase scene shows its traffic situation once: both movers reach their goals
 | A held mover | The group waits until it is released | Holding is a temporary operator action; the scene resumes in step afterwards |
 | City blueprints | Deleted from `labs/i4sim/blueprints/` | User's choice. Each was, apart from its name, identical to a remaining blueprint (Istanbul = 3840x2400, London = 4320x2400, Madrid = H, Moskou = 1680x960+, New York = 8640x4800, Paris = 1680x960-, Rijn-Ruhrgebied = MAS-demonstrator) |
 | Position of the SHOWCASE row | First, before the blueprints | User's request. Replaces the earlier choice of the [showcase design](2026-11-19-i4sim-showcase.md) (last, to keep the screenshot and catalog pages unchanged); the screenshot is out of date anyway. Enter on a fresh blueprint screen now opens the scenes, so the tests that loaded the first blueprint press Down first |
+| H as a showcase | `showcase/h-crossing.json`: the unchanged `H` floor, four corner movers swapping diagonal corners, Improved, no heatmap costs, predictive passing, `"repeat": "shuttle"`; tick cap 100000, name "H-shaped hall" | User's request. Measured eight variants (diagonal or horizontal swap × Improved or Reciprocal, with or without predictive passing) over six legs: only the diagonal swap with Improved and predictive passing showed coordination on every leg (6 of 6 legs passing, no contacts, legs of 2274 and 1721 ticks). The others ran without contacts but showed no traffic policy; Reciprocal with passing needed up to 30598 ticks per leg. The middle bar is two cells high, so junction and corridor traffic do not apply |
 | Pull before work | `AGENTS.md` asks to pull a local branch before starting work on it, in Lab and Kinetra | User's request |
 | Stale catalog copies | The build copy and the relocation test remove their old copy first | Without it, deleted blueprints stayed in every existing build directory and the catalog test still counted fourteen |
 
@@ -132,6 +134,8 @@ Before the merge, the same three workflows passed on the branch alone (154, 147 
 
 The last change (SHOWCASE as the first row, the tests that navigate past it, and the `AGENTS.md` pull rule) came after this verification. For it, the user waived the build and tests; the graphics tests it touches were run anyway: `ctest --preset graphics -L graphics` passed 13 of 13, and `kinetra_i4sim --frames 120` (offscreen) exits 0.
 
+For h-crossing (after that): `ctest --preset release -R '^kinetra_i4sim'` passed 117 of 117, `ctest --preset graphics -L graphics` 13 of 13, the scene runs offscreen for 600 frames and in batch mode for 12000 ticks without contacts, clang-format and the docs check are clean.
+
 Not verified: the Windows build (no Windows-specific code changed) and a visual check on a desktop.
 
 ## Pull request
@@ -144,6 +148,7 @@ Title: `feat(i4sim): repeat the showcase scenes and trim the blueprint catalog`
 - Simulation: `Simulation::shuttle` and `shuttling`, `shuttle_pause_ticks`; a private `Shuttle` component turns the movers at the end of each tick, so replays stay deterministic. `move_to` ends shuttling for that mover.
 - Scenario format: optional `"repeat": "none" | "shuttle" | "restart"`; `RestartTimer` decides when a restarting scene starts again.
 - Controller: a restarting scene restarts itself as `R` does, keeping its speed and run state. (Merged with main's session split; the earlier session refactor commit is superseded by main's `FactoryController::restart`.)
+- Showcase: the original `H` layout is now the h-crossing scene (four movers swap diagonal corners with predictive passing, shuttling); the catalog holds six originals.
 - Blueprint screen: SHOWCASE is now the first row; the session and launcher tests press Down to reach the first blueprint.
 - `AGENTS.md`: pull a local branch before starting work on it.
 - Catalog: seven blueprints deleted; the build copy and the relocation test now mirror the catalog instead of adding to an old copy.
