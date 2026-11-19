@@ -9,6 +9,45 @@
 
 namespace i4sim::detail {
 using namespace kinetra;
+namespace {
+/// Shortest path from `nodes[0]` to `nodes[1]` through the other nodes, along straight edges
+/// that `clear(from, to)` accepts: Dijkstra on the dense graph, which stays small because
+/// the caller bounds the node count. The path leaves out `nodes[0]`; empty when none exists.
+template <class Clear> std::vector<Vec2> shortest_clear_path(const std::vector<Vec2> &nodes, Clear clear) {
+    const float infinity = std::numeric_limits<float>::infinity();
+    std::vector<float> costs(nodes.size(), infinity);
+    std::vector<std::size_t> parent(nodes.size(), nodes.size());
+    std::vector<bool> visited(nodes.size());
+    costs[0] = 0;
+    for (std::size_t count = 0; count < nodes.size(); ++count) {
+        std::size_t current = nodes.size();
+        float nearest = infinity;
+        for (std::size_t i = 0; i < nodes.size(); ++i)
+            if (!visited[i] && costs[i] < nearest) {
+                current = i;
+                nearest = costs[i];
+            }
+        if (current == nodes.size())
+            break;
+        if (current == 1) {
+            std::vector<Vec2> refined;
+            for (std::size_t i = 1; i != 0; i = parent[i])
+                refined.push_back(nodes[i]);
+            std::reverse(refined.begin(), refined.end());
+            return refined;
+        }
+        visited[current] = true;
+        for (std::size_t next = 1; next < nodes.size(); ++next) {
+            const float candidate = nearest + distance(nodes[current], nodes[next]);
+            if (!visited[next] && candidate < costs[next] && clear(nodes[current], nodes[next])) {
+                costs[next] = candidate;
+                parent[next] = current;
+            }
+        }
+    }
+    return {};
+}
+} // namespace
 std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 target,
                              bool require_departure) {
     const auto &m = fleet.movers[mover];
@@ -65,37 +104,8 @@ std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, std::si
         if (nodes.size() > 256)
             return require_departure ? std::vector<Vec2>{} : route;
     }
-    const float infinity = std::numeric_limits<float>::infinity();
-    std::vector<float> costs(nodes.size(), infinity);
-    std::vector<std::size_t> parent(nodes.size(), nodes.size());
-    std::vector<bool> visited(nodes.size());
-    costs[0] = 0;
-    for (std::size_t count = 0; count < nodes.size(); ++count) {
-        std::size_t current = nodes.size();
-        float nearest = infinity;
-        for (std::size_t i = 0; i < nodes.size(); ++i)
-            if (!visited[i] && costs[i] < nearest) {
-                current = i;
-                nearest = costs[i];
-            }
-        if (current == nodes.size())
-            break;
-        if (current == 1) {
-            std::vector<Vec2> refined;
-            for (std::size_t i = 1; i != 0; i = parent[i])
-                refined.push_back(nodes[i]);
-            std::reverse(refined.begin(), refined.end());
-            return refined;
-        }
-        visited[current] = true;
-        for (std::size_t next = 1; next < nodes.size(); ++next) {
-            const float candidate = nearest + distance(nodes[current], nodes[next]);
-            if (!visited[next] && candidate < costs[next] && clear(nodes[current], nodes[next])) {
-                costs[next] = candidate;
-                parent[next] = current;
-            }
-        }
-    }
+    if (auto refined = shortest_clear_path(nodes, clear); !refined.empty())
+        return refined;
     return require_departure ? std::vector<Vec2>{} : route;
 }
 void recover_route(const FloorPlan &floor, Fleet &fleet, std::size_t mover) {
