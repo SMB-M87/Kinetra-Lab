@@ -138,7 +138,7 @@ void SimulationCore::toggle_producer(std::size_t index) {
 }
 void SimulationCore::set_goal(Mover &m, Vec2 target) {
     traffic_.cancel_recovery(fleet_, fleet_.index(m), ticks_);
-    cancel_predictive_passing(m);
+    passing_.cancel(floor_, fleet_, fleet_.index(m), ticks_, log_);
     // A manual goal stays manual until arrival; a parking staging goal is replaced.
     if (m.goal == GoalKind::parking_staging)
         m.goal = GoalKind::automatic;
@@ -360,6 +360,11 @@ std::optional<Aabb> SimulationCore::junction_exit_reservation(std::size_t index)
         throw std::out_of_range("Junction index");
     return traffic_.exit_reservation(index);
 }
+std::optional<Vec2> SimulationCore::passing_target(std::size_t mover) const {
+    if (mover >= fleet_.movers.size())
+        throw std::out_of_range("Mover index");
+    return passing_.target(mover);
+}
 std::size_t SimulationCore::corridor_recovering() const {
     return traffic_.recovering();
 }
@@ -373,13 +378,13 @@ void SimulationCore::coordinate_traffic(const SpatialGrid &index, std::span<cons
     Traffic::begin_tick(fleet_);
     if (motion_.corridor_traffic)
         traffic_.recover_corridors(floor_, fleet_, ticks_, index);
-    coordinate_predictive_passing(index);
+    passing_.coordinate(floor_, fleet_, motion_, ticks_, index, log_);
     traffic_.admit(floor_, fleet_, motion_, index, bodies);
 }
 void SimulationCore::move_agents() {
     const bool prepare_together = (motion_.junction_traffic && floor_.junction_count() > 0) ||
                                   (motion_.corridor_traffic && corridor_count() > 0) ||
-                                  (predictive_enabled() && fleet_.movers.size() > 1);
+                                  (PredictivePassing::enabled(motion_) && fleet_.movers.size() > 1);
     if (prepare_together)
         for (auto &m : fleet_.movers)
             prepare_route(m);
@@ -536,13 +541,13 @@ void SimulationCore::move_agents() {
         ++contact_ticks_;
         if (!contacts_.contains({a, b})) {
             ++collisions_;
-            if (recording_) {
+            if (log_.recording()) {
                 SimulationEvent event{.tick = ticks_, .kind = EventKind::contact};
                 event.border = b >= fleet_.movers.size();
                 event.movers = {a, event.border ? b - fleet_.movers.size() : b};
                 event.passing = fleet_.movers[a].coordination.passing ||
                                 (!event.border && fleet_.movers[b].coordination.passing);
-                events_.push_back(event);
+                log_.add(event);
             }
         }
         ++fleet_.movers[a].collision_ticks;

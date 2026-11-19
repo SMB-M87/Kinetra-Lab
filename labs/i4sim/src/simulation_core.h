@@ -1,7 +1,9 @@
 #pragma once
 // The simulation behind the public `Simulation` facade. Private to the i4sim library.
+#include "event_log.h"
 #include "fleet.h"
 #include "floor_plan.h"
+#include "predictive_passing.h"
 #include "simulation.h"
 #include "traffic.h"
 
@@ -47,7 +49,7 @@ class SimulationCore {
     std::optional<Vec2> corridor_retreat_target(std::size_t mover) const;
     kinetra::Aabb corridor_bounds(std::size_t index) const;
     std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
-    std::size_t predictive_pairs() const { return passing_plans_.size(); }
+    std::size_t predictive_pairs() const { return passing_.pairs(); }
     std::optional<Vec2> passing_target(std::size_t mover) const;
     /// True when `mover` has made no route progress for 120 ticks while no
     /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
@@ -67,12 +69,12 @@ class SimulationCore {
     /// Turns the event log on or off; it is off for a new simulation. Recording only
     /// observes: it never changes a decision. Turning it off keeps the events so far,
     /// and copying the simulation copies its log.
-    void record_events(bool enabled) { recording_ = enabled; }
-    bool recording_events() const { return recording_; }
+    void record_events(bool enabled) { log_.record(enabled); }
+    bool recording_events() const { return log_.recording(); }
     /// Passing and contact events recorded while recording was on, oldest first. The
     /// log grows without bound while recording is on. The span is valid until the next
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
-    std::span<const SimulationEvent> events() const { return events_; }
+    std::span<const SimulationEvent> events() const { return log_.events(); }
     /// Runs one tick when `paused` and stays `paused`, or ends `finished` at the tick cap.
     /// Does nothing in any other state.
     void single_step();
@@ -110,27 +112,6 @@ class SimulationCore {
     const RouteProgress &progress(const Mover &mover) const { return fleet_.progress[fleet_.index(mover)]; }
     RunState state_{RunState::paused};
     bool workload_{true};
-    struct PassingPlan {
-        std::uint64_t id{};
-        std::array<std::size_t, 2> movers;
-        std::array<Vec2, 2> entry, exit;
-        std::vector<kinetra::Aabb> space;
-        bool crossing{};
-        float best_remaining{};
-        std::uint64_t progress_at{};
-    };
-    std::vector<PassingPlan> passing_plans_;
-    std::vector<std::uint64_t> passing_retry_;
-    // Advances whether or not recording is on, so plan ids never depend on it.
-    std::uint64_t next_plan_{1};
-    bool recording_{};
-    std::vector<SimulationEvent> events_;
-    void record_passing(EventKind kind, const PassingPlan &plan, std::optional<PassingEnd> end = {});
-    void end_passing(std::size_t index, PassingEnd end);
-    bool predictive_enabled() const;
-    void restore_passing_routes(std::array<std::size_t, 2> movers);
-    void cancel_predictive_passing(Mover &mover);
-    void coordinate_predictive_passing(const kinetra::SpatialGrid &index);
     MotionSettings motion_;
     std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
@@ -138,6 +119,8 @@ class SimulationCore {
     Blueprint blueprint_;
     FloorPlan floor_;
     Traffic traffic_;
+    PredictivePassing passing_;
+    EventLog log_;
     Fleet fleet_;
     std::vector<Producer> producers_;
     std::vector<Product> products_, completed_products_;
