@@ -149,6 +149,7 @@ Title: `feat(i4sim): repeat the showcase scenes and trim the blueprint catalog`
 - Scenario format: optional `"repeat": "none" | "shuttle" | "restart"`; `RestartTimer` decides when a restarting scene starts again.
 - Controller: a restarting scene restarts itself as `R` does, keeping its speed and run state. (Merged with main's session split; the earlier session refactor commit is superseded by main's `FactoryController::restart`.)
 - Showcase: the original `H` layout is now the h-crossing scene (four movers swap diagonal corners with predictive passing, shuttling); the catalog holds six originals.
+- Media: `docs/media/launcher-loadscreen.png` shows the new catalog, captured offscreen at the old size.
 - Blueprint screen: SHOWCASE is now the first row; the session and launcher tests press Down to reach the first blueprint.
 - `AGENTS.md`: pull a local branch before starting work on it.
 - Catalog: seven blueprints deleted; the build copy and the relocation test now mirror the catalog instead of adding to an old copy.
@@ -162,10 +163,9 @@ Title: `feat(i4sim): repeat the showcase scenes and trim the blueprint catalog`
 
 **Dependencies and merge order.** None; Lab only, no Kinetra change. The branch already contains main with #19 (merge commit).
 
-**Follow-up.** Refresh `docs/media/launcher-loadscreen.png`; decide whether `R` should keep the update rate as the automatic restart does.
+**Follow-up.** Decide whether `R` should keep the update rate as the automatic restart does.
 
 ## Open points
 
 - `R` resets the update rate to 200 ticks per second (the new simulation is not given the session's rate); the automatic restart keeps it. Pre-existing, not changed here.
-- [launcher-loadscreen.png](../media/launcher-loadscreen.png) predates the smaller catalog; refresh it with the next media pass.
 - Measured while designing: shuttling corridor recovery deadlocks on the return leg (one leg done in 40000 ticks); the restart mode exists for this reason.
