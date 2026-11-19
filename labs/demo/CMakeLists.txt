@@ -3,25 +3,19 @@ target_include_directories(kinetra_sandbox_application PUBLIC ${CMAKE_CURRENT_SO
 target_link_libraries(kinetra_sandbox_application PUBLIC Kinetra::Simulation)
 target_compile_features(kinetra_sandbox_application PUBLIC cxx_std_20)
 if(BUILD_TESTING)
-    add_executable(kinetra_demo_crowd_tests tests/crowd_stability_tests.cpp)
-    target_link_libraries(kinetra_demo_crowd_tests PRIVATE kinetra_sandbox_application)
-    foreach(seed 123 456)
-        add_test(NAME kinetra_demo_crowd_${seed} COMMAND kinetra_demo_crowd_tests ${seed})
-        set_tests_properties(kinetra_demo_crowd_${seed} PROPERTIES TIMEOUT 180 LABELS soak)
-    endforeach()
-    add_executable(kinetra_demo_crowd_characterization_tests tests/crowd_characterization_tests.cpp)
-    target_link_libraries(kinetra_demo_crowd_characterization_tests
-        PRIVATE kinetra_sandbox_application kinetra_lab_test_support)
-    add_test(NAME kinetra_demo_crowd_characterization COMMAND kinetra_demo_crowd_characterization_tests)
-    add_executable(kinetra_demo_contact_tests tests/contact_tests.cpp)
-    target_link_libraries(kinetra_demo_contact_tests PRIVATE Kinetra::Simulation)
-    add_test(NAME kinetra_demo_contacts COMMAND kinetra_demo_contact_tests)
-    add_executable(kinetra_terrain_tests tests/terrain_tests.cpp)
-    target_link_libraries(kinetra_terrain_tests PRIVATE Kinetra::Simulation)
-    add_test(NAME kinetra_terrain COMMAND kinetra_terrain_tests)
-    add_executable(kinetra_sandbox_tests tests/sandbox_application_tests.cpp)
-    target_link_libraries(kinetra_sandbox_tests PRIVATE kinetra_sandbox_application kinetra_lab_common)
-    add_test(NAME kinetra_sandbox_application COMMAND kinetra_sandbox_tests)
+    # 60 simulated seconds per seed; labelled soak so quick runs can exclude them.
+    kinetra_add_doctest(kinetra_demo_crowd_tests PREFIX kinetra_demo_crowd
+        SOURCES tests/crowd_stability_tests.cpp LIBRARIES kinetra_sandbox_application
+        LABELS soak TIMEOUT 180)
+    kinetra_add_doctest(kinetra_demo_crowd_characterization_tests PREFIX kinetra_demo_crowd_characterization
+        SOURCES tests/crowd_characterization_tests.cpp
+        LIBRARIES kinetra_sandbox_application kinetra_lab_test_support)
+    kinetra_add_doctest(kinetra_demo_contact_tests PREFIX kinetra_demo_contacts
+        SOURCES tests/contact_tests.cpp LIBRARIES Kinetra::Simulation)
+    kinetra_add_doctest(kinetra_terrain_tests PREFIX kinetra_terrain
+        SOURCES tests/terrain_tests.cpp LIBRARIES Kinetra::Simulation)
+    kinetra_add_doctest(kinetra_sandbox_tests PREFIX kinetra_sandbox_application
+        SOURCES tests/sandbox_application_tests.cpp LIBRARIES kinetra_sandbox_application kinetra_lab_common)
 endif()
 if(KINETRA_BUILD_RUNTIME)
     add_library(kinetra_demo_presentation src/sandbox_renderer.cpp src/session.cpp)
@@ -30,10 +24,9 @@ if(KINETRA_BUILD_RUNTIME)
 endif()
 if(BUILD_TESTING AND KINETRA_BUILD_RUNTIME AND KINETRA_TEST_GRAPHICS)
     find_package(SDL2 REQUIRED)
-    add_executable(kinetra_demo_presentation_tests tests/presentation_tests.cpp)
-    target_link_libraries(kinetra_demo_presentation_tests PRIVATE kinetra_demo_presentation SDL2::SDL2)
-    add_test(NAME kinetra_demo_graphics COMMAND kinetra_demo_presentation_tests)
-    set_tests_properties(kinetra_demo_graphics PROPERTIES LABELS graphics)
+    kinetra_add_doctest(kinetra_demo_presentation_tests PREFIX kinetra_demo_graphics
+        SOURCES tests/presentation_tests.cpp LIBRARIES kinetra_demo_presentation SDL2::SDL2
+        LABELS graphics)
 endif()
 if(KINETRA_BUILD_RUNTIME)
     add_executable(kinetra_demo src/main.cpp)

@@ -1,94 +1,98 @@
+// Headless tests for the Demo application layer: input commands, pause, camera,
+// pointer actions, avoidance mode and player intent, without a window.
 #include "../include/sandbox_application.h"
 #include "../include/sandbox_input.h"
-#include <algorithm>
-#include <iostream>
-#include <stdexcept>
 
-namespace {
+#include <doctest/doctest.h>
+
+#include <algorithm>
+#include <vector>
+
 using namespace sandbox;
 using namespace kinetra;
 
-void require(bool value, const char *message) {
-    if (!value)
-        throw std::runtime_error(message);
-}
+namespace {
 Vec2 player_position(const SandboxApplication &application) {
     const auto &scene = application.scene();
     return scene.world.body(scene.player).position;
 }
+} // namespace
 
-void avoidance_mode() {
+TEST_CASE("switching avoidance mode neither resets nor advances the scene") {
     SandboxApplication application(10, 42);
     Camera2D camera;
     FrameCommands commands;
     application.advance(1.0 / 120, commands, camera);
-    require(application.scene().reciprocal_avoidance, "Reciprocal avoidance did not start enabled");
+    CHECK_MESSAGE(application.scene().reciprocal_avoidance, "Reciprocal avoidance did not start enabled");
     const auto count = application.scene().agents().size();
     const auto before = player_position(application);
     commands.reciprocal_avoidance = false;
     application.advance(0, commands, camera);
-    require(!application.scene().reciprocal_avoidance && application.scene().agents().size() == count &&
-                length(before - player_position(application)) == 0,
-            "Switching avoidance mode reset or advanced the scene");
+    CHECK_MESSAGE((!application.scene().reciprocal_avoidance &&
+                   application.scene().agents().size() == count &&
+                   length(before - player_position(application)) == 0),
+                  "Switching avoidance mode reset or advanced the scene");
     commands.reciprocal_avoidance = true;
     application.advance(0, commands, camera);
-    require(application.scene().reciprocal_avoidance, "Could not restore reciprocal avoidance");
+    CHECK_MESSAGE(application.scene().reciprocal_avoidance, "Could not restore reciprocal avoidance");
 }
 
-void pause_and_resume() {
+TEST_CASE("help toggles and pause stops fixed updates without replaying paused time") {
     SandboxApplication application(0, 42);
     Camera2D camera;
     FrameCommands commands;
-    require(!application.presentation().help, "Demo help must start hidden");
+    CHECK_MESSAGE(!application.presentation().help, "Demo help must start hidden");
     commands.toggle_help = true;
     application.advance(0, commands, camera);
-    require(application.presentation().help, "H did not show Demo help");
+    CHECK_MESSAGE(application.presentation().help, "H did not show Demo help");
     application.advance(0, commands, camera);
-    require(!application.presentation().help, "H did not hide Demo help");
+    CHECK_MESSAGE(!application.presentation().help, "H did not hide Demo help");
     commands = {};
     commands.toggle_pause = true;
     commands.player.direction = {1, 0};
     const Vec2 start = player_position(application);
     application.advance(0.1, commands, camera);
-    require(application.paused() && length(player_position(application) - start) == 0,
-            "Pausing must precede fixed updates");
+    CHECK_MESSAGE((application.paused() && length(player_position(application) - start) == 0),
+                  "Pausing must precede fixed updates");
     commands.toggle_pause = false;
     application.advance(0.1, commands, camera);
     commands.toggle_pause = true;
     application.advance(0, commands, camera);
-    require(!application.paused() && length(player_position(application) - start) == 0,
-            "Resuming replayed paused time");
+    CHECK_MESSAGE((!application.paused() && length(player_position(application) - start) == 0),
+                  "Resuming replayed paused time");
     commands.toggle_pause = false;
     application.advance(1.0 / 120, commands, camera);
-    require(player_position(application).x > start.x, "Player movement did not resume");
+    CHECK_MESSAGE(player_position(application).x > start.x, "Player movement did not resume");
 }
 
-void camera_and_pointer_order() {
+TEST_CASE("ghost input pans the camera and the zoom limit depends on debug mode") {
     SandboxApplication application(0, 42);
     Camera2D camera;
     FrameCommands commands;
     application.advance(0, commands, camera);
-    require(length(camera.position - player_position(application)) == 0, "Default camera must follow player");
+    CHECK_MESSAGE(length(camera.position - player_position(application)) == 0,
+                  "Default camera must follow player");
     commands.debug = commands.ghost = true;
     commands.camera_pan = {1, 0};
     commands.player.direction = {1, 0};
     const auto start = player_position(application);
     application.advance(0.1, commands, camera);
-    require(camera.position.x > start.x && length(player_position(application) - start) == 0,
-            "Ghost input moved player or failed to pan camera");
+    CHECK_MESSAGE((camera.position.x > start.x && length(player_position(application) - start) == 0),
+                  "Ghost input moved player or failed to pan camera");
     commands = {};
     commands.zoom_steps = -100;
     application.advance(0, commands, camera);
-    require(camera.pixels_per_unit == 17, "Normal zoom must be limited");
+    CHECK_MESSAGE(camera.pixels_per_unit == 17, "Normal zoom must be limited");
     commands.debug = true;
     application.advance(0, commands, camera);
-    require(camera.pixels_per_unit == 5.f, "Debug zoom must extend visibility");
+    CHECK_MESSAGE(camera.pixels_per_unit == 5.f, "Debug zoom must extend visibility");
     commands = {};
     application.advance(0, commands, camera);
-    require(length(camera.position - player_position(application)) == 0, "Leaving ghost failed to follow");
+    CHECK_MESSAGE(length(camera.position - player_position(application)) == 0,
+                  "Leaving ghost failed to follow");
 }
 
-void pointer_results_and_reset() {
+TEST_CASE("pointer commands report walking teleport route and agent results") {
     SandboxApplication application(6, 42);
     Camera2D camera;
     application.advance(0, {}, camera);
@@ -96,8 +100,8 @@ void pointer_results_and_reset() {
     commands.toggle_pause = true;
     commands.pointer = PointerCommand{PointerAction::walk, camera.world_to_screen({12, 0})};
     application.advance(0, commands, camera);
-    require(application.last_action() == ActionResult::walking && application.scene().player_goal,
-            "Walk command lost its route");
+    CHECK_MESSAGE((application.last_action() == ActionResult::walking && application.scene().player_goal),
+                  "Walk command lost its route");
     const auto original_path = application.scene().player_path;
     std::vector<Vec2> original_homes;
     for (const auto &agent : application.scene().agents())
@@ -107,45 +111,46 @@ void pointer_results_and_reset() {
     commands.debug = commands.ghost = true;
     commands.pointer = PointerCommand{PointerAction::teleport, camera.world_to_screen({9999, 9999})};
     application.advance(0, commands, camera);
-    require(application.last_action() == ActionResult::teleport_blocked &&
-                length(player_position(application) - original_position) == 0 &&
-                application.scene().player_path.size() == original_path.size() &&
-                application.scene().player_goal,
-            "Rejected teleport changed the player or route");
+    CHECK_MESSAGE((application.last_action() == ActionResult::teleport_blocked &&
+                   length(player_position(application) - original_position) == 0 &&
+                   application.scene().player_path.size() == original_path.size() &&
+                   application.scene().player_goal),
+                  "Rejected teleport changed the player or route");
     commands.debug = commands.ghost = false;
     commands.pointer->action = PointerAction::walk;
     application.advance(0, commands, camera);
-    require(application.last_action() == ActionResult::no_route && !application.scene().player_goal &&
-                application.scene().player_path.empty(),
-            "Failed walk retained the previous route");
+    CHECK_MESSAGE((application.last_action() == ActionResult::no_route && !application.scene().player_goal &&
+                   application.scene().player_path.empty()),
+                  "Failed walk retained the previous route");
     commands.pointer = PointerCommand{PointerAction::target_agents, camera.world_to_screen({3, 4})};
     application.advance(0, commands, camera);
-    require(application.last_action() == ActionResult::agent_goals_set, "Agent command result lost");
-    require(!application.scene().agents().empty(), "Missing agents for command test");
+    CHECK_MESSAGE(application.last_action() == ActionResult::agent_goals_set, "Agent command result lost");
+    CHECK_MESSAGE(!application.scene().agents().empty(), "Missing agents for command test");
     for (const auto &agent : application.scene().agents())
-        require(!agent.active() || length(agent.goal() - Vec2{3, 4}) == 0, "Active agent missed command");
+        CHECK_MESSAGE((!agent.active() || length(agent.goal() - Vec2{3, 4}) == 0),
+                      "Active agent missed command");
 
     commands.debug = commands.ghost = true;
     commands.pointer = PointerCommand{PointerAction::walk, camera.world_to_screen({0, 0})};
     application.advance(0, commands, camera);
-    require(application.last_action() == ActionResult::teleported &&
-                length(player_position(application)) == 0,
-            "Teleport before reset failed");
+    CHECK_MESSAGE(
+        (application.last_action() == ActionResult::teleported && length(player_position(application)) == 0),
+        "Teleport before reset failed");
 }
 
-void right_click_clears_selection_in_ghost_mode() {
+TEST_CASE("a right click in ghost mode clears the selection without teleporting") {
     SandboxApplication application(6, 42);
     Camera2D camera;
     application.advance(0, {}, camera);
     const auto &scene = application.scene();
     const auto agent = std::find_if(scene.agents().begin(), scene.agents().end(),
                                     [](const auto &candidate) { return candidate.active(); });
-    require(agent != scene.agents().end(), "Missing active agent for selection test");
+    REQUIRE_MESSAGE(agent != scene.agents().end(), "Missing active agent for selection test");
     Input input;
     input.clicked = true;
     input.mouse = camera.world_to_screen(scene.world.body(agent->body_id()).position);
     application.advance(0, read_commands(input), camera);
-    require(scene.selected_agent.has_value(), "Left click did not select an agent");
+    CHECK_MESSAGE(scene.selected_agent.has_value(), "Left click did not select an agent");
 
     const auto start = player_position(application);
     input.clicked = false;
@@ -154,23 +159,24 @@ void right_click_clears_selection_in_ghost_mode() {
     auto commands = read_commands(input);
     commands.debug = commands.ghost = true;
     application.advance(0, commands, camera);
-    require(!scene.selected_agent && length(player_position(application) - start) == 0 &&
-                application.last_action() == ActionResult::none,
-            "Right click must clear the selection without teleporting the player");
+    CHECK_MESSAGE((!scene.selected_agent && length(player_position(application) - start) == 0 &&
+                   application.last_action() == ActionResult::none),
+                  "Right click must clear the selection without teleporting the player");
 }
 
-void held_rotation_cancels_navigation() {
+TEST_CASE("opposing held rotation cancels navigation without rotating") {
     Sandbox scene(0, 42);
     scene.stream(Camera2D{});
-    require(scene.walk_to({12, 0}), "Missing initial route");
+    CHECK_MESSAGE(scene.walk_to({12, 0}), "Missing initial route");
     PlayerControl control;
     control.turn_left = control.turn_right = true;
     scene.update(1.f / 120, control);
-    require(!scene.player_goal && scene.player_path.empty() &&
-                scene.world.body(scene.player).angular_velocity == 0,
-            "Opposing held rotation controls must cancel navigation without rotating");
+    CHECK_MESSAGE((!scene.player_goal && scene.player_path.empty() &&
+                   scene.world.body(scene.player).angular_velocity == 0),
+                  "Opposing held rotation controls must cancel navigation without rotating");
 }
-void input_commands() {
+
+TEST_CASE("the command adapter keeps held controls and maps clicks to walking") {
     Input input;
     input.held[static_cast<std::size_t>(Key::w)] = true;
     input.held[static_cast<std::size_t>(Key::q)] = true;
@@ -180,43 +186,25 @@ void input_commands() {
     input.pressed[static_cast<std::size_t>(Key::h)] = true;
     input.wheel = -2;
     auto commands = sandbox::read_commands(input);
-    require(commands.player.direction.y == 1 && commands.player.turn_left && commands.player.turn_right &&
-                commands.camera_pan.x == 1 && commands.zoom_steps == -2,
-            "Held controls lost in command adapter");
-    require(!commands.toggle_pause && !commands.toggle_help && !commands.pointer,
-            "Held keys became toggles or an unclicked pointer became a command");
+    CHECK_MESSAGE((commands.player.direction.y == 1 && commands.player.turn_left &&
+                   commands.player.turn_right && commands.camera_pan.x == 1 && commands.zoom_steps == -2),
+                  "Held controls lost in command adapter");
+    CHECK_MESSAGE((!commands.toggle_pause && !commands.toggle_help && !commands.pointer),
+                  "Held keys became toggles or an unclicked pointer became a command");
     input.held[static_cast<std::size_t>(Key::shift)] = true;
     commands = sandbox::read_commands(input);
-    require(commands.player.turn_right && commands.player.direction.x == 0,
-            "Shift+arrow rotation also translated the player");
+    CHECK_MESSAGE((commands.player.turn_right && commands.player.direction.x == 0),
+                  "Shift+arrow rotation also translated the player");
     input.clicked = true;
     input.mouse = {12, 34};
     commands = sandbox::read_commands(input);
-    require(commands.pointer->action == sandbox::PointerAction::walk &&
-                commands.pointer->screen_position.x == 12 && commands.pointer->screen_position.y == 34,
-            "Plain click was not mapped to walking at logical mouse coordinates");
+    CHECK_MESSAGE((commands.pointer->action == sandbox::PointerAction::walk &&
+                   commands.pointer->screen_position.x == 12 && commands.pointer->screen_position.y == 34),
+                  "Plain click was not mapped to walking at logical mouse coordinates");
     input.held[static_cast<std::size_t>(Key::c)] = true;
-    require(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
-            "Agent click mapping changed");
+    CHECK_MESSAGE(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
+                  "Agent click mapping changed");
     input.held[static_cast<std::size_t>(Key::t)] = true;
-    require(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
-            "T must not change click behavior");
-}
-
-} // namespace
-
-int main() {
-    try {
-        input_commands();
-        avoidance_mode();
-        pause_and_resume();
-        camera_and_pointer_order();
-        pointer_results_and_reset();
-        right_click_clears_selection_in_ghost_mode();
-        held_rotation_cancels_navigation();
-        std::cout << "PASS sandbox application pause, camera, commands, reset and player intent\n";
-    } catch (const std::exception &error) {
-        std::cerr << error.what() << '\n';
-        return 1;
-    }
+    CHECK_MESSAGE(sandbox::read_commands(input).pointer->action == sandbox::PointerAction::walk,
+                  "T must not change click behavior");
 }
