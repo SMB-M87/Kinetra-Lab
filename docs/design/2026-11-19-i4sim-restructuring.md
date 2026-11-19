@@ -1,6 +1,6 @@
 # i4sim restructuring
 
-Status: accepted · Branches: `test/i4sim-passing-safety-net` (step 1, merged), `refactor/i4sim-simulation` (step 2), one branch for step 3 · Related: [quality roadmap, phase 4](2026-11-18-quality-roadmap.md#phase-4-i4sim), [i4sim](../../labs/i4sim/README.md), [factory simulation architecture](../factory-simulation-architecture.md)
+Status: accepted · Branches: `test/i4sim-passing-safety-net` (step 1, merged), `refactor/i4sim-simulation` (step 2, merged), `refactor/i4sim-session` (step 3) · Related: [quality roadmap, phase 4](2026-11-18-quality-roadmap.md#phase-4-i4sim), [i4sim](../../labs/i4sim/README.md), [factory simulation architecture](../factory-simulation-architecture.md)
 
 Roadmap phase 4. i4sim's `Simulation` is the largest hotspot in Lab, and predictive passing, which phase 7 must make safe under pressure, lives inside it. This phase first pins today's passing behavior with diagnostics and pressure scenarios, and then restructures the simulation and its session without changing behavior.
 
@@ -211,7 +211,57 @@ Components store no references to each other. Tests copy simulations (`auto repl
 
 ### Step 3: session
 
-Outline, refined before the branch starts. `FactorySession` splits into a headless controller (input mapping, selection, commands), a HUD and a world renderer. The layer table in `AGENTS.md` allows presentation to link `Kinetra::Launcher`. The module README follows the template and absorbs the sub-READMEs.
+Refined on 2026-11-19 at `b7d5f91`, before the branch's first code commit. `FactorySession` (`labs/i4sim/src/session.cpp`, 640 lines) has 29 fields, a 120-line `advance`, a 213-line `render` and a 100-line `options`. Only the graphics suite reaches it, through pixel comparisons.
+
+**Parts.** The session keeps what needs Kinetra's widgets and composes four parts:
+
+| Part | File | Layer | Owns | Responsibility |
+| --- | --- | --- | --- | --- |
+| `FactoryController` | `include/controller.h`, `src/controller.cpp` | Logic (headless) | The simulation and its scenario, the selection, the debug layers, the message and its expiry, the pending camera fit, the modal pause | Loads, resets and closes a blueprint; maps keys and pointer to commands; pans, zooms and fits the camera; supplies the debug menu's entries; advances the simulation |
+| World view | `src/world_view.h`, `.cpp` | Presentation | Nothing | Draws floor, producers, movers, debug layers, traffic zones, borders and name labels |
+| HUD | `src/hud.h`, `.cpp` | Presentation | Nothing | Draws statistics, the inspection of the selected mover or producer, the scene description and the message |
+| `BlueprintScreen` | `src/blueprint_screen.h`, `.cpp` | Presentation | The catalog directory, its files and the `LaunchMenu` | Discovers blueprints, lists them with the SHOWCASE page, reports the choice, and draws the list or the load-error screen |
+| `FactorySession` | `src/session.cpp` | Presentation | The parts above, the settings overlay with its three flags, the debug menu widget | Orders a frame: panels first, then the controller; turns menu entries into `kinetra::DebugOption` rows; reports requests |
+
+```mermaid
+flowchart TD
+    Session[FactorySession: frame order, panels, requests] --> Screen[BlueprintScreen]
+    Session --> Controller[FactoryController: headless]
+    Session --> World[World view]
+    Session --> Hud[HUD]
+    Screen --> Launcher[Kinetra::Launcher LaunchMenu]
+    Controller --> Simulation[Simulation facade]
+    Controller --> Policy[lab/input.h: direction, ModalPause]
+    World --> Simulation
+    Hud --> Simulation
+    World --> Runtime[Kinetra::Runtime]
+    Hud --> Runtime
+    Session --> Overlay[kinetra::SettingsOverlay, DebugMenu]
+```
+
+*Takeaway:* only the session and the three drawing parts need a window. Everything that decides something, from a key to a command, sits in the controller and is tested without one.
+
+**Controller interface.** A frame of a loaded blueprint runs in this order, which is today's order:
+
+| Step | Call | Today in `advance` |
+| --- | --- | --- |
+| 1 | `begin_frame(elapsed)`: closes the blueprint when the menu asked for it, and ages the message | `back_to_blueprints_`, `error_remaining_` |
+| 2 | Session: `SettingsOverlay::update`; `suspend(open)` pauses while the panel is open and restores the run state after it | `pause_.update` |
+| 3 | Session: `menu()` entries become debug-menu rows; a click runs an entry's action | `options()`, `update_debug` |
+| 4 | `handle_input(elapsed, input, camera, panels)`: pending camera fit, keys, zoom, pan, pointer, then `Simulation::advance` | The rest of `advance` |
+| 5 | Drawing: `update_camera`, then world view, HUD, debug menu, frame times, settings | `render` |
+
+`MenuEntry` describes one debug-menu row without the engine's drawing types: a label, an action, and optionally a value text or a check state. The session builds `kinetra::DebugOption` rows from the entries. A check entry becomes a button labelled `[X] NAME`, which is the text the menu draws for a check box today, so the WORKLOAD row no longer needs a mirrored `bool` that is copied back into the simulation.
+
+**Layer rule.** The controller lives in `kinetra_i4sim_application`, like Demo's `sandbox_input.h` in its logic library, and that library links `kinetra_lab_common` for the headless `lab/input.h` (`direction`, `ModalPause`). It uses `kinetra::Input` and `kinetra::Camera2D` from `kinetra/engine.h`, which are plain data. The [layer table](../../AGENTS.md#lab-boundaries) records both edges of this step: logic may use the headless Lab input policy, and i4sim's presentation links `Kinetra::Launcher` for its blueprint screen (decided before step 1).
+
+**Unchanged behavior.** No key, row, text, color or drawing order changes. Three oddities of today's session are kept and recorded as [open points](#open-points): `R` returns to 200 updates per second instead of the session's `--ups` value; RESET PARAMETERS sets the horizon to 8 ticks while a new simulation starts at 32; and `create_session` ignores its `output` argument.
+
+**Carried from step 2.** `load_blueprint` (99 lines) is split into readers per section. The event counting that the benchmark and the pressure suite both write moves to the shared test header.
+
+**Documentation.** The module README is rewritten on the [module template](../../external/Kinetra/docs/documentation.md#module-readme-template). It explains the structure, the frame flow, and how junction traffic, corridor traffic with its recovery, and predictive passing work, and it links to the [architecture page](../factory-simulation-architecture.md) for the full contracts and limits. `include/README.md` and `src/README.md` are folded into it and removed. `tests/README.md` and `blueprints/README.md` stay, because each has content of its own (suites, demonstrations and the benchmark baseline; the scenario format). The tests README loses its measurement history: the phase 7 baseline replaces the older tables, and what it does not cover (parking traffic) stays as one table. `blueprint.h` gets the `///` contracts it still lacks.
+
+**Commit order.** Refactor commits, each one building with the frame comparison below unchanged: world view; HUD; blueprint screen; controller with its suite; `load_blueprint`; event counting. Then contracts, the layer table, the READMEs and the roadmap status.
 
 ## Affected areas
 
@@ -230,7 +280,12 @@ Step 2:
 - `labs/i4sim/CMakeLists.txt`: new sources. Root `CMakeLists.txt`: warnings as errors for i4sim.
 - `docs/factory-simulation-architecture.md`: component structure; `labs/i4sim/src/README.md`: the new files.
 
-Step 3: `labs/i4sim/` session and documentation, `AGENTS.md` (layer table).
+Step 3:
+- `labs/i4sim/src/session.cpp`: reduced to the composition; new `controller.h`/`.cpp`, `world_view`, `hud` and `blueprint_screen`.
+- `labs/i4sim/src/blueprint.cpp`, `labs/i4sim/include/blueprint.h`: section readers, contracts.
+- `labs/i4sim/tests/`: `controller_tests.cpp`, the shared event counting in `recorder.h`.
+- `labs/i4sim/CMakeLists.txt`: sources, the `kinetra_lab_common` link and the controller suite.
+- `AGENTS.md`: layer table and test mapping. `labs/i4sim/README.md` and its sub-READMEs, `docs/factory-simulation-architecture.md`, the roadmap status.
 
 ## Test plan
 
@@ -261,6 +316,21 @@ Step 2 changes structure only, so the golden and pressure lines are the proof ag
 | Former counter asserts | Rewritten to `stalled()`, arrival and contacts (see [Step 2](#step-2-simulation)) | Targeted |
 | Session still works | The i4sim presentation tests | Full (graphics) |
 | Whole branch | `cmake --workflow --preset ci`, `cmake --workflow --preset headless`, `cmake --workflow --preset graphics`, smoke run of `kinetra_i4sim --ticks` | Full |
+
+Step 3 changes structure only. The simulation is untouched, so the golden and pressure lines must not move; the presentation is pinned by comparing frames.
+
+| Behavior | Test | Level |
+| --- | --- | --- |
+| The simulation is unchanged | The ten golden and eight pressure lines pass unchanged | Targeted |
+| The presentation is unchanged | A capture program outside the repository drives a session through a fixed script (loadscreen and SHOWCASE page, selection, manual and rejected goals, holds, running with uneven frame times, UPS and workload keys, pan, zoom and fit, both debug pages with their rows, layers by menu and by key, reset, back to blueprints, the modal settings panel, the four showcase scenes with replay, a missing blueprint and a missing catalog) and saves 54 frames with the session status. The frames of the branch must equal those of `main` byte for byte | Manual |
+| Loading | A blueprint loads paused, or running when asked, at the given update rate, with a camera fit pending; a showcase scene arrives with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; an update rate outside 1..10000 is rejected | Targeted |
+| Keys | Space and P pause and resume; G toggles the workload; 1 to 6 toggle their layers; Q and E halve and double the update rate within 1..10000; F fits the camera; R restarts paused with the motion settings in use, and replays a scene's goals | Targeted |
+| Pointer | A click selects a mover or a producer and clears the selection on empty floor; a right click holds or blocks and keeps the selection on empty floor; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing | Targeted |
+| Camera | The fit centers the floor above the statistics; panning scales with frame time up to 0.1 s and with zoom; the wheel zooms only in debug mode with a free pointer, within the limits | Targeted |
+| Modal pause | An open panel pauses a running simulation and restores it; a paused one stays paused | Targeted |
+| Debug menu | Both pages list today's rows in order; the WORKLOAD entry switches the workload (step 2 review); PROFILE cycles the four profiles and names them; motion entries apply while running and keep the run state; a setting the simulation rejects shows its message; BLUEPRINTS closes the blueprint at the next frame | Targeted |
+| Session composition | The i4sim presentation tests, unchanged | Full (graphics) |
+| Whole branch | `cmake --workflow --preset ci`, `headless`, `graphics` and `windows` | Full |
 
 ## Review
 
@@ -380,3 +450,4 @@ Step 2:
 - Resolved in [blueprint copy race](2026-11-19-blueprint-copy-race.md): parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory raced, and a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`. The catalog is now copied once per build.
 - Carried to step 3: `load_blueprint` is 99 lines, over the roadmap's ~80-line guide; the event counting that the benchmark and the pressure suite both write (step 1 review) still waits for a shared helper.
 - The `disabled` end reason is effectively unreachable, because `configure_motion` sets every moving mover's goal again and so ends plans as `goal_changed` first. Phase 7 decides whether disabling should end plans with their own reason.
+- Found in step 3 and left unchanged, because the step preserves behavior: `R` builds a new simulation at the default 200 updates per second, so a session started with `--ups N` loses its rate on a reset. RESET PARAMETERS in the debug menu sets the horizon to 8 ticks, while a new simulation starts at 32. `create_session` takes an `output` directory and ignores it, although the README describes an export for graphical sessions. Each needs a decision on the intended behavior, and then its own fix.
