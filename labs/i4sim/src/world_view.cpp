@@ -28,6 +28,10 @@ constexpr Color junction_color{0, 0.8f, 1};
 constexpr Color corridor_color{0.2f, 0.5f, 1};
 constexpr Color exit_reservation_color{0.6f, 1, 0};
 constexpr Color border_color{1, 0.4f, 0.1f};
+constexpr Color detection_color{0.25f, 0.4f, 0.6f};
+/// Steering components, velocity and acceleration of the FORCES layer.
+constexpr Color seek_force_color{0, 1, 0}, collision_force_color{1, 0, 0}, border_force_color{1, .5f, 0},
+    predictive_force_color{1, 0, 1}, velocity_color{0, 1, 1}, acceleration_color{1, 1, 0};
 /// Arrow length per unit, so per-tick values are visible at factory scale: steering
 /// components and acceleration are in millimeters per tick squared, velocity in millimeters
 /// per tick.
@@ -68,11 +72,11 @@ void draw_floor(Runtime &runtime, const Simulation &simulation, const ViewLayers
         const auto center = flip_y(grid.center(id));
         if (grid.blocked(id))
             runtime.box(center, blueprint.cell_size / 2, 0, blocked_cell_color);
-        else if (layers.heatmap) {
+        else if (layers.shows(Layer::heatmap)) {
             const float weight = std::min(1.f, grid.weight(id) / full_heat_weight);
             runtime.box(center, blueprint.cell_size / 2, 0, {0.13f + weight * 0.6f, 0.15f, 0.2f});
         }
-        if (layers.grid) {
+        if (layers.shows(Layer::grid)) {
             // The top and left edge of every cell make the grid; the floor's far edges
             // stay open.
             const auto corner = grid.center(id) - blueprint.cell_size / 2,
@@ -108,33 +112,43 @@ void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size
     const auto &mover = simulation.movers()[index];
     const auto &motion = simulation.motion_settings();
     const auto center = flip_y(position);
-    if (layers.contact_shapes)
+    if (layers.shows(Layer::contact_shapes))
         draw_debug_box(runtime, center, mover.body.half_extents, 0, mover_alert_color);
-    if (layers.detection)
+    if (layers.shows(Layer::detection))
         draw_debug_circle(runtime, center, length(mover.body.half_extents) + motion.speed * motion.horizon,
-                          {0.25f, 0.4f, 0.6f});
-    if (layers.paths) {
+                          detection_color);
+    if (layers.shows(Layer::routes)) {
         Vec2 from = position;
         for (auto target : mover.route) {
             runtime.line(flip_y(from), flip_y(target), screen_pixels(runtime, 2), route_color);
             from = target;
         }
-        if (const auto target = simulation.corridor_retreat_target(index))
-            draw_debug_vector(runtime, center, flip_y(*target - position), retreat_target_color);
-        if (const auto target = simulation.passing_target(index))
-            draw_debug_vector(runtime, center, flip_y(*target - position), passing_target_color);
     }
-    if (layers.forces) {
-        const auto &forces = mover.forces;
-        draw_debug_vector(runtime, center, flip_y(forces.border * steering_arrow_scale), {1, .5f, 0});
-        draw_debug_vector(runtime, center, flip_y(forces.collision * steering_arrow_scale), {1, 0, 0});
-        draw_debug_vector(runtime, center, flip_y(forces.predictive * steering_arrow_scale), {1, 0, 1});
-        draw_debug_vector(runtime, center, flip_y(forces.seek * steering_arrow_scale), {0, 1, 0});
+    if (const auto target = simulation.corridor_retreat_target(index);
+        target && layers.shows(Layer::retreat_targets))
+        draw_debug_vector(runtime, center, flip_y(*target - position), retreat_target_color);
+    if (const auto target = simulation.passing_target(index); target && layers.shows(Layer::passing_targets))
+        draw_debug_vector(runtime, center, flip_y(*target - position), passing_target_color);
+    const auto &forces = mover.forces;
+    struct SteeringArrow {
+        Layer layer;
+        Vec2 force;
+        Color color;
+    };
+    const SteeringArrow steering_arrows[]{
+        {Layer::border_force, forces.border, border_force_color},
+        {Layer::collision_force, forces.collision, collision_force_color},
+        {Layer::predictive_force, forces.predictive, predictive_force_color},
+        {Layer::seek_force, forces.seek, seek_force_color}};
+    for (const auto &arrow : steering_arrows)
+        if (layers.shows(arrow.layer))
+            draw_debug_vector(runtime, center, flip_y(arrow.force * steering_arrow_scale), arrow.color);
+    if (layers.shows(Layer::velocity))
         runtime.line(center, flip_y(position + mover.body.velocity * velocity_line_scale),
-                     screen_pixels(runtime, 3), {0, 1, 1});
+                     screen_pixels(runtime, 3), velocity_color);
+    if (layers.shows(Layer::acceleration))
         runtime.line(center, flip_y(position + forces.acceleration * acceleration_line_scale),
-                     screen_pixels(runtime, 2), {1, 1, 0});
-    }
+                     screen_pixels(runtime, 2), acceleration_color);
 }
 
 /// Where a mover is drawn: between its last two ticks, so motion stays even when a frame
@@ -216,17 +230,51 @@ class LabelStack {
 };
 } // namespace
 
+std::optional<Color> layer_color(Layer layer) {
+    switch (layer) {
+    case Layer::grid:
+        return grid_line_color;
+    case Layer::detection:
+        return detection_color;
+    case Layer::contact_shapes:
+        return mover_alert_color;
+    case Layer::routes:
+        return route_color;
+    case Layer::retreat_targets:
+        return retreat_target_color;
+    case Layer::passing_targets:
+        return passing_target_color;
+    case Layer::seek_force:
+        return seek_force_color;
+    case Layer::collision_force:
+        return collision_force_color;
+    case Layer::border_force:
+        return border_force_color;
+    case Layer::predictive_force:
+        return predictive_force_color;
+    case Layer::velocity:
+        return velocity_color;
+    case Layer::acceleration:
+        return acceleration_color;
+    case Layer::walls:
+        return border_color;
+    default:
+        // A tint, or several colors: the heatmap, the layers with parts and the traffic zones.
+        return std::nullopt;
+    }
+}
+
 void draw_world(Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,
                 std::optional<std::size_t> selected_mover) {
     const float blend = float(simulation.interpolation());
     draw_floor(runtime, simulation, layers);
     draw_producers(runtime, simulation);
     draw_movers(runtime, simulation, layers, selected_mover, blend);
-    if (layers.borders) {
+    if (layers.shows(Layer::traffic_zones))
         draw_traffic_zones(runtime, simulation);
+    if (layers.shows(Layer::walls))
         for (const auto &segment : simulation.borders())
             runtime.line(flip_y(segment.start), flip_y(segment.end), screen_pixels(runtime, 2), border_color);
-    }
     LabelStack labels(runtime);
     for (const auto &mover : simulation.movers())
         labels.add(mover.definition.id, shown_position(mover, blend));

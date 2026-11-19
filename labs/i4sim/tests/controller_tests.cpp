@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,7 @@
 using namespace kinetra;
 using i4sim::FactoryController;
 using i4sim::flip_y;
+using i4sim::Layer;
 using i4sim::MenuEntry;
 using i4sim::PanelState;
 using i4sim::RunState;
@@ -25,6 +27,8 @@ namespace {
 const auto factory = i4sim::test::original_blueprint("MAS-demonstrator");
 /// An open floor of 2400 by 1600 mm with two movers at (500, 800) and (1900, 800).
 const auto open_floor = i4sim::test::showcase_blueprint("predictive-passing");
+const Layer top_layers[]{Layer::grid,    Layer::heatmap,   Layer::paths,         Layer::forces,
+                         Layer::borders, Layer::detection, Layer::contact_shapes};
 
 Input key(Key pressed) {
     Input input;
@@ -70,9 +74,31 @@ MenuEntry entry(FactoryController &controller, std::string_view label) {
     return {};
 }
 
-/// Runs the entry `label` of the current page, as a click on its row does.
+/// Runs the entry `label` of the current menu, as a click on its row does.
 void choose(FactoryController &controller, std::string_view label) {
     entry(controller, label).action();
+}
+
+/// Opens the menu section with the heading `label`, unless it is open already.
+void open_section(FactoryController &controller, std::string_view label) {
+    auto heading = entry(controller, label);
+    REQUIRE(heading.kind == i4sim::EntryKind::group);
+    if (!heading.active())
+        heading.action();
+}
+
+/// Clicks the [+] button of the number row `label`, or with `up` false its [-] button.
+void step(FactoryController &controller, std::string_view label, bool up = true) {
+    auto row = entry(controller, label);
+    REQUIRE((row.decrease && row.increase));
+    (up ? row.increase : row.decrease)();
+}
+
+/// Opens the list of the MOTION row `list` and chooses `value` from it.
+void choose_value(FactoryController &controller, std::string_view list, std::string_view value) {
+    open_section(controller, "MOTION");
+    choose(controller, list);
+    choose(controller, value);
 }
 
 Vec2 mover_position(const FactoryController &controller, std::size_t index) {
@@ -210,23 +236,23 @@ TEST_CASE("the keys one to six toggle their layers") {
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     const auto &layers = controller.layers();
-    CHECK((layers.grid && layers.heatmap && layers.paths && layers.forces && layers.borders &&
-           layers.detection && layers.contact_shapes));
+    for (auto layer : top_layers)
+        CHECK(layers.selected(layer));
     frame(controller, camera, key(Key::one));
-    CHECK_FALSE(layers.grid);
+    CHECK_FALSE(layers.selected(Layer::grid));
     frame(controller, camera, key(Key::two));
-    CHECK_FALSE(layers.heatmap);
+    CHECK_FALSE(layers.selected(Layer::heatmap));
     frame(controller, camera, key(Key::three));
-    CHECK_FALSE(layers.paths);
+    CHECK_FALSE(layers.selected(Layer::paths));
     frame(controller, camera, key(Key::four));
-    CHECK_FALSE(layers.forces);
+    CHECK_FALSE(layers.selected(Layer::forces));
     frame(controller, camera, key(Key::five));
-    CHECK_FALSE(layers.borders);
+    CHECK_FALSE(layers.selected(Layer::borders));
     frame(controller, camera, key(Key::six));
-    CHECK_FALSE(layers.detection);
-    CHECK_MESSAGE(layers.contact_shapes, "contact shapes have a menu entry only");
+    CHECK_FALSE(layers.selected(Layer::detection));
+    CHECK_MESSAGE(layers.selected(Layer::contact_shapes), "contact shapes have a menu entry only");
     frame(controller, camera, key(Key::one));
-    CHECK(layers.grid);
+    CHECK(layers.selected(Layer::grid));
 }
 
 TEST_CASE("q and e halve and double the update rate within its bounds") {
@@ -250,9 +276,8 @@ TEST_CASE("r restarts the blueprint paused with the motion settings in use") {
     FactoryController controller(42, true, 200);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
-    choose(controller, "PAGE: VIEW");
-    choose(controller, "PROFILE");
-    choose(controller, "SPEED +");
+    choose_value(controller, "PROFILE", "ORIGINAL");
+    step(controller, "SPEED");
     frame(controller, camera, click(camera, mover_position(controller, 0)));
     REQUIRE(controller.selected_mover() == 0);
     frame(controller, camera, {}, 0.5);
@@ -273,8 +298,7 @@ TEST_CASE("r replays a scene's goals with the motion settings in use") {
     REQUIRE(controller.load(i4sim::test::showcase_blueprint("corridor-passing")));
     auto camera = camera_for(controller);
     const Vec2 start = mover_position(controller, 0);
-    choose(controller, "PAGE: VIEW");
-    choose(controller, "PLANNER");
+    choose_value(controller, "PLANNER", "A*");
     REQUIRE_FALSE(controller.simulation().motion_settings().heatmap);
     frame(controller, camera, {}, 0.5);
     REQUIRE(mover_position(controller, 0).x != start.x);
@@ -480,58 +504,121 @@ TEST_CASE("an open panel leaves a paused blueprint paused") {
     CHECK(controller.simulation().state() == RunState::paused);
 }
 
-TEST_CASE("the view page lists the layers, the run controls and two traffic policies") {
+TEST_CASE("the menu starts with the simulation section open") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    CHECK(labels(controller) ==
-          std::vector<std::string>{"PAGE: VIEW", "GRID", "HEATMAP", "PATHS", "FORCES", "BORDERS", "DETECTION",
-                                   "CONTACT SHAPES", "PAUSE / RUN", "SINGLE TICK", "WORKLOAD", "FRAME SCENE",
-                                   "BLUEPRINTS", "CORRIDOR TRAFFIC", "PREDICTIVE PASS"});
+    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS",
+                                                         "WORKLOAD", "LAYERS", "MOTION", "TRAFFIC",
+                                                         "FRAME SCENE", "BLUEPRINTS"});
+    const auto menu = controller.menu();
+    CHECK((menu[0].kind == i4sim::EntryKind::group && menu[0].active() && menu[0].depth == 0));
+    CHECK_FALSE(menu[5].active());
+    CHECK(menu[1].depth == 1);
+    CHECK_MESSAGE(menu[8].depth == 0, "FRAME SCENE stays outside the sections");
 }
 
-TEST_CASE("the motion page lists the profile, the parameters and two traffic policies") {
+TEST_CASE("a section heading opens its rows and closes the open section") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    choose(controller, "PAGE: VIEW");
+    choose(controller, "TRAFFIC");
+    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC",
+                                                         "CORRIDOR TRAFFIC", "JUNCTION TRAFFIC",
+                                                         "PARKING TRAFFIC", "PREDICTIVE PASS", "FRAME SCENE",
+                                                         "BLUEPRINTS"});
+    choose(controller, "TRAFFIC");
     CHECK(labels(controller) ==
-          std::vector<std::string>{"PAGE: MOTION", "PROFILE", "PLANNER", "RECOVERY", "SPEED +", "SPEED -",
-                                   "FORCE +", "FORCE -", "HORIZON +", "HORIZON -", "RESET PARAMETERS",
-                                   "UPS +", "UPS -", "PARKING TRAFFIC", "JUNCTION TRAFFIC"});
-    choose(controller, "PAGE: MOTION");
-    CHECK(labels(controller).front() == "PAGE: VIEW");
+          std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
+}
+
+TEST_CASE("the layers section lists every layer as a check box, each with its parts") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
+    CHECK(labels(controller) ==
+          std::vector<std::string>{
+              "SIMULATION",      "LAYERS",          "GRID",         "HEATMAP", "PATHS",       "ROUTES",
+              "RETREAT TARGETS", "PASSING TARGETS", "FORCES",       "SEEK",    "COLLISION",   "BORDER",
+              "PREDICTIVE",      "VELOCITY",        "ACCELERATION", "BORDERS", "WALLS",       "TRAFFIC ZONES",
+              "DETECTION",       "CONTACT SHAPES",  "MOTION",       "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
+    const auto paths = entry(controller, "PATHS");
+    CHECK((paths.kind == i4sim::EntryKind::check && paths.layer == Layer::paths && paths.depth == 1));
+    const auto routes = entry(controller, "ROUTES");
+    CHECK((routes.kind == i4sim::EntryKind::check && routes.layer == Layer::routes && routes.depth == 2));
+}
+
+TEST_CASE("a layer lists its parts only while it is on") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
+    auto camera = camera_for(controller);
+    frame(controller, camera, key(Key::four)); // FORCES off
+    choose(controller, "BORDERS");
+    const auto rows = labels(controller);
+    for (const char *part : {"SEEK", "ACCELERATION", "WALLS", "TRAFFIC ZONES"})
+        CHECK_MESSAGE(std::find(rows.begin(), rows.end(), part) == rows.end(), part << " is listed");
+    CHECK_MESSAGE(std::find(rows.begin(), rows.end(), "ROUTES") != rows.end(), "PATHS is still on");
+    choose(controller, "FORCES");
+    CHECK(entry(controller, "SEEK").active());
+}
+
+TEST_CASE("a part is drawn only while it and its layer are on") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
+    const auto &layers = controller.layers();
+    choose(controller, "ROUTES");
+    CHECK_FALSE(layers.shows(Layer::routes));
+    CHECK(layers.shows(Layer::retreat_targets));
+    CHECK_MESSAGE(layers.shows(Layer::paths), "turning a part off keeps its layer");
+    choose(controller, "ROUTES");
+    auto camera = camera_for(controller);
+    frame(controller, camera, key(Key::three)); // PATHS off with the key
+    CHECK_FALSE(layers.shows(Layer::routes));
+    CHECK_MESSAGE(layers.selected(Layer::routes), "the part keeps its selection for when PATHS returns");
+    frame(controller, camera, key(Key::three));
+    CHECK(layers.shows(Layer::routes));
+    CHECK_FALSE(i4sim::ViewLayers::none().shows(Layer::routes));
+}
+
+TEST_CASE("the motion section lists the profile, the planner and the parameters") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "MOTION");
+    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "PROFILE",
+                                                         "PLANNER", "RECOVERY", "SPEED", "FORCE", "HORIZON",
+                                                         "RESET PARAMETERS", "TRAFFIC", "FRAME SCENE",
+                                                         "BLUEPRINTS"});
+    CHECK_MESSAGE(!entry(controller, "SPEED").action, "a number row changes only with its buttons");
 }
 
 TEST_CASE("the workload entry is a check box on the simulation's workload") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    REQUIRE(entry(controller, "WORKLOAD").checked);
-    CHECK(entry(controller, "WORKLOAD").checked());
+    REQUIRE(entry(controller, "WORKLOAD").kind == i4sim::EntryKind::check);
+    CHECK(entry(controller, "WORKLOAD").active());
     choose(controller, "WORKLOAD");
     CHECK_FALSE(controller.simulation().workload());
-    CHECK_FALSE(entry(controller, "WORKLOAD").checked());
+    CHECK_FALSE(entry(controller, "WORKLOAD").active());
     auto camera = camera_for(controller);
     frame(controller, camera, key(Key::g));
-    CHECK_MESSAGE(entry(controller, "WORKLOAD").checked(), "the box follows the G key");
+    CHECK_MESSAGE(entry(controller, "WORKLOAD").active(), "the box follows the G key");
 }
 
 TEST_CASE("the layer entries are check boxes on the layers") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
     const auto &layers = controller.layers();
-    choose(controller, "GRID");
-    choose(controller, "HEATMAP");
-    choose(controller, "PATHS");
-    choose(controller, "FORCES");
-    choose(controller, "BORDERS");
-    choose(controller, "DETECTION");
+    for (const char *label : {"GRID", "HEATMAP", "PATHS", "FORCES", "BORDERS", "DETECTION", "CONTACT SHAPES"})
+        choose(controller, label);
+    for (auto layer : top_layers)
+        CHECK_FALSE(layers.selected(layer));
+    CHECK_FALSE(entry(controller, "CONTACT SHAPES").active());
     choose(controller, "CONTACT SHAPES");
-    CHECK_FALSE((layers.grid || layers.heatmap || layers.paths || layers.forces || layers.borders ||
-                 layers.detection || layers.contact_shapes));
-    CHECK_FALSE(entry(controller, "CONTACT SHAPES").checked());
-    choose(controller, "CONTACT SHAPES");
-    CHECK(layers.contact_shapes);
-    CHECK(entry(controller, "CONTACT SHAPES").checked());
-    CHECK_MESSAGE(!entry(controller, "PAUSE / RUN").checked, "a command is a button, not a check box");
+    CHECK(layers.selected(Layer::contact_shapes));
+    CHECK(entry(controller, "CONTACT SHAPES").active());
+    CHECK_MESSAGE(entry(controller, "FRAME SCENE").kind == i4sim::EntryKind::button,
+                  "a command is a button, not a check box");
 }
 
 TEST_CASE("the run entries pause, resume and step a single tick") {
@@ -540,90 +627,146 @@ TEST_CASE("the run entries pause, resume and step a single tick") {
     choose(controller, "SINGLE TICK");
     CHECK(controller.simulation().ticks() == 1);
     CHECK(controller.simulation().state() == RunState::paused);
-    choose(controller, "PAUSE / RUN");
+    CHECK_FALSE(entry(controller, "RUNNING").active());
+    choose(controller, "RUNNING");
     CHECK(controller.simulation().state() == RunState::running);
-    choose(controller, "PAUSE / RUN");
+    CHECK(entry(controller, "RUNNING").active());
+    choose(controller, "RUNNING");
     CHECK(controller.simulation().state() == RunState::paused);
 }
 
-TEST_CASE("the profile entry cycles the four profiles and names them") {
+TEST_CASE("the profile list shows the four profiles and closes on a choice") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    choose(controller, "PAGE: VIEW");
-    std::vector<std::string> names;
-    for (int i = 0; i < 4; ++i) {
-        names.push_back(entry(controller, "PROFILE").value());
-        choose(controller, "PROFILE");
-    }
-    CHECK(names == std::vector<std::string>{"IMPROVED", "ORIGINAL", "RVO EXPERIMENT", "RECIPROCAL"});
-    CHECK(controller.simulation().motion_settings().profile == i4sim::SteeringProfile::improved);
+    open_section(controller, "MOTION");
+    CHECK(entry(controller, "PROFILE").value() == "IMPROVED");
+    CHECK_FALSE(entry(controller, "PROFILE").active());
+    choose(controller, "PROFILE");
+    CHECK(entry(controller, "PROFILE").active());
+    const auto menu = controller.menu();
+    std::vector<std::string> values;
+    for (const auto &row : menu)
+        if (row.kind == i4sim::EntryKind::choice) {
+            values.emplace_back(row.label);
+            CHECK(row.depth == 2);
+            CHECK(row.active() == (row.label == "IMPROVED"));
+        }
+    CHECK(values == std::vector<std::string>{"IMPROVED", "ORIGINAL", "RVO EXPERIMENT", "RECIPROCAL"});
+    choose(controller, "RECIPROCAL");
+    CHECK(controller.simulation().motion_settings().profile == i4sim::SteeringProfile::reciprocal);
+    CHECK(entry(controller, "PROFILE").value() == "RECIPROCAL");
+    CHECK_MESSAGE(!entry(controller, "PROFILE").active(), "choosing a value closes the list");
+    CHECK(labels(controller).size() == 13);
 }
 
-TEST_CASE("motion entries apply while the blueprint runs and keep it running") {
+TEST_CASE("choosing the current value only closes the list") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    // A motion change would replan every route and clear the message; the message shows that
+    // no change ran.
+    controller.report_error("KEEP");
+    choose_value(controller, "PROFILE", "IMPROVED");
+    choose_value(controller, "PLANNER", "HEAT A*");
+    CHECK(controller.message() == "KEEP");
+    CHECK_FALSE(entry(controller, "PLANNER").active());
+    choose_value(controller, "PLANNER", "A*");
+    CHECK(controller.message().empty());
+}
+
+TEST_CASE("the planner list chooses between heat A* and A*") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "MOTION");
+    CHECK(entry(controller, "PLANNER").value() == "HEAT A*");
+    choose_value(controller, "PLANNER", "A*");
+    CHECK_FALSE(controller.simulation().motion_settings().heatmap);
+    CHECK(entry(controller, "PLANNER").value() == "A*");
+    choose_value(controller, "PLANNER", "HEAT A*");
+    CHECK(controller.simulation().motion_settings().heatmap);
+}
+
+TEST_CASE("a list closes with its section") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "MOTION");
+    choose(controller, "PROFILE");
+    open_section(controller, "TRAFFIC");
+    open_section(controller, "MOTION");
+    CHECK_FALSE(entry(controller, "PROFILE").active());
+}
+
+TEST_CASE("the number rows show their value and step it while the blueprint runs") {
     FactoryController controller(42, true, 200);
     REQUIRE(controller.load(factory));
-    choose(controller, "PAGE: VIEW");
+    open_section(controller, "MOTION");
     const auto &motion = controller.simulation().motion_settings();
-    choose(controller, "SPEED +");
+    CHECK(entry(controller, "SPEED").value() == "2");
+    step(controller, "SPEED");
     CHECK(motion.speed == 2.5f);
-    choose(controller, "SPEED -");
+    CHECK(entry(controller, "SPEED").value() == "2.5");
+    step(controller, "SPEED", false);
     CHECK(motion.speed == 2);
-    choose(controller, "FORCE +");
+    CHECK(entry(controller, "FORCE").value() == "0.6");
+    step(controller, "FORCE");
     CHECK(motion.force == doctest::Approx(0.75));
-    choose(controller, "FORCE -");
+    step(controller, "FORCE", false);
     CHECK(motion.force == doctest::Approx(0.6));
-    choose(controller, "HORIZON -");
+    CHECK(entry(controller, "HORIZON").value() == "32");
+    step(controller, "HORIZON", false);
     CHECK(motion.horizon == 31);
     for (int i = 0; i < 40; ++i)
-        choose(controller, "HORIZON +");
+        step(controller, "HORIZON");
     CHECK_MESSAGE(motion.horizon == 64, "the horizon stops at its limit");
     choose(controller, "RESET PARAMETERS");
     CHECK(motion.speed == 2);
     CHECK(motion.force == 0.6f);
-    choose(controller, "UPS +");
+    CHECK(motion.horizon == 8);
+
+    open_section(controller, "SIMULATION");
+    CHECK(entry(controller, "UPS").value() == "200");
+    step(controller, "UPS");
     CHECK(controller.simulation().updates_per_second() == 400);
-    choose(controller, "UPS -");
+    CHECK(entry(controller, "UPS").value() == "400");
+    step(controller, "UPS", false);
     CHECK(controller.simulation().updates_per_second() == 200);
     CHECK(controller.simulation().running());
     CHECK(controller.message().empty());
 }
 
-TEST_CASE("the switches of the planner and the traffic policies show their state") {
+TEST_CASE("the recovery and traffic entries are check boxes on the motion settings") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     const auto &motion = controller.simulation().motion_settings();
-    CHECK(entry(controller, "CORRIDOR TRAFFIC").value() == "OFF");
-    choose(controller, "CORRIDOR TRAFFIC");
-    CHECK(motion.corridor_traffic);
-    CHECK(entry(controller, "CORRIDOR TRAFFIC").value() == "ON");
-    CHECK(entry(controller, "PREDICTIVE PASS").value() == "OFF");
-    choose(controller, "PREDICTIVE PASS");
-    CHECK(motion.predictive_passing);
-    CHECK(entry(controller, "PREDICTIVE PASS").value() == "ON");
-
-    choose(controller, "PAGE: VIEW");
-    CHECK(entry(controller, "PLANNER").value() == "HEAT A*");
-    choose(controller, "PLANNER");
-    CHECK(entry(controller, "PLANNER").value() == "A*");
-    for (const char *label : {"RECOVERY", "PARKING TRAFFIC", "JUNCTION TRAFFIC"}) {
-        CHECK(entry(controller, label).value() == "OFF");
+    open_section(controller, "TRAFFIC");
+    for (const char *label : {"CORRIDOR TRAFFIC", "JUNCTION TRAFFIC", "PARKING TRAFFIC", "PREDICTIVE PASS"}) {
+        CHECK(entry(controller, label).kind == i4sim::EntryKind::check);
+        CHECK_FALSE(entry(controller, label).active());
         choose(controller, label);
-        CHECK(entry(controller, label).value() == "ON");
+        CHECK(entry(controller, label).active());
     }
-    CHECK((motion.recovery && motion.parking_traffic && motion.junction_traffic && !motion.heatmap));
-    choose(controller, "PROFILE"); // Original has no predictive passing.
-    choose(controller, "PAGE: MOTION");
+    CHECK((motion.corridor_traffic && motion.junction_traffic && motion.parking_traffic &&
+           motion.predictive_passing));
+    CHECK_FALSE(entry(controller, "PREDICTIVE PASS").value);
+
+    open_section(controller, "MOTION");
+    CHECK_FALSE(entry(controller, "RECOVERY").active());
+    choose(controller, "RECOVERY");
+    CHECK(motion.recovery);
+    CHECK(entry(controller, "RECOVERY").active());
+    choose_value(controller, "PROFILE", "ORIGINAL"); // Original has no predictive passing.
+    open_section(controller, "TRAFFIC");
     CHECK(entry(controller, "PREDICTIVE PASS").value() == "LEGACY");
+    CHECK_MESSAGE(entry(controller, "PREDICTIVE PASS").active(), "the legacy profile keeps the setting");
 }
 
 TEST_CASE("a motion setting the simulation rejects shows its reason and changes nothing") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    choose(controller, "PAGE: VIEW");
+    open_section(controller, "MOTION");
     // Speed grows by a quarter per step until it leaves the range of a float.
     int steps = 0;
     while (controller.message().empty() && steps < 1000) {
-        choose(controller, "SPEED +");
+        step(controller, "SPEED");
         ++steps;
     }
     REQUIRE_FALSE(controller.message().empty());

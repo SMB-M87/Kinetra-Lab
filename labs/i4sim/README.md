@@ -79,18 +79,20 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | R | Restart the blueprint with the same seed, paused, and keep the motion settings. A showcase scene also gets its goals, workload and repeat setting again, so a changed setting can be compared with the original run |
 | G | Toggle the automatic workload |
 | Q / E | Halve / double the ticks per second |
-| 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode) |
+| 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode); a layer's parts keep their own selection |
 | WASD / arrows | Pan the camera |
 | Wheel (in Debug Mode) / F | Zoom / fit the floor in the window |
 | Left click / right click | Inspect a mover or producer / also hold the mover or block the producer |
 | Shift + left click | Send the selected mover there as a manual goal |
 
-The debug menu has two pages:
+The debug menu has four sections. A click on a heading (`+ LAYERS`) opens its rows below it and closes the open section; a second click closes it. SIMULATION is open at the start. On/off settings are `[X]` check boxes, a number shows its value with `[-]` and `[+]` buttons, and PROFILE and PLANNER open a list of `[*]` choices below them that closes on a choice. FRAME SCENE and BLUEPRINTS (back to the blueprint screen) stay below the sections.
 
-| Page | Entries |
+| Section | Rows |
 | --- | --- |
-| View | The seven layers (the six above and Contact Shapes), PAUSE / RUN, SINGLE TICK, WORKLOAD, FRAME SCENE, BLUEPRINTS (back to the blueprint screen), CORRIDOR TRAFFIC, PREDICTIVE PASS |
-| Motion | PROFILE, PLANNER (A* with or without heatmap costs), RECOVERY, speed, force and horizon steps with RESET PARAMETERS, the ticks per second, PARKING TRAFFIC, JUNCTION TRAFFIC |
+| SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second), WORKLOAD |
+| LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. A color swatch beside a row is the color it is drawn in |
+| MOTION | PROFILE, PLANNER (HEAT A* or plain A*), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
+| TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing) |
 
 Motion settings can change while the factory runs: assignments and positions stay, routes are rebuilt. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds and changes nothing.
 
@@ -160,7 +162,7 @@ Public headers, in [include/](include/):
 | [scenario.h](include/scenario.h) | The optional `scenario` section: `load_scenario`, `apply_scenario` |
 | [simulation.h](include/simulation.h) | `Simulation`: the facade with all state queries and commands, `MotionSettings`, the mover, producer and product types |
 | [events.h](include/events.h), [flow_metrics.h](include/flow_metrics.h) | The event log's types; waiting and stuck movers measured from outside |
-| [view.h](include/view.h) | `ViewLayers`, the zoom limits and `flip_y`: view state as plain data |
+| [view.h](include/view.h) | `Layer`, `parent_layer` and `ViewLayers`, the zoom limits and `flip_y`: view state as plain data |
 | [controller.h](include/controller.h) | `FactoryController`: the loaded simulation, selection, messages, camera, keys, pointer and debug-menu entries |
 | [session.h](include/session.h) | `create_session`: the only entry to the graphical session |
 
@@ -214,7 +216,7 @@ sequenceDiagram
 *Takeaway:* the panels see the input first. An open settings panel takes the whole frame; the debug menu takes the pointer while it is over the menu. Only then does the controller map what is left to commands and advance the simulation.
 
 - **Why the controller is separate.** Which key does what, when a click selects, how long a message stays and how the camera fits are rules, and rules need tests. In the controller they are tested from plain `kinetra::Input` values, without a window ([controller tests](tests/controller_tests.cpp)).
-- **Menu entries.** The controller describes each debug-menu row as a `MenuEntry`: a label, an action, and optionally a value text or a check state. The session turns the entries into `kinetra::DebugOption` rows. A check entry is drawn as `[X] NAME` and its action flips the state where it lives, so no flag has to be mirrored between the menu and the simulation.
+- **Menu entries.** The controller describes each debug-menu row as a `MenuEntry`: a label, a kind (button, check box, list choice or heading), a nesting depth, and optionally an action, a state, a value text, `[-]` / `[+]` functions and the layer it selects. It also keeps which section and which list are open. The session only decorates the entries into `kinetra::DebugOption` rows: two spaces per level, then `[X]`, `[*]` or `+` / `-`, and a swatch from `layer_color` for a layer drawn in one color. Every action changes the state where it lives, so no flag has to be mirrored between the menu and the simulation.
 - **Deferred close.** BLUEPRINTS only sets a request. The frame that clicked it still finishes with its simulation; the next `begin_frame` closes it.
 - **Drawing between ticks.** Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
@@ -310,7 +312,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 - **Copies are deep.** Copying a `Simulation` copies its whole state, including the event log. Components store no references to each other, so a copy cannot point into the original.
 - **Only goals move goals.** A mover's destination changes only through the `Goals` view, which also cancels the corridor recovery and passing plan that depended on the old goal.
 - **Controller preconditions.** Every `FactoryController` call that reads or commands the simulation requires `loaded()`. `simulation()` returns a reference that a load, a restart or a close invalidates; the drawing code takes it anew each frame.
-- **Frame order.** `begin_frame`, `suspend`, menu actions, `handle_input`, and `update_camera` before drawing. Menu entries borrow the controller and are built anew for every update and every draw, because the page decides which entries exist.
+- **Frame order.** `begin_frame`, `suspend`, menu actions, `handle_input`, and `update_camera` before drawing. Menu entries borrow the controller and are built anew for every update and every draw, because the open section, the open list and the selected layers decide which entries exist.
 - **Failed loads change nothing.** `load_blueprint` never loads partially, and `FactoryController::load` builds the new simulation aside, so a failure leaves the loaded blueprint as it was.
 - **Layers.** The headless library depends on `Kinetra::Simulation` and the headless `lab/input.h` only; the presentation adds `Kinetra::Runtime`, the Lab session helpers and `Kinetra::Launcher` for the blueprint screen ([Lab boundaries](../../AGENTS.md#lab-boundaries)).
 
@@ -319,8 +321,8 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 | To | Change | Test with |
 | --- | --- | --- |
 | Add a key | `FactoryController::handle_keys`; the help lines in `session.cpp`; the [controls](#controls) table | A case in `controller_tests.cpp` |
-| Add a debug-menu entry | `add_view_entries` or `add_motion_entries` in `controller.cpp` | The page-listing cases in `controller_tests.cpp`. The graphics test clicks rows by index, so a new row in the middle moves its `click_row` numbers |
-| Add a debug layer | A flag in `ViewLayers`, an entry (and a key), the drawing in `world_view.cpp`, and `hidden_layers` in `session.cpp` (a `static_assert` reminds you) | Controller cases for the flag; the graphics suite for the drawing |
+| Add a debug-menu entry | The `add_*_entries` function of its section in `controller.cpp`; keep a row with `[-] [+]` within 21 characters | The section-listing cases in `controller_tests.cpp`. The graphics test clicks rows by number (`menu_row` in `presentation_tests.cpp`), so a new row above a clicked one moves those numbers |
+| Add a debug layer or part | A `Layer` value (and `parent_layer` for a part), a row in `layer_rows` in `controller.cpp`, the drawing in `world_view.cpp` and its color in `layer_color`; a key in `handle_keys` for a top-level layer | Controller cases for the rows and `ViewLayers::shows`; the graphics suite for the drawing |
 | Change what the HUD shows | `hud.cpp` | The graphics suite compares the statistics lines |
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
@@ -377,6 +379,7 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 - RESET PARAMETERS sets the horizon to 8 ticks, while a new simulation starts at 32.
 - `create_session` accepts an `output` directory and ignores it; a graphical session writes no summary.
 - A message that should expire, such as a rejected goal, stays on the blueprint screen when the blueprint is closed within its four seconds: the message ages only while a blueprint is loaded.
-- The graphics suite is one long case that clicks debug-menu rows by index. Named steps would make a failure easier to place.
+- With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge until a section or layer is closed.
+- The graphics suite is one long case that clicks debug-menu rows by number. The numbers are named in `menu_row`, but they still follow the menu's layout by hand.
 - Predictive passing is not safe under pressure yet: a third mover in a passing lane, and three oncoming movers, are recorded as today's outcomes. Roadmap [phase 7](../../docs/design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure) addresses them, and [phase 8](../../docs/design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism) moves the proven mechanism to Kinetra.
 - Desktop playtests and performance checks stay manual.

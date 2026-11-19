@@ -183,9 +183,8 @@ in the wider room. Manual destinations and original parking reservations stay
 intact. The application reuses the existing shared `TrafficGate` without an engine
 API extension.
 
-The option is disabled by default and lives under DEBUG → View → CORRIDOR TRAFFIC,
-alongside scene/workload controls; the shorter Motion page retains its existing
-rows. Blue outlines identify controlled corridors, lime outlines their reserved
+The option is disabled by default and lives under DEBUG → TRAFFIC → CORRIDOR TRAFFIC,
+with the other traffic policies. Blue outlines identify controlled corridors, lime outlines their reserved
 exits, and `LANE WAIT` reports waiting movers/detected corridor count. Admission and
 reservation state are cleared only for disabled policy types.
 

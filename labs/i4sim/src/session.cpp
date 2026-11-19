@@ -9,6 +9,9 @@
 #include <kinetra/settings_view.h>
 #include <lab/settings.h>
 
+#include <cstddef>
+#include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,17 +20,45 @@ namespace i4sim {
 namespace {
 using namespace kinetra;
 
-/// No debug layer at all: what the world view draws outside debug mode.
-constexpr ViewLayers hidden_layers{false, false, false, false, false, false, false};
-// A layer added to ViewLayers starts on; it must be turned off here as well.
-static_assert(sizeof(ViewLayers) == 7 * sizeof(bool), "hidden_layers must turn every layer off");
+/// The row text of `entry`: two spaces per nesting level, the mark of its kind, then the
+/// label. The engine menu appends the value and draws the buttons.
+std::string row_text(const MenuEntry &entry) {
+    std::string text(2 * std::size_t(entry.depth), ' ');
+    switch (entry.kind) {
+    case EntryKind::button:
+        break;
+    case EntryKind::check:
+        text += entry.active() ? "[X] " : "[ ] ";
+        break;
+    case EntryKind::choice:
+        text += entry.active() ? "[*] " : "[ ] ";
+        break;
+    case EntryKind::group:
+        text += entry.active() ? "- " : "+ ";
+        break;
+    }
+    return text + std::string(entry.label);
+}
+
+/// Side of a layer's color swatch, in debug-menu panel pixels: one glyph high.
+constexpr float swatch_size = 7;
+
+/// Draws the color swatch of a layer row at the right edge of the row whose text starts at
+/// screen position `text`; `scale` is the menu's screen pixels per panel pixel.
+void draw_swatch(Runtime &runtime, Vec2 text, float scale, Color color) {
+    const float half = swatch_size / 2;
+    const Vec2 center = text + Vec2{DebugMenu::panel_width - 2 * DebugMenu::text_margin - half, half} * scale;
+    runtime.box(runtime.camera.screen_to_world(center),
+                Vec2{half, half} * scale / runtime.camera.pixels_per_unit, 0, color);
+}
 
 /// The controller's menu entries as rows of the engine's debug menu.
 ///
-/// A check entry becomes a button whose label starts with the box, "[X] NAME", which is
-/// the text the menu draws for a check box. The entry's action then flips the state where
-/// it lives, so the menu needs no flag to point at. The rows view `labels`: build the rows
-/// anew for every menu update and every draw, and do not copy them.
+/// Every entry becomes a button row whose text carries its mark (row_text), so the menu
+/// needs no flag to point at: the entry's action changes the state where it lives. A layer
+/// row drawn in one color gets a swatch of it, as an on-screen legend. The rows
+/// view `labels`: build the rows anew for every menu update and every draw, and do not copy
+/// them.
 struct DebugRows {
     std::vector<std::string> labels;
     std::vector<DebugOption> options;
@@ -36,9 +67,18 @@ struct DebugRows {
         labels.reserve(entries.size());
         options.reserve(entries.size());
         for (auto &entry : entries) {
-            labels.push_back(entry.checked ? (entry.checked() ? "[X] " : "[ ] ") + std::string(entry.label)
-                                           : std::string(entry.label));
-            options.push_back({labels.back(), nullptr, std::move(entry.action), std::move(entry.value)});
+            labels.push_back(row_text(entry));
+            std::function<void(Runtime &, Vec2, float)> swatch;
+            if (const auto color = entry.layer ? layer_color(*entry.layer) : std::nullopt)
+                swatch = [color = *color](Runtime &runtime, Vec2 text, float scale) {
+                    draw_swatch(runtime, text, scale, color);
+                };
+            options.push_back({.label = labels.back(),
+                               .action = std::move(entry.action),
+                               .text = std::move(entry.value),
+                               .visualization = std::move(swatch),
+                               .decrease = std::move(entry.decrease),
+                               .increase = std::move(entry.increase)});
         }
     }
     DebugRows(const DebugRows &) = delete;
@@ -87,7 +127,7 @@ class FactorySession final : public lab::Session {
         const auto &simulation = controller_.simulation();
         runtime.begin(world_background);
         // Outside debug mode the layers keep their selection but are not drawn.
-        draw_world(runtime, simulation, debug_ ? controller_.layers() : hidden_layers,
+        draw_world(runtime, simulation, debug_ ? controller_.layers() : ViewLayers::none(),
                    controller_.selected_mover());
         draw_hud(runtime, simulation,
                  {statistics_, controller_.selected_mover(), controller_.selected_producer(),
@@ -156,12 +196,12 @@ class FactorySession final : public lab::Session {
     DebugMenu menu_;
     bool statistics_{true}, debug_{true}, frame_times_{};
     // Declared after the flags it borrows.
-    SettingsOverlay settings_{lab::settings_rows([] { return zoom_limits; }, statistics_, debug_,
-                                                 frame_times_,
-                                                 {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK",
-                                                  "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
-                                                 {"DEBUG PAGES: VIEW / MOTION"}),
-                              &debug_};
+    SettingsOverlay settings_{
+        lab::settings_rows([] { return zoom_limits; }, statistics_, debug_, frame_times_,
+                           {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK",
+                            "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
+                           {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),
+        &debug_};
 };
 } // namespace
 

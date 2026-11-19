@@ -20,21 +20,44 @@
 #include <vector>
 
 namespace i4sim {
+/// How a debug-menu row shows its state, and what its state means.
+enum class EntryKind {
+    /// A command; it has no state.
+    button,
+    /// An on/off setting, drawn as a check box; `active` says whether it is on.
+    check,
+    /// One value of an open list, drawn as a radio mark; `active` says whether it is the
+    /// current value.
+    choice,
+    /// A heading that opens and closes the rows below it; `active` says whether it is open.
+    group,
+};
+
 /// One row of the debug menu, without the drawing types of the engine's menu widget.
 ///
-/// An entry is a button (`action` only), a button with a value (`value` set) or a check
-/// box (`checked` set; `action` flips it). The functions borrow the controller that made
-/// the entry: call them only while that controller is alive, and ask for new entries after
-/// the controller changed, because the page decides which entries exist.
+/// The functions borrow the controller that made the entry: call them only while that
+/// controller is alive, and ask for new entries after any of them ran, because the open
+/// section, the open list and the selected layers decide which entries exist.
 struct MenuEntry {
-    /// Row text; refers to a string literal.
+    /// Row text without indentation or state mark; refers to a string literal.
     std::string_view label;
-    /// Runs the command. Never empty.
-    std::function<void()> action;
-    /// Current value to show after the label, such as "ON" or a profile name; may be empty.
+    /// Runs the command. Empty only on a number row, which changes with `decrease` and
+    /// `increase` instead.
+    std::function<void()> action{};
+    /// How the row shows its state.
+    EntryKind kind{EntryKind::button};
+    /// Current state for every kind but `button`; empty for a button.
+    std::function<bool()> active{};
+    /// Current value to show after the label, such as a profile name or a number; may be
+    /// empty.
     std::function<std::string()> value{};
-    /// Current state of a check box; empty for a button.
-    std::function<bool()> checked{};
+    /// Lowers and raises the row's number by one step; both empty on other rows.
+    std::function<void()> decrease{}, increase{};
+    /// Nesting level: 0 for a section heading and the rows below the sections, 1 for the
+    /// rows of a section, 2 for the values of an open list and the parts of a layer.
+    int depth{};
+    /// The debug layer the row selects; empty on other rows.
+    std::optional<Layer> layer{};
 };
 
 /// What the panels in front of the world did with a frame's input.
@@ -104,9 +127,12 @@ class FactoryController {
     /// Pauses the simulation while a modal panel is `open` and restores the run state it
     /// had when the panel closes (lab::ModalPause). Call once per frame.
     void suspend(bool open);
-    /// The entries of the current debug-menu page, in display order: the page switch, then
-    /// the view page (layers, run controls, corridor traffic, predictive passing) or the
-    /// motion page (profile, planner, parameters, update rate, parking and junction traffic).
+    /// The rows of the debug menu, in display order: the headings SIMULATION, LAYERS, MOTION
+    /// and TRAFFIC, each followed by its rows while it is open, then FRAME SCENE and
+    /// BLUEPRINTS. At most one section is open; SIMULATION is open at the start. A click on
+    /// a heading opens that section and closes the other, or closes it when it was open.
+    /// PROFILE and PLANNER open a list of their values below them; choosing a value closes
+    /// the list.
     std::vector<MenuEntry> menu();
     /// Applies a frame of input and then advances the simulation by `elapsed` seconds.
     ///
@@ -143,9 +169,21 @@ class FactoryController {
     void handle_pointer(const kinetra::Input &input, const kinetra::Camera2D &camera);
     void pick(Vec2 point, bool toggle);
     void show_for_a_while(std::string message);
-    MenuEntry motion_switch(std::string_view label, bool MotionSettings::*setting);
-    void add_view_entries(std::vector<MenuEntry> &entries);
+
+    /// The section of the debug menu whose rows show.
+    enum class MenuSection { none, simulation, layers, motion, traffic };
+    /// The list of values that is open below its row in the MOTION section.
+    enum class MenuList { none, profile, planner };
+    MenuEntry section_heading(std::string_view label, MenuSection section);
+    MenuEntry list_heading(std::string_view label, MenuList list, std::function<std::string()> value);
+    MenuEntry motion_check(std::string_view label, bool MotionSettings::*setting);
+    MenuEntry motion_number(std::string_view label, std::function<std::string()> value,
+                            std::function<void(MotionSettings &)> lower,
+                            std::function<void(MotionSettings &)> raise);
+    void add_simulation_entries(std::vector<MenuEntry> &entries);
+    void add_layer_entries(std::vector<MenuEntry> &entries);
     void add_motion_entries(std::vector<MenuEntry> &entries);
+    void add_traffic_entries(std::vector<MenuEntry> &entries);
 
     std::uint32_t seed_;
     bool start_running_;
@@ -160,8 +198,8 @@ class FactoryController {
     std::string message_;
     /// Seconds until the message expires; zero for a message that stays.
     double message_remaining_{};
-    /// The menu shows the motion page instead of the view page.
-    bool motion_page_{};
+    MenuSection open_section_{MenuSection::simulation};
+    MenuList open_list_{MenuList::none};
     bool fit_pending_{};
     /// Set by the BLUEPRINTS entry; the next begin_frame() closes the blueprint, so the
     /// frame that clicked the entry still finishes with its simulation.

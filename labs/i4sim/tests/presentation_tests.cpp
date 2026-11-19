@@ -1,4 +1,4 @@
-// Graphics tests for the i4sim session: loadscreen, pause, Motion and View debug rows,
+// Graphics tests for the i4sim session: loadscreen, pause, the debug menu's sections,
 // right-button input, modal settings, catalog recovery and the rendered crossing,
 // corridor, retreat and passing overlays. Every check shares one Runtime, because only
 // one may exist at a time, so they form one case. CTest labels it `graphics`.
@@ -44,6 +44,27 @@ std::filesystem::path without_scenario(std::string_view name, const std::filesys
     std::ofstream(file) << json.substr(0, section) << "\n}\n";
     return file;
 }
+
+/// Rows of the debug menu (FactoryController::menu), counted from 0 below its heading. The
+/// menu opens with SIMULATION open; opening a section closes the open one, so the open
+/// section's rows always start right below its heading.
+namespace menu_row {
+/// The SIMULATION heading, and the LAYERS and MOTION headings while SIMULATION, with its
+/// four rows, is open.
+constexpr unsigned simulation = 0, layers_below_simulation = 5, motion_below_simulation = 6;
+/// LAYERS open: heading on row 1, then GRID, HEATMAP and PATHS.
+constexpr unsigned layers = 1, paths = 4;
+/// MOTION open: heading on row 2, then PROFILE, PLANNER, RECOVERY, SPEED, FORCE, HORIZON and
+/// RESET PARAMETERS, then the TRAFFIC heading.
+constexpr unsigned motion = 2, profile = 3, planner = 4, speed = 6, force = 7, horizon = 8,
+                   traffic_below_motion = 10;
+/// The values of the open PROFILE list, below its row.
+constexpr unsigned improved = 4, original = 5, reciprocal = 7;
+/// The values of the open PLANNER list, below its row.
+constexpr unsigned plain_a_star = 6;
+/// TRAFFIC open: heading on row 3, then its four check boxes.
+constexpr unsigned corridor = 4, junction = 5, parking = 6, predictive = 7;
+} // namespace menu_row
 } // namespace
 
 TEST_CASE("the session renders its overlays and handles input and catalog recovery") {
@@ -74,14 +95,52 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     Input debug_menu;
     debug_menu.pressed[std::size_t(Key::backquote)] = true;
     session->advance(0, debug_menu, runtime.camera);
-    auto click_row = [&](unsigned row) {
+    // A click on the label of menu row `row`, or at panel x `x` on it.
+    auto click_row = [&](unsigned row, float x = 12) {
         Input click;
         click.clicked = true;
-        click.mouse =
-            Vec2{8, 32} + Vec2{12, 30 + float(row) * 16.f} * DebugMenu::scale(runtime.camera.viewport);
+        click.mouse = Vec2{8, 32} + Vec2{x, DebugMenu::row_top(row) + DebugMenu::row_height / 2} *
+                                        DebugMenu::scale(runtime.camera.viewport);
         session->advance(0, click, runtime.camera);
     };
-    click_row(0); // Motion page.
+    // A click on the [+] button of menu row `row`, or with `up` false on its [-] button.
+    auto click_step = [&](unsigned row, bool up = true) {
+        click_row(row,
+                  (up ? DebugMenu::increase_left : DebugMenu::decrease_left) + DebugMenu::stepper_width / 2);
+    };
+    // Pixels inside the debug menu panel that match `color`, in the 16 rows below its heading.
+    auto menu_pixels = [&](auto color) {
+        session->render(runtime);
+        glFinish();
+        std::vector<unsigned char> pixels(640 * 480 * 3);
+        glReadBuffer(GL_FRONT);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        const float scale = DebugMenu::scale(runtime.camera.viewport);
+        const int right = int(8 + DebugMenu::panel_width * scale),
+                  bottom = int(32 + DebugMenu::row_top(16) * scale);
+        unsigned count = 0;
+        for (int y = 32; y < bottom; ++y)
+            for (int x = 8; x < right; ++x) {
+                const auto *pixel = &pixels[std::size_t(((479 - y) * 640 + x) * 3)];
+                count += color(pixel[0], pixel[1], pixel[2]);
+            }
+        return count;
+    };
+    const auto contact_red = [](int r, int g, int b) { return r > 240 && g < 20 && b < 20; };
+    const auto route_purple = [](int r, int g, int b) {
+        return r > 150 && r < 200 && g > 80 && g < 125 && b > 230;
+    };
+    // The keys above turned PATHS off: its parts are not listed until it is on again.
+    click_row(menu_row::layers_below_simulation);
+    CHECK_MESSAGE(menu_pixels(contact_red) > 50, "The CONTACT SHAPES row has no color swatch");
+    CHECK_MESSAGE(menu_pixels(route_purple) == 0, "PATHS lists its parts while it is off");
+    click_row(menu_row::paths);
+    CHECK_MESSAGE(menu_pixels(route_purple) > 50, "PATHS does not list ROUTES with its swatch");
+    click_row(menu_row::paths);
+    click_row(menu_row::layers);
+    click_row(menu_row::simulation);
+    click_row(menu_row::motion_below_simulation);
     auto statistics_pixels = [&] {
         session->render(runtime);
         glFinish();
@@ -92,41 +151,48 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
         return pixels;
     };
     const auto before_motion = statistics_pixels();
-    click_row(4); // Speed + must apply while running.
+    click_step(menu_row::speed); // Speed + must apply while running.
     CHECK_MESSAGE(statistics_pixels() != before_motion, "Running Motion edit did not update statistics");
-    click_row(5); // Speed - restores the initial speed.
+    click_step(menu_row::speed, false); // Speed - restores the initial speed.
     CHECK_MESSAGE(statistics_pixels() == before_motion, "Inverse Motion edit did not restore speed");
-    for (int cycle = 0; cycle < 3; ++cycle)
-        click_row(1);
+    click_row(menu_row::profile);
+    click_row(menu_row::reciprocal);
     CHECK_MESSAGE(statistics_pixels() != before_motion, "Reciprocal profile did not expose avoidance limits");
-    click_row(1);
-    CHECK_MESSAGE(statistics_pixels() == before_motion, "Profile cycle did not restore Improved");
-    click_row(13); // Parking traffic is appended without moving existing controls.
+    click_row(menu_row::profile);
+    click_row(menu_row::improved);
+    CHECK_MESSAGE(statistics_pixels() == before_motion, "Profile list did not restore Improved");
+    click_row(menu_row::traffic_below_motion);
+    click_row(menu_row::parking);
     CHECK_MESSAGE(statistics_pixels() != before_motion, "Parking traffic did not expose wait statistics");
-    click_row(13);
+    click_row(menu_row::parking);
     CHECK_MESSAGE(statistics_pixels() == before_motion,
                   "Parking traffic did not restore disabled statistics");
-    click_row(14);
+    click_row(menu_row::junction);
     CHECK_MESSAGE(statistics_pixels() != before_motion, "Junction traffic did not expose wait statistics");
-    click_row(14);
+    click_row(menu_row::junction);
     CHECK_MESSAGE(statistics_pixels() == before_motion, "Junction traffic did not clear disabled statistics");
-    click_row(0); // View page: corridor admission sits with scene/workload controls.
-    click_row(13);
+    click_row(menu_row::corridor);
     CHECK_MESSAGE(statistics_pixels() != before_motion, "Corridor traffic did not expose wait statistics");
-    click_row(13);
+    click_row(menu_row::corridor);
     CHECK_MESSAGE(statistics_pixels() == before_motion, "Corridor traffic did not clear disabled statistics");
-    click_row(14); // Predictive passing is an explicit scene policy.
+    click_row(menu_row::predictive); // Predictive passing is an explicit scene policy.
     CHECK_MESSAGE(statistics_pixels() != before_motion, "Passing toggle did not update statistics");
-    click_row(14);
+    click_row(menu_row::predictive);
     CHECK_MESSAGE(statistics_pixels() == before_motion, "Passing toggle did not restore disabled statistics");
-    click_row(0);
-    for (unsigned row = 1; row <= 14; ++row) {
+    for (unsigned row = menu_row::corridor; row <= menu_row::predictive; ++row) {
         click_row(row);
+        CHECK_MESSAGE(session->status().find("RUNNING") != std::string::npos,
+                      "Traffic edit did not preserve running state");
+    }
+    click_row(menu_row::motion);
+    for (const unsigned row : {menu_row::speed, menu_row::force, menu_row::horizon}) {
+        click_step(row);
         CHECK_MESSAGE(session->status().find("RUNNING") != std::string::npos,
                       "Motion edit did not preserve running state");
     }
     session->advance(0, run, runtime.camera);
-    click_row(1);
+    click_row(menu_row::profile);
+    click_row(menu_row::original);
     CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Motion edit resumed a paused simulation");
     session->advance(0, run, runtime.camera);
@@ -212,10 +278,11 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session = i4sim::create_session(42, repaired_catalog, crossing_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
-    click_row(0);
-    for (int cycle = 0; cycle < 3; ++cycle)
-        click_row(1);
-    click_row(14);
+    click_row(menu_row::motion_below_simulation);
+    click_row(menu_row::profile);
+    click_row(menu_row::reciprocal);
+    click_row(menu_row::traffic_below_motion);
+    click_row(menu_row::junction);
     session->advance(0, debug_menu, runtime.camera);
     Input no_workload;
     no_workload.pressed[std::size_t(Key::g)] = true;
@@ -253,11 +320,11 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session = i4sim::create_session(42, repaired_catalog, corridor_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
-    click_row(0);
-    for (int cycle = 0; cycle < 3; ++cycle)
-        click_row(1);
-    click_row(0);
-    click_row(13);
+    click_row(menu_row::motion_below_simulation);
+    click_row(menu_row::profile);
+    click_row(menu_row::reciprocal);
+    click_row(menu_row::traffic_below_motion);
+    click_row(menu_row::corridor);
     session->advance(0, debug_menu, runtime.camera);
     session->advance(0, no_workload, runtime.camera);
     for (int i = 0; i < 2; ++i) {
@@ -292,11 +359,11 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session = i4sim::create_session(42, repaired_catalog, recovery_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
-    click_row(0);
-    for (int cycle = 0; cycle < 3; ++cycle)
-        click_row(1);
-    click_row(0);
-    click_row(13);
+    click_row(menu_row::motion_below_simulation);
+    click_row(menu_row::profile);
+    click_row(menu_row::reciprocal);
+    click_row(menu_row::traffic_below_motion);
+    click_row(menu_row::corridor);
     session->advance(0, debug_menu, runtime.camera);
     session->advance(0, no_workload, runtime.camera);
     for (int i = 0; i < 2; ++i) {
@@ -326,12 +393,13 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session = i4sim::create_session(42, repaired_catalog, passing_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
-    click_row(0);
-    for (int cycle = 0; cycle < 3; ++cycle)
-        click_row(1);
-    click_row(2); // Plain A* keeps this controlled encounter head-on.
-    click_row(0);
-    click_row(14);
+    click_row(menu_row::motion_below_simulation);
+    click_row(menu_row::profile);
+    click_row(menu_row::reciprocal);
+    click_row(menu_row::planner); // Plain A* keeps this controlled encounter head-on.
+    click_row(menu_row::plain_a_star);
+    click_row(menu_row::traffic_below_motion);
+    click_row(menu_row::predictive);
     session->advance(0, debug_menu, runtime.camera);
     session->advance(0, no_workload, runtime.camera);
     for (int i = 0; i < 2; ++i) {
