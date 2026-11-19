@@ -153,6 +153,19 @@ The golden values stay unchanged through every step of this phase.
 
 Step 1: `/code-review` (low) on the branch diff found no issues. The self-review caught one dangling lambda capture and a weak end-state hash before the commit; both were fixed.
 
+Steps 2–7: `/code-review` (high) on `docs/roadmap-and-cleanup...refactor/shared-presentation`:
+
+| Finding | Resolution |
+| --- | --- |
+| i4sim's `ModalPause` kept the saved pause state when the session went back to the blueprint screen, so a later simulation could inherit it | Fixed: the pause state is reset with the simulation |
+| `kinetra_lab_common` links only `Kinetra::Simulation`, but `lab/settings.h` needs the runtime | Fixed: the CMake comment says which headers are headless |
+| The launcher's menu title is now Kinetra's "Kinetra \| Start menu", and titles refresh every 500 ms instead of every frame | Accepted behavior change of moving to `run_launcher`; recorded here |
+| The three sessions repeat the same overlay frame glue | Kept for phase 4–6, which restructure each session |
+| Help lines live apart from the bindings they describe | Kept; the module phases may move them next to the input mapping |
+| The launcher integration test mirrors the panel with fixed line counts | Kept; a changed line count fails the test loudly |
+
+Self-review before the commits: the registration was first put in each presentation library and moved back to the launcher (see Decisions); Dotio's overlay moved out of `dotio::Application`, which headless tests use; the zoom constants moved to small `zoom.h` headers, so the launcher does not compile the scene headers and their warnings. A first commit accidentally took staged deletions and was redone before anything was published.
+
 ## Verification
 
 Step 1, headless Release build (`-DKINETRA_LAB_BUILD_RUNTIME=OFF`) in `build/`:
@@ -162,9 +175,26 @@ Step 1, headless Release build (`-DKINETRA_LAB_BUILD_RUNTIME=OFF`) in `build/`:
 - Debug build in `build-debug/`: both programs reproduce the Release values.
 - `./build.sh` (Full): Kinetra 9/9 and Lab 12/12 passed, with no warnings.
 
+Steps 2–7, in the `refactor/shared-presentation` worktree against Kinetra `ccb3396` (`feat/overlay-glyphs-navigation`):
+
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | 117/117 passed |
+| `cmake --workflow --preset headless` | 136/136 passed |
+| `cmake --workflow --preset graphics` (SDL offscreen, software Mesa, WSL2) | 124/124 passed |
+| Debug build with tests and graphics, `ctest` | 136/136 passed |
+| `kinetra_i4sim_golden`, `kinetra_demo_crowd_characterization` | Unchanged values; the step 2 conversion compared `KINETRA_PRINT_GOLDEN=1` output byte for byte |
+| Lab warnings (`KINETRA_LAB_WARNINGS`, ci build) | 67 unique locations, all in unchanged headers; none in changed files (119 when the policy started) |
+| Smoke: `kinetra --variant demo\|dotio\|i4sim --frames 60`, `kinetra --frames 30`, `kinetra_demo`, `kinetra_dotio --difficulty easy`, `kinetra_i4sim --frames 60`, `kinetra_i4sim --blueprint ... --ticks 2000` | All exit 0 |
+| `clang-format --dry-run --Werror`, `python3 external/Kinetra/tools/check_docs.py` | Clean |
+
+Not run: an interactive desktop playtest outside WSL2.
+
 ## Pull request
 
 Step 1: `test: characterize i4sim and Demo crowds before phase 3 refactors` (description: summary, changes, verification with mutation check, merge order: independent). Steps 2–7 get their own pull request.
+
+Steps 2–7: `refactor: phase 3 shared presentation on Kinetra's overlay and launcher`. Stacked on the documentation pull request; Kinetra pull request #5 merges first, with a merge commit.
 
 ## Open points
 
