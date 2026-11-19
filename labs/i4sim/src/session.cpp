@@ -218,6 +218,35 @@ class FactorySession final : public lab::Session {
         }
         return result;
     }
+    /// Rebuilds the simulation from its blueprint and seed, paused, keeping the motion
+    /// settings in use; a scene also gets its goals and workload again. Returns false when
+    /// the scene cannot be applied: the session is then back on the loadscreen with the cause.
+    bool reset() {
+        const auto config = simulation_->motion_settings();
+        simulation_ = std::make_unique<Simulation>(simulation_->blueprint(), seed_);
+        error_.clear();
+        if (scenario_) {
+            // Replay the scene with the motion settings in use, so a changed setting can be
+            // compared against the original run.
+            auto replay = *scenario_;
+            replay.motion = config;
+            try {
+                apply_scenario(replay, *simulation_);
+            } catch (const std::exception &e) {
+                // A partly applied scene is not the scene; return to the loadscreen with
+                // the cause, as a failed load does.
+                simulation_.reset();
+                scenario_.reset();
+                pause_ = {};
+                report_error(e.what());
+                return false;
+            }
+        } else
+            simulation_->configure_motion(config);
+        selected_mover_.reset();
+        selected_producer_.reset();
+        return true;
+    }
     void load(const std::filesystem::path &path) {
         try {
             auto next = std::make_unique<Simulation>(load_blueprint(path), seed_);
@@ -343,31 +372,8 @@ class FactorySession final : public lab::Session {
             simulation_->set_workload(workload_);
         if (input.hit(Key::p) || input.hit(Key::space))
             toggle_pause();
-        if (input.hit(Key::r)) {
-            const auto config = simulation_->motion_settings();
-            simulation_ = std::make_unique<Simulation>(simulation_->blueprint(), seed_);
-            error_.clear();
-            if (scenario_) {
-                // Replay the scene with the motion settings in use, so a changed setting can be
-                // compared against the original run.
-                auto replay = *scenario_;
-                replay.motion = config;
-                try {
-                    apply_scenario(replay, *simulation_);
-                } catch (const std::exception &e) {
-                    // A partly applied scene is not the scene; return to the loadscreen with
-                    // the cause, as a failed load does.
-                    simulation_.reset();
-                    scenario_.reset();
-                    pause_ = {};
-                    report_error(e.what());
-                    return;
-                }
-            } else
-                simulation_->configure_motion(config);
-            selected_mover_.reset();
-            selected_producer_.reset();
-        }
+        if (input.hit(Key::r) && !reset())
+            return;
         if (input.hit(Key::g))
             simulation_->set_workload(!simulation_->workload());
         if (input.hit(Key::f))
