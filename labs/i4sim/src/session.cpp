@@ -19,6 +19,8 @@ using namespace kinetra;
 
 /// No debug layer at all: what the world view draws outside debug mode.
 constexpr ViewLayers hidden_layers{false, false, false, false, false, false, false};
+// A layer added to ViewLayers starts on; it must be turned off here as well.
+static_assert(sizeof(ViewLayers) == 7 * sizeof(bool), "hidden_layers must turn every layer off");
 
 /// The controller's menu entries as rows of the engine's debug menu.
 ///
