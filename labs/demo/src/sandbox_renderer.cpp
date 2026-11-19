@@ -148,16 +148,15 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     runtime.end();
 }
 
-std::string window_title(const SandboxApplication &application) {
+std::string status_text(const SandboxApplication &application) {
     const auto &scene = application.scene();
-    return "Kinetra | Demo | " + std::to_string(scene.agents().size()) + " agents | " +
+    return std::to_string(scene.agents().size()) + " agents | " +
            (application.paused() ? "PAUSED" : "running") + " | " +
            std::to_string(scene.terrain.chunks().size()) + " chunks | " +
            (scene.following ? "camera FOLLOW" : "camera FREE") + " | paths " +
            (application.presentation().paths ? "ON" : "OFF") +
            (scene.reciprocal_avoidance ? " | avoidance RECIPROCAL | " : " | avoidance LEGACY | ") +
-           std::string(action_text(application.last_action())) +
-           " | WASD/arrows move, ghost camera and layers in debug menu, CTRL settings";
+           std::string(action_text(application.last_action()));
 }
 
 } // namespace sandbox

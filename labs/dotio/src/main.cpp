@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument(
                     "Usage: kinetra_dotio [--difficulty easy|medium|hard] [--frames N]");
         }
-        kinetra::Runtime runtime("Dotio on Kinetra");
+        kinetra::Runtime runtime("Dotio");
         runtime.camera.pixels_per_unit = dotio::initial_zoom;
         auto session = dotio::create_session(std::random_device{}(), difficulty);
         kinetra::run_session(runtime, *session, frames);

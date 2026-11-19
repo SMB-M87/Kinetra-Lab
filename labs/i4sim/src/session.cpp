@@ -539,11 +539,11 @@ class FactorySession final : public lab::Session {
             return SessionRequest::menu;
         return SessionRequest::none;
     }
-    std::string title() override {
+    std::string title() override { return "i4sim"; }
+    std::string status() override {
         if (!simulation_)
-            return error_.empty() ? "i4sim | Loadscreen" : "i4sim | Loadscreen | " + error_;
-        return "i4sim | " + simulation_->blueprint().name +
-               (simulation_->paused ? " | PAUSED" : " | RUNNING");
+            return error_.empty() ? "Loadscreen" : "Loadscreen | " + error_;
+        return simulation_->blueprint().name + (simulation_->paused ? " | PAUSED" : " | RUNNING");
     }
 };
 } // namespace
