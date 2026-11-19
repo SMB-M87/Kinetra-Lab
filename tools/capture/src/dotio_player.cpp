@@ -16,17 +16,23 @@ bool on_screen(const logic::Enemy &enemy, const kinetra::Camera2D &camera, float
            point.y <= camera.viewport.y - margin;
 }
 
-/// Whether no wall cell lies between `from` and `to`.
-bool clear_line(gmath::Vec2 from, gmath::Vec2 to) {
+/// Whether a bolt flies from `from` to `to` without meeting a wall cell or a crate, which
+/// stops a bolt that comes within the bolt's radius of it (World::UpdateBolts).
+bool clear_shot(const logic::World &world, gmath::Vec2 from, gmath::Vec2 to) {
     gmath::Point2 hit{};
-    return !logic::Grid::IsIntersectingAnyCell({from, to}, &logic::Grid::Array[0][0], hit);
-}
-
-/// Speed of the bolt the player fires now, in legacy pixels per tick (Player::Shoot).
-float bolt_speed(const logic::Player &player) {
-    return 6.0f + player.BoltSpeed * (float(player.Kills) / player.MaxBulletKills);
+    if (logic::Grid::IsIntersectingAnyCell({from, to}, &logic::Grid::Array[0][0], hit))
+        return false;
+    for (const auto &crate : world.GetObjects())
+        if (kinetra::segment_circle(dotio::physics_vector(from), dotio::physics_vector(to),
+                                    crate.body.position, crate.body.radius + logic::Bolt::Radius))
+            return false;
+    return true;
 }
 } // namespace
+
+float dotio_bolt_speed(const logic::Player &player) {
+    return 6.0f + player.BoltSpeed * (float(player.Kills) / player.MaxBulletKills);
+}
 
 logic::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera) {
     auto &world = application.world();
@@ -37,7 +43,7 @@ logic::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
         if (!on_screen(enemy, camera))
             continue;
         const float distance = (enemy.Position - player).GetLength();
-        if (distance < nearest_distance && clear_line(player, enemy.Position)) {
+        if (distance < nearest_distance && clear_shot(world, player, enemy.Position)) {
             nearest = &enemy;
             nearest_distance = distance;
         }
@@ -70,8 +76,8 @@ std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const ki
     if (!enemy)
         return std::nullopt;
     const auto &player = application.world().GetPlayer();
-    const auto point =
-        player.Position + lead_offset(enemy->Position - player.Position, enemy->Velocity, bolt_speed(player));
+    const auto point = player.Position + lead_offset(enemy->Position - player.Position, enemy->Velocity,
+                                                     dotio_bolt_speed(player));
     const auto screen = camera.world_to_screen(dotio::to_world(point));
     // A pointer stays inside its window, also when the lead runs off screen.
     return kinetra::Vec2{std::clamp(screen.x, 0.f, camera.viewport.x),

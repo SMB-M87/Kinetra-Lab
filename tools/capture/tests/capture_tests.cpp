@@ -350,6 +350,46 @@ TEST_CASE("the scripted Dotio player targets the nearest enemy it can see") {
     CHECK(capture::dotio_target(world.application, world.camera) == &hidden);
 }
 
+TEST_CASE("the scripted Dotio player does not shoot through a crate") {
+    OpenDotioWorld world;
+    // Twice as wide a view as the game's own, so the room's crate and the cell behind it fit.
+    world.camera.pixels_per_unit = 12.5f;
+    const auto player = world.player().Position;
+    const logic::World &read_only = world.world();
+    REQUIRE_FALSE(read_only.GetObjects().empty());
+    gmath::Vec2 crate{};
+    float nearest = 400;
+    for (const auto &object : read_only.GetObjects())
+        if (const auto offset = dotio::legacy_vector(object.body.position) - player;
+            offset.GetLength() < nearest) {
+            crate = offset;
+            nearest = offset.GetLength();
+        }
+    REQUIRE_MESSAGE(nearest < 400, "the seeded world has no crate near the player's start");
+    // Behind the crate on the same line, and as far away to the other side.
+    world.place(0, crate * 1.4f);
+    auto &open = world.place(1, crate * -1.5f);
+    CHECK(capture::dotio_target(world.application, world.camera) == &open);
+}
+
+TEST_CASE("dotio_bolt_speed is the speed of the bolt the player fires") {
+    OpenDotioWorld world;
+    auto &player = world.player();
+    for (const int kills : {1, 40}) {
+        CAPTURE(kills);
+        player.Kills = kills;
+        player.Cooldown = 0;
+        for (auto &bolt : world.world().GetBolts())
+            bolt.IsActive = false;
+        player.Shoot(player.Position + gmath::Vec2{100, 0}, true);
+        float fired = 0;
+        for (auto &bolt : world.world().GetBolts())
+            if (bolt.IsActive)
+                fired = bolt.Velocity.GetLength();
+        CHECK(fired == doctest::Approx(capture::dotio_bolt_speed(player)));
+    }
+}
+
 TEST_CASE("dotio_aim points at the target on screen, ahead of one that moves, inside the window") {
     OpenDotioWorld world;
     auto &enemy = world.place(0, {300, 0});

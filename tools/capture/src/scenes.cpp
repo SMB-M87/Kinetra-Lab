@@ -187,14 +187,21 @@ void dotio_start(Stage &stage, bool debug) {
                [&](int frame) { return dotio_play(stage, frame); });
 }
 
+/// Takes the screenshot of a started Dotio scene. The pointer first leaves the spot the
+/// player last aimed at: over the open debug menu it would highlight a row.
+void dotio_shot(Stage &stage) {
+    stage.point_at(stage.viewport() - Vec2{2, 2});
+    stage.shot();
+}
+
 void dotio(Stage &stage) {
     dotio_start(stage, false);
-    stage.shot();
+    dotio_shot(stage);
 }
 
 void dotio_debug(Stage &stage) {
     dotio_start(stage, true);
-    stage.shot();
+    dotio_shot(stage);
 }
 
 void dotio_settings(Stage &stage) {
@@ -223,10 +230,11 @@ void dotio_debug_clip(Stage &stage) {
     stage.press(Key::backquote);
     const int limit = dotio_recovery_wait_seconds * clip_fps;
     const float margin = stage.viewport().y * dotio_recovery_margin;
-    const int waited = stage.play_until(limit, dotio_sidestep, [&] {
+    const auto recovering = [&] {
         return dotio_recovery_in_view(stage.dotio(), stage.runtime().camera, margin);
-    });
-    if (waited == limit)
+    };
+    const int waited = stage.play_until(limit, dotio_sidestep, recovering);
+    if (!recovering())
         std::cerr << "kinetra_capture: no Dotio enemy recovered within " << dotio_recovery_wait_seconds
                   << " s; dotio-debug-clip shows none at its start\n";
     stage.record(long_clip_frames, [&](int frame) {
