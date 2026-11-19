@@ -68,7 +68,7 @@ Debug Mode, statistics and every visual debug layer start enabled. Click DEBUG n
 
 | Input | Action |
 | --- | --- |
-| Escape / M on the Loadscreen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim` |
+| Escape / M on the Loadscreen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page they return to the blueprint list |
 | Space / P | Pause or resume |
 | R | Reset the blueprint and seed, retaining motion configuration; start paused. A showcase scene also re-sends its goals and workload setting, so a changed motion setting can be compared against the original run |
 | G | Toggle automatic factory workload |

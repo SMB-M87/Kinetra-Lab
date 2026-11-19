@@ -98,11 +98,29 @@ Session and `main.cpp` change, so the level is Full with graphics.
 
 ## Review
 
-To be filled after the review.
+An independent review of `git diff main...HEAD` (a separate agent, without this document's reasoning) found no crash or data bug and confirmed the selection mapping, the stale-state handling and both refactor commits. Its findings and their resolution:
+
+| Finding | Resolution |
+| --- | --- |
+| Escape and M on the SHOWCASE page closed i4sim instead of returning to the list: the session caught both keys before `LaunchMenu` could handle M | On the scene page both keys now return to the list; the graphics test presses Escape there |
+| A failed `R` replay kept a partly configured simulation, against the `apply_scenario` contract | The session discards it and returns to the loadscreen with the cause, like a failed load |
+| The `R` check passed without a replay, and the paused check in the bundle test passed by default | The graphics test compares the world area before and after running, once after loading and once after `R` (a mutation that skips the replay fails it); the bundle test also applies a scenario to a running simulation |
+| `goals[].position` accepted extra keys, while the README says unknown names are rejected | Positions accept only `x` and `y`; a test covers it |
+| The README called the scenes the golden setups, but the golden corridor-recovery run enables corridor traffic late; "leaves the simulation paused" overstated the contract | Both sentences corrected |
+| The presentation-test helper searched for an LF line ending | It cuts at the comma before the `scenario` key |
 
 ## Verification
 
-To be filled after verification.
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | VERIFY_CI |
+| `cmake --workflow --preset headless` | VERIFY_HEADLESS |
+| `cmake --workflow --preset graphics` | VERIFY_GRAPHICS |
+| `ctest --preset dev -R '^kinetra_i4sim(:\|_golden)'` after the fixture move | 62/62; the ten golden lines are unchanged |
+| `kinetra_i4sim --blueprint …/showcase/predictive-passing.json --ticks 3000`; `… junction-crossing.json --run --frames 120` in WSLg | Exit 0 |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+
+No new Lab warnings in the changed files (`KINETRA_LAB_WARNINGS` output of the `ci` build). The Windows build is unaffected: no platform code changed.
 
 ## Pull request
 

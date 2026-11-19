@@ -33,8 +33,10 @@ namespace {
 std::filesystem::path without_scenario(std::string_view name, const std::filesystem::path &directory) {
     std::ifstream in(i4sim::test::showcase_blueprint(name));
     const std::string json{std::istreambuf_iterator<char>(in), {}};
-    const auto section = json.find(",\n  \"scenario\"");
-    REQUIRE_MESSAGE(section != std::string::npos, "Showcase blueprint lacks its scenario section");
+    // Cut at the comma before the key, so the result is valid JSON with any line endings.
+    const auto key = json.find("\"scenario\"");
+    REQUIRE_MESSAGE(key != std::string::npos, "Showcase blueprint lacks its scenario section");
+    const auto section = json.rfind(',', key);
     std::filesystem::create_directories(directory);
     const auto file = directory / (std::string(name) + ".json");
     std::ofstream(file) << json.substr(0, section) << "\n}\n";
@@ -354,14 +356,37 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->advance(0, up, runtime.camera); // wraps to the SHOWCASE row
     session->advance(0, choose, runtime.camera);
     CHECK_MESSAGE(session->status() == "Loadscreen", "SHOWCASE loaded a blueprint instead of its scenes");
+    Input escape;
+    escape.pressed[std::size_t(Key::escape)] = true;
+    session->advance(0, escape, runtime.camera);
+    CHECK_MESSAGE((session->status() == "Loadscreen" && session->request() == SessionRequest::none),
+                  "Escape on the SHOWCASE page left i4sim instead of returning to the list");
+    session->advance(0, choose, runtime.camera); // SHOWCASE is still highlighted
     session->render(runtime);
     session->advance(0, choose, runtime.camera); // first scene, alphabetically corridor-passing
     CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "Showcase scene did not load paused");
-    session->advance(0, run, runtime.camera);
-    for (int frame = 0; frame < 60; ++frame) {
-        session->advance(0.02, {}, runtime.camera);
+    // The world area between the toolbar and the statistics lines; without a workload, only
+    // the scenario's goals can move anything there.
+    auto world_pixels = [&] {
         session->render(runtime);
-    }
+        glFinish();
+        std::vector<unsigned char> pixels(640 * 280 * 3);
+        glReadBuffer(GL_FRONT);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 120, 640, 280, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        return pixels;
+    };
+    auto run_frames = [&](int frames) {
+        for (int frame = 0; frame < frames; ++frame) {
+            session->advance(0.02, {}, runtime.camera);
+            session->render(runtime);
+        }
+    };
+    session->advance(0, run, runtime.camera);
+    auto before = world_pixels();
+    run_frames(30);
+    CHECK_MESSAGE(world_pixels() != before, "Showcase scene movers did not move to their goals");
+    run_frames(30);
     glFinish();
     glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
     blue = 0;
@@ -376,4 +401,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     reset.pressed[std::size_t(Key::r)] = true;
     session->advance(0, reset, runtime.camera);
     CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "R did not restart the scene");
+    session->advance(0, run, runtime.camera);
+    before = world_pixels();
+    run_frames(30);
+    CHECK_MESSAGE(world_pixels() != before, "R did not re-send the scene's goals");
 }

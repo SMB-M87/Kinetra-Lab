@@ -259,7 +259,17 @@ class FactorySession final : public lab::Session {
     }
     void advance(double elapsed, const Input &input, Camera2D &camera) override {
         if (!simulation_) {
-            if (input.hit(Key::escape) || input.hit(Key::m)) {
+            const bool leave = input.hit(Key::escape) || input.hit(Key::m);
+            if (leave && loadscreen_ && loadscreen_->configuring()) {
+                // On the SHOWCASE page, Escape and M go back to the blueprint list, which
+                // LaunchMenu does on M; the launcher itself only sees M from a session.
+                Input back;
+                back.pressed[std::size_t(Key::m)] = true;
+                back.mouse = input.mouse;
+                loadscreen_->update(back, camera.viewport);
+                return;
+            }
+            if (leave) {
                 back_ = true;
                 return;
             }
@@ -313,8 +323,13 @@ class FactorySession final : public lab::Session {
                 try {
                     apply_scenario(replay, *simulation_);
                 } catch (const std::exception &e) {
-                    error_ = e.what();
-                    error_remaining_ = 4;
+                    // A partly applied scene is not the scene; return to the loadscreen with
+                    // the cause, as a failed load does.
+                    simulation_.reset();
+                    scenario_.reset();
+                    pause_ = {};
+                    report_error(e.what());
+                    return;
                 }
             } else
                 simulation_->configure_motion(config);

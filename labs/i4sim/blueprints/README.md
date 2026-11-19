@@ -43,11 +43,11 @@ The files in [showcase/](showcase/) are small traffic scenes that double as test
 | [corridor-recovery.json](showcase/corridor-recovery.json) | Corridor retreat: movers meet head-on inside the corridor and one backs out | Reciprocal, corridor traffic |
 | [predictive-passing.json](showcase/predictive-passing.json) | Predictive passing: movers on a head-on course agree on sides | Reciprocal, no heatmap costs, predictive passing |
 
-Every scene disables the workload and gives both movers a goal. They are the same setups the [presentation and golden tests](../tests/README.md#crossing-demonstration) use, and a test runs each scene tick for tick against that setup built by hand.
+Every scene disables the workload and gives both movers a goal. They are the setups the [presentation test](../tests/README.md#crossing-demonstration) builds through the debug menu, and a test runs each scene tick for tick against that setup built by hand. The golden tests use the same goals and settings, except that their corridor-recovery run switches corridor traffic on only after 1500 ticks; a scenario has no timed steps.
 
 ### Scenario section format
 
-A blueprint may carry one optional `scenario` object. `load_blueprint` ignores it; `load_scenario` in [scenario.h](../include/scenario.h) reads it and `apply_scenario` configures a new `Simulation` with it, leaving the simulation paused. Property names are case-insensitive like the rest of the blueprint, but unknown names inside the section are rejected, so a misspelled setting fails instead of being ignored.
+A blueprint may carry one optional `scenario` object. `load_blueprint` ignores it; `load_scenario` in [scenario.h](../include/scenario.h) reads it and `apply_scenario` configures a `Simulation` with it and leaves its pause state unchanged; a new simulation starts paused. Property names are case-insensitive like the rest of the blueprint, but unknown names anywhere inside the section are rejected, so a misspelled setting fails instead of being ignored.
 
 ```json
 "scenario": {

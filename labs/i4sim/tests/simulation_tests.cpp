@@ -1386,6 +1386,10 @@ TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply
         Simulation simulation(load_blueprint(file));
         apply_scenario(*scenario, simulation);
         CHECK_MESSAGE(simulation.paused, "Applying a scenario must not start the simulation");
+        Simulation running(load_blueprint(file));
+        running.paused = false;
+        apply_scenario(*scenario, running);
+        CHECK_MESSAGE(!running.paused, "Applying a scenario must keep a running simulation running");
         CHECK_MESSAGE(!simulation.workload, "Scenario workload not applied");
         CHECK_MESSAGE((simulation.movers()[0].manual && simulation.movers()[1].manual),
                       "Scenario goals were not sent");
@@ -1477,6 +1481,8 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
           std::string::npos);
     CHECK(load_error(with_scenario(R"({"workload": 0})")).find("workload must be true or false") !=
           std::string::npos);
+    CHECK(load_error(with_scenario(R"({"goals": [{"mover": "west", "position": {"x": 1, "y": 2, "z": 3}}]})"))
+              .find("Unknown property in scenario.goals[].position: z") != std::string::npos);
     CHECK(apply_error(with_scenario(R"({"goals": [{"mover": "south", "position": {"x": 700, "y": 700}}]})"))
               .find("names no mover: south") != std::string::npos);
     // (300, 300) lies in the northwest forbidden zone.

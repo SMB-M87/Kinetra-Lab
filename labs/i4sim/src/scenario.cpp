@@ -68,6 +68,9 @@ ScenarioGoal goal(const Json &object) {
     if (!object.contains("mover") || !object.at("mover").is_string() ||
         object.at("mover").get<std::string>().empty())
         throw std::runtime_error("A goal needs a mover ID");
+    if (!object.contains("position"))
+        throw std::runtime_error("A goal needs a position");
+    only_keys(object.at("position"), {"x", "y"}, "scenario.goals[].position");
     return {object.at("mover").get<std::string>(), json_fields::vector(object.at("position"))};
 }
 } // namespace
