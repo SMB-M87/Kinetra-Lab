@@ -254,6 +254,8 @@ class FactorySession final : public lab::Session {
         }
         if (back_to_blueprints_) {
             simulation_.reset();
+            // The saved pause state belonged to this simulation; the next one starts fresh.
+            pause_ = {};
             back_to_blueprints_ = false;
             return;
         }
