@@ -70,21 +70,10 @@ int main(int argc, char **argv) {
         }
 #ifdef I4SIM_RUNTIME
         kinetra::Runtime runtime("i4sim");
+        runtime.camera.pixels_per_unit = i4sim::initial_zoom;
         auto session = i4sim::create_session(seed, directory, blueprint, running, ups, output);
-        struct Standalone final : kinetra::Session {
-            lab::Session &session;
-            explicit Standalone(lab::Session &s) : session(s) {}
-            void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
-                session.advance(elapsed, input, camera);
-            }
-            void render(kinetra::Runtime &r) override { session.render(r); }
-            std::string title() override { return session.title(); }
-            bool exit_requested() const override {
-                return session.exit_requested() || session.return_to_menu();
-            }
-            bool close_on_escape() const override { return false; }
-        } standalone(*session);
-        kinetra::run_session(runtime, standalone, frames);
+        // Without a launcher, LAUNCHER and the blueprint screen's Escape end the program.
+        kinetra::run_session(runtime, *session, frames);
 #else
         throw std::invalid_argument("Headless build requires --blueprint FILE --ticks N");
 #endif

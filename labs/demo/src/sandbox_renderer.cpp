@@ -61,7 +61,7 @@ std::string_view action_text(ActionResult result) {
 
 void render(Runtime &runtime, const SandboxApplication &application, const DebugMenu *menu,
             std::span<const DebugOption> debug_options, bool collisions, bool agents, bool statistics,
-            double fps, const lab::Settings *settings, bool debug) {
+            double fps, const kinetra::SettingsOverlay *settings) {
     const auto &scene = application.scene();
     const auto &options = application.presentation();
     runtime.begin();
@@ -144,7 +144,7 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     if (menu)
         menu->draw(runtime, debug_options);
     if (settings)
-        settings->draw(runtime, statistics, debug, false);
+        settings->draw(runtime);
     runtime.end();
 }
 

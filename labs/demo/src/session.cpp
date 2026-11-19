@@ -2,19 +2,28 @@
 #include "sandbox_application.h"
 #include "sandbox_input.h"
 #include "sandbox_renderer.h"
+#include <kinetra/timing.h>
+#include <lab/input.h>
+#include <lab/settings.h>
+
 namespace sandbox {
 namespace {
-using lab::Session;
-class DemoSession final : public Session {
+class DemoSession final : public lab::Session {
     sandbox::SandboxApplication application_;
     kinetra::DebugMenu menu_;
     bool vectors_{true}, paths_{true}, collisions_{true}, agents_{true}, debug_{true}, probes_{true};
     bool ghost_{}, gravity_{}, goals_{};
     bool statistics_{true};
     bool reciprocal_{true};
-    lab::Settings settings_;
-    double statistics_elapsed_{}, fps_{};
-    int frames_{};
+    // Declared after the flags it borrows.
+    kinetra::SettingsOverlay settings_{
+        lab::settings_rows([this] { return debug_ ? debug_zoom_limits : zoom_limits; }, statistics_, debug_,
+                           {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL", "Q / E  ROTATE PLAYER",
+                            "SHIFT + LEFT / RIGHT  ROTATE"},
+                           {"GHOST CLICK  TELEPORT"}),
+        &debug_};
+    lab::ModalPause pause_;
+    kinetra::RateCounter fps_;
     auto options() {
         return std::array<kinetra::DebugOption, 9>{{{"GHOST CAMERA", &ghost_},
                                                     {"VECTORS", &vectors_},
@@ -29,22 +38,21 @@ class DemoSession final : public Session {
 
   public:
     DemoSession(int count, std::uint32_t seed) : application_(count, seed) {}
+    DemoSession(const DemoSession &) = delete;
+    DemoSession &operator=(const DemoSession &) = delete;
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
-        statistics_elapsed_ += elapsed;
-        ++frames_;
-        if (statistics_elapsed_ >= 0.5) {
-            fps_ = frames_ / statistics_elapsed_;
-            statistics_elapsed_ = 0;
-            frames_ = 0;
-        }
+        fps_.count();
+        fps_.advance(elapsed);
         auto entries = options();
-        const bool modal = settings_.update(input, camera, statistics_, debug_, debug_ ? 5.f : 17.f, 100.f);
+        const bool modal = settings_.update(input, camera);
         if (!debug_ || modal)
             menu_.visible = false;
-        const bool captured = debug_ && !modal && settings_.update_debug(input, camera, menu_, entries);
+        const bool captured =
+            debug_ && !modal && settings_.update_debug(input, camera.viewport, menu_, entries);
         auto commands = sandbox::read_commands(modal ? kinetra::Input{} : input);
         commands.zoom_steps = debug_ && !modal ? input.wheel : 0;
-        commands.toggle_pause = application_.paused() != settings_.visible;
+        commands.toggle_pause =
+            pause_.update(settings_.visible(), application_.paused()) != application_.paused();
         commands.toggle_vectors = (debug_ && vectors_) != application_.presentation().vectors;
         commands.toggle_paths = (debug_ && paths_) != application_.presentation().paths;
         if (captured)
@@ -63,10 +71,9 @@ class DemoSession final : public Session {
     void render(kinetra::Runtime &runtime) override {
         const auto entries = options();
         sandbox::render(runtime, application_, &menu_, entries, debug_ && collisions_, debug_ && agents_,
-                        statistics_, fps_, &settings_, debug_);
+                        statistics_, fps_.rate(), &settings_);
     }
-    bool return_to_menu() const override { return settings_.return_requested; }
-    bool exit_requested() const override { return settings_.exit_requested; }
+    kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return sandbox::window_title(application_) + " | CTRL settings"; }
 };
 } // namespace

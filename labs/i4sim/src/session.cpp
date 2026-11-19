@@ -1,10 +1,11 @@
 #include "session.h"
-#include "factory_settings.h"
 #include "simulation.h"
-#include <cctype>
 #include <iostream>
 #include <kinetra/bitmap_text.h>
 #include <kinetra/launcher.h>
+#include <kinetra/settings_view.h>
+#include <lab/input.h>
+#include <lab/settings.h>
 #include <sstream>
 
 namespace i4sim {
@@ -13,32 +14,24 @@ using namespace kinetra;
 Vec2 world(Vec2 p) {
     return {p.x, -p.y};
 }
-void factory_text(Runtime &runtime, std::string_view text, Vec2 origin, float scale, Color color) {
-    std::string visible(text);
-    for (char &c : visible)
-        c = char(std::toupper(static_cast<unsigned char>(c)));
-    kinetra::draw_text(runtime, visible, origin, scale, color);
-    for (std::size_t i = 0; i < visible.size(); ++i) {
-        if (visible[i] != '.' && visible[i] != '_' && visible[i] != '-')
-            continue;
-        const bool dot = visible[i] == '.';
-        const float y = visible[i] == '-' ? 3.5f : 6.5f;
-        runtime.box(runtime.camera.screen_to_world(origin + Vec2{float(i) * 6 + 2.5f, y} * scale),
-                    Vec2{dot ? .5f : 2.5f, .5f} * scale / runtime.camera.pixels_per_unit, 0, color);
-    }
-}
+/// Camera zoom range in pixels per millimeter: from a whole hall to a single mover.
+constexpr ZoomLimits zoom_limits{0.005f, 10};
 class FactorySession final : public lab::Session {
     std::uint32_t seed_;
     std::vector<std::filesystem::path> files_;
     std::unique_ptr<LaunchMenu> loadscreen_;
     std::unique_ptr<Simulation> simulation_;
     bool back_{}, exit_{}, fitted_{}, running_{};
-    FactorySettings settings_;
     DebugMenu menu_;
     bool statistics_{true}, debug_{true}, contacts_{true};
+    // Declared after the flags it borrows.
+    SettingsOverlay settings_{lab::settings_rows([] { return zoom_limits; }, statistics_, debug_,
+                                                 {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK",
+                                                  "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
+                                                 {"DEBUG PAGES: VIEW / MOTION"}),
+                              &debug_};
     unsigned page_{};
-    bool modal_before_{};
-    bool paused_before_settings_{};
+    lab::ModalPause pause_;
     void change_motion(const std::function<void(MotionSettings &)> &change) {
         const bool was_paused = simulation_->paused;
         auto config = simulation_->motion_settings();
@@ -202,7 +195,7 @@ class FactorySession final : public lab::Session {
         camera.position = world(size / 2);
         camera.pixels_per_unit =
             std::min(camera.viewport.x / size.x, (camera.viewport.y - 120) / size.y) * 0.9f;
-        camera.pixels_per_unit = std::max(camera.pixels_per_unit, 0.005f);
+        camera.pixels_per_unit = std::max(camera.pixels_per_unit, zoom_limits.minimum);
         fitted_ = true;
     }
     void pick(Vec2 p, bool toggle) {
@@ -269,14 +262,8 @@ class FactorySession final : public lab::Session {
             if (error_remaining_ == 0)
                 error_.clear();
         }
-        const bool modal = settings_.update(input, camera, statistics_, debug_, .005f, 10.f);
-        if (modal && !modal_before_) {
-            paused_before_settings_ = simulation_->paused;
-            simulation_->paused = true;
-        }
-        if (!settings_.visible && modal_before_)
-            simulation_->paused = paused_before_settings_;
-        modal_before_ = settings_.visible;
+        const bool modal = settings_.update(input, camera);
+        simulation_->paused = pause_.update(settings_.visible(), simulation_->paused);
         if (modal) {
             menu_.visible = false;
             return;
@@ -284,7 +271,7 @@ class FactorySession final : public lab::Session {
         if (!debug_)
             menu_.visible = false;
         auto rows = options();
-        const bool captured = debug_ && settings_.update_debug(input, camera, menu_, rows);
+        const bool captured = debug_ && settings_.update_debug(input, camera.viewport, menu_, rows);
         if (!fitted_)
             fit(camera);
         if (input.hit(Key::p) || input.hit(Key::space))
@@ -317,13 +304,9 @@ class FactorySession final : public lab::Session {
             simulation_->updates_per_second(std::max(1u, simulation_->updates_per_second() / 2));
         if (input.hit(Key::e))
             simulation_->updates_per_second(std::min(10000u, simulation_->updates_per_second() * 2));
-        camera.pixels_per_unit = std::clamp(
-            camera.pixels_per_unit * std::pow(1.1f, debug_ && !captured ? input.wheel : 0), 0.005f, 10.f);
+        kinetra::zoom(camera, debug_ && !captured ? input.wheel : 0, zoom_limits);
         const float step = float(std::min(elapsed, 0.1)) * 400 / camera.pixels_per_unit;
-        camera.position.x += (input.down(Key::d) || input.down(Key::right) ? step : 0) -
-                             (input.down(Key::a) || input.down(Key::left) ? step : 0);
-        camera.position.y += (input.down(Key::w) || input.down(Key::up) ? step : 0) -
-                             (input.down(Key::s) || input.down(Key::down) ? step : 0);
+        camera.position += lab::direction(input) * step;
         if (!captured && (input.clicked || input.right_clicked)) {
             const auto point = world(camera.screen_to_world(input.mouse));
             if (input.down(Key::shift) && input.clicked && selected_mover_) {
@@ -343,14 +326,14 @@ class FactorySession final : public lab::Session {
                 loadscreen_->draw(runtime, error_);
             if (!loadscreen_) {
                 runtime.begin();
-                factory_text(runtime, "I4SIM LOAD ERROR - ESC TO LAUNCHER", {12, 12}, 1, {1, 0.4f, 0.3f});
-                factory_text(runtime, "ENTER RETRIES BLUEPRINT DISCOVERY", {12, 30}, 1, {1, 1, 1});
+                draw_text(runtime, "I4SIM LOAD ERROR - ESC TO LAUNCHER", {12, 12}, 1, {1, 0.4f, 0.3f});
+                draw_text(runtime, "ENTER RETRIES BLUEPRINT DISCOVERY", {12, 30}, 1, {1, 1, 1});
                 const auto columns = std::size_t(std::max(1.f, (runtime.camera.viewport.x - 24) / 6));
                 float y = 50;
                 for (std::size_t offset = 0; offset < error_.size() && y + 8 < runtime.camera.viewport.y;
                      offset += columns, y += 12)
-                    factory_text(runtime, std::string_view(error_).substr(offset, columns), {12, y}, 1,
-                                 {1, 0.8f, 0.7f});
+                    draw_text(runtime, std::string_view(error_).substr(offset, columns), {12, y}, 1,
+                              {1, 0.8f, 0.7f});
                 runtime.end();
             }
             return;
@@ -477,7 +460,7 @@ class FactorySession final : public lab::Session {
                          1 / runtime.camera.pixels_per_unit, {.7f, .7f, .7f});
             runtime.box(runtime.camera.screen_to_world(label + Vec2{width / 2, 4}),
                         Vec2{width / 2 + 3, 7} / runtime.camera.pixels_per_unit, 0, {.025f, .035f, .06f});
-            factory_text(runtime, id, label, 1, {1, 1, 1});
+            draw_text(runtime, id, label, 1, {1, 1, 1});
         };
         for (const auto &m : simulation_->movers())
             name(m.definition.id, m.body.position);
@@ -494,7 +477,7 @@ class FactorySession final : public lab::Session {
                 stats << " PASS " << simulation_->predictive_pairs();
             if (c.corridor_traffic)
                 stats << " RETREAT " << simulation_->corridor_recovering();
-            factory_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
+            draw_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
             std::ostringstream motion;
             motion << (simulation_->paused ? "PAUSED" : "RUNNING") << " SPEED " << c.speed << " FORCE "
                    << c.force << " HORIZON " << c.horizon;
@@ -510,7 +493,7 @@ class FactorySession final : public lab::Session {
                        << simulation_->corridor_count();
             if (c.junction_traffic || c.corridor_traffic)
                 motion << " EXIT " << simulation_->junction_exit_waiting();
-            factory_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
+            draw_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
         }
         if (selected_mover_) {
             const auto &m = simulation_->movers()[*selected_mover_];
@@ -523,7 +506,7 @@ class FactorySession final : public lab::Session {
                      : m.unreachable         ? "UNREACHABLE"
                      : m.product             ? "ALLOCATED"
                                              : "IDLE - SHIFT CLICK GOAL");
-            factory_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
+            draw_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
@@ -531,24 +514,29 @@ class FactorySession final : public lab::Session {
                                 !m.passing_detour
                             ? " STALLED"
                             : "");
-            factory_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
+            draw_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {
             const auto &p = simulation_->producers()[*selected_producer_];
             const auto text = p.definition.id + " | QUEUE " + std::to_string(p.queue.size()) +
                               " | REMAINING " + std::to_string(p.remaining) + " | TASKS " +
                               std::to_string(p.interactions) + (p.blocked ? " | BLOCKED" : "");
-            factory_text(runtime, text, {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
+            draw_text(runtime, text, {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (!error_.empty())
-            factory_text(runtime, error_, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
+            draw_text(runtime, error_, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
         auto rows = options();
         menu_.draw(runtime, rows);
-        settings_.draw(runtime, statistics_, debug_, false);
+        settings_.draw(runtime);
         runtime.end();
     }
-    bool return_to_menu() const override { return back_ || settings_.return_requested; }
-    bool exit_requested() const override { return exit_ || settings_.exit_requested; }
+    SessionRequest request() const override {
+        if (exit_ || settings_.request() == SessionRequest::exit)
+            return SessionRequest::exit;
+        if (back_ || settings_.request() == SessionRequest::menu)
+            return SessionRequest::menu;
+        return SessionRequest::none;
+    }
     std::string title() override {
         if (!simulation_)
             return error_.empty() ? "i4sim | Loadscreen" : "i4sim | Loadscreen | " + error_;

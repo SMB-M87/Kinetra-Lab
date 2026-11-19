@@ -1,43 +1,64 @@
 #include "session.h"
+#include "difficulty.h"
 #include "presentation.h"
+#include <lab/input.h>
+#include <lab/settings.h>
+#include <stdexcept>
 namespace dotio {
 namespace {
-using lab::Session;
-class DotioSession final : public Session {
+class DotioSession final : public lab::Session {
     dotio::Application application_;
+    // Declared after the application whose flags it borrows.
+    kinetra::SettingsOverlay settings_{
+        lab::settings_rows([this] { return application_.debug ? debug_zoom_limits : zoom_limits; },
+                           application_.statistics, application_.debug,
+                           {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
+                           {"GHOST CLICK  TELEPORT"}),
+        &application_.debug};
+    lab::ModalPause pause_;
 
   public:
     DotioSession(std::uint32_t seed, logic::Difficulty difficulty) : application_(seed, difficulty) {}
+    DotioSession(const DotioSession &) = delete;
+    DotioSession &operator=(const DotioSession &) = delete;
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
         const bool was_ghost = application_.ghost;
         auto options = application_.debug_options();
-        const bool modal =
-            application_.settings.update(input, camera, application_.statistics, application_.debug,
-                                         application_.debug ? 2.5f : 25.f, 50.f);
+        const bool modal = settings_.update(input, camera);
         if (!application_.debug || modal)
             application_.menu.visible = false;
         const bool captured = application_.debug && !modal &&
-                              application_.settings.update_debug(input, camera, application_.menu, options);
+                              settings_.update_debug(input, camera.viewport, application_.menu, options);
         if (!was_ghost && application_.ghost) {
             application_.world().GetGhost().Position = application_.world().GetPlayer().Position;
             application_.world().GetGhost().Velocity = {};
         }
         auto commands = dotio::read_commands(modal ? kinetra::Input{} : input, camera);
         commands.zoom_steps = application_.debug && !modal ? input.wheel : 0;
-        application_.paused = application_.settings.visible;
+        application_.paused = pause_.update(settings_.visible(), application_.paused);
         if (captured) {
             commands.shoot = false;
             commands.teleport = false;
         }
         application_.advance(elapsed, commands, camera);
     }
-    void render(kinetra::Runtime &runtime) override { dotio::render(runtime, application_); }
-    bool return_to_menu() const override { return application_.settings.return_requested; }
-    bool exit_requested() const override { return application_.settings.exit_requested; }
+    void render(kinetra::Runtime &runtime) override { dotio::render(runtime, application_, settings_); }
+    kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return dotio::window_title(application_); }
 };
 } // namespace
-std::unique_ptr<lab::Session> create_session(std::uint32_t seed, logic::Difficulty difficulty) {
-    return std::make_unique<DotioSession>(seed, difficulty);
+std::vector<std::string> difficulty_names() {
+    std::vector<std::string> names;
+    for (const auto &preset : logic::difficulty_presets)
+        names.emplace_back(preset.name);
+    return names;
+}
+std::size_t difficulty_index(std::string_view name) {
+    return static_cast<std::size_t>(logic::parse_difficulty(name));
+}
+std::unique_ptr<lab::Session> create_session(std::uint32_t seed, std::size_t difficulty) {
+    if (difficulty >= logic::difficulty_presets.size())
+        throw std::invalid_argument("Unsupported Dotio difficulty");
+    return std::make_unique<DotioSession>(seed, static_cast<logic::Difficulty>(difficulty));
 }
 } // namespace dotio

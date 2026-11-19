@@ -1,6 +1,7 @@
 #include "../include/presentation.h"
 #include "../include/physics_adapter.h"
 #include <kinetra/help_view.h>
+#include <lab/input.h>
 
 namespace dotio {
 using namespace kinetra;
@@ -13,10 +14,7 @@ Color wall_color(int absolute_row, int absolute_column) {
 
 Commands read_commands(const Input &input, const Camera2D &camera) {
     Commands commands;
-    commands.direction = {float(input.down(Key::d) || input.down(Key::right)) -
-                              float(input.down(Key::a) || input.down(Key::left)),
-                          float(input.down(Key::w) || input.down(Key::up)) -
-                              float(input.down(Key::s) || input.down(Key::down))};
+    commands.direction = lab::direction(input);
     commands.camera_pan = commands.direction;
     commands.aim = camera.screen_to_world(input.mouse);
     commands.shoot = input.mouse_down || input.clicked;
@@ -69,7 +67,7 @@ void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
 }
 } // namespace
 
-void render(Runtime &runtime, Application &application) {
+void render(Runtime &runtime, Application &application, const SettingsOverlay &settings) {
     auto &world = application.world();
     runtime.begin({0, 0, 0});
     Renderer renderer(runtime);
@@ -192,9 +190,9 @@ void render(Runtime &runtime, Application &application) {
         draw_text(runtime, labels[i], {12 * scale, y - 3 * scale}, scale, {1, 1, 1});
     }
     if (application.statistics) {
-        const auto rates = "FPS " + std::to_string(int(application.fps)) + " UPS " +
-                           std::to_string(int(application.ups)) + " TPS " +
-                           std::to_string(int(application.tps));
+        const auto rates = "FPS " + std::to_string(int(application.frame_rate.rate())) + " UPS " +
+                           std::to_string(int(application.update_rate.rate())) + " TPS " +
+                           std::to_string(int(application.decision_rate.rate()));
         std::string population;
         if (application.debug) {
             const auto counts = application.agent_counts();
@@ -218,7 +216,7 @@ void render(Runtime &runtime, Application &application) {
     }
     const auto options = application.debug_options();
     application.menu.draw(runtime, options);
-    application.settings.draw(runtime, application.statistics, application.debug, true);
+    settings.draw(runtime);
     runtime.end();
 }
 

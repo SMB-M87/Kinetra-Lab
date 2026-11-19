@@ -24,8 +24,7 @@ void SandboxApplication::apply_actions(const FrameCommands &commands) {
 
 void SandboxApplication::update_camera(double elapsed, const FrameCommands &commands,
                                        kinetra::Camera2D &camera) {
-    camera.pixels_per_unit = std::clamp(camera.pixels_per_unit * std::pow(1.1f, commands.zoom_steps),
-                                        commands.debug ? 5.f : 17.f, 100.f);
+    kinetra::zoom(camera, commands.zoom_steps, commands.debug ? debug_zoom_limits : zoom_limits);
     if (!scene_.following)
         camera.position += commands.camera_pan * (float(std::min(elapsed, 0.1)) * 20);
     scene_.follow(camera);
