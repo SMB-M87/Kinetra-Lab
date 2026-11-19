@@ -98,7 +98,7 @@ Self-review of `git diff main...HEAD`:
 | Command | Result |
 | --- | --- |
 | `cmake --workflow --preset ci` | 140/140 passed |
-| `cmake --workflow --preset headless` | 133/133 passed. The first run failed in the build: the four i4sim executables copy the blueprints into the same directory in parallel, and one copy collided. Unrelated to this change, passed on rerun; see open points |
+| `cmake --workflow --preset headless` | 133/133 passed. The first run failed in the build: the i4sim executables copied the blueprints into the same directory in parallel. Unrelated to this change and fixed on `main` by [the blueprint copy race fix](2026-11-19-blueprint-copy-race.md), which this branch merged |
 | `cmake --workflow --preset graphics` | 152/152 passed |
 | `kinetra --variant demo\|dotio\|i4sim --frames 120` and the menu for 60 frames (offscreen, software GL) | All exit 0 |
 | `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
@@ -121,14 +121,14 @@ Title: `feat(labs): title the window with the application name only`
 
 **Design.** [docs/design/2026-11-19-static-window-titles.md](2026-11-19-static-window-titles.md), Kinetra: [static window titles](../../external/Kinetra/docs/design/2026-11-19-static-window-titles.md).
 
-**Verification.** `ci` 140/140, `headless` 133/133 (one unrelated copy race on the first run), `graphics` 152/152, smoke runs of every variant and the menu, docs check. Kinetra `ci` 215/215.
+**Verification.** `ci` 140/140, `headless` 133/133 (one copy race on the first run, since fixed on `main`), `graphics` 152/152, smoke runs of every variant and the menu, docs check. Kinetra `ci` 215/215.
 
 **Review notes.** Title text is user-visible; the dropped details (agent count, kills, key hints) were a user decision.
 
 **Dependencies and merge order.** Kinetra pull request first, with a merge commit; this branch records its commit.
 
-**Follow-up.** The blueprint copy race (open points).
+**Follow-up.** None.
 
 ## Open points
 
-- `kinetra_i4sim_bundle_blueprints` adds a POST_BUILD copy to four executables that write the same `i4sim-blueprints/` directory, plus a configure-time `file(COPY)`. Parallel builds can collide (seen once in `build-headless`). Not fixed here.
+None.
