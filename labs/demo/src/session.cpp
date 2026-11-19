@@ -1,4 +1,5 @@
 #include "session.h"
+#include "debug_panel.h"
 #include "sandbox_application.h"
 #include "sandbox_input.h"
 #include "sandbox_renderer.h"
@@ -8,34 +9,24 @@
 
 namespace sandbox {
 namespace {
+/// The graphical Demo session: it orders a frame and owns the panels. What the debug menu
+/// holds and decides is the DebugPanel's; the scene is drawn by the renderer.
 class DemoSession final : public lab::Session {
     sandbox::SandboxApplication application_;
+    // Declared after the application it borrows.
+    sandbox::DebugPanel panel_{application_};
     kinetra::DebugMenu menu_;
-    bool vectors_{true}, paths_{true}, collisions_{true}, agents_{true}, debug_{true}, probes_{true};
-    bool ghost_{}, gravity_{}, goals_{};
-    bool statistics_{true}, frame_times_{};
-    bool reciprocal_{true};
+    bool debug_{true}, statistics_{true}, frame_times_{};
+    lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     kinetra::SettingsOverlay settings_{
-        lab::settings_rows([this] { return debug_ ? debug_zoom_limits : zoom_limits; }, statistics_, debug_,
-                           frame_times_,
+        lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
                            {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL", "Q / E  ROTATE PLAYER",
                             "SHIFT + LEFT / RIGHT  ROTATE"},
                            {"GHOST CLICK  TELEPORT"}),
         &debug_};
     lab::ModalPause pause_;
     kinetra::RateCounter fps_;
-    auto options() {
-        return std::array<kinetra::DebugOption, 9>{{{"GHOST CAMERA", &ghost_},
-                                                    {"VECTORS", &vectors_},
-                                                    {"STEERING PROBES", &probes_},
-                                                    {"PATHS", &paths_},
-                                                    {"COLLISION SHAPES", &collisions_},
-                                                    {"ACTIVE AGENTS", &agents_},
-                                                    {"AGENT GOAL", &goals_},
-                                                    {"GRAVITY", &gravity_},
-                                                    {"RECIPROCAL AVOID", &reciprocal_}}};
-    }
 
   public:
     DemoSession(int count, std::uint32_t seed) : application_(count, seed) {}
@@ -44,36 +35,29 @@ class DemoSession final : public lab::Session {
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
         fps_.count();
         fps_.advance(elapsed);
-        auto entries = options();
+        // The panels come first: an open settings panel takes the whole frame, and the debug
+        // menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
-        if (!debug_ || modal)
-            menu_.visible = false;
-        const bool captured =
-            debug_ && !modal && settings_.update_debug(input, camera.viewport, menu_, entries);
+        const auto entries = panel_.entries();
+        const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         auto commands = sandbox::read_commands(modal ? kinetra::Input{} : input);
-        commands.zoom_steps = debug_ && !modal ? input.wheel : 0;
         commands.toggle_pause =
             pause_.update(settings_.visible(), application_.paused()) != application_.paused();
-        commands.toggle_vectors = (debug_ && vectors_) != application_.presentation().vectors;
-        commands.toggle_paths = (debug_ && paths_) != application_.presentation().paths;
-        if (captured)
-            commands.pointer.reset();
-        if (!debug_)
-            ghost_ = false;
-        commands.debug = debug_;
-        commands.ghost = ghost_;
-        commands.probes = debug_ && probes_;
-        commands.reciprocal_avoidance = reciprocal_;
-        commands.toggle_gravity = (debug_ && gravity_) != (application_.scene().world.gravity.y != 0);
-        if (commands.pointer && debug_ && goals_ && commands.pointer->action == sandbox::PointerAction::walk)
-            commands.pointer->action = sandbox::PointerAction::target_agents;
+        panel_.apply(commands, debug_, captured, modal ? 0 : input.wheel);
         application_.advance(elapsed, commands, camera);
+        panel_.observe(camera);
     }
     void render(kinetra::Runtime &runtime) override {
-        const auto entries = options();
-        sandbox::render(runtime, application_, &menu_, entries, debug_ && collisions_, debug_ && agents_,
-                        statistics_, fps_.rate(), &settings_,
-                        frame_times_ ? &runtime.frame_times() : nullptr);
+        frame_limit_.apply(runtime);
+        const auto entries = panel_.entries();
+        sandbox::render(runtime, application_, panel_.layers(debug_),
+                        {.menu = &menu_,
+                         .entries = entries,
+                         .statistics = statistics_,
+                         .fps = fps_.rate(),
+                         .time_scale = panel_.time_scale(),
+                         .settings = &settings_,
+                         .frame_times = frame_times_ ? &runtime.frame_times() : nullptr});
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Demo"; }

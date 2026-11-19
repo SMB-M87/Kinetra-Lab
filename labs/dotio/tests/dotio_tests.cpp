@@ -17,6 +17,8 @@
 #include <memory>
 #include <numbers>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -583,22 +585,24 @@ TEST_CASE("bolts hit enemies within their combined radii including moving target
     CHECK_MESSAGE(!enemy.IsActive, "Enemy crossing bullet trajectory was missed");
 }
 
-TEST_CASE("the debug menu toggles an option once per click at every size") {
+TEST_CASE("the debug menu toggles a row once per click at every size") {
     kinetra::DebugMenu menu;
     bool enabled = false;
-    std::array<kinetra::DebugOption, 1> options{{{"TEST", &enabled}}};
+    const std::vector<kinetra::DebugEntry> entries{kinetra::debug_check("TEST", enabled, 0)};
     for (const auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{200, 150}}) {
         kinetra::Input input;
         menu.visible = true;
         const float scale = menu.scale(viewport);
-        input.mouse = {viewport.x - 180 * scale, 36 * scale};
+        input.mouse =
+            menu.origin(viewport) +
+            kinetra::Vec2{kinetra::DebugMenu::label_left(0), kinetra::DebugMenu::row_top(0) + 6} * scale;
         input.clicked = true;
         const bool before = enabled;
-        CHECK_MESSAGE((menu.update(input, viewport, options) && enabled != before),
+        CHECK_MESSAGE((menu.update(input, viewport, entries) && enabled != before),
                       "Debug menu resize/picking failed");
         input.clicked = false;
         input.mouse_down = true;
-        CHECK_MESSAGE((menu.update(input, viewport, options) && enabled != before),
+        CHECK_MESSAGE((menu.update(input, viewport, entries) && enabled != before),
                       "Held click toggled option repeatedly");
     }
 }
@@ -652,15 +656,181 @@ TEST_CASE("debug teleport accepts only free targets in range and keeps absolute 
     open_map();
 }
 
-TEST_CASE("Ghost Camera is the first debug option and paths expand into unchecked filters") {
+namespace {
+/// The labels of the application's debug menu as it stands, in display order.
+std::vector<std::string> menu_labels(dotio::Application &application) {
+    std::vector<std::string> labels;
+    for (const auto &row : application.debug_entries())
+        labels.push_back(row.label);
+    return labels;
+}
+
+/// The row `label` of the application's debug menu as it stands.
+kinetra::DebugEntry menu_row(dotio::Application &application, std::string_view label) {
+    for (auto &row : application.debug_entries())
+        if (row.label == label)
+            return row;
+    FAIL("The debug menu has no row " << label);
+    return {};
+}
+} // namespace
+
+TEST_CASE("the debug menu starts with the simulation section and ends with zoom ghost camera and reset") {
     dotio::Application application(42);
-    const auto closed = application.debug_options();
-    CHECK_MESSAGE((closed[0].label == "GHOST CAMERA" && closed[0].enabled == &application.ghost),
-                  "Ghost Camera must be the first debug option");
-    application.paths[0] = true;
-    const auto expanded = application.debug_options();
-    CHECK_MESSAGE((expanded.size() == closed.size() + 4 && !application.paths[1] && !application.paths[2]),
-                  "Paths expansion enabled child filters or omitted children");
+    CHECK(menu_labels(application) ==
+          std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "SPEED", "INVULNERABLE", "LAYERS",
+                                   "ENEMIES", "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+    const auto ghost = menu_row(application, "GHOST CAMERA");
+    CHECK((ghost.kind == kinetra::DebugEntryKind::check && ghost.depth == 0 && !ghost.active()));
+    ghost.action();
+    CHECK(application.ghost);
+    CHECK_MESSAGE(menu_row(application, "ZOOM").rule_above, "a rule sets the commands apart");
+    open_map();
+}
+
+TEST_CASE("the layers section lists paths with unchecked parts in their state colors while it is on") {
+    dotio::Application application(42);
+    menu_row(application, "LAYERS").action();
+    CHECK(menu_labels(application) ==
+          std::vector<std::string>{"SIMULATION", "LAYERS", "VECTORS", "STEERING PROBES", "PATHS",
+                                   "COLLISION SHAPES", "ACTIVE AGENTS", "AI STATES", "HIDING HITS", "ENEMIES",
+                                   "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+    menu_row(application, "PATHS").action();
+    REQUIRE(application.paths[0]);
+    CHECK_MESSAGE(
+        (!application.paths[1] && !application.paths[2] && !application.paths[3] && !application.paths[4]),
+        "switching PATHS on switched its parts on");
+    const auto labels = menu_labels(application);
+    CHECK(std::vector<std::string>(labels.begin() + 5, labels.begin() + 9) ==
+          std::vector<std::string>{"WANDER", "PURSUE", "KAMIKAZE", "RECOVERY"});
+    const auto pursue = menu_row(application, "PURSUE");
+    CHECK((pursue.kind == kinetra::DebugEntryKind::check && pursue.depth == 2));
+    REQUIRE(pursue.swatch);
+    CHECK((pursue.swatch->r == dotio::state_color::pursue.r &&
+           pursue.swatch->g == dotio::state_color::pursue.g));
+    pursue.action();
+    CHECK(application.paths[2]);
+    menu_row(application, "HIDING HITS").action();
+    CHECK(application.paths[5]);
+    open_map();
+}
+
+TEST_CASE("the enemies and spawning sections change the world's balance within their limits") {
+    dotio::Application application(42);
+    auto &world = application.world();
+    const auto preset = world.difficulty_settings();
+    menu_row(application, "ENEMIES").action();
+    CHECK(menu_labels(application) ==
+          std::vector<std::string>{"SIMULATION", "LAYERS", "ENEMIES", "WANDER", "MOVE SPEED", "FIRE INTERVAL",
+                                   "ARROW SPEED", "PREDICTION", "PURSUIT CYCLES", "HITS", "WANDER FORCE",
+                                   "ATTACK FORCE", "PURSUE FORCE", "RECOVER FORCE", "KAMIKAZE FORCE",
+                                   "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+    CHECK(menu_row(application, "WANDER").value() == "STEERING");
+    menu_row(application, "WANDER").action();
+    menu_row(application, "PATH").action();
+    CHECK(world.enemy_tuning().wander == logic::WanderMode::path);
+    CHECK(menu_row(application, "WANDER").value() == "PATH");
+    CHECK_MESSAGE(menu_labels(application).size() == 19, "choosing a value closes the list");
+
+    menu_row(application, "MOVE SPEED").increase();
+    CHECK(world.difficulty_settings().movement_multiplier ==
+          doctest::Approx(preset.movement_multiplier * 1.25f));
+    menu_row(application, "HITS").increase();
+    CHECK(world.difficulty_settings().enemy_hits == preset.enemy_hits + 1);
+    menu_row(application, "KAMIKAZE FORCE").decrease();
+    CHECK(world.enemy_tuning().kamikaze_force == doctest::Approx(1.25f));
+    // Every row stops at a value the world can run with, however often it is clicked.
+    for (const char *label :
+         {"MOVE SPEED", "FIRE INTERVAL", "ARROW SPEED", "PREDICTION", "PURSUIT CYCLES", "HITS",
+          "WANDER FORCE", "ATTACK FORCE", "PURSUE FORCE", "RECOVER FORCE", "KAMIKAZE FORCE"})
+        for (const bool up : {true, false}) {
+            for (int click = 0; click < 200; ++click)
+                up ? menu_row(application, label).increase() : menu_row(application, label).decrease();
+            CAPTURE(label);
+            CAPTURE(up);
+            CHECK_NOTHROW(logic::validate(world.difficulty_settings()));
+            CHECK_NOTHROW(logic::validate(world.enemy_tuning()));
+        }
+    menu_row(application, "SPAWNING").action();
+    for (const char *label : {"ACTIVE LIMIT", "SPAWN RATE", "CROWD LOAD", "SPACING"})
+        for (const bool up : {true, false}) {
+            for (int click = 0; click < 200; ++click)
+                up ? menu_row(application, label).increase() : menu_row(application, label).decrease();
+            CAPTURE(label);
+            CHECK_NOTHROW(logic::validate(world.difficulty_settings()));
+        }
+    CHECK(world.difficulty_settings().active_spawn_limit == dotio::tuning_step::smallest_spawn_limit);
+
+    application.time_scale = 4;
+    menu_row(application, "RESET PARAMETERS").action();
+    CHECK(world.difficulty_settings() == preset);
+    CHECK(world.enemy_tuning() == logic::EnemyTuning{});
+    CHECK(application.time_scale == 1);
+    open_map();
+}
+
+TEST_CASE("the time scale and a single tick decide how many updates a frame runs") {
+    dotio::Application application(42);
+    for (auto &enemy : application.world().GetEnemies())
+        enemy.IsActive = false;
+    open_map();
+    kinetra::Camera2D camera;
+    auto &player = application.world().GetPlayer();
+    dotio::Commands right;
+    right.direction = {1, 0};
+    const auto origin = player.Position;
+    // How far the player gets in a fifth of a second of frames at the given time scale. It
+    // starts from the same open spot every time and stays within its cell, so neither a wall
+    // nor the streaming of the world around the player can come in between.
+    const auto travelled = [&](float scale) {
+        open_map();
+        application.time_scale = scale;
+        player.Position = origin;
+        player.Velocity = {};
+        for (int frame = 0; frame < 12; ++frame)
+            application.advance(1.0 / 60, right, camera);
+        return player.Position.X - origin.X;
+    };
+    const float normal = travelled(1);
+    REQUIRE(normal > 0);
+    CHECK_MESSAGE(travelled(0.5f) < normal * 0.75f, "half speed did not slow the world down");
+    CHECK_MESSAGE(travelled(2) > normal * 1.5f, "double speed did not speed the world up");
+
+    open_map();
+    player.Position = origin;
+    application.time_scale = 1;
+    application.paused = true;
+    player.Velocity = {};
+    const auto standing = player.Position;
+    application.advance(1.0, right, camera);
+    CHECK_MESSAGE(player.Position == standing, "a paused world moved");
+    application.paused = false;
+    menu_row(application, "SINGLE TICK").action();
+    CHECK_MESSAGE(application.paused, "a single tick pauses a running world");
+    application.advance(1.0, right, camera);
+    const auto after_tick = player.Position;
+    CHECK_MESSAGE(after_tick != standing, "the single tick did not run");
+    application.advance(1.0, right, camera);
+    CHECK_MESSAGE(player.Position == after_tick, "more than one tick ran");
+    CHECK_FALSE(menu_row(application, "RUNNING").active());
+    menu_row(application, "RUNNING").action();
+    CHECK_FALSE(application.paused);
+    open_map();
+}
+
+TEST_CASE("the zoom row zooms within the limits of the current mode") {
+    dotio::Application application(42);
+    kinetra::Camera2D camera;
+    camera.pixels_per_unit = dotio::initial_zoom;
+    application.debug = true;
+    application.advance(0, {}, camera);
+    CHECK(menu_row(application, "ZOOM").value() == "25");
+    menu_row(application, "ZOOM").decrease();
+    application.advance(0, {}, camera);
+    CHECK(camera.pixels_per_unit == doctest::Approx(25 / kinetra::zoom_factor));
+    application.debug = false;
+    application.advance(0, {}, camera);
+    CHECK_MESSAGE(camera.pixels_per_unit == dotio::zoom_limits.minimum, "leaving debug mode clamps the zoom");
     open_map();
 }
 

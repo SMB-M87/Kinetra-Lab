@@ -36,7 +36,7 @@ void draw_body(Runtime &runtime, const Body &body, bool is_player, const Present
         runtime.line(body.position, body.position + rotated({size, 0}, body.angle), 0.05f,
                      {0.03f, 0.08f, 0.1f});
         if (options.vectors)
-            draw_debug_vector(runtime, body.position, body.velocity * 0.3f, {0.8f, 0.95f, 0.4f});
+            draw_debug_vector(runtime, body.position, body.velocity * 0.3f, layer_color::vectors);
     }
 }
 
@@ -60,9 +60,8 @@ std::string_view action_text(ActionResult result) {
 
 } // namespace
 
-void render(Runtime &runtime, const SandboxApplication &application, const DebugMenu *menu,
-            std::span<const DebugOption> debug_options, bool collisions, bool agents, bool statistics,
-            double fps, const kinetra::SettingsOverlay *settings, const kinetra::FrameTimes *frame_times) {
+void render(Runtime &runtime, const SandboxApplication &application, const DebugLayers &layers,
+            const FrameOverlays &overlays) {
     const auto &scene = application.scene();
     const auto &options = application.presentation();
     // A moving body as drawn: its interpolated pose; fixed terrain never moves.
@@ -103,17 +102,18 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
         }
         const Body body = presented(id, simulated);
         draw_body(runtime, body, id == scene.player, options);
-        if (collisions) {
+        if (layers.collisions) {
             if (body.shape == Shape::circle)
-                draw_debug_circle(runtime, body.position, body.radius, {1, 0.4f, 0.4f});
+                draw_debug_circle(runtime, body.position, body.radius, layer_color::collisions);
             else if (body.shape == Shape::polygon) {
                 for (std::size_t i = 0; i < body.vertices.size(); ++i)
                     runtime.line(body.position + rotated(body.vertices[i], body.angle),
                                  body.position +
                                      rotated(body.vertices[(i + 1) % body.vertices.size()], body.angle),
-                                 1.f / runtime.camera.pixels_per_unit, {1, 0.4f, 0.4f});
+                                 1.f / runtime.camera.pixels_per_unit, layer_color::collisions);
             } else
-                draw_debug_box(runtime, body.position, body.half_extents, body.angle, {1, 0.4f, 0.4f});
+                draw_debug_box(runtime, body.position, body.half_extents, body.angle,
+                               layer_color::collisions);
         }
         ++id;
     }
@@ -129,43 +129,61 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
             for (float angle : {0.f, 2.35619449f, -2.35619449f})
                 runtime.line(body.position,
                              body.position + rotated(direction, angle) * (angle == 0 ? 4.f : 2.f),
-                             3.f / runtime.camera.pixels_per_unit, {1, 0.65f, 0.2f});
+                             3.f / runtime.camera.pixels_per_unit, layer_color::probes);
         }
     if (options.paths) {
         draw_route(runtime, position(scene.player), scene.player_path, {0.6f, 1, 0.3f});
         for (const auto &agent : scene.agents())
             if (agent.active())
-                draw_route(runtime, position(agent.body_id()), agent.route(), {0.3f, 0.7f, 1});
+                draw_route(runtime, position(agent.body_id()), agent.route(), layer_color::paths);
+    }
+    if (layers.home_range) {
+        // Every awake agent is tied to its home; the range itself would clutter the view for
+        // a whole crowd, so only the selected agent shows it.
+        const float width = 1.f / runtime.camera.pixels_per_unit;
+        for (const auto &agent : scene.agents()) {
+            if (!agent.active())
+                continue;
+            runtime.line(position(agent.body_id()), agent.home(), width, layer_color::home_range);
+            runtime.circle(agent.home(), 3 * width, layer_color::home_range);
+            if (scene.selected_agent && length(agent.home() - *scene.selected_agent) < 0.001f)
+                draw_debug_circle(runtime, agent.home(), application.tuning().wander.range,
+                                  layer_color::home_range);
+        }
     }
     if (scene.selected_agent)
         for (const auto &agent : scene.agents())
             if (length(agent.home() - *scene.selected_agent) < 0.001f)
                 draw_debug_circle(runtime, position(agent.body_id()), 0.8f, {1, 1, 0});
-    if (agents)
+    if (layers.active_agents)
         for (const auto &agent : scene.agents())
             if (agent.active())
-                runtime.circle(position(agent.body_id()), 0.18f, {1, 1, 0});
+                runtime.circle(position(agent.body_id()), 0.18f, layer_color::active_agents);
 
-    if (statistics) {
+    if (overlays.statistics) {
         const auto active = std::count_if(scene.agents().begin(), scene.agents().end(),
                                           [](const auto &agent) { return agent.active(); });
-        const auto text =
-            "FPS " + std::to_string(int(fps)) + " AGENTS " + std::to_string(active) + "/" +
-            std::to_string(scene.agents().size()) + " CHUNKS " +
-            std::to_string(scene.terrain.chunks().size()) +
-            (scene.reciprocal_avoidance ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited)
-                                        : " AVOID LEGACY");
+        auto text = "FPS " + std::to_string(int(overlays.fps)) + " AGENTS " + std::to_string(active) + "/" +
+                    std::to_string(scene.agents().size()) + " CHUNKS " +
+                    std::to_string(scene.terrain.chunks().size()) +
+                    (scene.reciprocal_avoidance ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited)
+                                                : " AVOID LEGACY");
+        // What the debug menu's SIMULATION rows did to time is not visible in the scene itself.
+        if (application.paused())
+            text += " PAUSED";
+        else if (overlays.time_scale != 1)
+            text += " SPEED " + debug_number_text(overlays.time_scale) + "X";
         const float width = std::min(runtime.camera.viewport.x, 20.f + float(text.size()) * 9);
         runtime.box(runtime.camera.screen_to_world({width / 2, runtime.camera.viewport.y - 15}),
                     Vec2{width / 2, 13} / runtime.camera.pixels_per_unit, 0, {0.025f, 0.035f, 0.06f});
         draw_text(runtime, text, {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
     }
-    if (menu)
-        menu->draw(runtime, debug_options);
-    if (frame_times)
-        draw_frame_times(runtime, *frame_times);
-    if (settings)
-        settings->draw(runtime);
+    if (overlays.menu)
+        overlays.menu->draw(runtime, overlays.entries);
+    if (overlays.frame_times)
+        draw_frame_times(runtime, *overlays.frame_times);
+    if (overlays.settings)
+        overlays.settings->draw(runtime);
     runtime.end();
 }
 

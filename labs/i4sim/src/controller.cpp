@@ -6,7 +6,6 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <tuple>
 #include <utility>
 
 namespace i4sim {
@@ -340,9 +339,11 @@ void FactoryController::handle_input(double elapsed, const Input &input, Camera2
     handle_keys(input, camera);
     if (!loaded())
         return;
-    // Zero steps still clamp the zoom to its limits.
+    // Zero steps still clamp the zoom to its limits. The ZOOM row's steps are taken even
+    // outside debug mode, so none is left over for the frame that switches it on.
     const bool wheel_zooms = panels.debug_mode && !panels.pointer_captured;
-    kinetra::zoom(camera, wheel_zooms ? input.wheel : 0, zoom_limits);
+    kinetra::zoom(camera, (wheel_zooms ? input.wheel : 0) + zoom_.take_steps(), zoom_limits);
+    zoom_.observe(camera);
     const float step = float(std::min(elapsed, longest_pan_frame)) * pan_speed / camera.pixels_per_unit;
     camera.position += lab::direction(input) * step;
     if (!panels.pointer_captured)
@@ -351,52 +352,30 @@ void FactoryController::handle_input(double elapsed, const Input &input, Camera2
     restart_when_due();
 }
 
-MenuEntry FactoryController::section_heading(std::string_view label, MenuSection section) {
-    return {.label = label,
-            .action =
-                [this, section] {
-                    open_section_ = open_section_ == section ? MenuSection::none : section;
-                    // A list belongs to the section it was opened in.
-                    open_list_ = MenuList::none;
-                },
-            .kind = EntryKind::group,
-            .active = [this, section] { return open_section_ == section; }};
-}
-
-MenuEntry FactoryController::list_heading(std::string_view label, MenuList list,
-                                          std::function<std::string()> value) {
-    return {.label = label,
-            .action = [this, list] { open_list_ = open_list_ == list ? MenuList::none : list; },
-            .kind = EntryKind::group,
-            .active = [this, list] { return open_list_ == list; },
-            .value = std::move(value),
-            .depth = 1};
-}
-
-MenuEntry FactoryController::motion_check(std::string_view label, bool MotionSettings::*setting) {
+kinetra::DebugEntry FactoryController::motion_check(std::string label, bool MotionSettings::*setting) {
     return {
-        .label = label,
+        .label = std::move(label),
         .action = [this,
                    setting] { change_motion([setting](MotionSettings &m) { m.*setting = !(m.*setting); }); },
-        .kind = EntryKind::check,
+        .kind = kinetra::DebugEntryKind::check,
         .active = [this, setting] { return simulation_->motion_settings().*setting; },
         .depth = 1};
 }
 
-MenuEntry FactoryController::motion_number(std::string_view label, std::function<std::string()> value,
-                                           std::function<void(MotionSettings &)> lower,
-                                           std::function<void(MotionSettings &)> raise) {
-    return {.label = label,
+kinetra::DebugEntry FactoryController::motion_number(std::string label, std::function<std::string()> value,
+                                                     std::function<void(MotionSettings &)> lower,
+                                                     std::function<void(MotionSettings &)> raise) {
+    return {.label = std::move(label),
             .value = std::move(value),
             .decrease = [this, lower = std::move(lower)] { change_motion(lower); },
             .increase = [this, raise = std::move(raise)] { change_motion(raise); },
             .depth = 1};
 }
 
-void FactoryController::add_simulation_entries(std::vector<MenuEntry> &entries) {
+void FactoryController::add_simulation_entries(std::vector<kinetra::DebugEntry> &entries) {
     entries.push_back({.label = "RUNNING",
                        .action = [this] { toggle_pause(); },
-                       .kind = EntryKind::check,
+                       .kind = kinetra::DebugEntryKind::check,
                        .active = [this] { return simulation_->running(); },
                        .depth = 1});
     entries.push_back({.label = "SINGLE TICK", .action = [this] { simulation_->single_step(); }, .depth = 1});
@@ -407,31 +386,32 @@ void FactoryController::add_simulation_entries(std::vector<MenuEntry> &entries) 
                        .depth = 1});
     entries.push_back({.label = "WORKLOAD",
                        .action = [this] { simulation_->set_workload(!simulation_->workload()); },
-                       .kind = EntryKind::check,
+                       .kind = kinetra::DebugEntryKind::check,
                        .active = [this] { return simulation_->workload(); },
                        .depth = 1});
 }
 
-void FactoryController::add_layer_entries(std::vector<MenuEntry> &entries) {
+void FactoryController::add_layer_entries(std::vector<kinetra::DebugEntry> &entries,
+                                          const LayerColors &colors) {
     for (const auto &[label, layer] : layer_rows) {
         const Layer parent = parent_layer(layer);
         // As in Dotio, a layer lists its parts only while it is on.
         if (parent != layer && !layers_.selected(parent))
             continue;
-        entries.push_back({.label = label,
+        entries.push_back({.label = std::string(label),
                            .action = [this, layer] { layers_.toggle(layer); },
-                           .kind = EntryKind::check,
+                           .kind = kinetra::DebugEntryKind::check,
                            .active = [this, layer] { return layers_.selected(layer); },
                            .depth = parent == layer ? 1 : 2,
-                           .layer = layer});
+                           .swatch = colors ? colors(layer) : std::nullopt});
     }
 }
 
-void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
+void FactoryController::add_motion_entries(std::vector<kinetra::DebugEntry> &entries) {
     const auto motion = [this]() -> const MotionSettings & { return simulation_->motion_settings(); };
-    entries.push_back(list_heading("PROFILE", MenuList::profile,
-                                   [motion] { return std::string(profile_name(motion().profile)); }));
-    if (open_list_ == MenuList::profile)
+    entries.push_back(
+        folds_.list("PROFILE", [motion] { return std::string(profile_name(motion().profile)); }));
+    if (folds_.list_open("PROFILE"))
         for (const auto profile : {SteeringProfile::improved, SteeringProfile::original,
                                    SteeringProfile::experimental_rvo, SteeringProfile::reciprocal})
             entries.push_back({.label = profile_name(profile),
@@ -442,14 +422,14 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
                                        if (simulation_->motion_settings().profile != profile)
                                            change_motion(
                                                [profile](MotionSettings &m) { m.profile = profile; });
-                                       open_list_ = MenuList::none;
+                                       folds_.close_list();
                                    },
-                               .kind = EntryKind::choice,
+                               .kind = kinetra::DebugEntryKind::choice,
                                .active = [motion, profile] { return motion().profile == profile; },
                                .depth = 2});
-    entries.push_back(list_heading("PLANNER", MenuList::planner,
-                                   [motion] { return std::string(planner_name(planner(motion()))); }));
-    if (open_list_ == MenuList::planner)
+    entries.push_back(
+        folds_.list("PLANNER", [motion] { return std::string(planner_name(planner(motion()))); }));
+    if (folds_.list_open("PLANNER"))
         for (const auto choice : {Planner::heat_astar, Planner::astar, Planner::off})
             entries.push_back({.label = planner_name(choice),
                                .action =
@@ -457,9 +437,9 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
                                        if (planner(simulation_->motion_settings()) != choice)
                                            change_motion(
                                                [choice](MotionSettings &m) { choose_planner(m, choice); });
-                                       open_list_ = MenuList::none;
+                                       folds_.close_list();
                                    },
-                               .kind = EntryKind::choice,
+                               .kind = kinetra::DebugEntryKind::choice,
                                .active = [motion, choice] { return planner(motion()) == choice; },
                                .depth = 2});
     entries.push_back(motion_check("RECOVERY", &MotionSettings::recovery));
@@ -487,7 +467,7 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
                        .depth = 1});
 }
 
-void FactoryController::add_traffic_entries(std::vector<MenuEntry> &entries) {
+void FactoryController::add_traffic_entries(std::vector<kinetra::DebugEntry> &entries) {
     entries.push_back(motion_check("CORRIDOR TRAFFIC", &MotionSettings::corridor_traffic));
     entries.push_back(motion_check("JUNCTION TRAFFIC", &MotionSettings::junction_traffic));
     entries.push_back(motion_check("PARKING TRAFFIC", &MotionSettings::parking_traffic));
@@ -499,19 +479,22 @@ void FactoryController::add_traffic_entries(std::vector<MenuEntry> &entries) {
     entries.push_back(std::move(passing));
 }
 
-std::vector<MenuEntry> FactoryController::menu() {
-    std::vector<MenuEntry> entries;
-    using Adder = void (FactoryController::*)(std::vector<MenuEntry> &);
-    const std::tuple<std::string_view, MenuSection, Adder> sections[]{
-        {"SIMULATION", MenuSection::simulation, &FactoryController::add_simulation_entries},
-        {"LAYERS", MenuSection::layers, &FactoryController::add_layer_entries},
-        {"MOTION", MenuSection::motion, &FactoryController::add_motion_entries},
-        {"TRAFFIC", MenuSection::traffic, &FactoryController::add_traffic_entries}};
-    for (const auto &[label, section, add] : sections) {
-        entries.push_back(section_heading(label, section));
-        if (open_section_ == section)
-            (this->*add)(entries);
+std::vector<kinetra::DebugEntry> FactoryController::menu(const LayerColors &colors) {
+    std::vector<kinetra::DebugEntry> entries;
+    for (const std::string label : {"SIMULATION", "LAYERS", "MOTION", "TRAFFIC"}) {
+        entries.push_back(folds_.section(label));
+        if (!folds_.section_open(label))
+            continue;
+        if (label == "SIMULATION")
+            add_simulation_entries(entries);
+        else if (label == "LAYERS")
+            add_layer_entries(entries, colors);
+        else if (label == "MOTION")
+            add_motion_entries(entries);
+        else
+            add_traffic_entries(entries);
     }
+    entries.push_back(zoom_.entry());
     entries.push_back({.label = "FRAME SCENE", .action = [this] { fit_pending_ = true; }});
     entries.push_back({.label = "BLUEPRINTS", .action = [this] { close_requested_ = true; }});
     return entries;

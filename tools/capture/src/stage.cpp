@@ -33,8 +33,9 @@ constexpr Vec2 debug_menu_origin{8, 32};
 constexpr float settings_click_x = kinetra::SettingsOverlay::panel_width / 2;
 /// Panel y of a click below a settings row's text top, inside its click band.
 constexpr float settings_click_below_top = 5;
-/// Panel x of a click on a debug-menu row's label, right of the text margin.
-constexpr float debug_click_x = 12;
+/// Panel x of a click on a debug-menu row: on the label of a row at the deepest level, and
+/// left of every row's buttons.
+constexpr float debug_click_x = kinetra::DebugMenu::label_left(2) + 2;
 
 launcher::Options capture_options() {
     return {sandbox::default_agent_count, capture_seed, dotio::default_difficulty};
@@ -156,15 +157,24 @@ void Stage::point_at(Vec2 point) {
 Vec2 Stage::settings_point(SettingsRow row) const {
     // A panel with the same Lab rows has the same layout; the flags and help lines do not
     // move collapsed rows.
-    bool statistics{}, debug{}, frame_times{};
-    const kinetra::SettingsOverlay mirror(lab::settings_rows(
-        [] { return kinetra::ZoomLimits{1, 2}; }, statistics, debug, frame_times, {"LINE"}, {"LINE"}));
+    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    const kinetra::SettingsOverlay mirror(
+        lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
     const Vec2 panel{settings_click_x, mirror.row_y(std::size_t(row)) + settings_click_below_top};
     return viewport() / 2 + (panel - mirror.half_extent()) * kinetra::SettingsOverlay::scale(viewport());
 }
 
+void Stage::toggle_debug_menu() {
+    Input input;
+    input.pressed[std::size_t(Key::shift)] = input.pressed[std::size_t(Key::control)] = true;
+    step(input);
+}
+
 void Stage::open_settings() {
-    press(Key::control);
+    // A tap: the panel acts when Ctrl is released, and a press that is not held is complete.
+    Input input;
+    input.pressed[std::size_t(Key::control)] = true;
+    step(input);
 }
 
 void Stage::click_setting(SettingsRow row) {
@@ -175,7 +185,7 @@ void Stage::toggle_setting(SettingsRow row) {
     const Vec2 rest = pointer_;
     open_settings();
     click_setting(row);
-    press(Key::control);
+    open_settings();
     pointer_ = rest;
 }
 

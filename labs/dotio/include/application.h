@@ -7,8 +7,11 @@
 #include <kinetra/camera.h>
 #include <kinetra/debug_view.h>
 #include <kinetra/timing.h>
+#include <lab/debug.h>
 #include <memory>
 #include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace dotio {
@@ -19,6 +22,31 @@ inline kinetra::Vec2 to_world(gmath::Vec2 point) {
 inline gmath::Vec2 from_world(kinetra::Vec2 point) {
     return {point.x * 25, -point.y * 25};
 }
+
+/// The color an enemy and its debug drawings have in each AI state; the PATHS parts of the
+/// debug menu show them as swatches.
+namespace state_color {
+inline constexpr kinetra::Color wander{0, 0.5f, 1}, pursue{1, 0.65f, 0}, attack{1, 0, 0}, recover{0, 1, 0},
+    kamikaze{1, 0.3f, 0.3f};
+} // namespace state_color
+
+/// The colors of the debug layers that are drawn in one color, for their menu rows.
+namespace layer_color {
+inline constexpr kinetra::Color vectors{0.8f, 1, 0.3f}, collisions{0.6f, 0.8f, 1}, active_agents{1, 1, 0},
+    hiding_hits{0, 1, 0};
+} // namespace layer_color
+
+/// Limits of the tuning rows, as {minimum, maximum, step, whether the step is a factor}.
+/// They stay within what logic::validate() accepts for the values they change.
+namespace tuning_step {
+inline constexpr kinetra::DebugStep movement{0.25f, logic::max_movement_multiplier, 1.25f, true},
+    fire_interval{0.2f, 4, 1.25f, true}, projectile_speed{4, 30, 1}, prediction{0, 1.5f, 0.05f},
+    state_force{0, logic::max_state_force, 0.05f}, spawn_rate{0, 8, 0.25f}, crowd_load{0, 2, 0.1f},
+    spawn_spacing{100, 600, 25};
+/// Limits of the whole-number rows: pursuit cycles, hits per enemy and the active limit.
+inline constexpr int fewest_pursuit_cycles = 1, most_pursuit_cycles = 40, fewest_hits = 1, most_hits = 5,
+                     smallest_spawn_limit = 0, largest_spawn_limit = 40;
+} // namespace tuning_step
 
 struct Commands {
     kinetra::Vec2 direction{}, camera_pan{}, aim{};
@@ -39,32 +67,150 @@ class Application {
     std::vector<std::optional<gmath::Vec2>> before_tick_, after_tick_;
     /// Whether the previous frame was paused; the first running frame drops the old snapshots.
     bool was_paused_{};
+    /// Set by the SINGLE TICK row; the next advance() runs one tick of the paused world.
+    bool step_requested_{};
+
+    /// A check row for a debug layer that is drawn in one color.
+    static kinetra::DebugEntry layer_row(std::string label, bool &flag, kinetra::Color color, int depth = 1) {
+        auto row = kinetra::debug_check(std::move(label), flag, depth);
+        row.swatch = color;
+        return row;
+    }
+
+    void add_simulation_entries(std::vector<kinetra::DebugEntry> &entries) {
+        entries.push_back({.label = "RUNNING",
+                           .action = [this] { paused = !paused; },
+                           .kind = kinetra::DebugEntryKind::check,
+                           .active = [this] { return !paused; },
+                           .depth = 1});
+        entries.push_back({.label = "SINGLE TICK",
+                           .action =
+                               [this] {
+                                   // A tick is only single in a world that stands still.
+                                   paused = true;
+                                   step_requested_ = true;
+                               },
+                           .depth = 1});
+        entries.push_back(lab::time_scale_entry(time_scale));
+        entries.push_back(kinetra::debug_check("INVULNERABLE", invulnerable));
+    }
+
+    void add_layer_entries(std::vector<kinetra::DebugEntry> &entries) {
+        entries.push_back(layer_row("VECTORS", vectors, layer_color::vectors));
+        entries.push_back(kinetra::debug_check("STEERING PROBES", probes));
+        entries.push_back(kinetra::debug_check("PATHS", paths[0]));
+        // As in i4sim, a layer lists its parts only while it is on. Each part is drawn in
+        // the color of its AI state.
+        if (paths[0]) {
+            entries.push_back(layer_row("WANDER", paths[1], state_color::wander, 2));
+            entries.push_back(layer_row("PURSUE", paths[2], state_color::pursue, 2));
+            entries.push_back(layer_row("KAMIKAZE", paths[3], state_color::kamikaze, 2));
+            entries.push_back(layer_row("RECOVERY", paths[4], state_color::recover, 2));
+        }
+        entries.push_back(layer_row("COLLISION SHAPES", collisions, layer_color::collisions));
+        entries.push_back(layer_row("ACTIVE AGENTS", active_agents, layer_color::active_agents));
+        entries.push_back(kinetra::debug_check("AI STATES", ai));
+        entries.push_back(layer_row("HIDING HITS", paths[5], layer_color::hiding_hits));
+    }
+
+    void add_enemy_entries(std::vector<kinetra::DebugEntry> &entries) {
+        using kinetra::debug_number;
+        auto &settings = world_->settings();
+        auto &tuning = world_->enemy_tuning();
+        const auto wander_name = [](logic::WanderMode mode) {
+            return mode == logic::WanderMode::path ? "PATH" : "STEERING";
+        };
+        entries.push_back(
+            folds.list("WANDER", [&tuning, wander_name] { return std::string(wander_name(tuning.wander)); }));
+        if (folds.list_open("WANDER"))
+            for (const auto mode : {logic::WanderMode::steering, logic::WanderMode::path})
+                entries.push_back({.label = wander_name(mode),
+                                   .action =
+                                       [this, &tuning, mode] {
+                                           tuning.wander = mode;
+                                           folds.close_list();
+                                       },
+                                   .kind = kinetra::DebugEntryKind::choice,
+                                   .active = [&tuning, mode] { return tuning.wander == mode; },
+                                   .depth = 2});
+        entries.push_back(debug_number("MOVE SPEED", settings.movement_multiplier, tuning_step::movement));
+        entries.push_back(
+            debug_number("FIRE INTERVAL", settings.fire_interval_multiplier, tuning_step::fire_interval));
+        entries.push_back(
+            debug_number("ARROW SPEED", settings.projectile_speed, tuning_step::projectile_speed));
+        entries.push_back(debug_number("PREDICTION", settings.prediction, tuning_step::prediction));
+        entries.push_back(kinetra::debug_count("PURSUIT CYCLES", settings.pursuit_cycles,
+                                               tuning_step::fewest_pursuit_cycles,
+                                               tuning_step::most_pursuit_cycles));
+        entries.push_back(kinetra::debug_count("HITS", settings.enemy_hits, tuning_step::fewest_hits,
+                                               tuning_step::most_hits));
+        entries.push_back(debug_number("WANDER FORCE", tuning.wander_force, tuning_step::state_force));
+        entries.push_back(debug_number("ATTACK FORCE", tuning.attack_force, tuning_step::state_force));
+        entries.push_back(debug_number("PURSUE FORCE", tuning.pursue_force, tuning_step::state_force));
+        entries.push_back(debug_number("RECOVER FORCE", tuning.recover_force, tuning_step::state_force));
+        entries.push_back(debug_number("KAMIKAZE FORCE", tuning.kamikaze_force, tuning_step::state_force));
+    }
+
+    void add_spawning_entries(std::vector<kinetra::DebugEntry> &entries) {
+        auto &settings = world_->settings();
+        entries.push_back(kinetra::debug_count("ACTIVE LIMIT", settings.active_spawn_limit,
+                                               tuning_step::smallest_spawn_limit,
+                                               tuning_step::largest_spawn_limit));
+        entries.push_back(
+            kinetra::debug_number("SPAWN RATE", settings.spawn_rate_multiplier, tuning_step::spawn_rate));
+        entries.push_back(
+            kinetra::debug_number("CROWD LOAD", settings.crowd_load_multiplier, tuning_step::crowd_load));
+        entries.push_back(
+            kinetra::debug_number("SPACING", settings.spawn_spacing, tuning_step::spawn_spacing));
+    }
 
   public:
     bool paused{}, help{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
     bool statistics{}, active_agents{}, frame_times{};
+    /// Simulated seconds per elapsed second, set by the debug menu's SPEED row.
+    float time_scale{1};
     kinetra::DebugMenu menu;
+    /// Which section and which list of the debug menu are open.
+    kinetra::DebugFolds folds{"SIMULATION"};
+    /// The debug menu's ZOOM row and the steps its buttons asked for.
+    lab::ZoomControl zoom;
     /// Frames, fixed updates and AI decisions per second, for the statistics line.
     kinetra::RateCounter frame_rate, update_rate, decision_rate;
-    auto debug_options() {
-        std::vector<kinetra::DebugOption> options{{"GHOST CAMERA", &ghost},
-                                                  {"VECTORS", &vectors},
-                                                  {"STEERING PROBES", &probes},
-                                                  {"PATHS", &paths[0]}};
-        if (paths[0]) {
-            options.push_back({"  WANDER", &paths[1]});
-            options.push_back({"  PURSUE", &paths[2]});
-            options.push_back({"  KAMIKAZE", &paths[3]});
-            options.push_back({"  RECOVERY", &paths[4]});
+    /// The rows of the debug menu in display order: the headings SIMULATION, LAYERS, ENEMIES
+    /// and SPAWNING, each followed by its rows while it is open, then, below a rule, ZOOM,
+    /// GHOST CAMERA and RESET PARAMETERS. At most one section is open; SIMULATION is at the
+    /// start. PATHS lists its four parts only while it is on.
+    ///
+    /// The tuning rows change the world's balance (logic::World::settings) and its enemy
+    /// tuning in place, within tuning_step; RESET PARAMETERS restores both and the time
+    /// scale. The rows follow the contract of kinetra::DebugEntry: they refer to this
+    /// application, which must outlive them.
+    std::vector<kinetra::DebugEntry> debug_entries() {
+        std::vector<kinetra::DebugEntry> entries;
+        for (const std::string label : {"SIMULATION", "LAYERS", "ENEMIES", "SPAWNING"}) {
+            entries.push_back(folds.section(label));
+            if (!folds.section_open(label))
+                continue;
+            if (label == "SIMULATION")
+                add_simulation_entries(entries);
+            else if (label == "LAYERS")
+                add_layer_entries(entries);
+            else if (label == "ENEMIES")
+                add_enemy_entries(entries);
+            else
+                add_spawning_entries(entries);
         }
-        options.insert(options.end(), {{"COLLISION SHAPES", &collisions},
-                                       {"ACTIVE AGENTS", &active_agents},
-                                       {"AI STATES", &ai},
-                                       {"HIDING HITS", &paths[5]},
-                                       {"INVULNERABLE", &invulnerable}});
-        return options;
+        entries.push_back(zoom.entry());
+        entries.push_back(kinetra::debug_check("GHOST CAMERA", ghost, 0));
+        entries.push_back({.label = "RESET PARAMETERS", .action = [this] {
+                               world_->reset_tuning();
+                               time_scale = 1;
+                           }});
+        return entries;
     }
+    /// The PATHS layer and its parts: [0] the layer, [1] WANDER, [2] PURSUE, [3] KAMIKAZE,
+    /// [4] RECOVERY, and [5] the separate HIDING HITS layer.
     std::array<bool, 6> paths{};
     /// The player and every enemy, arrow and bolt slot, in a fixed order: the objects that
     /// move each tick and that drawing interpolates. Pointers stay valid as long as the world.
@@ -173,7 +319,11 @@ class Application {
                     paths[i] = !paths[i];
         if (!debug)
             ghost = false;
-        kinetra::zoom(camera, commands.zoom_steps, debug ? debug_zoom_limits : zoom_limits);
+        // The ZOOM row's steps are taken even outside debug mode, so none is left over for
+        // the frame that switches it on.
+        kinetra::zoom(camera, commands.zoom_steps + zoom.take_steps(),
+                      debug ? debug_zoom_limits : zoom_limits);
+        zoom.observe(camera);
         if (ghost) {
             const auto pan = kinetra::normalized(commands.camera_pan + commands.direction);
             world_->GetGhost().Position +=
@@ -181,13 +331,17 @@ class Application {
         }
         const auto initial_shift = world_->StreamAroundPlayer();
         const auto center = world_->GetPlayer().Position;
+        // A single tick runs in a paused world: exactly one, whatever time has passed.
+        const bool single_tick = paused && std::exchange(step_requested_, false);
+        const bool running = !paused || single_tick;
         // Lifecycle bounds do not shrink when the player zooms in, avoiding spawn churn.
-        const int steps = clock_.advance(elapsed);
+        const int scaled_steps = clock_.advance(elapsed * static_cast<double>(time_scale));
+        const int steps = single_tick ? 1 : scaled_steps;
         // Legacy coordinates use 25 pixels per world unit: 0.9 * 25 / (2 * 2.5) = 4.5.
         world_->StreamEnemies(center, {camera.viewport.x * 0.5f, camera.viewport.y * 0.5f},
                               {camera.viewport.x * 4.5f, camera.viewport.y * 4.5f},
                               {camera.viewport.x * 6.25f, camera.viewport.y * 6.25f},
-                              paused ? 0.f : float(steps * clock_.step()));
+                              running ? float(steps * clock_.step()) : 0.f);
         auto aim = from_world(commands.aim) - initial_shift;
         frame_rate.count();
         // Snapshots from before a pause would draw the first running frames behind the state
@@ -199,7 +353,7 @@ class Application {
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->GetPlayer();
             player.Heading = ghost ? gmath::Vec2{} : gmath::Vec2{commands.direction.x, -commands.direction.y};
-            if (paused)
+            if (!running)
                 continue;
             if (step == steps - 1) {
                 before_tick_ = moving_positions();

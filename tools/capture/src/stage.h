@@ -26,10 +26,10 @@ inline constexpr unsigned i4sim_updates_per_second = 200;
 
 /// Rows of the Lab settings panel, in the order of lab::settings_rows.
 enum class SettingsRow : std::size_t {
-    zoom,
     statistics,
     debug_mode,
     frame_times,
+    frame_limit,
     sim_controls,
     debug_controls
 };
@@ -84,8 +84,11 @@ class Stage {
     /// frames have passed; `done` is asked before every frame. Returns the frames advanced,
     /// so a recording can continue the count.
     int play_until(int limit, const FrameInput &input, const std::function<bool()> &done);
-    /// One step with `key` pressed.
+    /// One step with `key` pressed and held.
     void press(kinetra::Key key);
+    /// One step with Shift+Ctrl, the debug shortcut: it shows the debug menu and switches
+    /// Debug Mode on when it was off, or hides a showing menu.
+    void toggle_debug_menu();
     /// Moves the pointer to `point` (logical window pixels) and clicks there.
     void click(kinetra::Vec2 point);
     /// Moves the pointer to `point` and advances one step with it there.
@@ -96,7 +99,7 @@ class Stage {
     /// Opens the settings panel with Ctrl, clicks `row`, and closes it again. Requires that
     /// no help section is expanded, because the clicks use the collapsed layout.
     void toggle_setting(SettingsRow row);
-    /// Opens the settings panel with Ctrl and leaves it open.
+    /// Opens the settings panel with a tap of Ctrl, or closes an open one, and leaves it so.
     void open_settings();
     /// Clicks `row` of the open settings panel; same layout requirement as toggle_setting().
     void click_setting(SettingsRow row);

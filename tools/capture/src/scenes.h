@@ -1,5 +1,7 @@
 #pragma once
 // The captures in docs/media: every screenshot and clip, with its size and its script.
+#include <kinetra/debug_menu.h>
+
 #include <array>
 #include <cstddef>
 #include <span>
@@ -30,10 +32,34 @@ inline constexpr std::array<MenuClick, 5> i4sim_motion_clicks{
 /// The LAYERS heading in the menu i4sim_motion_clicks leaves behind, with MOTION open.
 inline constexpr MenuClick i4sim_layers_click{1, "LAYERS"};
 
-/// The rows of Dotio's debug menu the debug scenes click, first to last in this order:
-/// every row but GHOST CAMERA (row 0). PATHS (row 3) opens its four filters right below
-/// it, so the rows after it are clicked in their new places, down to INVULNERABLE.
-inline constexpr std::size_t dotio_first_debug_row = 1, dotio_last_debug_row = 12;
+/// Runs `click` on `menu`, the rows of `application`'s debug menu as the click finds it: the
+/// action of row `click.row`, which is what a session does for a click on that row's label.
+/// Throws std::runtime_error that names the application and the row when the row does not
+/// exist, has another label or has no action: the menu changed, and the clicks here must
+/// follow.
+void apply_menu_click(std::span<const kinetra::DebugEntry> menu, const MenuClick &click,
+                      std::string_view application);
+
+/// The clicks that give the Dotio debug scenes their view, starting from the menu of a new
+/// session (SIMULATION open): INVULNERABLE, then the LAYERS section and every layer in it.
+/// PATHS opens its four parts right below it, so the rows after it are clicked in their new
+/// places. GHOST CAMERA stays off.
+inline constexpr std::array<MenuClick, 13> dotio_debug_clicks{{{4, "INVULNERABLE"},
+                                                               {5, "LAYERS"},
+                                                               {2, "VECTORS"},
+                                                               {3, "STEERING PROBES"},
+                                                               {4, "PATHS"},
+                                                               {5, "WANDER"},
+                                                               {6, "PURSUE"},
+                                                               {7, "KAMIKAZE"},
+                                                               {8, "RECOVERY"},
+                                                               {9, "COLLISION SHAPES"},
+                                                               {10, "ACTIVE AGENTS"},
+                                                               {11, "AI STATES"},
+                                                               {12, "HIDING HITS"}}};
+/// The MOTION heading in the debug menu of a new Demo session (SIMULATION open); the Demo
+/// debug screenshot shows that section's tuning rows.
+inline constexpr MenuClick demo_motion_click{6, "MOTION"};
 
 /// What a scene writes.
 enum class SceneKind {

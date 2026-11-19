@@ -19,9 +19,9 @@ using namespace kinetra;
 using i4sim::FactoryController;
 using i4sim::flip_y;
 using i4sim::Layer;
-using i4sim::MenuEntry;
 using i4sim::PanelState;
 using i4sim::RunState;
+using kinetra::DebugEntry;
 
 namespace {
 const auto factory = i4sim::test::original_blueprint("MAS-demonstrator");
@@ -66,7 +66,7 @@ std::vector<std::string> labels(FactoryController &controller) {
     return result;
 }
 
-MenuEntry entry(FactoryController &controller, std::string_view label) {
+DebugEntry entry(FactoryController &controller, std::string_view label) {
     for (auto &candidate : controller.menu())
         if (candidate.label == label)
             return candidate;
@@ -82,7 +82,7 @@ void choose(FactoryController &controller, std::string_view label) {
 /// Opens the menu section with the heading `label`, unless it is open already.
 void open_section(FactoryController &controller, std::string_view label) {
     auto heading = entry(controller, label);
-    REQUIRE(heading.kind == i4sim::EntryKind::group);
+    REQUIRE(heading.kind == kinetra::DebugEntryKind::group);
     if (!heading.active())
         heading.action();
 }
@@ -508,13 +508,15 @@ TEST_CASE("the menu starts with the simulation section open") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS",
-                                                         "WORKLOAD", "LAYERS", "MOTION", "TRAFFIC",
+                                                         "WORKLOAD", "LAYERS", "MOTION", "TRAFFIC", "ZOOM",
                                                          "FRAME SCENE", "BLUEPRINTS"});
     const auto menu = controller.menu();
-    CHECK((menu[0].kind == i4sim::EntryKind::group && menu[0].active() && menu[0].depth == 0));
+    CHECK((menu[0].kind == kinetra::DebugEntryKind::group && menu[0].active() && menu[0].depth == 0));
     CHECK_FALSE(menu[5].active());
     CHECK(menu[1].depth == 1);
-    CHECK_MESSAGE(menu[8].depth == 0, "FRAME SCENE stays outside the sections");
+    CHECK_MESSAGE((menu[8].label == "ZOOM" && menu[8].depth == 0 && menu[8].rule_above),
+                  "a rule sets the commands apart from the sections");
+    CHECK_MESSAGE(menu[9].depth == 0, "FRAME SCENE stays outside the sections");
 }
 
 TEST_CASE("a section heading opens its rows and closes the open section") {
@@ -523,11 +525,11 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
     choose(controller, "TRAFFIC");
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC",
                                                          "CORRIDOR TRAFFIC", "JUNCTION TRAFFIC",
-                                                         "PARKING TRAFFIC", "PREDICTIVE PASS", "FRAME SCENE",
-                                                         "BLUEPRINTS"});
+                                                         "PARKING TRAFFIC", "PREDICTIVE PASS", "ZOOM",
+                                                         "FRAME SCENE", "BLUEPRINTS"});
     choose(controller, "TRAFFIC");
-    CHECK(labels(controller) ==
-          std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
+    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "ZOOM",
+                                                         "FRAME SCENE", "BLUEPRINTS"});
 }
 
 TEST_CASE("the layers section lists every layer as a check box, each with its parts") {
@@ -536,14 +538,61 @@ TEST_CASE("the layers section lists every layer as a check box, each with its pa
     open_section(controller, "LAYERS");
     CHECK(labels(controller) ==
           std::vector<std::string>{
-              "SIMULATION",      "LAYERS",          "GRID",         "HEATMAP", "PATHS",       "ROUTES",
-              "RETREAT TARGETS", "PASSING TARGETS", "FORCES",       "SEEK",    "COLLISION",   "BORDER",
-              "PREDICTIVE",      "VELOCITY",        "ACCELERATION", "BORDERS", "WALLS",       "TRAFFIC ZONES",
-              "DETECTION",       "CONTACT SHAPES",  "MOTION",       "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
+              "SIMULATION",      "LAYERS",          "GRID",         "HEATMAP", "PATHS",     "ROUTES",
+              "RETREAT TARGETS", "PASSING TARGETS", "FORCES",       "SEEK",    "COLLISION", "BORDER",
+              "PREDICTIVE",      "VELOCITY",        "ACCELERATION", "BORDERS", "WALLS",     "TRAFFIC ZONES",
+              "DETECTION",       "CONTACT SHAPES",  "MOTION",       "TRAFFIC", "ZOOM",      "FRAME SCENE",
+              "BLUEPRINTS"});
     const auto paths = entry(controller, "PATHS");
-    CHECK((paths.kind == i4sim::EntryKind::check && paths.layer == Layer::paths && paths.depth == 1));
+    CHECK((paths.kind == kinetra::DebugEntryKind::check && paths.depth == 1));
     const auto routes = entry(controller, "ROUTES");
-    CHECK((routes.kind == i4sim::EntryKind::check && routes.layer == Layer::routes && routes.depth == 2));
+    CHECK((routes.kind == kinetra::DebugEntryKind::check && routes.depth == 2));
+    CHECK_MESSAGE(!routes.swatch, "without colors no row has a swatch");
+}
+
+TEST_CASE("a layer row gets the swatch the drawing code gives for its layer") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
+    // Stand-in for layer_color: the layer's number as red, and no color for PATHS.
+    const auto menu = controller.menu([](Layer layer) -> std::optional<kinetra::Color> {
+        if (layer == Layer::paths)
+            return std::nullopt;
+        return kinetra::Color{float(layer), 0, 0};
+    });
+    for (const auto &row : menu) {
+        if (row.label == "ROUTES") {
+            REQUIRE(row.swatch);
+            CHECK(row.swatch->r == float(Layer::routes));
+        }
+        if (row.label == "CONTACT SHAPES") {
+            REQUIRE(row.swatch);
+            CHECK(row.swatch->r == float(Layer::contact_shapes));
+        }
+        if (row.label == "PATHS" || row.label == "LAYERS" || row.label == "ZOOM")
+            CHECK_MESSAGE(!row.swatch, row.label << " has a swatch");
+    }
+}
+
+TEST_CASE("the zoom row zooms the camera by one step per click within the limits") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    auto camera = camera_for(controller);
+    frame(controller, camera);
+    const float fitted = camera.pixels_per_unit;
+    CHECK(entry(controller, "ZOOM").value() == kinetra::debug_number_text(fitted));
+    entry(controller, "ZOOM").increase();
+    CHECK_MESSAGE(camera.pixels_per_unit == fitted, "the row acts with the frame's camera update");
+    frame(controller, camera);
+    CHECK(camera.pixels_per_unit == doctest::Approx(fitted * kinetra::zoom_factor));
+    entry(controller, "ZOOM").decrease();
+    entry(controller, "ZOOM").decrease();
+    frame(controller, camera);
+    CHECK(camera.pixels_per_unit == doctest::Approx(fitted / kinetra::zoom_factor));
+    for (int i = 0; i < 200; ++i)
+        entry(controller, "ZOOM").decrease();
+    frame(controller, camera);
+    CHECK(camera.pixels_per_unit == i4sim::zoom_limits.minimum);
 }
 
 TEST_CASE("a layer lists its parts only while it is on") {
@@ -586,7 +635,7 @@ TEST_CASE("the motion section lists the profile, the planner and the parameters"
     open_section(controller, "MOTION");
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "PROFILE",
                                                          "PLANNER", "RECOVERY", "SPEED", "FORCE", "HORIZON",
-                                                         "RESET PARAMETERS", "TRAFFIC", "FRAME SCENE",
+                                                         "RESET PARAMETERS", "TRAFFIC", "ZOOM", "FRAME SCENE",
                                                          "BLUEPRINTS"});
     CHECK_MESSAGE(!entry(controller, "SPEED").action, "a number row changes only with its buttons");
 }
@@ -594,7 +643,7 @@ TEST_CASE("the motion section lists the profile, the planner and the parameters"
 TEST_CASE("the workload entry is a check box on the simulation's workload") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    REQUIRE(entry(controller, "WORKLOAD").kind == i4sim::EntryKind::check);
+    REQUIRE(entry(controller, "WORKLOAD").kind == kinetra::DebugEntryKind::check);
     CHECK(entry(controller, "WORKLOAD").active());
     choose(controller, "WORKLOAD");
     CHECK_FALSE(controller.simulation().workload());
@@ -617,7 +666,7 @@ TEST_CASE("the layer entries are check boxes on the layers") {
     choose(controller, "CONTACT SHAPES");
     CHECK(layers.selected(Layer::contact_shapes));
     CHECK(entry(controller, "CONTACT SHAPES").active());
-    CHECK_MESSAGE(entry(controller, "FRAME SCENE").kind == i4sim::EntryKind::button,
+    CHECK_MESSAGE(entry(controller, "FRAME SCENE").kind == kinetra::DebugEntryKind::button,
                   "a command is a button, not a check box");
 }
 
@@ -646,7 +695,7 @@ TEST_CASE("the profile list shows the four profiles and closes on a choice") {
     const auto menu = controller.menu();
     std::vector<std::string> values;
     for (const auto &row : menu)
-        if (row.kind == i4sim::EntryKind::choice) {
+        if (row.kind == kinetra::DebugEntryKind::choice) {
             values.emplace_back(row.label);
             CHECK(row.depth == 2);
             CHECK(row.active() == (row.label == "IMPROVED"));
@@ -656,7 +705,7 @@ TEST_CASE("the profile list shows the four profiles and closes on a choice") {
     CHECK(controller.simulation().motion_settings().profile == i4sim::SteeringProfile::reciprocal);
     CHECK(entry(controller, "PROFILE").value() == "RECIPROCAL");
     CHECK_MESSAGE(!entry(controller, "PROFILE").active(), "choosing a value closes the list");
-    CHECK(labels(controller).size() == 13);
+    CHECK(labels(controller).size() == 14);
 }
 
 TEST_CASE("choosing the current value only closes the list") {
@@ -748,7 +797,7 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     const auto &motion = controller.simulation().motion_settings();
     open_section(controller, "TRAFFIC");
     for (const char *label : {"CORRIDOR TRAFFIC", "JUNCTION TRAFFIC", "PARKING TRAFFIC", "PREDICTIVE PASS"}) {
-        CHECK(entry(controller, label).kind == i4sim::EntryKind::check);
+        CHECK(entry(controller, label).kind == kinetra::DebugEntryKind::check);
         CHECK_FALSE(entry(controller, label).active());
         choose(controller, label);
         CHECK(entry(controller, label).active());

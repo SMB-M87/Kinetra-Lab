@@ -7,7 +7,9 @@
 #include "simulation.h"
 #include "view.h"
 
+#include <kinetra/debug_menu.h>
 #include <kinetra/engine.h>
+#include <lab/debug.h>
 #include <lab/input.h>
 
 #include <cstddef>
@@ -20,45 +22,9 @@
 #include <vector>
 
 namespace i4sim {
-/// How a debug-menu row shows its state, and what its state means.
-enum class EntryKind {
-    /// A command; it has no state.
-    button,
-    /// An on/off setting, drawn as a check box; `active` says whether it is on.
-    check,
-    /// One value of an open list, drawn as a radio mark; `active` says whether it is the
-    /// current value.
-    choice,
-    /// A heading that opens and closes the rows below it; `active` says whether it is open.
-    group,
-};
-
-/// One row of the debug menu, without the drawing types of the engine's menu widget.
-///
-/// The functions borrow the controller that made the entry: call them only while that
-/// controller is alive, and ask for new entries after any of them ran, because the open
-/// section, the open list and the selected layers decide which entries exist.
-struct MenuEntry {
-    /// Row text without indentation or state mark; refers to a string literal.
-    std::string_view label;
-    /// Runs the command. Empty only on a number row, which changes with `decrease` and
-    /// `increase` instead.
-    std::function<void()> action{};
-    /// How the row shows its state.
-    EntryKind kind{EntryKind::button};
-    /// Current state for every kind but `button`; empty for a button.
-    std::function<bool()> active{};
-    /// Current value to show after the label, such as a profile name or a number; may be
-    /// empty.
-    std::function<std::string()> value{};
-    /// Lowers and raises the row's number by one step; both empty on other rows.
-    std::function<void()> decrease{}, increase{};
-    /// Nesting level: 0 for a section heading and the rows below the sections, 1 for the
-    /// rows of a section, 2 for the values of an open list and the parts of a layer.
-    int depth{};
-    /// The debug layer the row selects; empty on other rows.
-    std::optional<Layer> layer{};
-};
+/// Gives the color a debug layer is drawn in, for the swatch of its menu row; empty for a
+/// layer without one color. The drawing code owns the colors (layer_color in world_view.h).
+using LayerColors = std::function<std::optional<kinetra::Color>(Layer)>;
 
 /// What the panels in front of the world did with a frame's input.
 struct PanelState {
@@ -79,6 +45,8 @@ struct PanelState {
 ///
 /// Positions are factory millimeters with Y down; the camera's world has Y up (flip_y).
 /// Not thread-safe. Not copyable or movable, because menu entries refer to the controller.
+/// The entries follow the contract of kinetra::DebugEntry: call their functions only while
+/// the controller is alive, and ask for new entries after any of them ran.
 class FactoryController {
   public:
     /// `seed` seeds every simulation the controller builds. `running` starts a loaded
@@ -128,19 +96,21 @@ class FactoryController {
     /// had when the panel closes (lab::ModalPause). Call once per frame.
     void suspend(bool open);
     /// The rows of the debug menu, in display order: the headings SIMULATION, LAYERS, MOTION
-    /// and TRAFFIC, each followed by its rows while it is open, then FRAME SCENE and
-    /// BLUEPRINTS. At most one section is open; SIMULATION is open at the start. A click on
-    /// a heading opens that section and closes the other, or closes it when it was open.
-    /// PROFILE and PLANNER open a list of their values below them; choosing a value closes
-    /// the list.
-    std::vector<MenuEntry> menu();
+    /// and TRAFFIC, each followed by its rows while it is open, then, below a rule, ZOOM,
+    /// FRAME SCENE and BLUEPRINTS. At most one section is open; SIMULATION is open at the
+    /// start. A click on a heading opens that section and closes the other, or closes it
+    /// when it was open (kinetra::DebugFolds). PROFILE and PLANNER open a list of their
+    /// values below them; choosing a value closes the list. A layer row gets the swatch
+    /// `colors` gives for its layer; without `colors` no row has one.
+    std::vector<kinetra::DebugEntry> menu(const LayerColors &colors = {});
     /// Applies a frame of input and then advances the simulation by `elapsed` seconds.
     ///
     /// Keys: Space or P pause and resume; R restarts the blueprint, paused, with the motion
     /// settings in use, and replays a scenario's goals; G toggles the workload; F fits the
     /// camera; 1 to 6 toggle grid, heatmap, paths, forces, borders and detection; Q and E
     /// halve and double the update rate within 1..10000. The camera pans with WASD or the
-    /// arrows and zooms with the wheel as `panels` allows. A click selects the mover or
+    /// arrows, and zooms with the wheel as `panels` allows and by the steps the menu's ZOOM
+    /// row collected. A click selects the mover or
     /// producer under it, or clears the selection; a right click also holds or blocks it;
     /// Shift-click sends the selected mover there. Pointer commands are skipped while
     /// `panels.pointer_captured`.
@@ -170,20 +140,14 @@ class FactoryController {
     void pick(Vec2 point, bool toggle);
     void show_for_a_while(std::string message);
 
-    /// The section of the debug menu whose rows show.
-    enum class MenuSection { none, simulation, layers, motion, traffic };
-    /// The list of values that is open below its row in the MOTION section.
-    enum class MenuList { none, profile, planner };
-    MenuEntry section_heading(std::string_view label, MenuSection section);
-    MenuEntry list_heading(std::string_view label, MenuList list, std::function<std::string()> value);
-    MenuEntry motion_check(std::string_view label, bool MotionSettings::*setting);
-    MenuEntry motion_number(std::string_view label, std::function<std::string()> value,
-                            std::function<void(MotionSettings &)> lower,
-                            std::function<void(MotionSettings &)> raise);
-    void add_simulation_entries(std::vector<MenuEntry> &entries);
-    void add_layer_entries(std::vector<MenuEntry> &entries);
-    void add_motion_entries(std::vector<MenuEntry> &entries);
-    void add_traffic_entries(std::vector<MenuEntry> &entries);
+    kinetra::DebugEntry motion_check(std::string label, bool MotionSettings::*setting);
+    kinetra::DebugEntry motion_number(std::string label, std::function<std::string()> value,
+                                      std::function<void(MotionSettings &)> lower,
+                                      std::function<void(MotionSettings &)> raise);
+    void add_simulation_entries(std::vector<kinetra::DebugEntry> &entries);
+    void add_layer_entries(std::vector<kinetra::DebugEntry> &entries, const LayerColors &colors);
+    void add_motion_entries(std::vector<kinetra::DebugEntry> &entries);
+    void add_traffic_entries(std::vector<kinetra::DebugEntry> &entries);
 
     std::uint32_t seed_;
     bool start_running_;
@@ -198,8 +162,10 @@ class FactoryController {
     std::string message_;
     /// Seconds until the message expires; zero for a message that stays.
     double message_remaining_{};
-    MenuSection open_section_{MenuSection::simulation};
-    MenuList open_list_{MenuList::none};
+    /// Which section and which list of the debug menu are open.
+    kinetra::DebugFolds folds_{"SIMULATION"};
+    /// The menu's ZOOM row and the steps its buttons asked for.
+    lab::ZoomControl zoom_;
     bool fit_pending_{};
     /// Set by the BLUEPRINTS entry; the next begin_frame() closes the blueprint, so the
     /// frame that clicked the entry still finishes with its simulation.

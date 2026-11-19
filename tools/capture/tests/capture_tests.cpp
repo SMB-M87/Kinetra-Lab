@@ -10,6 +10,8 @@
 #include "showcase.h"
 #include "stage.h"
 
+#include "../../../labs/demo/include/debug_panel.h"
+#include "../../../labs/demo/include/session.h"
 #include "../../../labs/i4sim/include/controller.h"
 #include "../../../labs/i4sim/include/simulation.h"
 
@@ -287,22 +289,57 @@ TEST_CASE("driving_movers counts the captured floor's movers step by step, the s
                     std::runtime_error);
 }
 
-TEST_CASE("the Dotio debug rows the scripts click turn on every row but GHOST CAMERA") {
+TEST_CASE("the Dotio debug clicks find their rows and turn on every layer but not the ghost camera") {
     dotio::Application application(capture::capture_seed);
-    for (std::size_t row = capture::dotio_first_debug_row; row <= capture::dotio_last_debug_row; ++row) {
+    for (const auto &click : capture::dotio_debug_clicks) {
         // The rows are built anew for every click, as the session does: PATHS adds rows.
-        const auto options = application.debug_options();
-        REQUIRE(row < options.size());
-        REQUIRE(options[row].enabled != nullptr);
-        *options[row].enabled = !*options[row].enabled;
+        const auto menu = application.debug_entries();
+        REQUIRE_NOTHROW(capture::apply_menu_click(menu, click, "Dotio"));
     }
-    const auto options = application.debug_options();
-    REQUIRE(options.size() == capture::dotio_last_debug_row + 1);
-    CHECK(options.front().label == "GHOST CAMERA");
-    CHECK_FALSE(*options.front().enabled);
-    CHECK(options.back().label == "INVULNERABLE");
-    for (std::size_t row = capture::dotio_first_debug_row; row < options.size(); ++row)
-        CHECK_MESSAGE(*options[row].enabled, options[row].label << " is off");
+    CHECK(application.invulnerable);
+    CHECK((application.vectors && application.probes && application.collisions && application.active_agents &&
+           application.ai));
+    for (std::size_t part = 0; part < application.paths.size(); ++part)
+        CHECK_MESSAGE(application.paths[part], "PATHS part " << part << " is off");
+    CHECK_FALSE(application.ghost);
+    // Every check row of the LAYERS section the clicks leave open is on.
+    bool in_layers = false;
+    int layers = 0;
+    for (const auto &row : application.debug_entries()) {
+        if (row.depth == 0)
+            in_layers = row.label == "LAYERS";
+        else if (in_layers) {
+            ++layers;
+            CHECK_MESSAGE((row.kind == kinetra::DebugEntryKind::check && row.active()),
+                          row.label << " is off");
+        }
+    }
+    CHECK_MESSAGE(layers == 11, "the clicks cover every row of LAYERS");
+}
+
+TEST_CASE("the Demo debug click opens the motion section of a new session's menu") {
+    sandbox::SandboxApplication application(sandbox::default_agent_count, capture::capture_seed);
+    sandbox::DebugPanel panel(application);
+    const auto closed = panel.entries();
+    REQUIRE_NOTHROW(capture::apply_menu_click(closed, capture::demo_motion_click, "Demo"));
+    const auto open = panel.entries();
+    REQUIRE(open.size() > 4);
+    CHECK(open[2].label == "MOTION");
+    CHECK(open[2].active());
+    CHECK(open[3].label == "AVOIDANCE");
+}
+
+TEST_CASE("apply_menu_click rejects a row that is missing, renamed or without an action") {
+    int clicks = 0;
+    float speed = 1;
+    const std::vector<kinetra::DebugEntry> menu{{.label = "RESET", .action = [&] { ++clicks; }},
+                                                kinetra::debug_number("SPEED", speed, {0, 2, 1})};
+    CHECK_NOTHROW(capture::apply_menu_click(menu, {0, "RESET"}, "test"));
+    CHECK(clicks == 1);
+    CHECK_THROWS_AS(capture::apply_menu_click(menu, {0, "RESTART"}, "test"), std::runtime_error);
+    CHECK_THROWS_AS(capture::apply_menu_click(menu, {2, "RESET"}, "test"), std::runtime_error);
+    CHECK_THROWS_AS(capture::apply_menu_click(menu, {1, "SPEED"}, "test"), std::runtime_error);
+    CHECK(clicks == 1);
 }
 
 namespace {

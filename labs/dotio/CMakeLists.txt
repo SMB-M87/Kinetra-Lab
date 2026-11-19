@@ -21,7 +21,8 @@ add_library(kinetra_dotio_logic
 target_compile_features(kinetra_dotio_logic PUBLIC cxx_std_20)
 target_include_directories(kinetra_dotio_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include logic/include
     gmath/include)
-target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation)
+# lab/debug.h is headless: the menu rows that every Lab application shares.
+target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation kinetra_lab_common)
 if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_dotio_tests PREFIX kinetra_dotio
         SOURCES tests/dotio_tests.cpp LIBRARIES kinetra_dotio_logic)

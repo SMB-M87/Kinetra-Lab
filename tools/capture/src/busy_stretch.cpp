@@ -14,13 +14,8 @@ namespace capture {
 void apply_menu_clicks(i4sim::FactoryController &controller, std::span<const MenuClick> clicks) {
     for (const auto &click : clicks) {
         // Built anew for every click: a click opens and closes sections and lists.
-        auto menu = controller.menu();
-        if (click.row >= menu.size() || menu[click.row].label != click.label)
-            throw std::runtime_error(
-                "The i4sim debug menu changed: row " + std::to_string(click.row) + " is " +
-                (click.row < menu.size() ? "'" + std::string(menu[click.row].label) + "'" : "missing") +
-                ", not '" + std::string(click.label) + "'");
-        menu[click.row].action();
+        const auto menu = controller.menu();
+        apply_menu_click(menu, click, "i4sim");
     }
 }
 
