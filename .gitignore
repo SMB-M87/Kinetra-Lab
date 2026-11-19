@@ -69,7 +69,3 @@ Testing/
 
 # Local simulation metrics
 Output/
-
-# Local reference material (global agent rules/skills, work examples); never published
-files/
-bms_files/

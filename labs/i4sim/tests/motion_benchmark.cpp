@@ -1,4 +1,10 @@
+// Runs the bundled large factories under one motion configuration and prints one CSV
+// line per blueprint and seed: throughput, contacts, flow (waiting and stuck movers) and
+// predictive passing outcomes. Outside CTest: comparisons are useful, but too slow for
+// every test run.
+#include "flow_metrics.h"
 #include "simulation.h"
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 
@@ -63,7 +69,9 @@ int main(int argc, char **argv) {
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N]");
             }
         }
-        std::cout << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,elapsed_ms\n";
+        std::cout
+            << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
+               "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,elapsed_ms\n";
         for (const char *name : {"MAS-demonstrator", "3840x2400", "8640x4800"}) {
             for (unsigned seed : {42u, 915839214u}) {
                 Simulation simulation(
@@ -76,12 +84,15 @@ int main(int argc, char **argv) {
                 settings.corridor_traffic = corridor_traffic;
                 settings.profile = profile;
                 simulation.configure_motion(settings);
+                simulation.record_events(true);
                 simulation.paused = false;
+                FlowMetrics flow;
                 double acceleration_change = 0;
                 const auto started = std::chrono::steady_clock::now();
                 std::vector<Vec2> previous(simulation.movers().size());
                 for (std::uint64_t tick = 0; tick < ticks && !simulation.paused; ++tick) {
                     simulation.tick();
+                    flow.observe(simulation);
                     for (std::size_t i = 0; i < previous.size(); ++i) {
                         const auto acceleration = simulation.movers()[i].body.acceleration;
                         acceleration_change += kinetra::distance(previous[i], acceleration);
@@ -91,9 +102,22 @@ int main(int argc, char **argv) {
                 const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                                          std::chrono::steady_clock::now() - started)
                                          .count();
+                const auto events = simulation.events();
+                const auto count = [&](auto predicate) {
+                    return std::count_if(events.begin(), events.end(), predicate);
+                };
+                const auto plans =
+                    count([](const SimulationEvent &e) { return e.kind == EventKind::passing_formed; });
+                const auto cancelled = count([](const SimulationEvent &e) {
+                    return e.kind == EventKind::passing_ended && e.end != PassingEnd::completed;
+                });
+                const auto passing_contacts =
+                    count([](const SimulationEvent &e) { return e.kind == EventKind::contact && e.passing; });
                 std::cout << name << ',' << seed << ',' << simulation.completed() << ','
                           << simulation.collisions() << ',' << simulation.contact_ticks() << ','
-                          << acceleration_change << ',' << elapsed << std::endl;
+                          << acceleration_change << ',' << flow.waiting_ticks() << ',' << flow.stuck_movers()
+                          << ',' << flow.stuck_now() << ',' << plans << ',' << cancelled << ','
+                          << passing_contacts << ',' << elapsed << std::endl;
             }
         }
     } catch (const std::exception &error) {

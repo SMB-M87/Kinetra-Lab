@@ -63,7 +63,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
-| `labs/i4sim/` logic (`simulation`, `predictive_passing`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim` | `^kinetra_i4sim` |
+| `labs/i4sim/` logic (`simulation`, `predictive_passing`, `flow_metrics`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim` | `^kinetra_i4sim` |
 | `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
 | `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/common/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |

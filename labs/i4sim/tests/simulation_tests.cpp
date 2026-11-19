@@ -1,18 +1,21 @@
 // Headless contract tests for the i4sim simulation: manual control, parking, steering
-// profiles, contacts, junction, corridor, recovery, predictive passing and parking
-// traffic, the bundled blueprints, recipes, workloads, determinism and export.
+// profiles, contacts, junction, corridor, recovery, predictive passing, the event log,
+// parking traffic, the bundled blueprints, recipes, workloads, determinism and export.
 //
 // The `the bundled catalog holds fourteen blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
+#include "flow_metrics.h"
 #include "simulation.h"
 
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -96,6 +99,26 @@ MotionSettings passing_motion(SteeringProfile profile) {
     config.predictive_passing = true;
     config.heatmap = false;
     return config;
+}
+
+/// The open-floor passing fixture with both movers sent to the other's start under
+/// `profile`, unpaused, with the event log on when `record` is set.
+Simulation passing_pair(SteeringProfile profile, bool record = true) {
+    Simulation pair(
+        load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+    pair.workload = false;
+    pair.configure_motion(passing_motion(profile));
+    REQUIRE_MESSAGE((pair.move_to(0, {1900, 800}) && pair.move_to(1, {500, 800})), "Passing goals rejected");
+    pair.record_events(record);
+    pair.paused = false;
+    return pair;
+}
+
+/// Ticks `simulation` until it holds a passing plan, for at most 5000 ticks.
+void run_until_pair(Simulation &simulation) {
+    while (simulation.predictive_pairs() == 0 && simulation.ticks() < 5000)
+        simulation.tick();
+    REQUIRE_MESSAGE(simulation.predictive_pairs() == 1, "No passing plan formed");
 }
 
 /// Runs a frontal or crossing two-mover encounter under the Original, Improved and
@@ -916,6 +939,170 @@ TEST_CASE("legacy steering profiles never form passing pairs") {
                           "Predictive policy changed a legacy steering profile");
         }
     }
+}
+
+TEST_CASE("the event log records a passing plan from formation to completion") {
+    auto pair = passing_pair(SteeringProfile::reciprocal);
+    run_until_pair(pair);
+    const auto formed_at = pair.ticks();
+    const std::array entries{*pair.passing_target(0), *pair.passing_target(1)};
+    for (int tick = 0; tick < 5000; ++tick)
+        pair.tick();
+    REQUIRE_MESSAGE((!pair.movers()[0].moving && !pair.movers()[1].moving && pair.collisions() == 0),
+                    "Passing fixture did not complete without contact");
+    const auto events = pair.events();
+    REQUIRE(events.size() == 3);
+    CHECK(events[0].kind == EventKind::passing_formed);
+    CHECK(events[1].kind == EventKind::passing_crossing);
+    CHECK(events[2].kind == EventKind::passing_ended);
+    CHECK(events[2].end == PassingEnd::completed);
+    CHECK(events[0].tick == formed_at);
+    CHECK((events[0].tick < events[1].tick && events[1].tick < events[2].tick));
+    for (std::size_t side = 0; side < 2; ++side)
+        CHECK(kinetra::distance(events[0].entry[side], entries[side]) == 0);
+    for (const auto &event : events) {
+        CHECK(event.plan == 1);
+        CHECK(event.movers == std::array<std::size_t, 2>{0, 1});
+        CHECK((event.kind == EventKind::passing_ended) == event.end.has_value());
+    }
+}
+
+TEST_CASE("the event log records why a passing plan ends") {
+    auto pair = passing_pair(SteeringProfile::reciprocal);
+    run_until_pair(pair);
+
+    auto commanded = pair;
+    REQUIRE(commanded.move_to(0, {1900, 1000}));
+    REQUIRE(!commanded.events().empty());
+    const auto &goal = commanded.events().back();
+    CHECK(goal.kind == EventKind::passing_ended);
+    CHECK(goal.end == PassingEnd::goal_changed);
+    CHECK(goal.tick == commanded.ticks());
+
+    auto held = pair;
+    held.toggle_mover(1);
+    held.tick();
+    REQUIRE(!held.events().empty());
+    const auto &hold = held.events().back();
+    CHECK(hold.kind == EventKind::passing_ended);
+    CHECK(hold.end == PassingEnd::participant_held);
+    CHECK(hold.tick == held.ticks());
+}
+
+TEST_CASE("the event log records each contact once with its tick and participants") {
+    auto b = fixture();
+    b.producers.clear();
+    b.movers.push_back({"overlap", Model::APM4220, b.movers[0].position + Vec2{10, 0}});
+    Simulation movers(b);
+    movers.workload = false;
+    movers.record_events(true);
+    movers.single_step();
+    movers.single_step();
+    REQUIRE(movers.events().size() == 1);
+    const auto &pair = movers.events().front();
+    CHECK(pair.kind == EventKind::contact);
+    CHECK(pair.tick == 1);
+    CHECK(pair.movers == std::array<std::size_t, 2>{0, 1});
+    CHECK((!pair.border && !pair.passing && pair.plan == 0));
+    CHECK(movers.events().size() == movers.collisions());
+
+    // The mover's right edge reaches 13 mm into the blocked cell that starts at x = 1200,
+    // and its 113 mm height stays inside that cell's row, so it touches one border.
+    b = fixture();
+    b.producers.clear();
+    b.movers[0].position = {1100, 650};
+    b.zones.push_back({"wall", {1200, 600}, {200, 200}});
+    Simulation wall(b);
+    wall.workload = false;
+    wall.record_events(true);
+    wall.single_step();
+    REQUIRE(wall.events().size() == 1);
+    const auto &border = wall.events().front();
+    CHECK(border.kind == EventKind::contact);
+    CHECK(border.border);
+    CHECK(border.movers[0] == 0);
+    CHECK(border.movers[1] < wall.borders().size());
+}
+
+TEST_CASE("recording events is opt-in and does not change the run") {
+    for (auto profile : {SteeringProfile::improved, SteeringProfile::reciprocal}) {
+        CAPTURE(profile);
+        auto quiet = passing_pair(profile, false);
+        auto recorded = quiet;
+        recorded.record_events(true);
+        CHECK((!quiet.recording_events() && recorded.recording_events()));
+        for (int tick = 0; tick < 5000; ++tick) {
+            quiet.tick();
+            recorded.tick();
+            for (std::size_t i = 0; i < 2; ++i) {
+                const auto &a = quiet.movers()[i].body, &b = recorded.movers()[i].body;
+                REQUIRE((kinetra::distance(a.position, b.position) == 0 &&
+                         kinetra::distance(a.velocity, b.velocity) == 0));
+            }
+        }
+        CHECK(quiet.events().empty());
+        CHECK(!recorded.events().empty());
+    }
+}
+
+TEST_CASE("flow metrics count no waiting or stuck mover on a free trip") {
+    auto b = fixture();
+    b.producers.clear();
+    b.movers[0].position = {300, 700};
+    Simulation solo(b);
+    solo.workload = false;
+    REQUIRE(solo.move_to(0, {1900, 750}));
+    solo.paused = false;
+    FlowMetrics flow;
+    for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick) {
+        solo.tick();
+        flow.observe(solo);
+    }
+    REQUIRE(!solo.movers()[0].moving);
+    CHECK(flow.waiting_ticks() == 0);
+    CHECK(flow.stuck_movers() == 0);
+    CHECK(flow.stuck_now() == 0);
+}
+
+TEST_CASE("flow metrics count a head-on corridor standstill as waiting and stuck") {
+    Simulation standstill(corridor_fixture());
+    start_corridor(standstill, false, {1900, 700}, {300, 700});
+    FlowMetrics flow;
+    for (int tick = 0; tick < 5000; ++tick) {
+        standstill.tick();
+        flow.observe(standstill);
+    }
+    REQUIRE((standstill.movers()[0].moving && standstill.movers()[1].moving));
+    CHECK(flow.waiting_ticks() > 0);
+    CHECK(flow.stuck_movers() == 2);
+    CHECK(flow.stuck_now() == 2);
+}
+
+TEST_CASE("flow metrics ignore a held mover") {
+    auto b = fixture();
+    b.producers.clear();
+    Simulation held(b);
+    held.workload = false;
+    REQUIRE(held.move_to(0, {1900, 750}));
+    held.toggle_mover(0);
+    held.paused = false;
+    FlowMetrics flow({.stuck_ticks = 100});
+    for (int tick = 0; tick < 1000; ++tick) {
+        held.tick();
+        flow.observe(held);
+    }
+    CHECK(flow.waiting_ticks() == 0);
+    CHECK(flow.stuck_movers() == 0);
+}
+
+TEST_CASE("flow metrics reject invalid limits and a second simulation") {
+    CHECK_THROWS_AS(FlowMetrics({.waiting_speed = 0}), std::invalid_argument);
+    CHECK_THROWS_AS(FlowMetrics({.arrival_distance = -1}), std::invalid_argument);
+    CHECK_THROWS_AS(FlowMetrics({.progress_distance = std::nanf("")}), std::invalid_argument);
+    CHECK_THROWS_AS(FlowMetrics({.stuck_ticks = 0}), std::invalid_argument);
+    FlowMetrics flow;
+    flow.observe(Simulation(fixture()));
+    CHECK_THROWS_AS(flow.observe(Simulation(corridor_fixture())), std::invalid_argument);
 }
 
 TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock consistent") {

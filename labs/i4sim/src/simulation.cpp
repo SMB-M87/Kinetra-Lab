@@ -65,7 +65,7 @@ std::vector<Interaction> recipe(ProductKind kind) {
 }
 Simulation::Simulation(Blueprint b, std::uint32_t seed)
     : blueprint_(std::move(b)), grid_(blueprint_.dimension, blueprint_.cell_size),
-      traffic_index_(std::max(blueprint_.cell_size.x, blueprint_.cell_size.y)), random_(seed) {
+      traffic_index_(std::max(blueprint_.cell_size.x, blueprint_.cell_size.y)), random_(seed), seed_(seed) {
     auto block_area = [&](Vec2 p, Vec2 size) {
         for (float y = p.y; y < p.y + size.y; y += blueprint_.cell_size.y)
             for (float x = p.x; x < p.x + size.x; x += blueprint_.cell_size.x) {
@@ -1134,8 +1134,16 @@ void Simulation::move_agents() {
             movers_[b].contacting = true;
         current.emplace(a, b);
         ++contact_ticks_;
-        if (!contacts_.contains({a, b}))
+        if (!contacts_.contains({a, b})) {
             ++collisions_;
+            if (recording_) {
+                SimulationEvent event{.tick = ticks_, .kind = EventKind::contact};
+                event.border = b >= movers_.size();
+                event.movers = {a, event.border ? b - movers_.size() : b};
+                event.passing = movers_[a].passing_detour || (!event.border && movers_[b].passing_detour);
+                events_.push_back(event);
+            }
+        }
         ++movers_[a].collision_ticks;
     };
     for (std::size_t i = 0; i < movers_.size(); ++i) {

@@ -144,6 +144,8 @@ Contacts count new unordered mover-pair or mover-boundary contacts before correc
 counts pair/segment contact ticks, not seconds. Ongoing contact is not a new event every tick.
 Inspection reports mover contact ticks and marks lack of goal progress as STALLED, not a proven deadlock.
 
+For diagnosis, a simulation can record an event log (`Simulation::record_events`, types in [events.h](include/events.h)): every predictive passing plan as it forms, starts crossing and ends, with the reason it ended, and every contact as it starts, with tick and participants. With `Simulation::seed()`, the blueprint and the motion settings, a contact can be replayed to its tick. [FlowMetrics](include/flow_metrics.h) observes a run from outside and counts waiting mover-ticks and movers that make no progress toward their destination for 2000 ticks. Both only observe; the [motion benchmark](tests/README.md#motion-benchmark) reports them.
+
 ## Behavior and ownership
 
 [Factory simulation architecture](../../docs/factory-simulation-architecture.md) describes the implemented boundaries and remaining fidelity limits. The engine owns weighted A*, spatial queries, geometric recovery planning, contact resolution and priority steering. Lab owns model tables, JSON interpretation, workload, product recipes, queues, assignments, inspection and controls.
