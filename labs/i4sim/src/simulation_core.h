@@ -1,5 +1,6 @@
 #pragma once
 // The simulation behind the public `Simulation` facade. Private to the i4sim library.
+#include "floor_plan.h"
 #include "simulation.h"
 
 #include <kinetra/spatial_grid.h>
@@ -24,8 +25,8 @@ class SimulationCore {
     const std::vector<Mover> &movers() const { return movers_; }
     const std::vector<Producer> &producers() const { return producers_; }
     const std::vector<Product> &products() const { return products_; }
-    const kinetra::WeightedGrid &grid() const { return grid_; }
-    std::span<const kinetra::Segment> borders() const { return borders_; }
+    const kinetra::WeightedGrid &grid() const { return floor_.grid(); }
+    std::span<const kinetra::Segment> borders() const { return floor_.borders(); }
     std::uint64_t ticks() const { return ticks_; }
     std::uint64_t completed() const { return completed_; }
     std::uint64_t collisions() const { return collisions_; }
@@ -33,12 +34,12 @@ class SimulationCore {
     std::size_t avoidance_limited() const { return avoidance_limited_; }
     /// Automatic parking returns temporarily staged outside active departure routes.
     std::size_t parking_waiting() const;
-    std::size_t junction_count() const { return junction_count_; }
+    std::size_t junction_count() const { return floor_.junction_count(); }
     Vec2 junction_center(std::size_t index) const;
     std::size_t junction_waiting() const;
     std::size_t junction_exit_waiting() const;
     std::optional<kinetra::Aabb> junction_exit_reservation(std::size_t index) const;
-    std::size_t corridor_count() const { return traffic_zones_.size() - junction_count_; }
+    std::size_t corridor_count() const { return floor_.corridor_count(); }
     std::size_t corridor_waiting() const;
     std::size_t corridor_recovering() const;
     std::optional<Vec2> corridor_retreat_target(std::size_t mover) const;
@@ -166,7 +167,6 @@ class SimulationCore {
         std::uint64_t retry_at{};
     };
     std::vector<TrafficZone> traffic_zones_;
-    std::size_t junction_count_{};
     std::vector<std::vector<kinetra::Segment>> traffic_stops_;
     std::vector<std::optional<TrafficControl>> traffic_controls_;
     MotionSettings motion_;
@@ -174,9 +174,7 @@ class SimulationCore {
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{};
     Blueprint blueprint_;
-    kinetra::WeightedGrid grid_;
-    kinetra::SpatialGrid traffic_index_;
-    std::vector<kinetra::Segment> borders_;
+    FloorPlan floor_;
     std::vector<Mover> movers_;
     Vec2 mover_max_half_{};
     std::vector<Producer> producers_;
@@ -200,7 +198,6 @@ class SimulationCore {
     void cancel_corridor_recovery(Mover &mover);
     void recover_corridors(const kinetra::SpatialGrid &index);
     void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
-    void update_heatmap();
     void schedule(Product &product);
     void recover_route(Mover &mover);
     void move_agents();

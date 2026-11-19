@@ -195,7 +195,7 @@ void SimulationCore::coordinate_predictive_passing(const SpatialGrid &index) {
                         moving.half_extents += clearance;
                         Vec2 from = moving.position;
                         for (auto to : {plan.entry[side], plan.exit[side]}) {
-                            if (!grid_.clear(from, to, moving.half_extents)) {
+                            if (!floor_.grid().clear(from, to, moving.half_extents)) {
                                 clear = false;
                                 break;
                             }
