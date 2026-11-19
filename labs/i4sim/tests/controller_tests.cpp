@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -288,6 +289,49 @@ TEST_CASE("r replays a scene's goals with the motion settings in use") {
     for (const auto &mover : simulation.movers())
         CHECK_MESSAGE(mover.moving(), "the scene's goals are sent again");
     CHECK_FALSE(controller.description().empty());
+}
+
+TEST_CASE("a restarting scene starts again by itself and keeps its rate and run state") {
+    FactoryController controller(42, true, 200);
+    REQUIRE(controller.load(i4sim::test::showcase_blueprint("corridor-recovery")));
+    auto camera = camera_for(controller);
+    frame(controller, camera, key(Key::e)); // 400 ticks per second
+    const Vec2 start = mover_position(controller, 0);
+    const auto settled = [&] {
+        for (const auto &mover : controller.simulation().movers())
+            if (mover.lifecycle != i4sim::MoverLifecycle::idle)
+                return false;
+        return true;
+    };
+    // A frame of 0.01 s runs four ticks, so the restart comes within a frame of the pause.
+    std::uint64_t ticks_at_settle = 0;
+    for (int f = 0; f < 10000 && !ticks_at_settle; ++f) {
+        frame(controller, camera, {}, 0.01);
+        if (settled())
+            ticks_at_settle = controller.simulation().ticks();
+    }
+    REQUIRE_MESSAGE(ticks_at_settle > 0, "The corridor-recovery scene did not settle");
+    REQUIRE(mover_position(controller, 0).x != start.x);
+    // The pause is 400 ticks, 100 frames; give it twice that before calling it missing.
+    for (int f = 0; f < 200 && controller.simulation().ticks() >= ticks_at_settle; ++f)
+        frame(controller, camera, {}, 0.01);
+    REQUIRE_MESSAGE(controller.simulation().ticks() < ticks_at_settle, "The scene did not restart");
+    const auto &simulation = controller.simulation();
+    CHECK_MESSAGE(simulation.ticks() <= 4, "The scene did not start again from tick zero");
+    CHECK(simulation.running());
+    CHECK(simulation.updates_per_second() == 400);
+    CHECK(simulation.motion_settings().corridor_traffic);
+    for (const auto &mover : simulation.movers())
+        CHECK_MESSAGE(mover.moving(), "the restarted scene sends its goals again");
+}
+
+TEST_CASE("a shuttling scene does not restart") {
+    FactoryController controller(42, true, 200);
+    REQUIRE(controller.load(i4sim::test::showcase_blueprint("junction-crossing")));
+    auto camera = camera_for(controller);
+    for (int f = 0; f < 50; ++f)
+        frame(controller, camera, {}, 0.5);
+    CHECK_MESSAGE(controller.simulation().ticks() == 5000, "A shuttling scene was restarted");
 }
 
 TEST_CASE("a click selects a mover or a producer and empty floor clears the selection") {
