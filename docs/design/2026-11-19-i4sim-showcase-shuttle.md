@@ -32,6 +32,7 @@ A showcase scene shows its traffic situation once: both movers reach their goals
 - Goal: the catalog holds the seven remaining originals: `1680x960+`, `1680x960-`, `3840x2400`, `4320x2400`, `8640x4800`, `H` and `MAS-demonstrator`.
 - Non-goal: shuttling in the debug menu or with the mouse; only a scenario starts it.
 - Goal: corridor recovery, whose movers cannot drive back, repeats its retreat by starting again from its blueprint.
+- Goal: the SHOWCASE row is the first row of the blueprint screen (added at the user's request after the first review).
 - Non-goal: more than two ends per mover, or a pause per scene.
 
 ## Decisions
@@ -48,6 +49,8 @@ A showcase scene shows its traffic situation once: both movers reach their goals
 | Leaving the shuttle | A new manual goal (`move_to`), a product, a factory goal, or a leg without a route removes that mover; the others carry on | The operator stays in control, and a mover that cannot complete a leg must not hold the others forever |
 | A held mover | The group waits until it is released | Holding is a temporary operator action; the scene resumes in step afterwards |
 | City blueprints | Deleted from `labs/i4sim/blueprints/` | User's choice. Each was, apart from its name, identical to a remaining blueprint (Istanbul = 3840x2400, London = 4320x2400, Madrid = H, Moskou = 1680x960+, New York = 8640x4800, Paris = 1680x960-, Rijn-Ruhrgebied = MAS-demonstrator) |
+| Position of the SHOWCASE row | First, before the blueprints | User's request. Replaces the earlier choice of the [showcase design](2026-11-19-i4sim-showcase.md) (last, to keep the screenshot and catalog pages unchanged); the screenshot is out of date anyway. Enter on a fresh blueprint screen now opens the scenes, so the tests that loaded the first blueprint press Down first |
+| Pull before work | `AGENTS.md` asks to pull a local branch before starting work on it, in Lab and Kinetra | User's request |
 | Stale catalog copies | The build copy and the relocation test remove their old copy first | Without it, deleted blueprints stayed in every existing build directory and the catalog test still counted fourteen |
 
 ## Design
@@ -79,7 +82,8 @@ While this branch was open, main split the i4sim session into a headless `Factor
 - Build: `labs/i4sim/CMakeLists.txt` (new source, catalog mirrored), `tests/relocation_tests.cmake`.
 - Data: three showcase scenes get `"repeat": "shuttle"`, corridor recovery `"repeat": "restart"`; seven top-level blueprints are deleted.
 - Tests: `simulation_tests.cpp` (shuttle, repeat and restart cases, catalog count), `controller_tests.cpp` (automatic restart), `presentation_tests.cpp` (restart in the running session).
-- Docs: `labs/i4sim/README.md`, `blueprints/README.md`, `tests/README.md`, `src/README.md`, `blueprint.cpp` comment, [factory simulation architecture](../factory-simulation-architecture.md) (component table, tick order), [media](../media/README.md).
+- Blueprint screen: `labs/i4sim/src/blueprint_screen.{h,cpp}`; `launcher/tests/runtime_tests.cpp`.
+- Docs: `AGENTS.md`, `labs/i4sim/README.md`, `blueprints/README.md`, `tests/README.md`, `src/README.md`, `blueprint.cpp` comment, [factory simulation architecture](../factory-simulation-architecture.md) (component table, tick order), [media](../media/README.md).
 
 ## Test plan
 
@@ -126,6 +130,8 @@ Full level, on the final branch state after the merge with main.
 
 Before the merge, the same three workflows passed on the branch alone (154, 147 and 167 tests). Run outside CTest, without `SDL_VIDEODRIVER=offscreen`, the presentation test renders to the WSLg desktop and fails its pixel checks, also on the unchanged code; a temporary log line confirmed the restart there: corridor recovery restarts at tick 2600, running, at the same rate.
 
+The last change (SHOWCASE as the first row, the tests that navigate past it, and the `AGENTS.md` pull rule) came after this verification. For it, the user waived the build and tests; the graphics tests it touches were run anyway: `ctest --preset graphics -L graphics` passed 13 of 13, and `kinetra_i4sim --frames 120` (offscreen) exits 0.
+
 Not verified: the Windows build (no Windows-specific code changed) and a visual check on a desktop.
 
 ## Pull request
@@ -138,6 +144,8 @@ Title: `feat(i4sim): repeat the showcase scenes and trim the blueprint catalog`
 - Simulation: `Simulation::shuttle` and `shuttling`, `shuttle_pause_ticks`; a private `Shuttle` component turns the movers at the end of each tick, so replays stay deterministic. `move_to` ends shuttling for that mover.
 - Scenario format: optional `"repeat": "none" | "shuttle" | "restart"`; `RestartTimer` decides when a restarting scene starts again.
 - Controller: a restarting scene restarts itself as `R` does, keeping its speed and run state. (Merged with main's session split; the earlier session refactor commit is superseded by main's `FactoryController::restart`.)
+- Blueprint screen: SHOWCASE is now the first row; the session and launcher tests press Down to reach the first blueprint.
+- `AGENTS.md`: pull a local branch before starting work on it.
 - Catalog: seven blueprints deleted; the build copy and the relocation test now mirror the catalog instead of adding to an old copy.
 - Tests and docs: shuttle, repeat and restart cases; module, blueprint, tests, sources and architecture docs.
 
