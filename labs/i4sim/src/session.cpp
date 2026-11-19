@@ -1,6 +1,8 @@
 #include "session.h"
 #include "scenario.h"
 #include "simulation.h"
+#include "view.h"
+#include "world_view.h"
 #include <iostream>
 #include <kinetra/bitmap_text.h>
 #include <kinetra/launcher.h>
@@ -30,13 +32,10 @@ const char *status_text(MoverStatus status) {
     }
     return "";
 }
-Vec2 world(Vec2 p) {
-    return {p.x, -p.y};
-}
 /// Subdirectory of the catalog with the showcase scenes, listed under one SHOWCASE row.
 constexpr const char *showcase_directory = "showcase";
-/// Camera zoom range in pixels per millimeter: from a whole hall to a single mover.
-constexpr ZoomLimits zoom_limits{0.005f, 10};
+/// No debug layer at all: what the world view draws outside debug mode.
+constexpr ViewLayers hidden_layers{false, false, false, false, false, false, false};
 class FactorySession final : public lab::Session {
     std::uint32_t seed_;
     /// Bundled blueprints in the catalog directory, then the scenes in its showcase/ subdirectory.
@@ -48,7 +47,7 @@ class FactorySession final : public lab::Session {
     bool back_{}, exit_{}, fitted_{}, running_{};
     bool workload_{true};
     DebugMenu menu_;
-    bool statistics_{true}, debug_{true}, contacts_{true}, frame_times_{};
+    bool statistics_{true}, debug_{true}, frame_times_{};
     // Declared after the flags it borrows.
     SettingsOverlay settings_{lab::settings_rows([] { return zoom_limits; }, statistics_, debug_,
                                                  frame_times_,
@@ -82,13 +81,13 @@ class FactorySession final : public lab::Session {
         workload_ = simulation_->workload();
         rows.push_back({page_ ? "PAGE: MOTION" : "PAGE: VIEW", nullptr, [this] { page_ = 1 - page_; }});
         if (!page_) {
-            rows.push_back({"GRID", &grid_});
-            rows.push_back({"HEATMAP", &heat_});
-            rows.push_back({"PATHS", &paths_});
-            rows.push_back({"FORCES", &vectors_});
-            rows.push_back({"BORDERS", &borders_});
-            rows.push_back({"DETECTION", &detection_});
-            rows.push_back({"CONTACT SHAPES", &contacts_});
+            rows.push_back({"GRID", &layers_.grid});
+            rows.push_back({"HEATMAP", &layers_.heatmap});
+            rows.push_back({"PATHS", &layers_.paths});
+            rows.push_back({"FORCES", &layers_.forces});
+            rows.push_back({"BORDERS", &layers_.borders});
+            rows.push_back({"DETECTION", &layers_.detection});
+            rows.push_back({"CONTACT SHAPES", &layers_.contact_shapes});
             rows.push_back({"PAUSE / RUN", nullptr, [this] { toggle_pause(); }});
             rows.push_back({"SINGLE TICK", nullptr, [this] { simulation_->single_step(); }});
             rows.push_back({"WORKLOAD", &workload_});
@@ -178,7 +177,7 @@ class FactorySession final : public lab::Session {
         return rows;
     }
     bool back_to_blueprints_{};
-    bool grid_{true}, heat_{true}, paths_{true}, vectors_{true}, borders_{true}, detection_{true};
+    ViewLayers layers_;
     std::optional<std::size_t> selected_mover_, selected_producer_;
     std::string error_;
     double error_remaining_{};
@@ -240,7 +239,7 @@ class FactorySession final : public lab::Session {
     }
     void fit(Camera2D &camera) {
         const auto size = simulation_->blueprint().dimension;
-        camera.position = world(size / 2);
+        camera.position = flip_y(size / 2);
         camera.pixels_per_unit =
             std::min(camera.viewport.x / size.x, (camera.viewport.y - 120) / size.y) * 0.9f;
         camera.pixels_per_unit = std::max(camera.pixels_per_unit, zoom_limits.minimum);
@@ -373,17 +372,17 @@ class FactorySession final : public lab::Session {
         if (input.hit(Key::f))
             fit(camera);
         if (input.hit(Key::one))
-            grid_ = !grid_;
+            layers_.grid = !layers_.grid;
         if (input.hit(Key::two))
-            heat_ = !heat_;
+            layers_.heatmap = !layers_.heatmap;
         if (input.hit(Key::three))
-            paths_ = !paths_;
+            layers_.paths = !layers_.paths;
         if (input.hit(Key::four))
-            vectors_ = !vectors_;
+            layers_.forces = !layers_.forces;
         if (input.hit(Key::five))
-            borders_ = !borders_;
+            layers_.borders = !layers_.borders;
         if (input.hit(Key::six))
-            detection_ = !detection_;
+            layers_.detection = !layers_.detection;
         if (input.hit(Key::q))
             simulation_->updates_per_second(std::max(1u, simulation_->updates_per_second() / 2));
         if (input.hit(Key::e))
@@ -392,7 +391,7 @@ class FactorySession final : public lab::Session {
         const float step = float(std::min(elapsed, 0.1)) * 400 / camera.pixels_per_unit;
         camera.position += lab::direction(input) * step;
         if (!captured && (input.clicked || input.right_clicked)) {
-            const auto point = world(camera.screen_to_world(input.mouse));
+            const auto point = flip_y(camera.screen_to_world(input.mouse));
             if (input.down(Key::shift) && input.clicked && selected_mover_) {
                 if (!simulation_->move_to(*selected_mover_, point)) {
                     error_ = "GOAL REJECTED: MOVER BUSY, BLOCKED OR GOAL UNREACHABLE";
@@ -424,139 +423,9 @@ class FactorySession final : public lab::Session {
         }
         if (!fitted_)
             fit(runtime.camera);
-        const auto &b = simulation_->blueprint();
-        runtime.begin({0.045f, 0.055f, 0.07f});
-        runtime.box(world(b.dimension / 2), b.dimension / 2, 0, {0.13f, 0.15f, 0.18f});
-        for (int id = 0; id < simulation_->grid().width() * simulation_->grid().height(); ++id) {
-            const auto center = world(simulation_->grid().center(id));
-            if (simulation_->grid().blocked(id))
-                runtime.box(center, b.cell_size / 2, 0, {0.065f, 0.075f, 0.09f});
-            else if (debug_ && heat_) {
-                const float weight = std::min(1.f, simulation_->grid().weight(id) / 16);
-                runtime.box(center, b.cell_size / 2, 0, {0.13f + weight * 0.6f, 0.15f, 0.2f});
-            }
-            if (debug_ && grid_) {
-                const auto a = simulation_->grid().center(id) - b.cell_size / 2, z = a + b.cell_size;
-                runtime.line(world(a), world({z.x, a.y}), 1 / runtime.camera.pixels_per_unit,
-                             {0.3f, 0.35f, 0.4f});
-                runtime.line(world(a), world({a.x, z.y}), 1 / runtime.camera.pixels_per_unit,
-                             {0.3f, 0.35f, 0.4f});
-            }
-        }
-        const float radius = std::max(b.cell_size.x, b.cell_size.y) / 2;
-        for (const auto &p : simulation_->producers()) {
-            Color color = p.definition.model == Model::Kuka      ? Color{.75f, .375f, 0}
-                          : p.definition.model == Model::Staubli ? Color{.8f, .7f, .1f}
-                          : p.definition.model == Model::Viper   ? Color{1, 1, 1}
-                                                                 : Color{.35f, .5f, .65f};
-            if (p.blocked)
-                color = {0.8f, 0.15f, 0.2f};
-            if (p.definition.rectangular)
-                runtime.box(world(p.definition.position), {radius, radius}, 0, color);
-            else
-                runtime.circle(world(p.definition.position), radius, color);
-            const Vec2 extent{b.mover_max_extent, b.mover_max_extent};
-            runtime.box(world(p.definition.processing_position + extent / 2), extent / 2, 0,
-                        {color.r * 0.4f, color.g * 0.4f, color.b * 0.4f});
-            if (p.product)
-                runtime.circle(world(p.definition.processing_position + extent / 2), radius / 4, color);
-        }
-        // Movers are drawn between their last two ticks, so motion stays even when a frame
-        // runs three ticks and the next one four.
-        const float blend = float(simulation_->interpolation());
-        const auto shown = [blend](const Mover &m) {
-            return lerp(m.previous_position, m.body.position, blend);
-        };
-        for (std::size_t i = 0; i < simulation_->movers().size(); ++i) {
-            const auto &m = simulation_->movers()[i];
-            const Vec2 position = shown(m);
-            const auto center = world(position);
-            runtime.box(center, m.body.half_extents, 0,
-                        (m.held || m.contacting) ? Color{1, 0, 0} : Color{.7f, .7f, .7f});
-            if (selected_mover_ == i)
-                runtime.circle(center, 6 / runtime.camera.pixels_per_unit, {1, 1, 0});
-            if (debug_ && contacts_)
-                draw_debug_box(runtime, center, m.body.half_extents, 0, {1, 0, 0});
-            if (debug_ && detection_)
-                draw_debug_circle(runtime, center,
-                                  length(m.body.half_extents) + simulation_->motion_settings().speed *
-                                                                    simulation_->motion_settings().horizon,
-                                  {0.25f, 0.4f, 0.6f});
-            if (debug_ && paths_) {
-                Vec2 from = position;
-                for (auto target : m.route) {
-                    runtime.line(world(from), world(target), 2 / runtime.camera.pixels_per_unit,
-                                 {0.7f, 0.4f, 1});
-                    from = target;
-                }
-            }
-            if (debug_ && paths_)
-                if (const auto target = simulation_->corridor_retreat_target(i))
-                    draw_debug_vector(runtime, center, world(*target - position), {1, 0.3f, 0.7f});
-            if (debug_ && paths_)
-                if (const auto target = simulation_->passing_target(i))
-                    draw_debug_vector(runtime, center, world(*target - position), {0.3f, 1, 0.7f});
-            if (debug_ && vectors_) {
-                draw_debug_vector(runtime, center, world(m.forces.border * 50), {1, .5f, 0});
-                draw_debug_vector(runtime, center, world(m.forces.collision * 50), {1, 0, 0});
-                draw_debug_vector(runtime, center, world(m.forces.predictive * 50), {1, 0, 1});
-                draw_debug_vector(runtime, center, world(m.forces.seek * 50), {0, 1, 0});
-                runtime.line(center, world(position + m.body.velocity * 40),
-                             3 / runtime.camera.pixels_per_unit, {0, 1, 1});
-                runtime.line(center, world(position + m.forces.acceleration * 100),
-                             2 / runtime.camera.pixels_per_unit, {1, 1, 0});
-            }
-        }
-        if (debug_ && borders_ && simulation_->motion_settings().junction_traffic)
-            for (std::size_t i = 0; i < simulation_->junction_count(); ++i) {
-                draw_debug_box(runtime, world(simulation_->junction_center(i)), b.cell_size / 2, 0,
-                               {0, 0.8f, 1});
-                if (const auto exit = simulation_->junction_exit_reservation(i))
-                    draw_debug_box(runtime, world((exit->min + exit->max) / 2), (exit->max - exit->min) / 2,
-                                   0, {0.6f, 1, 0});
-            }
-        if (debug_ && borders_ && simulation_->motion_settings().corridor_traffic)
-            for (std::size_t i = 0; i < simulation_->corridor_count(); ++i) {
-                const auto area = simulation_->corridor_bounds(i);
-                draw_debug_box(runtime, world((area.min + area.max) / 2), (area.max - area.min) / 2, 0,
-                               {0.2f, 0.5f, 1});
-                if (const auto exit = simulation_->corridor_exit_reservation(i))
-                    draw_debug_box(runtime, world((exit->min + exit->max) / 2), (exit->max - exit->min) / 2,
-                                   0, {0.6f, 1, 0});
-            }
-        if (debug_ && borders_)
-            for (const auto &s : simulation_->borders())
-                runtime.line(world(s.start), world(s.end), 2 / runtime.camera.pixels_per_unit,
-                             {1, 0.4f, 0.1f});
-        // Place labels in screen space; stacked labels keep dense parking rows readable.
-        std::vector<Aabb> labels;
-        auto name = [&](std::string_view id, Vec2 position) {
-            const Vec2 anchor = runtime.camera.world_to_screen(world(position));
-            const float width = float(id.size()) * 6;
-            Vec2 label = anchor + Vec2{-width / 2, -16};
-            Aabb box{label - Vec2{3, 3}, label + Vec2{width + 3, 10}};
-            for (std::size_t attempt = 0; attempt <= labels.size(); ++attempt) {
-                bool overlap = false;
-                for (const auto &other : labels)
-                    if (box.overlaps(other))
-                        overlap = true;
-                if (!overlap)
-                    break;
-                label.y -= 14;
-                box = {label - Vec2{3, 3}, label + Vec2{width + 3, 10}};
-            }
-            labels.push_back(box);
-            runtime.line(runtime.camera.screen_to_world(anchor),
-                         runtime.camera.screen_to_world(label + Vec2{width / 2, 7}),
-                         1 / runtime.camera.pixels_per_unit, {.7f, .7f, .7f});
-            runtime.box(runtime.camera.screen_to_world(label + Vec2{width / 2, 4}),
-                        Vec2{width / 2 + 3, 7} / runtime.camera.pixels_per_unit, 0, {.025f, .035f, .06f});
-            draw_text(runtime, id, label, 1, {1, 1, 1});
-        };
-        for (const auto &m : simulation_->movers())
-            name(m.definition.id, shown(m));
-        for (const auto &p : simulation_->producers())
-            name(p.definition.id, p.definition.position);
+        runtime.begin(world_background);
+        // Outside debug mode the layers keep their selection but are not drawn.
+        draw_world(runtime, *simulation_, debug_ ? layers_ : hidden_layers, selected_mover_);
         if (statistics_) {
             const auto &c = simulation_->motion_settings();
             std::ostringstream stats;
