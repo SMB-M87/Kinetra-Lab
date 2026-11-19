@@ -39,7 +39,8 @@ void SimulationCore::configure_motion(MotionSettings settings) {
     if (int(settings.profile) < int(SteeringProfile::improved) ||
         int(settings.profile) > int(SteeringProfile::reciprocal) || !std::isfinite(settings.speed) ||
         settings.speed <= 0 || !std::isfinite(settings.force) || settings.force <= 0 ||
-        !std::isfinite(settings.horizon) || settings.horizon <= 0 || settings.horizon > 64)
+        !std::isfinite(settings.horizon) || settings.horizon <= 0 ||
+        settings.horizon > longest_motion_horizon)
         throw std::invalid_argument("Invalid motion settings");
     traffic_.configure(floor_, settings);
     for (auto &m : fleet_.movers) {

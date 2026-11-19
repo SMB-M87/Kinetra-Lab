@@ -34,8 +34,9 @@ class PredictivePassing {
     std::optional<Vec2> target(std::size_t mover) const;
 
     /// Ends every plan of `mover` with `PassingEnd::goal_changed`; called when it receives
-    /// a goal.
-    void cancel(const FloorPlan &floor, Fleet &fleet, std::size_t mover, std::uint64_t tick, EventLog &log);
+    /// a goal. The routes of both participants are planned again under `motion`.
+    void cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion, std::size_t mover,
+                std::uint64_t tick, EventLog &log);
 
     /// Advances and ends existing plans, forms new ones when passing is enabled, and sets
     /// the controls and `Coordination::passing` of every participant. Call after corridor
@@ -72,10 +73,10 @@ class PredictivePassing {
                   const Fleet &fleet, std::uint64_t tick, const kinetra::SpatialGrid &index, EventLog &log);
     bool lanes_clear(Plan &plan, const FloorPlan &floor, const Fleet &fleet,
                      const kinetra::SpatialGrid &index) const;
-    void end(std::size_t index, PassingEnd reason, const FloorPlan &floor, Fleet &fleet, std::uint64_t tick,
-             EventLog &log);
+    void end(std::size_t index, PassingEnd reason, const FloorPlan &floor, Fleet &fleet,
+             const MotionSettings &motion, std::uint64_t tick, EventLog &log);
     void restore_routes(std::array<std::size_t, 2> movers, const FloorPlan &floor, Fleet &fleet,
-                        std::uint64_t tick);
+                        const MotionSettings &motion, std::uint64_t tick);
     static void record(EventKind kind, const Plan &plan, std::uint64_t tick, EventLog &log,
                        std::optional<PassingEnd> end = {});
 };

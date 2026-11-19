@@ -10,12 +10,12 @@ namespace i4sim::detail {
 using namespace kinetra;
 void Goals::set(Mover &m, Vec2 target) {
     traffic.cancel_recovery(fleet, fleet.index(m), tick);
-    passing.cancel(floor, fleet, fleet.index(m), tick, log);
+    passing.cancel(floor, fleet, motion, fleet.index(m), tick, log);
     // A manual goal stays manual until arrival; a parking staging goal is replaced.
     if (m.goal == GoalKind::parking_staging)
         m.goal = GoalKind::automatic;
     m.destination = target;
-    m.route = plan_route(floor, fleet, fleet.index(m), target);
+    m.route = plan_route(floor, fleet, motion, fleet.index(m), target);
     m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
     auto &tracking = fleet.progress[fleet.index(m)];
     tracking.replan = tracking.no_progress = 0;

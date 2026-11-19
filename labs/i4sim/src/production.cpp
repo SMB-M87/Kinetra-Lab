@@ -114,7 +114,7 @@ std::vector<Vec2> Production::allocate_mover(Product &product, Vec2 goal, Goals 
             continue;
         const float cost = distance(m.body.position, goal);
         if (cost < best) {
-            auto candidate = plan_route(goals.floor, fleet, i, goal, true);
+            auto candidate = plan_route(goals.floor, fleet, goals.motion, i, goal, true);
             if (!candidate.empty()) {
                 best = cost;
                 product.mover = i;

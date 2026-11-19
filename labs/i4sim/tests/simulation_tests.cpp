@@ -1191,6 +1191,37 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
         "Parking traffic failed the MAS throughput/contact regression");
 }
 
+TEST_CASE("without path planning a mover steers straight at its goal and still needs a route") {
+    // In the H the top-left corner reaches the bottom-right one only through the middle bar,
+    // round two convex corners where a mover sliding along a wall must not stick.
+    Simulation s(load_blueprint(i4sim::test::showcase_blueprint("h-crossing")));
+    s.set_workload(false);
+    // The bottom-right mover first clears the corner the top-left one drives to.
+    REQUIRE(s.move_to(3, {1323.75f, 480}));
+    s.run();
+    for (int tick = 0; tick < 1000 && s.movers()[3].moving(); ++tick)
+        s.tick();
+    REQUIRE(s.movers()[3].lifecycle == MoverLifecycle::idle);
+    s.pause();
+    const Vec2 goal{1323.75f, 843.75f};
+    REQUIRE(s.move_to(0, goal));
+    CHECK_MESSAGE(s.movers()[0].route.size() > 1, "With path planning the route leads round the walls");
+    auto motion = s.motion_settings();
+    motion.path_planning = false;
+    s.configure_motion(motion);
+    REQUIRE(s.movers()[0].route.size() == 1);
+    CHECK((s.movers()[0].route.front().x == goal.x && s.movers()[0].route.front().y == goal.y));
+    // (720, 120) lies in the forbidden top bar of the H: no route, so no goal.
+    CHECK_FALSE(s.move_to(1, {720, 120}));
+    CHECK(s.movers()[1].lifecycle == MoverLifecycle::idle);
+    s.run();
+    for (int tick = 0; tick < 3000 && s.movers()[0].moving(); ++tick)
+        s.tick();
+    CHECK_MESSAGE(s.movers()[0].lifecycle == MoverLifecycle::idle, "The mover stuck on the way");
+    CHECK((s.movers()[0].body.position.x == goal.x && s.movers()[0].body.position.y == goal.y));
+    CHECK(s.collisions() == 0);
+}
+
 TEST_CASE("manual goals and single steps work under every profile and invalid motion settings are rejected") {
     Simulation probe(fixture());
     probe.set_workload(false);
@@ -1462,10 +1493,15 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
          [](MotionSettings &m) { m.corridor_traffic = true; },
          {{1900, 700}, {300, 700}}},
         {"predictive-passing", SteeringProfile::reciprocal, passing, {{1900, 800}, {500, 800}}},
-        // The four corners of the H swap diagonally.
+        // The four corners of the H swap diagonally, steering straight at their goals.
         {"h-crossing",
          SteeringProfile::improved,
-         passing,
+         [](MotionSettings &m) {
+             m.path_planning = false;
+             m.heatmap = false;
+             m.force = .5f;
+             m.horizon = 16;
+         },
          {{1323.75f, 843.75f}, {1323.75f, 116.25f}, {116.25f, 843.75f}, {116.25f, 116.25f}}},
     };
     // Long enough for the shuttling scenes to turn at least once.
@@ -1604,7 +1640,11 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
         apply_scenario(*scenario, s);
         s.run();
         // A leg runs from one turn to the next; count the legs in which traffic coordination
-        // stepped in, which is the situation the scene exists to show.
+        // stepped in, which is the situation a scene with a coordination feature exists to
+        // show. A scene without one (the H) shows steering alone.
+        const auto &motion = scenario->motion;
+        const bool coordinates =
+            motion.junction_traffic || motion.corridor_traffic || motion.predictive_passing;
         constexpr int wanted_legs = 4;
         int legs = 0, coordinated_legs = 0;
         bool coordinated = false, under_way = true;
@@ -1625,11 +1665,47 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
             under_way = !idle;
         }
         CHECK_MESSAGE(legs == wanted_legs, "The scene did not complete its legs");
-        CHECK_MESSAGE(coordinated_legs == wanted_legs, "A leg did not show the traffic situation again");
+        CHECK_MESSAGE(coordinated_legs == (coordinates ? wanted_legs : 0),
+                      "A leg did not show the traffic situation again");
         CHECK(s.collisions() == 0);
         for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
             CHECK(s.shuttling(mover));
     }
+}
+
+TEST_CASE("the h-crossing scene completes its legs without contacts when a mover starts late") {
+    // The scene runs without path planning; a mover that starts late meets the others at
+    // other places and other moments than the scene does. None of them may lock or touch.
+    const auto file = i4sim::test::showcase_blueprint("h-crossing");
+    const auto scenario = load_scenario(file);
+    REQUIRE(scenario);
+    REQUIRE_FALSE(scenario->motion.path_planning);
+    for (std::size_t late = 0; late < 4; ++late)
+        for (const std::uint64_t delay : {0, 50, 150, 300}) {
+            CAPTURE(late);
+            CAPTURE(delay);
+            Simulation s(load_blueprint(file));
+            apply_scenario(*scenario, s);
+            if (delay > 0)
+                s.toggle_mover(late);
+            s.run();
+            // Out and back: the second leg starts from the state the first one left.
+            constexpr int wanted_legs = 2;
+            int legs = 0;
+            bool under_way = true;
+            while (legs < wanted_legs && s.ticks() < 8000) {
+                s.tick();
+                if (s.ticks() == delay)
+                    s.toggle_mover(late);
+                const bool idle = std::all_of(s.movers().begin(), s.movers().end(), [](const Mover &m) {
+                    return m.lifecycle == MoverLifecycle::idle;
+                });
+                legs += under_way && idle;
+                under_way = !idle;
+            }
+            CHECK_MESSAGE(legs == wanted_legs, "The movers locked");
+            CHECK(s.collisions() == 0);
+        }
 }
 
 TEST_CASE("a restarting scene is due once its movers have stood still for the pause") {
@@ -1722,6 +1798,23 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     const auto restarting = load_scenario(with_scenario(R"({"Repeat": "Restart"})"));
     REQUIRE(restarting);
     CHECK(restarting->repeat == ScenarioRepeat::restart);
+    CHECK(loaded->motion.path_planning);
+    CHECK(loaded->motion.speed == MotionSettings{}.speed);
+    CHECK(load_error(with_scenario(R"({"motion": {"pathPlanning": "no"}})"))
+              .find("pathplanning must be true or false") != std::string::npos);
+    CHECK(load_error(with_scenario(R"({"motion": {"speed": 0}})")).find("speed must be a positive number") !=
+          std::string::npos);
+    CHECK(load_error(with_scenario(R"({"motion": {"force": "soft"}})"))
+              .find("force must be a positive number") != std::string::npos);
+    CHECK(load_error(with_scenario(R"({"motion": {"horizon": 65}})"))
+              .find("horizon must be a positive number of at most 64") != std::string::npos);
+    const auto tuned = load_scenario(
+        with_scenario(R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64}})"));
+    REQUIRE(tuned);
+    CHECK_FALSE(tuned->motion.path_planning);
+    CHECK(tuned->motion.speed == 2.5f);
+    CHECK(tuned->motion.force == 0.25f);
+    CHECK(tuned->motion.horizon == 64);
 }
 
 TEST_CASE("every bundled blueprint expands its groups and starts paused") {

@@ -2,8 +2,10 @@
 #include "json_fields.h"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <initializer_list>
+#include <limits>
 #include <stdexcept>
 #include <string_view>
 
@@ -38,6 +40,20 @@ bool flag(const Json &object, const char *key, bool fallback) {
         throw std::runtime_error(std::string(key) + " must be true or false");
     return object.at(key).get<bool>();
 }
+/// The motion parameter `key` of `object`, or `fallback` when it is absent. Checked here, with
+/// the limits `Simulation::configure_motion` enforces, so the error names the file.
+float parameter(const Json &object, const char *key, float fallback, float most) {
+    if (!object.contains(key))
+        return fallback;
+    const auto &value = object.at(key);
+    const float result = value.is_number() ? value.get<float>() : 0;
+    if (!value.is_number() || !std::isfinite(result) || result <= 0 || result > most)
+        throw std::runtime_error(std::string(key) + " must be a positive number" +
+                                 (most < std::numeric_limits<float>::max()
+                                      ? " of at most " + std::to_string(int(most))
+                                      : std::string()));
+    return result;
+}
 SteeringProfile profile(const Json &value) {
     if (!value.is_string())
         throw std::runtime_error("profile must be a string");
@@ -53,18 +69,23 @@ SteeringProfile profile(const Json &value) {
 }
 MotionSettings motion(const Json &object) {
     only_keys(object,
-              {"profile", "heatmap", "recovery", "parkingtraffic", "junctiontraffic", "corridortraffic",
-               "predictivepassing"},
+              {"profile", "pathplanning", "heatmap", "recovery", "parkingtraffic", "junctiontraffic",
+               "corridortraffic", "predictivepassing", "speed", "force", "horizon"},
               "scenario.motion");
     MotionSettings settings;
     if (object.contains("profile"))
         settings.profile = profile(object.at("profile"));
+    settings.path_planning = flag(object, "pathplanning", settings.path_planning);
     settings.heatmap = flag(object, "heatmap", settings.heatmap);
     settings.recovery = flag(object, "recovery", settings.recovery);
     settings.parking_traffic = flag(object, "parkingtraffic", settings.parking_traffic);
     settings.junction_traffic = flag(object, "junctiontraffic", settings.junction_traffic);
     settings.corridor_traffic = flag(object, "corridortraffic", settings.corridor_traffic);
     settings.predictive_passing = flag(object, "predictivepassing", settings.predictive_passing);
+    const float unbounded = std::numeric_limits<float>::max();
+    settings.speed = parameter(object, "speed", settings.speed, unbounded);
+    settings.force = parameter(object, "force", settings.force, unbounded);
+    settings.horizon = parameter(object, "horizon", settings.horizon, longest_motion_horizon);
     return settings;
 }
 ScenarioRepeat repeat(const Json &value) {

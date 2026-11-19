@@ -27,8 +27,9 @@ constexpr float pan_speed = 400;
 /// Longest frame time that still moves the camera its full distance, in seconds: after a
 /// hitch the view does not jump.
 constexpr double longest_pan_frame = 0.1;
-/// Factor of one SPEED or FORCE step, and the range of the horizon in ticks.
-constexpr float parameter_step = 1.25f, shortest_horizon = 1, longest_horizon = 64;
+/// Factor of one SPEED or FORCE step, and the shortest horizon in ticks; the longest is
+/// `longest_motion_horizon`.
+constexpr float parameter_step = 1.25f, shortest_horizon = 1;
 /// What RESET PARAMETERS sets: the original factory's speed in millimeters per tick and
 /// force in millimeters per tick squared, which are also the defaults of MotionSettings,
 /// and a horizon in ticks. The horizon is shorter than the default of 32 a new simulation
@@ -48,8 +49,33 @@ const char *profile_name(SteeringProfile profile) {
     }
 }
 
-const char *planner_name(bool heatmap) {
-    return heatmap ? "HEAT A*" : "A*";
+/// The choices of the PLANNER list, in menu order: two settings of MotionSettings shown as
+/// one list, because the heatmap only matters while routes are planned.
+enum class Planner { heat_astar, astar, off };
+
+Planner planner(const MotionSettings &motion) {
+    if (!motion.path_planning)
+        return Planner::off;
+    return motion.heatmap ? Planner::heat_astar : Planner::astar;
+}
+
+const char *planner_name(Planner planner) {
+    switch (planner) {
+    case Planner::astar:
+        return "A*";
+    case Planner::off:
+        return "OFF";
+    default:
+        return "HEAT A*";
+    }
+}
+
+/// Sets `motion` to `choice`. OFF keeps the heatmap setting, so choosing a planner again
+/// later restores the costs it had.
+void choose_planner(MotionSettings &motion, Planner choice) {
+    motion.path_planning = choice != Planner::off;
+    if (choice != Planner::off)
+        motion.heatmap = choice == Planner::heat_astar;
 }
 
 /// A motion parameter for a menu row: three significant digits, so even the largest float
@@ -422,19 +448,19 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
                                .active = [motion, profile] { return motion().profile == profile; },
                                .depth = 2});
     entries.push_back(list_heading("PLANNER", MenuList::planner,
-                                   [motion] { return std::string(planner_name(motion().heatmap)); }));
+                                   [motion] { return std::string(planner_name(planner(motion()))); }));
     if (open_list_ == MenuList::planner)
-        for (const bool heatmap : {true, false})
-            entries.push_back({.label = planner_name(heatmap),
+        for (const auto choice : {Planner::heat_astar, Planner::astar, Planner::off})
+            entries.push_back({.label = planner_name(choice),
                                .action =
-                                   [this, heatmap] {
-                                       if (simulation_->motion_settings().heatmap != heatmap)
+                                   [this, choice] {
+                                       if (planner(simulation_->motion_settings()) != choice)
                                            change_motion(
-                                               [heatmap](MotionSettings &m) { m.heatmap = heatmap; });
+                                               [choice](MotionSettings &m) { choose_planner(m, choice); });
                                        open_list_ = MenuList::none;
                                    },
                                .kind = EntryKind::choice,
-                               .active = [motion, heatmap] { return motion().heatmap == heatmap; },
+                               .active = [motion, choice] { return planner(motion()) == choice; },
                                .depth = 2});
     entries.push_back(motion_check("RECOVERY", &MotionSettings::recovery));
     entries.push_back(motion_number(
@@ -448,7 +474,7 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
     entries.push_back(motion_number(
         "HORIZON", [motion] { return number_text(motion().horizon); },
         [](MotionSettings &m) { m.horizon = std::max(shortest_horizon, m.horizon - 1); },
-        [](MotionSettings &m) { m.horizon = std::min(longest_horizon, m.horizon + 1); }));
+        [](MotionSettings &m) { m.horizon = std::min(longest_motion_horizon, m.horizon + 1); }));
     entries.push_back({.label = "RESET PARAMETERS",
                        .action =
                            [this] {
