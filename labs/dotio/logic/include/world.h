@@ -69,7 +69,7 @@ class World {
     /// Shift the local navigation/physics window before the player reaches its edge.
     gmath::Vec2 StreamAroundPlayer();
     gmath::Vec2 WorldOffset() const {
-        return {offset_column_ * Grid::CellSize, offset_row_ * Grid::CellSize};
+        return {float(offset_column_) * Grid::CellSize, float(offset_row_) * Grid::CellSize};
     }
     int TerrainCell(int row, int column) const {
         return Grid::TerrainCell(seed_, row + offset_row_, column + offset_column_);

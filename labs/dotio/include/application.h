@@ -132,7 +132,7 @@ class Application {
                     continue;
                 kinetra::Body wall;
                 wall.shape = kinetra::Shape::box;
-                wall.position = {(col + 0.5f) * cell, (row + 0.5f) * cell};
+                wall.position = {(float(col) + 0.5f) * cell, (float(row) + 0.5f) * cell};
                 wall.half_extents = {cell / 2, cell / 2};
                 if (kinetra::collide(candidate, wall))
                     return false;
