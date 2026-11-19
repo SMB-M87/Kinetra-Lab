@@ -48,8 +48,33 @@ const char *profile_name(SteeringProfile profile) {
     }
 }
 
-const char *planner_name(bool heatmap) {
-    return heatmap ? "HEAT A*" : "A*";
+/// The choices of the PLANNER list, in menu order: two settings of MotionSettings shown as
+/// one list, because the heatmap only matters while routes are planned.
+enum class Planner { heat_astar, astar, off };
+
+Planner planner(const MotionSettings &motion) {
+    if (!motion.path_planning)
+        return Planner::off;
+    return motion.heatmap ? Planner::heat_astar : Planner::astar;
+}
+
+const char *planner_name(Planner planner) {
+    switch (planner) {
+    case Planner::astar:
+        return "A*";
+    case Planner::off:
+        return "OFF";
+    default:
+        return "HEAT A*";
+    }
+}
+
+/// Sets `motion` to `choice`. OFF keeps the heatmap setting, so choosing a planner again
+/// later restores the costs it had.
+void choose_planner(MotionSettings &motion, Planner choice) {
+    motion.path_planning = choice != Planner::off;
+    if (choice != Planner::off)
+        motion.heatmap = choice == Planner::heat_astar;
 }
 
 /// A motion parameter for a menu row: three significant digits, so even the largest float
@@ -422,19 +447,19 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
                                .active = [motion, profile] { return motion().profile == profile; },
                                .depth = 2});
     entries.push_back(list_heading("PLANNER", MenuList::planner,
-                                   [motion] { return std::string(planner_name(motion().heatmap)); }));
+                                   [motion] { return std::string(planner_name(planner(motion()))); }));
     if (open_list_ == MenuList::planner)
-        for (const bool heatmap : {true, false})
-            entries.push_back({.label = planner_name(heatmap),
+        for (const auto choice : {Planner::heat_astar, Planner::astar, Planner::off})
+            entries.push_back({.label = planner_name(choice),
                                .action =
-                                   [this, heatmap] {
-                                       if (simulation_->motion_settings().heatmap != heatmap)
+                                   [this, choice] {
+                                       if (planner(simulation_->motion_settings()) != choice)
                                            change_motion(
-                                               [heatmap](MotionSettings &m) { m.heatmap = heatmap; });
+                                               [choice](MotionSettings &m) { choose_planner(m, choice); });
                                        open_list_ = MenuList::none;
                                    },
                                .kind = EntryKind::choice,
-                               .active = [motion, heatmap] { return motion().heatmap == heatmap; },
+                               .active = [motion, choice] { return planner(motion()) == choice; },
                                .depth = 2});
     entries.push_back(motion_check("RECOVERY", &MotionSettings::recovery));
     entries.push_back(motion_number(

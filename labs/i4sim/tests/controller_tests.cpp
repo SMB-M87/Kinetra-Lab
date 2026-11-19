@@ -673,16 +673,25 @@ TEST_CASE("choosing the current value only closes the list") {
     CHECK(controller.message().empty());
 }
 
-TEST_CASE("the planner list chooses between heat A* and A*") {
+TEST_CASE("the planner list chooses between heat A*, A* and no path planning") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     open_section(controller, "MOTION");
+    const auto motion = [&]() -> const i4sim::MotionSettings & {
+        return controller.simulation().motion_settings();
+    };
     CHECK(entry(controller, "PLANNER").value() == "HEAT A*");
     choose_value(controller, "PLANNER", "A*");
-    CHECK_FALSE(controller.simulation().motion_settings().heatmap);
+    CHECK_FALSE(motion().heatmap);
+    CHECK(motion().path_planning);
     CHECK(entry(controller, "PLANNER").value() == "A*");
+    choose_value(controller, "PLANNER", "OFF");
+    CHECK_FALSE(motion().path_planning);
+    CHECK_MESSAGE(!motion().heatmap, "OFF keeps the heatmap setting for when planning returns");
+    CHECK(entry(controller, "PLANNER").value() == "OFF");
     choose_value(controller, "PLANNER", "HEAT A*");
-    CHECK(controller.simulation().motion_settings().heatmap);
+    CHECK(motion().path_planning);
+    CHECK(motion().heatmap);
 }
 
 TEST_CASE("a list closes with its section") {

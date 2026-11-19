@@ -36,11 +36,11 @@ std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {
 }
 
 void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const FloorPlan &floor, Fleet &fleet,
-                                       std::uint64_t tick) {
+                                       const MotionSettings &motion, std::uint64_t tick) {
     for (auto id : ids) {
         auto &m = fleet.movers[id];
         m.coordination.passing = false;
-        m.route = plan_route(floor, fleet, id, m.destination);
+        m.route = plan_route(floor, fleet, motion, id, m.destination);
         m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
         auto &tracking = fleet.progress[id];
         tracking.no_progress = tracking.replan = 0;
@@ -66,22 +66,22 @@ void PredictivePassing::record(EventKind kind, const Plan &plan, std::uint64_t t
 }
 
 void PredictivePassing::end(std::size_t index, PassingEnd reason, const FloorPlan &floor, Fleet &fleet,
-                            std::uint64_t tick, EventLog &log) {
+                            const MotionSettings &motion, std::uint64_t tick, EventLog &log) {
     record(EventKind::passing_ended, plans_[index], tick, log, reason);
     const auto ids = plans_[index].movers;
     plans_.erase(plans_.begin() + std::ptrdiff_t(index));
-    restore_routes(ids, floor, fleet, tick);
+    restore_routes(ids, floor, fleet, motion, tick);
 }
 
-void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, std::size_t mover, std::uint64_t tick,
-                               EventLog &log) {
+void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
+                               std::size_t mover, std::uint64_t tick, EventLog &log) {
     for (std::size_t i = 0; i < plans_.size();) {
         const auto ids = plans_[i].movers;
         if (mover != ids[0] && mover != ids[1]) {
             ++i;
             continue;
         }
-        end(i, PassingEnd::goal_changed, floor, fleet, tick, log);
+        end(i, PassingEnd::goal_changed, floor, fleet, motion, tick, log);
     }
 }
 
@@ -136,7 +136,7 @@ void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, cons
         if (!end_reason && arrived && plan.crossing)
             end_reason = PassingEnd::completed;
         if (end_reason) {
-            end(i, *end_reason, floor, fleet, tick, log);
+            end(i, *end_reason, floor, fleet, motion, tick, log);
             continue;
         }
         if (arrived) {

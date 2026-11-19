@@ -48,10 +48,12 @@ template <class Clear> std::vector<Vec2> shortest_clear_path(const std::vector<V
     return {};
 }
 } // namespace
-std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 target,
-                             bool require_departure) {
+std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
+                             std::size_t mover, Vec2 target, bool require_departure) {
     const auto &m = fleet.movers[mover];
     auto route = floor.grid().path(m.body.position, target, m.body.half_extents);
+    if (!motion.path_planning && !route.empty())
+        return {target};
     if (route.empty() || (!require_departure && distance(target, m.parking) > same_point_mm &&
                           fleet.progress[mover].no_progress < obstruction_ticks))
         return route;
