@@ -41,6 +41,8 @@ Build and test (the first configure downloads SDL2 and nlohmann_json once per bu
 cmake --workflow --preset windows
 ```
 
+`./build.sh` also builds `build-windows/` whenever `x86_64-w64-mingw32-g++`, Ninja and ccache are on `PATH`, after the Linux builds. It only builds; run the Windows tests with `ctest --preset windows`.
+
 Run from WSL; interop starts the `.exe` as a Windows process:
 
 ```sh

@@ -18,8 +18,19 @@ refresh_moved_cache() {
     fi
 }
 
+# Prints the tools the Windows cross build needs but cannot find; empty when all are present.
+missing_windows_tools() {
+    local tool missing=()
+    # The `windows` preset uses the MinGW-w64 toolchain file, Ninja and ccache.
+    for tool in x86_64-w64-mingw32-g++ ninja ccache; do
+        command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+    done
+    echo "${missing[*]}"
+}
+
 refresh_moved_cache build-core "$repo_dir/external/Kinetra"
 refresh_moved_cache build "$repo_dir"
+refresh_moved_cache build-windows "$repo_dir"
 
 cmake -S external/Kinetra -B build-core \
     -DCMAKE_BUILD_TYPE=Release
@@ -31,5 +42,16 @@ cmake -S . -B build \
     -DKINETRA_SOURCE_DIR="$repo_dir/external/Kinetra"
 cmake --build build -j2
 ctest --test-dir build --output-on-failure
+
+# Windows executables are only built, not tested: the tests would run through
+# WSL interop and open graphics windows on the Windows desktop.
+missing="$(missing_windows_tools)"
+if [[ -z "$missing" ]]; then
+    cmake --preset windows
+    cmake --build --preset windows
+    echo "✓ Windows-build geslaagd: build-windows/"
+else
+    echo "Windows-build overgeslagen; ontbreekt: $missing"
+fi
 
 echo "✓ Build en tests geslaagd!"
