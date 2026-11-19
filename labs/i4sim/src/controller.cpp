@@ -27,7 +27,8 @@ constexpr float pan_speed = 400;
 /// Longest frame time that still moves the camera its full distance, in seconds: after a
 /// hitch the view does not jump.
 constexpr double longest_pan_frame = 0.1;
-/// Factor of one SPEED or FORCE step, and the range of the horizon in ticks.
+/// Factor of one SPEED or FORCE step, and the shortest horizon in ticks; the longest is
+/// `longest_motion_horizon`.
 constexpr float parameter_step = 1.25f, shortest_horizon = 1;
 /// What RESET PARAMETERS sets: the original factory's speed in millimeters per tick and
 /// force in millimeters per tick squared, which are also the defaults of MotionSettings,
