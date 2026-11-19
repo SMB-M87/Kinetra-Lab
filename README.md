@@ -126,7 +126,7 @@ ctest --test-dir build --output-on-failure
 
 With the presets, `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`. CI ([ci.yml](.github/workflows/ci.yml)) checks formatting with clang-format, runs `python3 external/Kinetra/tools/check_docs.py`, then `cmake --workflow --preset headless` and `cmake --workflow --preset ci`; a second job builds and tests on Windows ([Windows](docs/windows.md#continuous-integration)). All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
 
-`./build.sh` builds and tests both Kinetra and Lab. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
+`./build.sh` builds and tests both Kinetra and Lab. When the MinGW-w64 cross compiler, Ninja and ccache are installed, it also builds the Windows executables in `build-windows/` without running their tests ([Windows](docs/windows.md#quick-start-from-wsl)); otherwise it says it skipped them. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
 In every application, Ctrl or the SETTINGS button opens the shared settings panel (zoom, statistics, Debug Mode, controls, Launcher and Exit) and pauses the run. The full controls are in the [Demo](labs/demo/README.md#controls), [Dotio](labs/dotio/README.md#launch-and-controls) and [i4sim](labs/i4sim/README.md#controls) guides.
 
