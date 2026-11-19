@@ -206,7 +206,7 @@ void SimulationCore::coordinate_predictive_passing(const SpatialGrid &index) {
                                 if (other != a && other != b &&
                                     sweep_translation(moving, to - from, fleet_.movers[other].body))
                                     clear = false;
-                            for (const auto &zone : traffic_zones_) {
+                            for (const auto &zone : floor_.zones()) {
                                 Body obstacle;
                                 obstacle.shape = Shape::box;
                                 obstacle.motion = Motion::fixed;

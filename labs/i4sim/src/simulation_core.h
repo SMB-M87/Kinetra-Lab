@@ -3,6 +3,7 @@
 #include "fleet.h"
 #include "floor_plan.h"
 #include "simulation.h"
+#include "traffic.h"
 
 #include <kinetra/spatial_grid.h>
 #include <kinetra/timing.h>
@@ -130,31 +131,13 @@ class SimulationCore {
     void restore_passing_routes(std::array<std::size_t, 2> movers);
     void cancel_predictive_passing(Mover &mover);
     void coordinate_predictive_passing(const kinetra::SpatialGrid &index);
-    struct ExitReservation {
-        std::uint64_t agent;
-        kinetra::Aabb area;
-    };
-    struct CorridorRecovery {
-        std::size_t yielding, passing;
-        Vec2 refuge, hold;
-        std::vector<Vec2> route;
-        bool yielded{};
-    };
-    struct TrafficZone {
-        Vec2 center, half_extents;
-        bool corridor{}, vertical{};
-        kinetra::TrafficGate gate;
-        std::optional<ExitReservation> exit;
-        std::optional<CorridorRecovery> recovery;
-        std::uint64_t retry_at{};
-    };
-    std::vector<TrafficZone> traffic_zones_;
     MotionSettings motion_;
     std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{};
     Blueprint blueprint_;
     FloorPlan floor_;
+    Traffic traffic_;
     Fleet fleet_;
     std::vector<Producer> producers_;
     std::vector<Product> products_, completed_products_;
@@ -172,9 +155,6 @@ class SimulationCore {
     bool parking_conflict(const Mover &mover, Vec2 position) const;
     void coordinate_parking();
     bool prepare_route(Mover &mover);
-    std::optional<kinetra::Aabb> traffic_exit(const Mover &mover, const TrafficZone &junction) const;
-    void cancel_corridor_recovery(Mover &mover);
-    void recover_corridors(const kinetra::SpatialGrid &index);
     void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
     void schedule(Product &product);
     void move_agents();
