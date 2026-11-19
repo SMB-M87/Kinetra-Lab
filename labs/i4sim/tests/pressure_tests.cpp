@@ -69,8 +69,8 @@ std::string outcome(const Recorder &recorder, const Simulation &simulation, cons
     }
     std::size_t arrived = 0;
     for (const auto &mover : simulation.movers()) {
-        fingerprint.add(std::uint64_t{mover.moving});
-        arrived += !mover.moving && kinetra::distance(mover.body.position, mover.destination) < 0.1f;
+        fingerprint.add(std::uint64_t{mover.moving()});
+        arrived += !mover.moving() && kinetra::distance(mover.body.position, mover.destination) < 0.1f;
     }
     const auto passing_contacts =
         std::count_if(events.begin(), events.end(), [](const SimulationEvent &event) {
@@ -102,7 +102,7 @@ std::string run(const Scenario &scenario, SteeringProfile profile, const Watch &
     Simulation simulation(load_blueprint(std::filesystem::path(__FILE__).parent_path() /
                                          (std::string(scenario.fixture) + ".json")));
     REQUIRE(simulation.movers().size() == scenario.goals.size());
-    simulation.workload = false;
+    simulation.set_workload(false);
     MotionSettings motion;
     motion.profile = profile;
     motion.predictive_passing = true;
@@ -112,7 +112,7 @@ std::string run(const Scenario &scenario, SteeringProfile profile, const Watch &
         REQUIRE_MESSAGE(simulation.move_to(mover, scenario.goals[mover]),
                         "Goal of mover " << mover << " rejected");
     simulation.record_events(true);
-    simulation.paused = false;
+    simulation.run();
     Recorder recorder;
     FlowMetrics flow;
     for (std::uint64_t tick = 0; tick < scenario.ticks; ++tick) {

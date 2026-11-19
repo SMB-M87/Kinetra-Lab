@@ -45,7 +45,7 @@ class Recorder {
         double distance_mm = 0;
         for (const auto &mover : simulation.movers()) {
             distance_mm += mover.distance;
-            state.add(std::uint64_t{mover.moving});
+            state.add(std::uint64_t{mover.moving()});
             state.add(mover.product.value_or(0));
         }
         std::uint64_t interactions = 0;

@@ -83,7 +83,7 @@ Debug View offers grid, heatmap, routes, force vectors, boundaries, detection an
 pause, single tick, workload, framing and blueprint selection. Debug Motion offers Improved,
 Original Basic, experimental RVO and experimental Reciprocal steering, A*/heatmap A*, optional geometric route recovery,
 speed, acceleration and lookahead adjustments with parameter reset (default lookahead: 32 ticks).
-Pause before changing motion configuration. Factory assignments and positions survive configuration changes; routes are rebuilt.
+Motion configuration can change while the factory runs. Factory assignments and positions survive configuration changes; routes are rebuilt.
 
 Manual goals reserve only their mover until arrival; busy movers reject them. Invalid goals
 leave the current goal intact. Other movers continue their factory work.

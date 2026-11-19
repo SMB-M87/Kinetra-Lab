@@ -12,6 +12,24 @@
 namespace i4sim {
 namespace {
 using namespace kinetra;
+/// HUD text for a selected mover's status.
+const char *status_text(MoverStatus status) {
+    switch (status) {
+    case MoverStatus::held:
+        return "BLOCKED";
+    case MoverStatus::corridor_retreat:
+        return "CORRIDOR RETREAT";
+    case MoverStatus::passing_detour:
+        return "PASSING DETOUR";
+    case MoverStatus::unreachable:
+        return "UNREACHABLE";
+    case MoverStatus::allocated:
+        return "ALLOCATED";
+    case MoverStatus::available:
+        return "IDLE - SHIFT CLICK GOAL";
+    }
+    return "";
+}
 Vec2 world(Vec2 p) {
     return {p.x, -p.y};
 }
@@ -28,6 +46,7 @@ class FactorySession final : public lab::Session {
     std::unique_ptr<LaunchMenu> loadscreen_;
     std::unique_ptr<Simulation> simulation_;
     bool back_{}, exit_{}, fitted_{}, running_{};
+    bool workload_{true};
     DebugMenu menu_;
     bool statistics_{true}, debug_{true}, contacts_{true}, frame_times_{};
     // Declared after the flags it borrows.
@@ -40,10 +59,8 @@ class FactorySession final : public lab::Session {
     unsigned page_{};
     lab::ModalPause pause_;
     void change_motion(const std::function<void(MotionSettings &)> &change) {
-        const bool was_paused = simulation_->paused;
         auto config = simulation_->motion_settings();
         change(config);
-        simulation_->paused = true;
         try {
             simulation_->configure_motion(config);
             error_.clear();
@@ -51,10 +68,18 @@ class FactorySession final : public lab::Session {
             error_ = e.what();
             error_remaining_ = 4;
         }
-        simulation_->paused = was_paused;
+    }
+    /// Starts a paused simulation or pauses a running one; a finished one stays finished.
+    void toggle_pause() {
+        if (simulation_->running())
+            simulation_->pause();
+        else
+            simulation_->run();
     }
     std::vector<DebugOption> options() {
         std::vector<DebugOption> rows;
+        // The menu toggles a borrowed bool; advance() copies it back into the simulation.
+        workload_ = simulation_->workload();
         rows.push_back({page_ ? "PAGE: MOTION" : "PAGE: VIEW", nullptr, [this] { page_ = 1 - page_; }});
         if (!page_) {
             rows.push_back({"GRID", &grid_});
@@ -64,9 +89,9 @@ class FactorySession final : public lab::Session {
             rows.push_back({"BORDERS", &borders_});
             rows.push_back({"DETECTION", &detection_});
             rows.push_back({"CONTACT SHAPES", &contacts_});
-            rows.push_back({"PAUSE / RUN", nullptr, [this] { simulation_->paused = !simulation_->paused; }});
+            rows.push_back({"PAUSE / RUN", nullptr, [this] { toggle_pause(); }});
             rows.push_back({"SINGLE TICK", nullptr, [this] { simulation_->single_step(); }});
-            rows.push_back({"WORKLOAD", &simulation_->workload});
+            rows.push_back({"WORKLOAD", &workload_});
             rows.push_back({"FRAME SCENE", nullptr, [this] { fitted_ = false; }});
             rows.push_back({"BLUEPRINTS", nullptr, [this] { back_to_blueprints_ = true; }});
         } else {
@@ -201,7 +226,8 @@ class FactorySession final : public lab::Session {
                 apply_scenario(*scenario, *next);
             simulation_ = std::move(next);
             scenario_ = std::move(scenario);
-            simulation_->paused = !running_;
+            if (running_)
+                simulation_->run();
             simulation_->updates_per_second(ups_);
             selected_mover_.reset();
             selected_producer_.reset();
@@ -299,7 +325,10 @@ class FactorySession final : public lab::Session {
                 error_.clear();
         }
         const bool modal = settings_.update(input, camera);
-        simulation_->paused = pause_.update(settings_.visible(), simulation_->paused);
+        if (pause_.update(settings_.visible(), !simulation_->running()))
+            simulation_->pause();
+        else
+            simulation_->run();
         if (modal) {
             menu_.visible = false;
             return;
@@ -310,8 +339,10 @@ class FactorySession final : public lab::Session {
         const bool captured = debug_ && settings_.update_debug(input, camera.viewport, menu_, rows);
         if (!fitted_)
             fit(camera);
+        if (captured)
+            simulation_->set_workload(workload_);
         if (input.hit(Key::p) || input.hit(Key::space))
-            simulation_->paused = !simulation_->paused;
+            toggle_pause();
         if (input.hit(Key::r)) {
             const auto config = simulation_->motion_settings();
             simulation_ = std::make_unique<Simulation>(simulation_->blueprint(), seed_);
@@ -338,7 +369,7 @@ class FactorySession final : public lab::Session {
             selected_producer_.reset();
         }
         if (input.hit(Key::g))
-            simulation_->workload = !simulation_->workload;
+            simulation_->set_workload(!simulation_->workload());
         if (input.hit(Key::f))
             fit(camera);
         if (input.hit(Key::one))
@@ -441,7 +472,7 @@ class FactorySession final : public lab::Session {
             const Vec2 position = shown(m);
             const auto center = world(position);
             runtime.box(center, m.body.half_extents, 0,
-                        (m.blocked || m.contacting) ? Color{1, 0, 0} : Color{.7f, .7f, .7f});
+                        (m.held || m.contacting) ? Color{1, 0, 0} : Color{.7f, .7f, .7f});
             if (selected_mover_ == i)
                 runtime.circle(center, 6 / runtime.camera.pixels_per_unit, {1, 1, 0});
             if (debug_ && contacts_)
@@ -539,7 +570,7 @@ class FactorySession final : public lab::Session {
                 stats << " RETREAT " << simulation_->corridor_recovering();
             draw_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
             std::ostringstream motion;
-            motion << (simulation_->paused ? "PAUSED" : "RUNNING") << " SPEED " << c.speed << " FORCE "
+            motion << (simulation_->running() ? "RUNNING" : "PAUSED") << " SPEED " << c.speed << " FORCE "
                    << c.force << " HORIZON " << c.horizon;
             if (c.profile == SteeringProfile::reciprocal)
                 motion << " AVOID LIMIT " << simulation_->avoidance_limited();
@@ -559,21 +590,12 @@ class FactorySession final : public lab::Session {
             const auto &m = simulation_->movers()[*selected_mover_];
             std::ostringstream text;
             text << m.definition.id << " | DISTANCE " << int(m.distance) << " MM | CONTACT TICKS "
-                 << m.collision_ticks << " | "
-                 << (m.blocked               ? "BLOCKED"
-                     : m.corridor_retreating ? "CORRIDOR RETREAT"
-                     : m.passing_detour      ? "PASSING DETOUR"
-                     : m.unreachable         ? "UNREACHABLE"
-                     : m.product             ? "ALLOCATED"
-                                             : "IDLE - SHIFT CLICK GOAL");
+                 << m.collision_ticks << " | " << status_text(mover_status(m));
             draw_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
-                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting &&
-                                !m.passing_detour
-                            ? " STALLED"
-                            : "");
+                    << (simulation_->stalled(*selected_mover_) ? " STALLED" : "");
             draw_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {
@@ -606,7 +628,7 @@ class FactorySession final : public lab::Session {
     std::string status() override {
         if (!simulation_)
             return error_.empty() ? "Loadscreen" : "Loadscreen | " + error_;
-        return simulation_->blueprint().name + (simulation_->paused ? " | PAUSED" : " | RUNNING");
+        return simulation_->blueprint().name + (simulation_->running() ? " | RUNNING" : " | PAUSED");
     }
 };
 } // namespace

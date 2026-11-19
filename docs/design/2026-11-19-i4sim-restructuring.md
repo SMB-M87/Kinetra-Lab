@@ -1,6 +1,6 @@
 # i4sim restructuring
 
-Status: accepted · Branches: `test/i4sim-passing-safety-net` (step 1), one branch per later step · Related: [quality roadmap, phase 4](2026-11-18-quality-roadmap.md#phase-4-i4sim), [i4sim](../../labs/i4sim/README.md), [factory simulation architecture](../factory-simulation-architecture.md)
+Status: accepted · Branches: `test/i4sim-passing-safety-net` (step 1, merged), `refactor/i4sim-simulation` (step 2), one branch for step 3 · Related: [quality roadmap, phase 4](2026-11-18-quality-roadmap.md#phase-4-i4sim), [i4sim](../../labs/i4sim/README.md), [factory simulation architecture](../factory-simulation-architecture.md)
 
 Roadmap phase 4. i4sim's `Simulation` is the largest hotspot in Lab, and predictive passing, which phase 7 must make safe under pressure, lives inside it. This phase first pins today's passing behavior with diagnostics and pressure scenarios, and then restructures the simulation and its session without changing behavior.
 
@@ -67,6 +67,15 @@ Settled with the user on 2026-11-19; every answer matched the agent's recommenda
 | Agent defaults | Scenarios under Reciprocal and Improved; flow metrics outside `Simulation`; run state as an enum with operations; `configure_motion` allowed while running; constants in an internal header; component headers private; `Simulation` keeps its query API as a facade | Proposed in the chat as cosmetic choices with a recommendation; not contested |
 | Stuck definition | A mover is stuck when its distance to its destination does not drop 10 mm below its best value for 2000 ticks, instead of the confirmed "stays within 10 mm of one point for 2000 ticks" | Changed during step 1 and reported at hand-over. The three-oncoming scenario left two movers shuffling back and forth without arriving, and the confirmed definition counted neither. The new one also covers standing still |
 
+Step 2 refinement, agent choices within the decisions above, reported at hand-over:
+
+| Choice | Why |
+| --- | --- |
+| A `finished` run state for the tick cap | The decided run-state enum needs a value for "stopped by the cap"; today `tick` reuses `paused` for it |
+| Progress counters private, with `stalled(mover)` as the observable | Tests must assert observable behavior; the HUD needs only "stalled" |
+| `Goals` as a short-lived view instead of an interface | The dependency graph has no cycle, and stored references would break copying a simulation |
+| Warnings as errors for all of `labs/i4sim`, not only the logic | The session already compiles without warnings |
+
 ## Design
 
 ### Steps
@@ -127,7 +136,78 @@ The recorded line holds ticks, contacts, contact ticks, contacts during passing,
 
 ### Step 2: simulation
 
-Outline, refined before the branch starts. `Simulation` composes components that own their state and keeps the tick order: floor topology (grid, borders, traffic zones), route planning, parking, traffic (junction and corridor gates, exit reservations, corridor recovery), passing, production, and motion with contact resolution. The movers and their per-tick controls and stops form a shared fleet passed explicitly. `Mover` gets a lifecycle enum, a goal kind, an operator hold and one per-tick coordination value; `paused` and `workload` become a run-state enum and operations.
+Refined on 2026-11-19 at `e688fea`, before the branch's first code commit. Every commit keeps the ten golden lines and the eight pressure lines bit-identical; a commit that changes one is wrong.
+
+**Run state.** `paused` and `workload` become private. `RunState` has three values: `paused`, `running` and `finished`. `finished` is new: it replaces the `paused = true` that `tick` set at the tick cap, so a caller can tell "stopped by the operator" from "reached the cap".
+
+| Operation | Effect |
+| --- | --- |
+| `run()` | `paused` → `running`; no effect when `finished` |
+| `pause()` | `running` → `paused`; no effect when `finished` |
+| `state()`, `running()` | The current state |
+| `workload()`, `set_workload(bool)` | Whether `tick` generates products |
+| `single_step()` | Unchanged: one tick when `paused` |
+| `configure_motion` | Allowed in every state. Callers no longer pause around it, so the session and `apply_scenario` lose their pause round trip |
+
+The HUD keeps its text: anything that is not `running` reads `PAUSED`, as today.
+
+**Mover state.** The flags become one value per axis. Each axis was checked against today's code, so no combination that exists today is lost:
+
+| Axis | Today | After |
+| --- | --- | --- |
+| Lifecycle | `moving`, `unreachable` (never both true) | `MoverLifecycle { idle, moving, unreachable }` and `Mover::moving()` |
+| Goal origin | `manual`, `parking_deferred` (never both true) | `GoalKind { automatic, manual, parking_staging }`. As today, a new goal clears `parking_staging` but keeps `manual`, and arrival clears `manual` but keeps `parking_staging` |
+| Operator hold | `blocked` | `held`, changed only by `toggle_mover` |
+| Route kind | `detour` | Unchanged: true while the route came from route recovery |
+| Coordination, per tick | `junction_waiting`, `junction_exit_waiting`, `corridor_waiting`, `corridor_retreating`, `passing_detour` (several true together) | One `Coordination` value with the same five fields, reset together at the start of traffic coordination. Today `passing_detour` is reset a little later in the same tick, but nothing reads it in between |
+| Contact, per tick | `contacting` | Unchanged |
+| Progress counters | `replan`, `no_progress`, `best_remaining`, `recovery_attempts`, `stalled` | Private to the simulation. `stalled` is removed (written, never read). `Simulation::stalled(mover)` reports what the HUD shows as `STALLED` |
+
+`mover_status(const Mover &)` derives the HUD status (held, corridor retreat, passing detour, unreachable, allocated, idle) in today's priority order, so the session drops its nested ternary.
+
+**Named constants.** An internal header `src/simulation_constants.h` names the repeated literals, with a comment on what each value means and why it has that value: the 2 mm clearance, the 0.05 mm/tick stop speed, the 0.05 mm same-point tolerance, the 100-tick obstruction threshold, the 120-tick stall threshold and retry delays, the 240-tick passing timeout and the 1000-tick processing time. `braking_distance(speed, force)` computes `speed * speed / force`. Each name replaces the literal with the same floating-point operations, so the results stay bit-identical.
+
+**Components.** `Simulation` keeps the public API as a facade. Because the component headers are private, in `labs/i4sim/src/`, the facade holds a pointer to a private `detail::SimulationCore` (found during implementation: by-value members would pull the private headers into the public one). The core owns one instance of each component and keeps the tick order; copies of a simulation stay deep.
+
+| Component | Owns | Responsibility | Today |
+| --- | --- | --- | --- |
+| `FloorPlan` | Weighted grid, borders, traffic-zone geometry, zone index, processing cells | Builds the topology from the blueprint; refreshes heatmap weights | Constructor, `update_heatmap` |
+| `Fleet` | Movers, their progress counters, per-tick traffic controls and stop lines | Shared data that the components pass to each other explicitly | Members of `Simulation` |
+| Routing (functions) | Nothing | Plans grid routes with refinement around stationary movers; plans recovery routes with Navigation | `plan_route`, `recover_route` |
+| `Traffic` | Gates, exit reservations, corridor recoveries, retry ticks | Junction and corridor admission, exit pockets, corridor recovery | `coordinate_traffic`, `recover_corridors`, `traffic_exit` |
+| `PredictivePassing` | Plans, retry ticks, plan id counter | Forms, advances and ends passing plans | `predictive_passing.cpp` |
+| `Goals` (a view of references, built per call) | Nothing | Sets a goal and cancels what depends on the old one; chooses holding places; parking interlock | `set_goal`, `holding_position`, `parking_conflict`, `coordinate_parking` |
+| `Production` | Producers, products, completed products, counters, workload generator | Scheduling, queues, processing, recipes | `schedule`, `update_product`, `add_product` |
+| `MotionStep` | Contact pairs, contact counters, avoidance count | Route following, steering, integration, arrival, contact resolution | `prepare_route`, `move_agents` |
+| `EventLog` | Recording flag, events | Records passing and contact events | `record_passing`, the contact lambda |
+
+```mermaid
+flowchart TD
+    S[SimulationCore: tick order] --> P[Production]
+    S --> M[MotionStep]
+    S --> G[Goals]
+    P --> G
+    M --> G
+    G --> T
+    G --> PP
+    G --> R[Routing]
+    PP --> R
+    T --> F[FloorPlan and Fleet]
+    PP --> F
+    R --> F
+    PP --> E[EventLog]
+    M --> E
+```
+
+*Takeaway:* the dependencies point down to the floor and the fleet. There is no cycle, so no interface is needed: `Goals` depends on `Traffic` and `PredictivePassing` (a new goal cancels a recovery and a passing plan), and `Production` and `MotionStep` reach both only through `Goals`. `MotionStep` also runs the traffic and passing coordination of a tick through that view.
+
+Components store no references to each other. Tests copy simulations (`auto replay = trial;`), and a stored reference would keep pointing into the original. `SimulationCore` passes what a call needs as parameters, and builds `Goals` as a short-lived view for each call.
+
+**Tests.** The cases that read internal counters change to observable behavior: `no_progress < 120` becomes `!stalled(i)`, `no_progress < 100` on the detour becomes `!stalled(0)` (a weaker bound, recorded under Review), and `replan == 80` on the solo trip becomes "never stalls and arrives without contact". The new state values get their own cases: run-state transitions including the tick cap, goal-kind transitions (manual, staging, arrival), and `mover_status` priority.
+
+**Contracts and warnings.** `///` contracts on `simulation.h` and every new component header. The six warnings in `simulation.cpp`, plus the `-Wmaybe-uninitialized` that the `ci` build reports in corridor recovery, are fixed. Then `kinetra_directory_warnings(labs/i4sim RECURSE AS_ERRORS)` keeps i4sim warning-free; the session already compiles without warnings.
+
+**Commit order.** Refactor commits only, each one building and passing the i4sim suites: named constants; run state; mover state and private progress counters; geometry helpers and `FloorPlan`; routing; `Traffic`; `PredictivePassing` and `EventLog`; `Goals`; `Production`; `MotionStep`; contracts; warnings as errors; documentation.
 
 ### Step 3: session
 
@@ -143,7 +223,14 @@ Step 1:
 - `labs/i4sim/tests/README.md`, `AGENTS.md` (test mapping): the new suite and benchmark columns.
 - `external/Kinetra`: pointer to `d6ffdc6` (Kinetra main after the documentation cleanup; documentation and comments only since `ccb3396`).
 
-Steps 2 and 3: `labs/i4sim/` throughout, `docs/factory-simulation-architecture.md`, `AGENTS.md` (layer table), root `CMakeLists.txt` (warnings as errors for i4sim).
+Step 2:
+- `labs/i4sim/include/simulation.h`, `labs/i4sim/src/simulation.cpp`, `labs/i4sim/src/predictive_passing.cpp`: facade, run state, mover state.
+- `labs/i4sim/src/`: new private component headers and sources, `simulation_constants.h`.
+- Callers of the run state and mover flags: `labs/i4sim/src/session.cpp`, `scenario.cpp`, `main.cpp`, `flow_metrics.cpp`, and every i4sim test and the benchmark.
+- `labs/i4sim/CMakeLists.txt`: new sources. Root `CMakeLists.txt`: warnings as errors for i4sim.
+- `docs/factory-simulation-architecture.md`: component structure; `labs/i4sim/src/README.md`: the new files.
+
+Step 3: `labs/i4sim/` session and documentation, `AGENTS.md` (layer table).
 
 ## Test plan
 
@@ -162,6 +249,19 @@ Step 1 adds observation only, so the existing golden lines are the proof that be
 | Benchmark columns | Manual run of the benchmark; new baseline recorded below | Manual |
 | Whole branch | `cmake --workflow --preset ci`, `cmake --workflow --preset headless`, `cmake --workflow --preset graphics` (pointer change) | Full |
 
+Step 2 changes structure only, so the golden and pressure lines are the proof again. They must stay identical after every commit, not only at the end.
+
+| Behavior | Test | Level |
+| --- | --- | --- |
+| Behavior is unchanged | The ten golden and eight pressure lines pass unchanged after each commit | Targeted |
+| Run state | `run`, `pause` and `single_step` move between `paused` and `running`; the tick cap ends in `finished`, which `run` does not leave; `advance` runs no tick unless `running` | Targeted |
+| Motion changes while running | `configure_motion` on a running simulation gives the same run as pausing around it | Targeted |
+| Goal kind | A manual goal sets `manual`; arrival returns it to `automatic`; parking staging survives arrival and is cleared by a new goal | Targeted |
+| HUD status | `mover_status` follows today's priority: held before corridor retreat before passing detour before unreachable before allocated | Targeted |
+| Former counter asserts | Rewritten to `stalled()`, arrival and contacts (see [Step 2](#step-2-simulation)) | Targeted |
+| Session still works | The i4sim presentation tests | Full (graphics) |
+| Whole branch | `cmake --workflow --preset ci`, `cmake --workflow --preset headless`, `cmake --workflow --preset graphics`, smoke run of `kinetra_i4sim --ticks` | Full |
+
 ## Review
 
 Step 1, `/code-review` at high effort on `main...HEAD`:
@@ -175,6 +275,21 @@ Step 1, `/code-review` at high effort on `main...HEAD`:
 | Event counting is written twice, in the benchmark and the pressure suite | Skipped: two small lambdas in test code; a shared helper fits the API work of step 2 |
 
 Found while implementing: the confirmed stuck definition missed movers that shuffle back and forth (see [decisions](#decisions)); and the warning check caught a missing default initializer for `SimulationEvent::end`, fixed before commit.
+
+Step 2, `/code-review` at high effort on `main...HEAD`; no correctness finding, the golden and pressure lines were identical after every commit:
+
+| Finding | Resolution |
+| --- | --- |
+| The WORKLOAD debug row now goes through a mirror flag that no test clicks | Skipped: the presentation tests cannot observe the workload. Step 3's headless controller gets a case for it |
+| Two counter asserts became weaker (detour: no progress below 100 ticks became "never stalled", 120; solo trip: replan counter) | Accepted: the counters are private now. `stalled()` is the observable the HUD uses |
+| The run-state commit also changes behavior: `configure_motion` no longer throws while running, and the tick cap ends in `finished` | Accepted: both are the decided run-state design; the pull request names them. The commit is not rewritten |
+| Public declarations without `///` summaries | Fixed: summaries on the remaining facade, `Mover`, `MotionSettings`, `FloorPlan` and `Fleet` members |
+| Passing and traffic tuning literals still unnamed | Fixed: named where they are used, with what they mean |
+| `restore_routes` reimplements `route_remaining` | Fixed: it calls `route_remaining`; same operations, golden lines unchanged |
+| The public API is declared three times (facade, core, forwarders) | Skipped: the cost of keeping component headers private; the core states that its members carry the facade's contracts |
+| This design described `Simulation` as the owner of the components | Fixed: it names `SimulationCore` and the facade |
+
+Found while implementing: by-value components in `Simulation` would have pulled the private component headers into the public one, so a facade commit came first; the -Wshadow, missing-initializer and maybe-uninitialized warnings of step 1 disappeared with the split, and the three new ones were fixed before warnings became errors.
 
 ## Verification
 
@@ -192,6 +307,23 @@ Step 1, on the final branch state (Full level, because the Kinetra pointer moved
 | `kinetra_i4sim_motion_benchmark`, four configurations, 50000 ticks | completed products and contacts equal the roadmap baseline in all 24 runs; table in the [test guide](../../labs/i4sim/tests/README.md#motion-benchmark) |
 
 Not run: a desktop playtest, because the session did not change.
+
+Step 2, on the final branch state (Full level: public API, build configuration and several files changed):
+
+| Command | Result |
+| --- | --- |
+| `ctest --preset release -R '^kinetra_i4sim'` after every commit | passed; the ten golden and eight pressure lines unchanged throughout (80/80 at the end) |
+| `cmake --workflow --preset ci` | passed: 150/150 tests; no Lab warning in `labs/i4sim` |
+| `cmake --workflow --preset headless` | passed: 143/143 tests |
+| `cmake --workflow --preset graphics` | passed: 163/163 tests, including the i4sim presentation tests |
+| `cmake --workflow --preset windows` | passed: 161/161 tests; i4sim builds warning-free with `-Werror` under MinGW |
+| `dev` build of every i4sim target | no warning; 19 i4sim compile commands carry `-Werror` |
+| `kinetra_i4sim_motion_benchmark --profile reciprocal --ticks 50000` | completed products, contacts, waiting ticks and stuck movers equal the step 1 baseline for all six runs; run time on `8640x4800` 11.2 / 11.4 s against 12.1 / 11.9 s for `main` built the same way on the same machine |
+| `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output ...` | 16 completed products; `summary.json` written. A showcase scene with its scenario also runs |
+| `python3 external/Kinetra/tools/check_docs.py` | all links resolve |
+| Function length in the simulation sources | longest 68 lines (`MotionStep::resolve_contacts`); `load_blueprint` (99) is outside this step |
+
+Not run: a desktop playtest. The session changed only in how it reads and sets the run state, workload and mover status, and the graphics tests cover those paths.
 
 ## Pull request
 
@@ -218,8 +350,33 @@ Not run: a desktop playtest, because the session did not change.
 >
 > **Follow-up.** Step 2 (`refactor/i4sim-simulation`) and step 3 (`refactor/i4sim-session`).
 
+Step 2:
+
+**Title:** `refactor(i4sim): split the simulation into components with explicit mover state`
+
+**Description:**
+
+> **Summary.** Step 2 of roadmap phase 4 ([design](#step-2-simulation)). Splits `Simulation` (1230 + 197 lines, eight responsibilities) into components with their own state, makes each axis of a mover's state one explicit value, and puts the run state behind operations. The ten golden lines and the eight pressure lines are bit-identical after every commit.
+>
+> **Changes.**
+> - `Simulation` is a facade over a private `detail::SimulationCore`, which composes `FloorPlan`, `Fleet`, routing, `Traffic`, `PredictivePassing`, `Goals`, `Production`, `MotionStep` and `EventLog` and keeps the tick order. Component headers are private in `labs/i4sim/src/`; copies stay deep.
+> - `Mover`: twelve flags become `MoverLifecycle`, `GoalKind`, `held` and one `Coordination` value; the progress counters are private; `Simulation::stalled()` and `mover_status()` replace the session's nested ternary.
+> - Run state: `paused` and `workload` are private behind `run()`, `pause()`, `state()` and `set_workload()`. **Behavior changes:** the tick cap now ends in `RunState::finished`, and `configure_motion` is allowed while running, so the session and `apply_scenario` drop their pause round trip. The HUD text is unchanged.
+> - Named constants in `simulation_constants.h` and at their use; no function in the simulation is over 70 lines.
+> - i4sim warnings are errors (`dev`, `ci`, `windows`).
+> - Docs: [simulation structure](../factory-simulation-architecture.md#simulation-structure) with component diagram, tick order and mover state diagram; `///` contracts on the facade and every component header.
+>
+> **Verification.** See the design document's Verification section: `ci`, `headless`, `graphics` and `windows` workflows, golden and pressure lines, benchmark and smoke run.
+>
+> **Review notes.** `/code-review` at high effort found no correctness issue; four cleanup findings were fixed, four were recorded with a reason (design document, Review).
+>
+> **Dependencies and merge order.** None; Lab only, no Kinetra change. Merge with a merge commit. Step 3 starts on the merged result.
+>
+> **Follow-up.** Step 3 (`refactor/i4sim-session`): headless controller with a test for the WORKLOAD row, HUD, world renderer, the launcher edge in the layer table, and the module README. `load_blueprint` (99 lines) and the shared event counting from step 1's review are carried there.
+
 ## Open points
 
-- `stalled` in `Mover` is written but never read. Step 2 removes it.
+- Resolved in step 2: the unread `stalled` counter in `Mover` is gone.
 - Resolved in [blueprint copy race](2026-11-19-blueprint-copy-race.md): parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory raced, and a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`. The catalog is now copied once per build.
+- Carried to step 3: `load_blueprint` is 99 lines, over the roadmap's ~80-line guide; the event counting that the benchmark and the pressure suite both write (step 1 review) still waits for a shared helper.
 - The `disabled` end reason is effectively unreachable, because `configure_motion` sets every moving mover's goal again and so ends plans as `goal_changed` first. Phase 7 decides whether disabling should end plans with their own reason.

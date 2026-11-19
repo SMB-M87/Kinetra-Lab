@@ -33,6 +33,6 @@ classDiagram
 
 `MotionSettings::predictive_passing` enables the optional open-floor policy.
 `Simulation::predictive_pairs()` and `passing_target(mover)` expose its current
-commitments for inspection; `Mover::passing_detour` identifies participants.
+commitments for inspection; `Mover::coordination.passing` identifies participants.
 Destination and route ownership remain in Simulation; temporary targets are separate.
 See the [passing contract](../../../docs/factory-simulation-architecture.md#predictive-passing).

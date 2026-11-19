@@ -102,7 +102,7 @@ Updated on 2026-11-19.
 | 1 Process and rules | Implemented | [Development process](2026-11-18-development-process.md) |
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
-| 4 i4sim | In progress: step 1 (passing safety net) on `test/i4sim-passing-safety-net` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
+| 4 i4sim | In progress: step 1 (passing safety net) merged in Lab #6; step 2 (simulation components) on `refactor/i4sim-simulation`; step 3 (session) next | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
 | 5–8 | Not started | This page |
 
 ## Phase 2: tooling and CI

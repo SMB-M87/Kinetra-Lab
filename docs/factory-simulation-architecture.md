@@ -5,6 +5,7 @@ The factory application lives in Lab and consumes reusable simulation capabiliti
 ## Table of contents
 
 - [Ownership](#ownership)
+- [Simulation structure](#simulation-structure)
 - [Execution](#execution)
 - [Compatibility and fidelity](#compatibility-and-fidelity)
 - [Predictive passing](#predictive-passing)
@@ -21,7 +22,7 @@ The factory application lives in Lab and consumes reusable simulation capabiliti
 | AStarHeatmap / graph topology and congestion | [Kinetra WeightedGrid](../external/Kinetra/include/kinetra/weighted_grid.h); Lab chooses occupancy and replan timing |
 | Rectangle geometry, neighborhood queries | Existing Kinetra Body/contact and SpatialGrid APIs |
 | Blocked route recovery | Existing Kinetra Navigation with a snapshot of blocked grid cells and neighboring bodies |
-| Dummy product actors, allocation managers, producer queues | [Lab deterministic simulation](../labs/i4sim/src/simulation.cpp) |
+| Dummy product actors, allocation managers, producer queues | [Lab production](../labs/i4sim/src/production.cpp) in the [deterministic simulation](#simulation-structure) |
 | Parking and producer approach policy | Lab reservations, staging and queue ownership |
 | LoadingScreen / rendering / interaction | [Lab session](../labs/i4sim/src/session.cpp), shared Kinetra LaunchMenu, Runtime and bitmap text |
 | Tick / render cycles | Existing Kinetra FixedClock and session loop; Lab chooses UPS |
@@ -43,6 +44,67 @@ flowchart TD
 ```
 
 Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The session uses the engine's right-button input state, and draws its Loadscreen with the optional heading and status text of `LaunchMenu`.
+
+## Simulation structure
+
+`Simulation` ([simulation.h](../labs/i4sim/include/simulation.h)) is a facade. Every call forwards to `detail::SimulationCore`, which owns one instance of each component below and runs the tick. The component headers are private to `labs/i4sim/src/`, so the public header stays small and the components can change without touching callers. A copy of a simulation is deep; the tests copy a running simulation to branch off a replay.
+
+| Component | File | Owns | Responsibility |
+| --- | --- | --- | --- |
+| `FloorPlan` | [floor_plan.h](../labs/i4sim/src/floor_plan.h) | Weighted grid, borders, zone geometry, processing cells | Topology built once from the blueprint; heatmap weights |
+| `Fleet` | [fleet.h](../labs/i4sim/src/fleet.h) | Movers, progress counters, per-tick controls and stop lines | Shared mover data that the components pass to each other |
+| Routing | [routing.h](../labs/i4sim/src/routing.h) | Nothing | Grid routes refined around stationary movers; Navigation recovery routes |
+| `Traffic` | [traffic.h](../labs/i4sim/src/traffic.h) | Gates, exit reservations, corridor recoveries | Junction and corridor admission, exit pockets, corridor recovery |
+| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/src/predictive_passing.h) | Plans, retry ticks, plan ids | [Predictive passing](#predictive-passing) |
+| `Goals` | [goals.h](../labs/i4sim/src/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
+| `Production` | [production.h](../labs/i4sim/src/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
+| `MotionStep` | [motion_step.h](../labs/i4sim/src/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
+| `EventLog` | [event_log.h](../labs/i4sim/src/event_log.h) | Recording flag, events | Opt-in passing and contact events |
+
+```mermaid
+flowchart TD
+    S[SimulationCore: tick order] --> P[Production]
+    S --> M[MotionStep]
+    S --> G[Goals]
+    P --> G
+    M --> G
+    G --> T[Traffic]
+    G --> PP[PredictivePassing]
+    G --> R[Routing]
+    PP --> R
+    T --> F[FloorPlan and Fleet]
+    PP --> F
+    R --> F
+    PP --> E[EventLog]
+    M --> E
+```
+
+*Takeaway:* dependencies point down to the floor and the fleet, without a cycle. Only `Goals` gives a mover a new goal, so a new goal always ends the mover's corridor recovery and passing plans. `MotionStep` reaches traffic and passing through the same `Goals` view. Components store no references to each other: `SimulationCore` passes what each call needs, so copying a simulation cannot leave a reference into the original.
+
+**Tick order.** `SimulationCore::tick` runs, in this order:
+
+1. Count the tick and remember every mover's position for drawing.
+2. Open a random product while the workload is on and fewer products than movers are open.
+3. Refresh the heatmap on the first tick of every ten.
+4. Run the parking interlock (`Goals::coordinate_parking`).
+5. Move (`MotionStep::run`): prepare routes, snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
+6. Advance production and drop completed products.
+7. At the blueprint's tick cap, change to `RunState::finished`.
+
+**Mover state.** Each axis of a mover's state is one value. The lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> moving: goal with a route
+    idle --> unreachable: goal without a route
+    moving --> idle: arrival at the destination
+    moving --> unreachable: replanning finds no route
+    unreachable --> moving: new goal with a route
+    moving --> moving: new goal with a route
+```
+
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces all of this to the HUD's status, and `Simulation::stalled` reports a mover that made no progress for 120 ticks while no coordination held it back.
 
 ## Execution
 
