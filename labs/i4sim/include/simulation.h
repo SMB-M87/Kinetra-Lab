@@ -35,6 +35,8 @@ enum class SteeringProfile {
 constexpr bool supports_predictive_passing(SteeringProfile profile) {
     return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
 }
+/// Longest prediction horizon `Simulation::configure_motion` accepts, in ticks.
+inline constexpr float longest_motion_horizon = 64;
 /// Motion and traffic settings of a simulation; see `Simulation::configure_motion`.
 struct MotionSettings {
     /// How movers steer; Improved by default.

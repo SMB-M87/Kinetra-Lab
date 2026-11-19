@@ -28,7 +28,7 @@ constexpr float pan_speed = 400;
 /// hitch the view does not jump.
 constexpr double longest_pan_frame = 0.1;
 /// Factor of one SPEED or FORCE step, and the range of the horizon in ticks.
-constexpr float parameter_step = 1.25f, shortest_horizon = 1, longest_horizon = 64;
+constexpr float parameter_step = 1.25f, shortest_horizon = 1;
 /// What RESET PARAMETERS sets: the original factory's speed in millimeters per tick and
 /// force in millimeters per tick squared, which are also the defaults of MotionSettings,
 /// and a horizon in ticks. The horizon is shorter than the default of 32 a new simulation
@@ -448,7 +448,7 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
     entries.push_back(motion_number(
         "HORIZON", [motion] { return number_text(motion().horizon); },
         [](MotionSettings &m) { m.horizon = std::max(shortest_horizon, m.horizon - 1); },
-        [](MotionSettings &m) { m.horizon = std::min(longest_horizon, m.horizon + 1); }));
+        [](MotionSettings &m) { m.horizon = std::min(longest_motion_horizon, m.horizon + 1); }));
     entries.push_back({.label = "RESET PARAMETERS",
                        .action =
                            [this] {
