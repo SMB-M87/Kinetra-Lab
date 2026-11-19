@@ -65,7 +65,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
 | `labs/i4sim/` logic (the simulation and its components, `flow_metrics`, `blueprint`, `scenario`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` | `^kinetra_i4sim` |
-| `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
+| `labs/demo/` logic (`sandbox_application`, `debug_panel`, `tuning`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
 | `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/common/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |
 | `launcher/include/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
@@ -74,7 +74,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level, plus `cmake --workflow --preset windows` from WSL ([Windows](docs/windows.md)) | |
 
-The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the two 60-second Demo crowd cases.
+The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the five 60-second Demo crowd cases.
 
 The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 

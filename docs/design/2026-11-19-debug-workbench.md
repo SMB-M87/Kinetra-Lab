@@ -55,6 +55,10 @@ i4sim lets the operator change motion settings while a scene runs; Demo and Doti
 | Frame limit | A FRAME LIMIT row in every settings panel, on by default; it acts only where VSync is unavailable | The user can compare both in WSLg. Assumption accepted by the user |
 | Where menu content is built | In each application's logic layer, without a window | i4sim's controller already does; the rows become testable headless |
 | Phasing | Phase 1: everything but the video. Phase 2: the video, stacked on this branch | User's choice |
+| i4sim layer colors | Stay in the drawing code; the session hands `layer_color` to `FactoryController::menu()` | Moving the palette into the logic layer would have put drawing decisions there. The controller only asks for a swatch per layer row |
+| A steering wanderer that stalls | Below 30 % of its top speed it turns its heading on the spot, and the pull toward home fades over one second | Found while measuring: reciprocal avoidance stopped agents in pockets between terrain for up to 55 s, because the wander target always lies in a narrow cone ahead. With the turn the longest slow spell is 2 to 4 s |
+| FRAME LIMIT state | The runtime owns it; a session's switch starts from what the runtime does | The launcher keeps one window across applications, and the capture tool switches the limit off for all of them |
+| Debug screenshots | Demo shows its MOTION section, Dotio and i4sim their LAYERS section; the debug clips keep the menu closed | One section is open at a time. MOTION shows what is new in Demo, LAYERS is the legend the user asked for in Dotio |
 
 ## Design
 
@@ -80,8 +84,8 @@ flowchart LR
 
 *Takeaway:* a session only passes entries to the overlay; what a row does is decided where the state lives.
 
-- **`lab/settings.h`.** `settings_rows(statistics, debug, frame_times, frame_limit, sim_controls, debug_controls)`: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS, DEBUG CONTROLS. DEBUG CONTROLS starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`. A session passes its FRAME LIMIT flag to `Runtime::limit_frames` when it draws.
-- **`lab/debug.h`** (new, headless). `ZoomControl` makes the ZOOM row: it shows the camera's zoom, collects the steps its buttons ask for, and hands them to the frame together with the wheel's. `time_scale_entry` makes the SPEED row over a borrowed factor (0.125 to 8, doubling). Logic layers may include it next to `lab/input.h`.
+- **`lab/settings.h`.** `settings_rows(statistics, debug, frame_times, frame_limit, sim_controls, debug_controls)`: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS, DEBUG CONTROLS. DEBUG CONTROLS starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`. `FrameLimitSwitch` holds a session's FRAME LIMIT flag: before the first frame it takes over what the runtime does, afterwards it passes a change on to `Runtime::limit_frames`.
+- **`lab/debug.h`** (new, headless). `ZoomControl` makes the ZOOM row: it shows the camera's zoom, collects the steps its buttons ask for, and hands them to the frame together with the wheel's. `time_scale_entry` makes the SPEED row over a borrowed factor (0.125 to 4, doubling). Logic layers may include it next to `lab/input.h`.
 
 ### Menus
 
@@ -100,7 +104,7 @@ A number row steps by a factor of 1.25 or by a fixed amount, whichever suits its
 ### Demo
 
 - **`tuning.h`.** `MotionTuning` (max speed, acceleration, response time, lookahead, clearance, separation radius and weight, avoidance horizon, passing bias) and `WanderTuning` (mode, home range, reach, jitter) with the scene's former literals as defaults, and `validate()`. `Sandbox::tuning` holds them; `SandboxApplication::tuning()` gives the menu access.
-- **Steering wander.** An agent keeps a wander angle that drifts by a seeded random amount per tick. Its target is a point on a circle ahead of it: `reach` ahead along its direction of travel, half of `reach` out at the wander angle. Beyond 60 % of the home range the direction is blended toward home, fully at the range, so an agent turns back in a curve. No route is planned and none is drawn.
+- **Steering wander.** An agent keeps a wander angle that drifts by a seeded random amount per tick. Its target is a point on a circle ahead of it: `reach` ahead along its direction of travel, half of `reach` out at the wander angle. Beyond 60 % of the home range the direction is blended toward home, fully at the range, so an agent turns back in a curve. No route is planned and none is drawn. An agent that avoidance slowed below 30 % of its top speed has no direction of travel worth following: it turns its stored heading on the spot until the way is free.
 - **Obstacles without a route.** A planned route keeps its own clearance from terrain, so local avoidance looked at movers only. An agent that wanders by steering also gets the terrain near it: as bodies for the legacy steering, and as non-cooperative circles for the reciprocal avoidance, a long box as a row of circles. The scene keeps a spatial grid of the terrain it loaded and rebuilds it only when terrain changes.
 - **Route wander.** Unchanged, except that a leg starts toward home when the agent is beyond its range.
 - **Time.** `FrameCommands` gets `time_scale` and `single_step`: the fixed clock advances by scaled time, and a paused scene runs exactly one tick for a single step.
@@ -115,7 +119,7 @@ A number row steps by a factor of 1.25 or by a fixed amount, whichever suits its
 
 ### i4sim
 
-`MenuEntry` and `EntryKind` become `kinetra::DebugEntry` and `kinetra::DebugEntryKind`; the controller's open section and list move to `DebugFolds`; `layer_color` moves to [view.h](../../labs/i4sim/include/view.h) so the controller can fill `swatch`. The session's `DebugRows` adapter and `row_text` go away. The menu gains ZOOM; its rows and keys are otherwise unchanged.
+`MenuEntry` and `EntryKind` become `kinetra::DebugEntry` and `kinetra::DebugEntryKind`; the controller's open section and list move to `DebugFolds`. `menu()` takes the function that gives a layer's color, which the session supplies as `layer_color`, and fills `swatch` with it. The session's `DebugRows` adapter and `row_text` go away. The menu gains ZOOM; its rows and keys are otherwise unchanged.
 
 ### Capture tool and media
 
@@ -126,10 +130,10 @@ A number row steps by a factor of 1.25 or by a fixed amount, whichever suits its
 ## Affected areas
 
 - `external/Kinetra` pointer ([Kinetra design](../../external/Kinetra/docs/design/2026-11-19-debug-workbench.md)).
-- Shared: [lab/settings.h](../../labs/common/include/lab/settings.h), new `lab/debug.h`, [common tests](../../labs/common/tests/common_tests.cpp).
-- Demo: new `tuning.h` and `debug_panel.h`, [agent.h](../../labs/demo/include/agent.h), [sandbox_scene.h](../../labs/demo/include/sandbox_scene.h), [sandbox_commands.h](../../labs/demo/include/sandbox_commands.h), [sandbox_application](../../labs/demo/src/sandbox_application.cpp), [session.cpp](../../labs/demo/src/session.cpp), [sandbox_renderer](../../labs/demo/src/sandbox_renderer.cpp), tests.
-- Dotio: [difficulty.h](../../labs/dotio/logic/include/difficulty.h), [world](../../labs/dotio/logic/src/world.cpp), [enemy](../../labs/dotio/logic/src/enemy.cpp), [state.cpp](../../labs/dotio/logic/src/state.cpp), [application.h](../../labs/dotio/include/application.h), [presentation.cpp](../../labs/dotio/src/presentation.cpp), [session.cpp](../../labs/dotio/src/session.cpp), tests.
-- i4sim: [controller](../../labs/i4sim/src/controller.cpp), [view.h](../../labs/i4sim/include/view.h), [session.cpp](../../labs/i4sim/src/session.cpp), [world_view](../../labs/i4sim/src/world_view.cpp), tests.
+- Shared: [lab/settings.h](../../labs/common/include/lab/settings.h), new [lab/debug.h](../../labs/common/include/lab/debug.h), [common tests](../../labs/common/tests/common_tests.cpp).
+- Demo: new [tuning.h](../../labs/demo/include/tuning.h) and [debug_panel.h](../../labs/demo/include/debug_panel.h), [agent.h](../../labs/demo/include/agent.h), [sandbox_scene.h](../../labs/demo/include/sandbox_scene.h), [sandbox_commands.h](../../labs/demo/include/sandbox_commands.h), [sandbox_application](../../labs/demo/src/sandbox_application.cpp), [session.cpp](../../labs/demo/src/session.cpp), [sandbox_renderer](../../labs/demo/src/sandbox_renderer.cpp), tests.
+- Dotio: [difficulty.h](../../labs/dotio/logic/include/difficulty.h), new [wander.h](../../labs/dotio/logic/include/wander.h), [world](../../labs/dotio/logic/src/world.cpp), [enemy](../../labs/dotio/logic/src/enemy.cpp), [state.cpp](../../labs/dotio/logic/src/state.cpp), [application.h](../../labs/dotio/include/application.h), [presentation.cpp](../../labs/dotio/src/presentation.cpp), [session.cpp](../../labs/dotio/src/session.cpp), tests.
+- i4sim: [controller](../../labs/i4sim/src/controller.cpp), [session.cpp](../../labs/i4sim/src/session.cpp), tests.
 - Launcher tests, [capture tool](../../tools/capture/README.md), [media](../media/README.md).
 - Docs: [AGENTS.md](../../AGENTS.md), [README](../../README.md), [launcher and overlays](../launcher-overlays.md), the three module READMEs and architecture pages.
 
@@ -137,14 +141,14 @@ A number row steps by a factor of 1.25 or by a fixed amount, whichever suits its
 
 | Behavior | Test | Level |
 | --- | --- | --- |
-| Bug: with a standing player, the agents active after 60 simulated seconds are at least 80 % of those at the start (fails before the fix) | `kinetra_sandbox_application`: agents stay around a standing player | Targeted |
+| Bug: with a standing player, the agents active after 60 simulated seconds are at least 80 % of those at the start. Before the fix 1 of 48 was left; after it all 48, in both wander modes | `kinetra_demo_crowd`: agents stay around a standing player (label `soak`) | Targeted |
 | Steering wander plans no route, moves the agent, turns it back at its range, and is repeatable for a seed | `kinetra_terrain`: steering wander cases | Targeted |
 | Route wander keeps its legs and starts toward home beyond the range | `kinetra_terrain` (existing wander cases, in route mode) | Targeted |
 | A steering wanderer walks around terrain in both avoidance models without deep overlap | `kinetra_sandbox_application`; `kinetra_demo_crowd_characterization` invariants | Targeted |
 | Tuning: defaults equal the former literals; invalid values are rejected; a changed max speed changes how far an agent gets | `kinetra_sandbox_application` | Targeted |
 | Time scale 0.5 runs half the ticks, a single step runs one tick while paused | `kinetra_sandbox_application`, `kinetra_dotio` | Targeted |
 | Crowd runs stay finite and separated in both wander modes; their fingerprints are recorded anew | `kinetra_demo_crowd_characterization`, `kinetra_demo_crowd` (soak) | Targeted |
-| Demo's menu: sections, one open at a time, every tuning row changes its value within its limits, RESET restores the defaults | `kinetra_sandbox_application`: debug panel cases | Targeted |
+| Demo's menu: sections, one open at a time, every tuning row changes its value within its limits, RESET restores the defaults; the commands a frame gets from the rows | `kinetra_sandbox_application`: [debug panel cases](../../labs/demo/tests/debug_panel_tests.cpp) | Targeted |
 | Dotio: `settings()` starts as the preset, changes reach the enemies, `reset_tuning()` restores | `kinetra_dotio` | Targeted |
 | Dotio steering wander: no path, moves, turns away from a wall, repeatable for a seed; path mode still plans | `kinetra_dotio` | Targeted |
 | Dotio's menu rows and PATHS parts | `kinetra_dotio` (replaces the `debug_options` case) | Targeted |

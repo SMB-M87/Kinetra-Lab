@@ -60,7 +60,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 
 | Section | Rows |
 | --- | --- |
-| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 60 Hz update per click), SPEED (time scale 0.125× to 8×), INVULNERABLE (no damage, no mana cost; starts off) |
+| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 60 Hz update per click), SPEED (time scale 0.125× to 4×), INVULNERABLE (no damage, no mana cost; starts off) |
 | LAYERS | VECTORS, STEERING PROBES, PATHS with its parts WANDER, PURSUE, KAMIKAZE and RECOVERY while it is on, COLLISION SHAPES, ACTIVE AGENTS, AI STATES, HIDING HITS. A row drawn in one color shows that color; the PATHS parts show the color of their AI state. All start off |
 | ENEMIES | WANDER (STEERING or PATH), MOVE SPEED, FIRE INTERVAL, ARROW SPEED, PREDICTION, PURSUIT CYCLES, HITS, and the force of each state: WANDER, ATTACK, PURSUE, RECOVER and KAMIKAZE FORCE |
 | SPAWNING | ACTIVE LIMIT, SPAWN RATE, CROWD LOAD, SPACING |
