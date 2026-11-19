@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-19 | [i4sim showcase scenes](2026-11-19-i4sim-showcase.md): a `scenario` section in blueprints and a SHOWCASE page on the loadscreen | implemented |
 | 2026-11-19 | [Window icon](2026-11-19-window-icon.md): the Kinetra icon on every window and Windows application executable | implemented |
 | 2026-11-19 | [Native Windows build](2026-11-19-windows-native-build.md): build on Windows in MSYS2 or start the WSL cross build from PowerShell | implemented |
 | 2026-11-19 | [Submodule detached HEAD](2026-11-19-submodule-detached-head.md): put `external/Kinetra` on Kinetra main and record the pointer | implemented |

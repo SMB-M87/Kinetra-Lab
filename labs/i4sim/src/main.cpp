@@ -1,3 +1,4 @@
+#include "scenario.h"
 #include "simulation.h"
 #ifdef I4SIM_RUNTIME
 #include "session.h"
@@ -58,6 +59,8 @@ int main(int argc, char **argv) {
             if (!blueprint)
                 throw std::invalid_argument("--ticks requires --blueprint FILE");
             i4sim::Simulation simulation(i4sim::load_blueprint(*blueprint), seed);
+            if (const auto scenario = i4sim::load_scenario(*blueprint))
+                i4sim::apply_scenario(*scenario, simulation);
             simulation.updates_per_second(ups);
             simulation.paused = false;
             for (std::uint64_t i = 0; i < ticks && !simulation.paused; ++i)

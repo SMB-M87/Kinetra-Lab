@@ -1,10 +1,14 @@
 // Headless contract tests for the i4sim simulation: manual control, parking, steering
 // profiles, contacts, junction, corridor, recovery, predictive passing, the event log,
-// parking traffic, the bundled blueprints, recipes, workloads, determinism and export.
+// parking traffic, the bundled blueprints and showcase scenarios, recipes, workloads,
+// determinism and export.
 //
 // The `the bundled catalog holds fourteen blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "flow_metrics.h"
+#include "recorder.h"
+#include "scenario.h"
+#include "showcase.h"
 #include "simulation.h"
 
 #include <doctest/doctest.h>
@@ -14,6 +18,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -41,7 +46,7 @@ Blueprint fixture() {
 }
 /// The junction fixture: a single-cell crossing with a west and a north mover.
 Blueprint crossing_fixture() {
-    return load_blueprint(std::filesystem::path(__FILE__).parent_path() / "junction-crossing.json");
+    return load_blueprint(i4sim::test::showcase_blueprint("junction-crossing"));
 }
 
 /// Starts the two crossing movers toward the opposite arms under reciprocal steering,
@@ -65,7 +70,7 @@ Blueprint opposing_fixture() {
 
 /// Two rooms joined by a straight single-cell corridor, with one mover in each room.
 Blueprint corridor_fixture() {
-    return load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json");
+    return load_blueprint(i4sim::test::showcase_blueprint("corridor-passing"));
 }
 
 /// Starts both corridor movers toward their goals under reciprocal steering, with or
@@ -82,12 +87,12 @@ void start_corridor(Simulation &s, bool enabled, Vec2 west_goal, Vec2 east_goal)
 
 /// The corridor fixture with both movers already inside the corridor.
 Blueprint recovery_fixture() {
-    return load_blueprint(std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json");
+    return load_blueprint(i4sim::test::showcase_blueprint("corridor-recovery"));
 }
 
 /// The open-floor passing fixture with both movers moved next to the north wall.
 Blueprint near_wall_fixture() {
-    auto b = load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json");
+    auto b = load_blueprint(i4sim::test::showcase_blueprint("predictive-passing"));
     b.movers[0].position.y = b.movers[1].position.y = 43.5f;
     return b;
 }
@@ -104,8 +109,7 @@ MotionSettings passing_motion(SteeringProfile profile) {
 /// The open-floor passing fixture with both movers sent to the other's start under
 /// `profile`, unpaused, with the event log on when `record` is set.
 Simulation passing_pair(SteeringProfile profile, bool record = true) {
-    Simulation pair(
-        load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+    Simulation pair(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
     pair.workload = false;
     pair.configure_motion(passing_motion(profile));
     REQUIRE_MESSAGE((pair.move_to(0, {1900, 800}) && pair.move_to(1, {500, 800})), "Passing goals rejected");
@@ -926,8 +930,7 @@ TEST_CASE("passing without free space keeps the original routes") {
 TEST_CASE("legacy steering profiles never form passing pairs") {
     for (auto profile : {SteeringProfile::original, SteeringProfile::experimental_rvo}) {
         CAPTURE(profile);
-        Simulation legacy(
-            load_blueprint(std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json"));
+        Simulation legacy(load_blueprint(i4sim::test::showcase_blueprint("predictive-passing")));
         legacy.workload = false;
         legacy.configure_motion(passing_motion(profile));
         REQUIRE_MESSAGE((legacy.move_to(0, {1900, 800}) && legacy.move_to(1, {500, 800})),
@@ -1369,6 +1372,127 @@ TEST_CASE("the bundled catalog holds fourteen blueprints that all load") {
     REQUIRE_MESSAGE(files.size() == 14, "Original blueprint bundle is incomplete");
     for (const auto &file : files)
         load_blueprint(file);
+}
+
+TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply") {
+    const auto files = discover_blueprints(default_blueprint_directory() / "showcase");
+    REQUIRE_MESSAGE(files.size() == 4, "Showcase bundle is incomplete");
+    for (const auto &file : files) {
+        CAPTURE(file);
+        const auto scenario = load_scenario(file);
+        REQUIRE_MESSAGE(scenario, "Showcase blueprint has no scenario");
+        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() == 2),
+                      "Showcase scenario lacks a description, disables no workload or misses goals");
+        Simulation simulation(load_blueprint(file));
+        apply_scenario(*scenario, simulation);
+        CHECK_MESSAGE(simulation.paused, "Applying a scenario must not start the simulation");
+        Simulation running(load_blueprint(file));
+        running.paused = false;
+        apply_scenario(*scenario, running);
+        CHECK_MESSAGE(!running.paused, "Applying a scenario must keep a running simulation running");
+        CHECK_MESSAGE(!simulation.workload, "Scenario workload not applied");
+        CHECK_MESSAGE((simulation.movers()[0].manual && simulation.movers()[1].manual),
+                      "Scenario goals were not sent");
+    }
+}
+
+TEST_CASE("an original blueprint has no scenario") {
+    CHECK_FALSE(load_scenario(default_blueprint_directory() / "MAS-demonstrator.json"));
+}
+
+TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
+    struct Scene {
+        const char *name;
+        void (*enable)(MotionSettings &);
+        Vec2 first_goal, second_goal;
+    };
+    const Scene scenes[]{
+        {"junction-crossing", [](MotionSettings &m) { m.junction_traffic = true; }, {1100, 700}, {700, 1100}},
+        {"corridor-passing", [](MotionSettings &m) { m.corridor_traffic = true; }, {1900, 700}, {300, 700}},
+        {"corridor-recovery", [](MotionSettings &m) { m.corridor_traffic = true; }, {1900, 700}, {300, 700}},
+        {"predictive-passing",
+         [](MotionSettings &m) {
+             m.predictive_passing = true;
+             m.heatmap = false;
+         },
+         {1900, 800},
+         {500, 800}},
+    };
+    constexpr std::uint64_t ticks = 2000;
+    for (const auto &scene : scenes) {
+        CAPTURE(scene.name);
+        const auto file = i4sim::test::showcase_blueprint(scene.name);
+        // The setup the presentation and golden tests build by hand.
+        MotionSettings motion;
+        motion.profile = SteeringProfile::reciprocal;
+        scene.enable(motion);
+        Simulation by_hand(load_blueprint(file));
+        by_hand.workload = false;
+        by_hand.configure_motion(motion);
+        REQUIRE((by_hand.move_to(0, scene.first_goal) && by_hand.move_to(1, scene.second_goal)));
+        by_hand.paused = false;
+        i4sim::test::Recorder hand_recorder;
+        hand_recorder.run(by_hand, ticks);
+
+        Simulation from_scenario(load_blueprint(file));
+        apply_scenario(*load_scenario(file), from_scenario);
+        from_scenario.paused = false;
+        i4sim::test::Recorder scenario_recorder;
+        scenario_recorder.run(from_scenario, ticks);
+
+        CHECK(scenario_recorder.summary(from_scenario) == hand_recorder.summary(by_hand));
+    }
+}
+
+TEST_CASE("an invalid scenario is rejected with its cause") {
+    const auto dir = std::filesystem::temp_directory_path() / "kinetra-i4sim-regression";
+    std::filesystem::create_directories(dir);
+    const auto with_scenario = [&](const std::string &scenario) {
+        auto text = std::ifstream(i4sim::test::showcase_blueprint("junction-crossing"));
+        auto json = std::string(std::istreambuf_iterator<char>(text), {});
+        // Replace the scene's own section with the one under test.
+        json = json.substr(0, json.find("\"scenario\"")) + "\"scenario\": " + scenario + "}";
+        const auto file = dir / "scenario.json";
+        std::ofstream(file) << json;
+        return file;
+    };
+    const auto load_error = [](const std::filesystem::path &file) {
+        try {
+            load_scenario(file);
+        } catch (const std::runtime_error &e) {
+            return std::string(e.what());
+        }
+        return std::string();
+    };
+    const auto apply_error = [](const std::filesystem::path &file) {
+        Simulation simulation(load_blueprint(file));
+        try {
+            apply_scenario(*load_scenario(file), simulation);
+        } catch (const std::runtime_error &e) {
+            return std::string(e.what());
+        }
+        return std::string();
+    };
+    const auto unknown_key = with_scenario(R"({"motion": {"junctionTrafic": true}})");
+    CHECK(load_error(unknown_key).find("Unknown property in scenario.motion: junctiontrafic") !=
+          std::string::npos);
+    CHECK(load_error(unknown_key).find("scenario.json") != std::string::npos);
+    CHECK(load_error(with_scenario(R"({"motion": {"profile": "fast"}})")).find("Unknown profile: fast") !=
+          std::string::npos);
+    CHECK(load_error(with_scenario(R"({"workload": 0})")).find("workload must be true or false") !=
+          std::string::npos);
+    CHECK(load_error(with_scenario(R"({"goals": [{"mover": "west", "position": {"x": 1, "y": 2, "z": 3}}]})"))
+              .find("Unknown property in scenario.goals[].position: z") != std::string::npos);
+    CHECK(apply_error(with_scenario(R"({"goals": [{"mover": "south", "position": {"x": 700, "y": 700}}]})"))
+              .find("names no mover: south") != std::string::npos);
+    // (300, 300) lies in the northwest forbidden zone.
+    CHECK(apply_error(with_scenario(R"({"goals": [{"mover": "west", "position": {"x": 300, "y": 300}}]})"))
+              .find("rejected for mover west") != std::string::npos);
+    // Case-insensitive like the rest of the blueprint, and the RVO profile accepts both spellings.
+    const auto loaded = load_scenario(with_scenario(R"({"Motion": {"Profile": "Experimental_RVO"}})"));
+    REQUIRE(loaded);
+    CHECK(loaded->motion.profile == SteeringProfile::experimental_rvo);
+    CHECK(loaded->workload);
 }
 
 TEST_CASE("every bundled blueprint expands its groups and starts paused") {
