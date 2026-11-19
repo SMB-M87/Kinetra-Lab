@@ -9,6 +9,9 @@ set(KINETRA_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/Kinetra" CACHE PATH
 if(NOT EXISTS "${KINETRA_SOURCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR "Kinetra source missing: initialize external/Kinetra or set KINETRA_SOURCE_DIR to a local checkout")
 endif()
+if(CMAKE_CROSSCOMPILING AND WIN32)
+    include(cmake/WindowsDependencies.cmake)
+endif()
 set(KINETRA_BUILD_RUNTIME ${KINETRA_LAB_BUILD_RUNTIME} CACHE BOOL "" FORCE)
 # Core tests run independently of Lab's CTest suites.
 set(lab_testing ${BUILD_TESTING})

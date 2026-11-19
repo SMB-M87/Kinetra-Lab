@@ -70,6 +70,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | `launcher/include/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
 | Any `session.cpp`, presentation, launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
+| Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level, plus `cmake --workflow --preset windows` from WSL ([Windows](docs/windows.md)) | |
 
 The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the two 60-second Demo crowd cases.
 

@@ -101,6 +101,27 @@
         "KINETRA_WARNINGS": "ON",
         "KINETRA_WARNINGS_AS_ERRORS": "ON"
       }
+    },
+    {
+      "name": "windows",
+      "displayName": "Windows executables cross-compiled with MinGW-w64: Release, applications, graphics tests compiled, warnings reported",
+      "inherits": [
+        "base",
+        "ccache"
+      ],
+      "toolchainFile": "${sourceDir}/cmake/toolchains/x86_64-w64-mingw32.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KINETRA_LAB_BUILD_RUNTIME": "ON",
+        "KINETRA_TEST_GRAPHICS": "ON",
+        "KINETRA_LAB_WARNINGS": "ON",
+        "KINETRA_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "windows-native",
+      "displayName": "Windows, native MinGW-w64 (MSYS2): the ci preset's settings",
+      "inherits": "ci"
     }
   ],
   "buildPresets": [
@@ -127,6 +148,14 @@
     {
       "name": "ci",
       "configurePreset": "ci"
+    },
+    {
+      "name": "windows",
+      "configurePreset": "windows"
+    },
+    {
+      "name": "windows-native",
+      "configurePreset": "windows-native"
     }
   ],
   "testPresets": [
@@ -183,6 +212,27 @@
       "name": "ci",
       "configurePreset": "ci",
       "inherits": "no-graphics"
+    },
+    {
+      "name": "windows",
+      "configurePreset": "windows",
+      "inherits": "base",
+      "filter": {
+        "exclude": {
+          "name": "^kinetra_(demo_crowd_characterization:a dense idle crowd reproduces its recorded summary|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+        }
+      }
+    },
+    {
+      "name": "windows-native",
+      "configurePreset": "windows-native",
+      "inherits": "base",
+      "filter": {
+        "exclude": {
+          "label": "graphics",
+          "name": "^kinetra_(demo_crowd_characterization:a dense idle crowd reproduces its recorded summary|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+        }
+      }
     }
   ],
   "workflowPresets": [
@@ -268,6 +318,40 @@
         {
           "type": "test",
           "name": "ci"
+        }
+      ]
+    },
+    {
+      "name": "windows",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "windows"
+        },
+        {
+          "type": "build",
+          "name": "windows"
+        },
+        {
+          "type": "test",
+          "name": "windows"
+        }
+      ]
+    },
+    {
+      "name": "windows-native",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "windows-native"
+        },
+        {
+          "type": "build",
+          "name": "windows-native"
+        },
+        {
+          "type": "test",
+          "name": "windows-native"
         }
       ]
     }

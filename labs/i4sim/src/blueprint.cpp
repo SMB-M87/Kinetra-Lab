@@ -7,6 +7,16 @@
 #include <nlohmann/json.hpp>
 #include <set>
 #include <stdexcept>
+#include <string>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX // keeps std::min and std::max usable
+#endif
+#include <windows.h>
+#endif
 
 namespace i4sim {
 namespace {
@@ -213,6 +223,30 @@ Blueprint load_blueprint(const std::filesystem::path &path) {
         throw std::runtime_error(path.string() + ": " + e.what());
     }
 }
+namespace {
+/// Path of the running executable, independent of the working directory and of
+/// argv[0]/PATH. Throws std::runtime_error (Windows) or std::filesystem::filesystem_error
+/// (Linux) when the system cannot report it.
+std::filesystem::path executable_path() {
+#ifdef _WIN32
+    // GetModuleFileNameW truncates silently; retry with a larger buffer until it fits.
+    std::wstring buffer(MAX_PATH, L'\0');
+    for (;;) {
+        const DWORD length = GetModuleFileNameW(nullptr, buffer.data(), DWORD(buffer.size()));
+        if (length == 0)
+            throw std::runtime_error("GetModuleFileNameW failed with error " +
+                                     std::to_string(GetLastError()));
+        if (length < buffer.size()) {
+            buffer.resize(length);
+            return buffer;
+        }
+        buffer.resize(buffer.size() * 2);
+    }
+#else
+    return std::filesystem::read_symlink("/proc/self/exe");
+#endif
+}
+} // namespace
 std::vector<std::filesystem::path> discover_blueprints(const std::filesystem::path &directory) {
     std::vector<std::filesystem::path> result;
     for (const auto &entry : std::filesystem::directory_iterator(directory))
@@ -222,8 +256,6 @@ std::vector<std::filesystem::path> discover_blueprints(const std::filesystem::pa
     return result;
 }
 std::filesystem::path default_blueprint_directory() {
-    // Linux is the supported runtime platform. /proc resolves the executable
-    // independently of the launcher's working directory and argv[0]/PATH.
-    return std::filesystem::read_symlink("/proc/self/exe").parent_path() / "i4sim-blueprints";
+    return executable_path().parent_path() / "i4sim-blueprints";
 }
 } // namespace i4sim
