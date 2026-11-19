@@ -9,6 +9,12 @@
 namespace i4sim::detail {
 using namespace kinetra;
 namespace {
+/// Extra clearance in millimeters between a retreating mover and the corridor mouth.
+constexpr float refuge_margin_mm = 4;
+/// Extra length in millimeters of the exit pocket kept free at each corridor mouth.
+constexpr float pocket_margin_mm = 6;
+/// Retreat costs within this many millimeters count as equal.
+constexpr float cost_tolerance_mm = 0.01f;
 /// True when the body of `mover` overlaps `corridor` (already grown by the clearance).
 bool inside(const Mover &mover, const Body &corridor) {
     return crosses_mover(mover.body.position, mover.body.position, mover.body.half_extents, corridor);
@@ -145,12 +151,14 @@ void Traffic::start_recovery(const FloorPlan &floor, std::size_t j, const Fleet 
         for (float side : {-1.f, 1.f}) {
             Vec2 refuge = shape.center;
             if (shape.vertical) {
-                refuge.y += backwards * (shape.half_extents.y +
-                                         std::max(floor.cell_size().y / 2, m.body.half_extents.y + 4));
+                refuge.y +=
+                    backwards * (shape.half_extents.y +
+                                 std::max(floor.cell_size().y / 2, m.body.half_extents.y + refuge_margin_mm));
                 refuge.x += side * floor.cell_size().x;
             } else {
-                refuge.x += backwards * (shape.half_extents.x +
-                                         std::max(floor.cell_size().x / 2, m.body.half_extents.x + 4));
+                refuge.x +=
+                    backwards * (shape.half_extents.x +
+                                 std::max(floor.cell_size().x / 2, m.body.half_extents.x + refuge_margin_mm));
                 refuge.y += side * floor.cell_size().y;
             }
             auto route = floor.grid().path(m.body.position, refuge, m.body.half_extents + clearance);
@@ -159,8 +167,9 @@ void Traffic::start_recovery(const FloorPlan &floor, std::size_t j, const Fleet 
             const bool clear = refuge_clear(j, id, route, fleet, index);
             const float cost = route_remaining(m.body.position, route);
             // The shorter retreat yields; on a tie the higher mover index does.
-            if (clear && (cost < best - 0.01f || (std::abs(cost - best) <= 0.01f && zone.recovery &&
-                                                  id > zone.recovery->yielding))) {
+            if (clear &&
+                (cost < best - cost_tolerance_mm || (std::abs(cost - best) <= cost_tolerance_mm &&
+                                                     zone.recovery && id > zone.recovery->yielding))) {
                 const auto passing = id == occupants[0] ? occupants[1] : occupants[0];
                 zone.recovery = CorridorRecovery{
                     id, passing, refuge, fleet.movers[passing].body.position, std::move(route), false};
@@ -336,7 +345,7 @@ void Traffic::admit_zone(const FloorPlan &floor, std::size_t j, const Requests &
         if (shape.corridor) {
             // Leave a body-length exit pocket free at either mouth, even
             // when a parked occupant has no route indicating its exit yet.
-            const float braking = braking_distance(motion.speed, motion.force) + 6;
+            const float braking = braking_distance(motion.speed, motion.force) + pocket_margin_mm;
             if (!shape.vertical)
                 half.x += 2 * fleet.max_half.x + braking;
             else

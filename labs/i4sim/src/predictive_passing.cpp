@@ -9,6 +9,19 @@
 
 namespace i4sim::detail {
 using namespace kinetra;
+namespace {
+/// Gap in millimeters kept between two passing movers, and between a mover's exit target
+/// and its goal; also the margin of the predicted-contact test.
+constexpr float passing_gap_mm = 8;
+/// How far past the midpoint, in millimeters beyond both bodies, the exit targets lie.
+constexpr float exit_offset_mm = 16;
+/// Extra longitudinal room in millimeters a plan needs, so both lane changes fit.
+constexpr float formation_room_mm = 32;
+/// Movers count as oncoming when their headings' cosine is at most this.
+constexpr float oncoming_cosine = -0.8f;
+/// Share of the maximum speed per tick that counts as progress toward the targets.
+constexpr float progress_speed_fraction = 0.05f;
+} // namespace
 
 bool PredictivePassing::enabled(const MotionSettings &motion) {
     return motion.predictive_passing &&
@@ -32,12 +45,7 @@ void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const Flo
         m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
         auto &tracking = fleet.progress[id];
         tracking.no_progress = tracking.replan = 0;
-        tracking.best_remaining = 0;
-        Vec2 from = m.body.position;
-        for (auto point : m.route) {
-            tracking.best_remaining += distance(from, point);
-            from = point;
-        }
+        tracking.best_remaining = route_remaining(m.body.position, m.route);
         if (id < fleet.controls.size())
             fleet.controls[id].reset();
         if (id < retry_.size())
@@ -120,7 +128,7 @@ void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, cons
             else if (fleet.controls[id].has_value())
                 end_reason = PassingEnd::traffic_control;
         }
-        if (remaining + std::max(0.0001f, motion.speed * 0.05f) < plan.best_remaining) {
+        if (remaining + std::max(0.0001f, motion.speed * progress_speed_fraction) < plan.best_remaining) {
             plan.best_remaining = remaining;
             plan.progress_at = tick;
         }
@@ -151,8 +159,9 @@ void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, c
         for (auto id : plan.movers)
             claimed[id] = true;
     // Look far enough ahead to fit two lane changes before the movers meet.
-    const float horizon = std::max(motion.horizon, (4 * length(fleet.max_half) + 32) / motion.speed +
-                                                       2 * motion.speed / motion.force);
+    const float horizon =
+        std::max(motion.horizon, (4 * length(fleet.max_half) + formation_room_mm) / motion.speed +
+                                     2 * motion.speed / motion.force);
     const float range = 2 * motion.speed * horizon + 2 * length(fleet.max_half);
     std::vector<Vec2> directions;
     for (const auto &m : fleet.movers)
@@ -170,7 +179,7 @@ void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, c
         std::vector<std::pair<float, std::size_t>> candidates;
         for (auto b : index.query(
                  {first.body.position - Vec2{range, range}, first.body.position + Vec2{range, range}})) {
-            if (b <= a || !eligible(b) || dot(directions[a], directions[b]) > -0.8f)
+            if (b <= a || !eligible(b) || dot(directions[a], directions[b]) > oncoming_cosine)
                 continue;
             const Vec2 p = fleet.movers[b].body.position - first.body.position;
             const Vec2 relative = (directions[a] - directions[b]) * motion.speed;
@@ -181,7 +190,8 @@ void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, c
             if (time > horizon)
                 continue;
             const auto closest = p - relative * time;
-            const auto extent = first.body.half_extents + fleet.movers[b].body.half_extents + Vec2{8, 8};
+            const auto extent = first.body.half_extents + fleet.movers[b].body.half_extents +
+                                Vec2{passing_gap_mm, passing_gap_mm};
             if (std::abs(closest.x) < extent.x && std::abs(closest.y) < extent.y)
                 candidates.push_back({time, b});
         }
@@ -204,13 +214,14 @@ bool PredictivePassing::try_form(std::size_t a, std::size_t b, const std::vector
     const float along = support(first.body, axis) + support(second.body, axis);
     // The formation segments remain longitudinally separated, even when
     // the two movers take different amounts of time to reach their lanes.
-    if (separation < 2 * along + 32)
+    if (separation < 2 * along + formation_room_mm)
         return false;
     const auto midpoint = (first.body.position + second.body.position) / 2;
     // Try both sides, each with the lanes centered on the midpoint or shifted by one lane.
     for (float hand : {-1.f, 1.f}) {
         const auto lateral = perpendicular(axis) * hand;
-        const float step = std::max(support(first.body, lateral), support(second.body, lateral)) + 8;
+        const float step =
+            std::max(support(first.body, lateral), support(second.body, lateral)) + passing_gap_mm;
         for (float shift : {0.f, step, -step}) {
             Plan plan;
             plan.movers = {a, b};
@@ -219,13 +230,14 @@ bool PredictivePassing::try_form(std::size_t a, std::size_t b, const std::vector
             for (std::size_t side = 0; side < 2; ++side) {
                 const auto &m = fleet.movers[plan.movers[side]];
                 const float sign = side == 0 ? 1.f : -1.f;
-                const float lane = sign * (support(m.body, lateral) + 8);
+                const float lane = sign * (support(m.body, lateral) + passing_gap_mm);
                 plan.entry[side] = m.body.position + axis * (sign * along / 2) +
                                    lateral * (dot(midpoint - m.body.position, lateral) + lane + shift);
-                plan.exit[side] = midpoint + axis * (sign * (along + 16)) + lateral * (lane + shift);
+                plan.exit[side] =
+                    midpoint + axis * (sign * (along + exit_offset_mm)) + lateral * (lane + shift);
             }
-            if (dot(first.destination - plan.exit[0], axis) < 8 ||
-                dot(second.destination - plan.exit[1], -axis) < 8)
+            if (dot(first.destination - plan.exit[0], axis) < passing_gap_mm ||
+                dot(second.destination - plan.exit[1], -axis) < passing_gap_mm)
                 continue;
             if (!lanes_clear(plan, floor, fleet, index))
                 continue;

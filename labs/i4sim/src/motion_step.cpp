@@ -10,6 +10,10 @@
 
 namespace i4sim::detail {
 using namespace kinetra;
+namespace {
+/// Margin in millimeters beyond the steering reach within which borders are considered.
+constexpr float border_search_margin_mm = 10;
+} // namespace
 
 void MotionStep::run(Goals &goals, Production &production) {
     auto &fleet = goals.fleet;
@@ -114,7 +118,7 @@ MotionStep::Surroundings MotionStep::surroundings(const Goals &goals, std::size_
         }
     for (const auto &edge : goals.floor.borders())
         if (distance_to_segment(m.body.position, edge.start, edge.end) <=
-            length(m.body.half_extents) + motion.speed * motion.horizon + 10)
+            length(m.body.half_extents) + motion.speed * motion.horizon + border_search_margin_mm)
             around.edges.push_back(edge);
     if (i < fleet.stops.size())
         around.edges.insert(around.edges.end(), fleet.stops[i].begin(), fleet.stops[i].end());
