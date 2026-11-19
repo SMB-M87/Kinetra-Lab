@@ -118,6 +118,7 @@ Not changed: the FRAME TIMES row order has no direct test. The launcher panel ca
 | Kinetra `cmake --workflow --preset ci` / `graphics` | 219/219; 228/229, with the known WSLg input failure that also occurs on `main` |
 | `KINETRA_LAB_WARNINGS` output of the `ci` build, matched against the lines this branch adds | No warnings on added lines |
 | `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| After merging `main` (window icon, i4sim showcase) into this branch and the Kinetra branch: `ci`, `headless`, `graphics` | 146/146, 139/139, 159/159; Kinetra `ci` 219/219, `graphics` 228/229 (known WSLg input failure). The merge needed one fix: the i4sim interpolation test now reads the moved showcase fixture |
 
 Not run: the Windows test suite (no platform code changed) and a measurement on the user's Linux desktop, which is the follow-up the graph exists for.
 
@@ -138,11 +139,11 @@ Title: `feat(labs): draw between fixed ticks and show frame times`
 
 **Design.** [docs/design/2026-11-19-smooth-rendering.md](2026-11-19-smooth-rendering.md), Kinetra: [frame times](../../external/Kinetra/docs/design/2026-11-19-frame-times.md).
 
-**Verification.** `ci` 142/142, `headless` 135/135, `graphics` 155/155; golden and characterization lines unchanged; no warnings on added lines; Kinetra `ci` 219/219 and `graphics` 228/229 (known WSLg input failure, also on `main`). An independent review's findings are fixed in the second commit.
+**Verification.** After merging `main`: `ci` 146/146, `headless` 139/139, `graphics` 159/159 (before: 142, 135, 155); golden and characterization lines unchanged; no warnings on added lines; Kinetra `ci` 219/219 and `graphics` 228/229 (known WSLg input failure, also on `main`). An independent review's findings are fixed in the second commit.
 
 **Review notes.** Snapshots are presentation state only; golden and characterization lines are unchanged. Dotio's position swap is the least elegant part, chosen over rewriting the ported drawing code.
 
-**Dependencies and merge order.** The Kinetra frame-times pull request first, with a merge commit. The window-icon pull requests also move the pointer; the Lab pull request merged second needs its pointer moved to the Kinetra merge commit that holds both.
+**Dependencies and merge order.** The Kinetra frame-times pull request first, with a merge commit. This branch has `main` merged in (window icon, i4sim showcase) and records the Kinetra branch's merge of its own `main`, so the pointer holds both the icon and the frame times.
 
 **Follow-up.** Measure on the user's Linux desktop with FRAME TIMES on; if frames are long, profile; if they are even, look at the compositor and swap interval.
 
