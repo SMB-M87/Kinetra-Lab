@@ -21,8 +21,10 @@ if(kinetra_i4sim_multi_config)
 endif()
 # Always out of date, so every build refreshes the catalog: edited, added or renamed
 # blueprints arrive without a file list or a relink (the former copy ran only after a
-# relink). Dependents wait for it but do not relink because of it.
+# relink). Dependents wait for it but do not relink because of it. The old copy is removed
+# first, so a deleted or renamed blueprint does not linger in an existing build directory.
 add_custom_target(kinetra_i4sim_blueprints ALL
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
         "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"
