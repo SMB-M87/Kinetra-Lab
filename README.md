@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SMB-M87/Kinetra/main/resources/kinetra-icon.png" alt="Kinetra icon" width="128" height="128">
+</p>
+
 # Kinetra-Lab
 
 Applications and experiments using the reusable [Kinetra](https://github.com/SMB-M87/Kinetra) core library. Launcher, Demo, Dotio and i4sim live here; engine implementation stays in Kinetra.
