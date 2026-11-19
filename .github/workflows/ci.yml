@@ -7,6 +7,11 @@
 # repositories. Lab warnings are reported but not errors until each module's
 # roadmap phase makes it warning-free. Graphics tests are compiled, not run (no GPU).
 # The workflow name "CI" and job id "checks" are required status checks on main.
+#
+# The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
+# of the local WSL cross build (docs/windows.md), and runs the non-graphics tests on
+# Windows. MSYS2 packages are not pinned like the Arch snapshot; the job follows
+# MSYS2's current release.
 name: CI
 
 on:
@@ -56,3 +61,37 @@ jobs:
 
       - name: Full build and test (applications, graphics tests compiled, engine warnings as errors)
         run: cmake --workflow --preset ci
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Keep line endings as committed
+        shell: pwsh
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v7
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-nlohmann-json
+
+      - name: Fetch the Kinetra submodule
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+          gcc --version | head -1; cmake --version | head -1
+
+      - name: Build and test on Windows (MinGW-w64, graphics tests compiled, engine warnings as errors)
+        run: cmake --workflow --preset windows-native
