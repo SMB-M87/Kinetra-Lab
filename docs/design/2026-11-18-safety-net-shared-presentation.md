@@ -1,6 +1,6 @@
 # Safety net and shared presentation
 
-Status: accepted · Branches: `test/characterization-safety-net` (step 1), a later branch for steps 2–7 · Related: [quality roadmap, phase 3](2026-11-18-quality-roadmap.md#phase-3-safety-net-and-shared-presentation), [Kinetra testing](../../external/Kinetra/docs/testing.md), [launcher and overlays](../launcher-overlays.md)
+Status: implemented · Branches: `test/characterization-safety-net` (step 1), `refactor/shared-presentation` (steps 2–7, with `test/lab-doctest` merged in) · Related: [quality roadmap, phase 3](2026-11-18-quality-roadmap.md#phase-3-safety-net-and-shared-presentation), [Kinetra testing](../../external/Kinetra/docs/testing.md), [launcher and overlays](../launcher-overlays.md)
 
 Phase 3 of the quality roadmap. It pins the current simulation behavior with characterization tests, so phases 4–6 can restructure i4sim, Demo and Dotio safely. It also removes the presentation glue that the three sessions duplicate. This document refines the roadmap scope with evidence from the code and records the decisions that are still open.
 
@@ -64,6 +64,9 @@ Non-goals:
 | Pull-request split | Step 1 as its own pull request now; steps 2–7 on a new branch after phase 2 merges | Settled with the user on 2026-11-18. Phase 4 gets its safety net early, and the test-only change cannot conflict with phase 2 |
 | Launcher navigation | `kinetra::Session` gains a navigation request (stay, menu, exit) that `run_launcher` honors; its M and Escape bindings become configurable; Lab removes its own loop | Settled with the user on 2026-11-18. Returning to a menu is a mechanism any launcher needs. It changes Kinetra's public API, so it gets a Kinetra ADR |
 | Shared helper placement | A `kinetra_lab_common` target in `labs/common/` for Lab policy, included through target include directories | Settled with the user on 2026-11-18. Replaces the `../../settings.h` includes, as the [conventions](../../external/Kinetra/docs/conventions.md#headers-and-includes) ask |
+| Mechanism or policy (step 5) | Kinetra gets `zoom()` with `ZoomLimits` and `RateCounter`; Lab keeps the WASD/arrow mapping (`lab::direction`) and pause-while-open (`lab::ModalPause`) | Agent's choice on 2026-11-18, following the roadmap rule: key bindings and pausing are application policy ([Kinetra boundaries](../../external/Kinetra/AGENTS.md#architecture-boundaries)) |
+| Who registers applications | The launcher's composition root (`launcher::applications()`); applications expose only their initial zoom and, for Dotio, difficulty names and an index-based factory | Agent's choice. Registrations in each presentation library would make all three depend on `Kinetra::Launcher` |
+| Test helpers | `kinetra_lab_test_support` stays separate from `kinetra_lab_common` | Agent's choice. It is test-only, built only with `BUILD_TESTING`; the design originally folded it in |
 
 ## Design
 
@@ -93,14 +96,39 @@ flowchart LR
 - Both programs take `--print` to write the current lines for a deliberate update, and report expected and actual lines on failure.
 - The tests drive today's public API, including the `paused` and `workload` fields. When phase 4 encapsulates those fields, the calls in the test change; the expected lines must not.
 
-### 2–7. Remaining steps (proposed)
+### 2–7. Implemented
 
-2. **doctest migration.** Convert every Lab test program to named doctest cases on phase 2's target; delete the 11 `require` copies and the one in `test_support.h`. Keep CTest names stable, or register per-case tests where selection helps.
-3. **Settings overlay in Kinetra.** A Kinetra overlay that owns layout, picking, drawing and input capture. Applications supply rows (toggle, button, action) and help lines. `FactorySettings` and the `dotio` flag disappear, and the help-height coupling becomes derived. Kinetra ADR and Kinetra design document.
-4. **Glyphs.** Add `-`, `_` and `.` to `kinetra::draw_text` with the same pixels as the patch (`{0,0,0,31,0,0,0}`, `{0,0,0,0,0,0,31}`, `{0,0,0,0,0,0,4}`), extract a pure `glyph(char)` lookup so it gets a headless test, and remove `factory_text`. Visible effect: `-` appears in debug-menu and launcher text where it is blank today.
-5. **Shared session glue.** One zoom-step function (`pow(1.1, steps)` plus clamp, with each application's limits as named constants), one direction mapping from WASD/arrows, one pause-while-settings-open rule that restores the earlier pause state (the i4sim behavior), and one FPS window. Mechanisms go to Kinetra; Lab limits and key policy go to the new `kinetra_lab_common` target, which also takes over `labs/settings.h`'s remaining Lab parts.
-6. **Launcher on `SessionHost`.** Add the navigation request to `kinetra::Session` and honor it in `run_launcher` (Kinetra design document and ADR). Then remove the Lab loop and pass configuration names instead of `logic::Difficulty`.
-7. **Standalone LAUNCHER.** Exit when there is no launcher, as i4sim does; the roadmap settles this.
+```mermaid
+flowchart LR
+    subgraph Kinetra
+        Over["SettingsOverlay"]
+        Req["SessionRequest"]
+        Zoom["zoom(), RateCounter"]
+        RL["run_launcher + LauncherBindings"]
+    end
+    subgraph Common["kinetra_lab_common"]
+        Rows["lab::settings_rows"]
+        Pause["lab::ModalPause"]
+        Dir["lab::direction"]
+        Base["lab::Session"]
+    end
+    Sessions["Demo, Dotio, i4sim sessions"] --> Rows --> Over
+    Sessions --> Pause
+    Sessions --> Dir
+    Sessions --> Zoom
+    Sessions -->|request()| Req
+    Launcher["launcher::applications()"] --> RL
+    RL --> Sessions
+```
+
+*Takeaway:* every session is now the same thin shape: Kinetra mechanisms plus Lab policy from one place, and only its own rules.
+
+2. **doctest migration.** Every Lab test program is a doctest suite registered with `kinetra_add_doctest`, prefixed with its former CTest name (`kinetra_i4sim:<case>`). The 11 `require` copies are gone; `kinetra_lab_test_support` keeps `Fingerprint`. The golden programs print their current lines with `KINETRA_PRINT_GOLDEN=1` instead of `--print`. The conversion ran on `test/lab-doctest` and is merged into this branch.
+3. **Settings overlay.** Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` and returns its request. `lab::Settings`, `FactorySettings` and the `dotio` flag are gone; Dotio's overlay lives in its session, because `dotio::Application` is also used by headless tests.
+4. **Glyphs.** `factory_text` is gone; i4sim calls `kinetra::draw_text`, which now draws the same pixels for `- _ .`, plus `,` and `*`, and lowercase.
+5. **Shared session glue.** `kinetra::zoom` with named limits (`labs/demo/include/zoom.h`, `labs/dotio/include/zoom.h`, i4sim's session), `kinetra::RateCounter` for Demo's and Dotio's rates, `lab::direction` for movement and camera panning, `lab::ModalPause` for all three sessions.
+6. **Launcher.** `kinetra::run_launcher` with `launcher::applications()` and `launcher::bindings`. Lab's loop, `launcher::Menu` and the `logic::Difficulty` dependency are gone; Dotio is created from a difficulty index.
+7. **Standalone LAUNCHER.** `run_session` ends on `SessionRequest::menu`, so Demo and Dotio end like i4sim; i4sim's wrapper session is removed.
 
 ## Affected areas
 
