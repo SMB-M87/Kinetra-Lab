@@ -106,7 +106,7 @@ sequenceDiagram
 - **Clicks and keys.** A settings row is found through a mirror `SettingsOverlay` with the same Lab rows (`row_y`, `half_extent`), and a debug-menu row through `DebugMenu::row_top` and `label_left`, the same public layout the graphics tests use. The panel opens on a tap of Ctrl and the debug menu on Shift+Ctrl; the stage sends both as a press that is not held, which the overlay treats as complete. Presses, clicks and the wheel apply to the first step of a clip frame; held keys and buttons to all four.
 - **Frame pacing.** The tool switches the runtime's frame limit off: its frames go to files, so nothing has to wait for a display.
 - **Frames.** `Runtime::end()` presents the frame, so the stage reads the front buffer, as the graphics tests do, flips the rows and writes the PNG.
-- **GIFs.** One palette per clip (`palettegen`), no dithering, because the applications draw flat colors, and only the changed rectangle per frame (`diff_mode=rectangle`). The six application GIFs are about 5.2 MB together, the five showcase GIFs about 2.5 MB.
+- **GIFs.** One palette per clip (`palettegen`), no dithering, because the applications draw flat colors, and only the changed rectangle per frame (`diff_mode=rectangle`). The six application GIFs are about 5.1 MB together, the five showcase GIFs about 2.5 MB.
 
 ## Invariants and contracts
 
