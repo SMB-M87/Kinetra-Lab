@@ -2,8 +2,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 
 namespace i4sim {
@@ -44,6 +47,28 @@ const char *profile_name(SteeringProfile profile) {
         return "IMPROVED";
     }
 }
+
+const char *planner_name(bool heatmap) {
+    return heatmap ? "HEAT A*" : "A*";
+}
+
+/// A motion parameter for a menu row: three significant digits, so even the largest float
+/// ends before the row's [-] button.
+std::string number_text(float value) {
+    std::ostringstream text;
+    text << std::setprecision(3) << value;
+    return text.str();
+}
+
+/// The top-level debug layers in menu order, with their row labels. The keys 1 to 6 toggle
+/// the first six (handle_keys).
+constexpr std::pair<std::string_view, Layer> top_layers[]{{"GRID", Layer::grid},
+                                                          {"HEATMAP", Layer::heatmap},
+                                                          {"PATHS", Layer::paths},
+                                                          {"FORCES", Layer::forces},
+                                                          {"BORDERS", Layer::borders},
+                                                          {"DETECTION", Layer::detection},
+                                                          {"CONTACT SHAPES", Layer::contact_shapes}};
 } // namespace
 
 FactoryController::FactoryController(std::uint32_t seed, bool running, unsigned updates_per_second)
@@ -290,88 +315,159 @@ void FactoryController::handle_input(double elapsed, const Input &input, Camera2
     restart_when_due();
 }
 
-MenuEntry FactoryController::motion_switch(std::string_view label, bool MotionSettings::*setting) {
-    return {label,
-            [this, setting] { change_motion([setting](MotionSettings &m) { m.*setting = !(m.*setting); }); },
-            [this, setting] { return std::string(simulation_->motion_settings().*setting ? "ON" : "OFF"); }};
+MenuEntry FactoryController::section_heading(std::string_view label, MenuSection section) {
+    return {.label = label,
+            .action =
+                [this, section] {
+                    open_section_ = open_section_ == section ? MenuSection::none : section;
+                    // A list belongs to the section it was opened in.
+                    open_list_ = MenuList::none;
+                },
+            .kind = EntryKind::group,
+            .active = [this, section] { return open_section_ == section; }};
 }
 
-void FactoryController::add_view_entries(std::vector<MenuEntry> &entries) {
-    const auto layer = [this](std::string_view label, Layer which) {
-        return MenuEntry{label,
-                         [this, which] { layers_.toggle(which); },
-                         {},
-                         [this, which] { return layers_.selected(which); }};
-    };
-    entries.push_back(layer("GRID", Layer::grid));
-    entries.push_back(layer("HEATMAP", Layer::heatmap));
-    entries.push_back(layer("PATHS", Layer::paths));
-    entries.push_back(layer("FORCES", Layer::forces));
-    entries.push_back(layer("BORDERS", Layer::borders));
-    entries.push_back(layer("DETECTION", Layer::detection));
-    entries.push_back(layer("CONTACT SHAPES", Layer::contact_shapes));
-    entries.push_back({"PAUSE / RUN", [this] { toggle_pause(); }});
-    entries.push_back({"SINGLE TICK", [this] { simulation_->single_step(); }});
-    entries.push_back({"WORKLOAD",
-                       [this] { simulation_->set_workload(!simulation_->workload()); },
-                       {},
-                       [this] { return simulation_->workload(); }});
-    entries.push_back({"FRAME SCENE", [this] { fit_pending_ = true; }});
-    entries.push_back({"BLUEPRINTS", [this] { close_requested_ = true; }});
-    // Kept on this page so the motion page stays above the statistics on short viewports.
-    entries.push_back(motion_switch("CORRIDOR TRAFFIC", &MotionSettings::corridor_traffic));
-    entries.push_back(
-        {"PREDICTIVE PASS",
-         [this] { change_motion([](MotionSettings &m) { m.predictive_passing = !m.predictive_passing; }); },
-         [this] {
-             const auto &motion = simulation_->motion_settings();
-             if (!supports_predictive_passing(motion.profile))
-                 return std::string("LEGACY");
-             return std::string(motion.predictive_passing ? "ON" : "OFF");
-         }});
+MenuEntry FactoryController::list_heading(std::string_view label, MenuList list,
+                                          std::function<std::string()> value) {
+    return {.label = label,
+            .action = [this, list] { open_list_ = open_list_ == list ? MenuList::none : list; },
+            .kind = EntryKind::group,
+            .active = [this, list] { return open_list_ == list; },
+            .value = std::move(value),
+            .depth = 1};
+}
+
+MenuEntry FactoryController::motion_check(std::string_view label, bool MotionSettings::*setting) {
+    return {
+        .label = label,
+        .action = [this,
+                   setting] { change_motion([setting](MotionSettings &m) { m.*setting = !(m.*setting); }); },
+        .kind = EntryKind::check,
+        .active = [this, setting] { return simulation_->motion_settings().*setting; },
+        .depth = 1};
+}
+
+MenuEntry FactoryController::motion_number(std::string_view label, std::function<std::string()> value,
+                                           std::function<void(MotionSettings &)> lower,
+                                           std::function<void(MotionSettings &)> raise) {
+    return {.label = label,
+            .value = std::move(value),
+            .decrease = [this, lower = std::move(lower)] { change_motion(lower); },
+            .increase = [this, raise = std::move(raise)] { change_motion(raise); },
+            .depth = 1};
+}
+
+void FactoryController::add_simulation_entries(std::vector<MenuEntry> &entries) {
+    entries.push_back({.label = "RUNNING",
+                       .action = [this] { toggle_pause(); },
+                       .kind = EntryKind::check,
+                       .active = [this] { return simulation_->running(); },
+                       .depth = 1});
+    entries.push_back({.label = "SINGLE TICK", .action = [this] { simulation_->single_step(); }, .depth = 1});
+    entries.push_back({.label = "UPS",
+                       .value = [this] { return std::to_string(simulation_->updates_per_second()); },
+                       .decrease = [this] { change_update_rate(false); },
+                       .increase = [this] { change_update_rate(true); },
+                       .depth = 1});
+    entries.push_back({.label = "WORKLOAD",
+                       .action = [this] { simulation_->set_workload(!simulation_->workload()); },
+                       .kind = EntryKind::check,
+                       .active = [this] { return simulation_->workload(); },
+                       .depth = 1});
+}
+
+void FactoryController::add_layer_entries(std::vector<MenuEntry> &entries) {
+    for (const auto &[label, layer] : top_layers)
+        entries.push_back({.label = label,
+                           .action = [this, layer] { layers_.toggle(layer); },
+                           .kind = EntryKind::check,
+                           .active = [this, layer] { return layers_.selected(layer); },
+                           .depth = 1,
+                           .layer = layer});
 }
 
 void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
-    const auto parameter = [this](std::string_view label, std::function<void(MotionSettings &)> change) {
-        return MenuEntry{label, [this, change = std::move(change)] { change_motion(change); }};
+    const auto motion = [this]() -> const MotionSettings & { return simulation_->motion_settings(); };
+    entries.push_back(list_heading("PROFILE", MenuList::profile,
+                                   [motion] { return std::string(profile_name(motion().profile)); }));
+    if (open_list_ == MenuList::profile)
+        for (const auto profile : {SteeringProfile::improved, SteeringProfile::original,
+                                   SteeringProfile::experimental_rvo, SteeringProfile::reciprocal})
+            entries.push_back({.label = profile_name(profile),
+                               .action =
+                                   [this, profile] {
+                                       change_motion([profile](MotionSettings &m) { m.profile = profile; });
+                                       open_list_ = MenuList::none;
+                                   },
+                               .kind = EntryKind::choice,
+                               .active = [motion, profile] { return motion().profile == profile; },
+                               .depth = 2});
+    entries.push_back(list_heading("PLANNER", MenuList::planner,
+                                   [motion] { return std::string(planner_name(motion().heatmap)); }));
+    if (open_list_ == MenuList::planner)
+        for (const bool heatmap : {true, false})
+            entries.push_back({.label = planner_name(heatmap),
+                               .action =
+                                   [this, heatmap] {
+                                       change_motion([heatmap](MotionSettings &m) { m.heatmap = heatmap; });
+                                       open_list_ = MenuList::none;
+                                   },
+                               .kind = EntryKind::choice,
+                               .active = [motion, heatmap] { return motion().heatmap == heatmap; },
+                               .depth = 2});
+    entries.push_back(motion_check("RECOVERY", &MotionSettings::recovery));
+    entries.push_back(motion_number(
+        "SPEED", [motion] { return number_text(motion().speed); },
+        [](MotionSettings &m) { m.speed /= parameter_step; },
+        [](MotionSettings &m) { m.speed *= parameter_step; }));
+    entries.push_back(motion_number(
+        "FORCE", [motion] { return number_text(motion().force); },
+        [](MotionSettings &m) { m.force /= parameter_step; },
+        [](MotionSettings &m) { m.force *= parameter_step; }));
+    entries.push_back(motion_number(
+        "HORIZON", [motion] { return number_text(motion().horizon); },
+        [](MotionSettings &m) { m.horizon = std::max(shortest_horizon, m.horizon - 1); },
+        [](MotionSettings &m) { m.horizon = std::min(longest_horizon, m.horizon + 1); }));
+    entries.push_back({.label = "RESET PARAMETERS",
+                       .action =
+                           [this] {
+                               change_motion([](MotionSettings &m) {
+                                   m.speed = reset_speed;
+                                   m.force = reset_force;
+                                   m.horizon = reset_horizon;
+                               });
+                           },
+                       .depth = 1});
+}
+
+void FactoryController::add_traffic_entries(std::vector<MenuEntry> &entries) {
+    entries.push_back(motion_check("CORRIDOR TRAFFIC", &MotionSettings::corridor_traffic));
+    entries.push_back(motion_check("JUNCTION TRAFFIC", &MotionSettings::junction_traffic));
+    entries.push_back(motion_check("PARKING TRAFFIC", &MotionSettings::parking_traffic));
+    auto passing = motion_check("PREDICTIVE PASS", &MotionSettings::predictive_passing);
+    // The legacy profiles keep the setting but ignore it; say so instead of hiding the row.
+    passing.value = [this] {
+        return std::string(supports_predictive_passing(simulation_->motion_settings().profile) ? ""
+                                                                                               : "LEGACY");
     };
-    entries.push_back(
-        {"PROFILE",
-         [this] {
-             change_motion([](MotionSettings &m) { m.profile = SteeringProfile((int(m.profile) + 1) % 4); });
-         },
-         [this] { return std::string(profile_name(simulation_->motion_settings().profile)); }});
-    entries.push_back(
-        {"PLANNER", [this] { change_motion([](MotionSettings &m) { m.heatmap = !m.heatmap; }); },
-         [this] { return std::string(simulation_->motion_settings().heatmap ? "HEAT A*" : "A*"); }});
-    entries.push_back(motion_switch("RECOVERY", &MotionSettings::recovery));
-    entries.push_back(parameter("SPEED +", [](MotionSettings &m) { m.speed *= parameter_step; }));
-    entries.push_back(parameter("SPEED -", [](MotionSettings &m) { m.speed /= parameter_step; }));
-    entries.push_back(parameter("FORCE +", [](MotionSettings &m) { m.force *= parameter_step; }));
-    entries.push_back(parameter("FORCE -", [](MotionSettings &m) { m.force /= parameter_step; }));
-    entries.push_back(parameter(
-        "HORIZON +", [](MotionSettings &m) { m.horizon = std::min(longest_horizon, m.horizon + 1); }));
-    entries.push_back(parameter(
-        "HORIZON -", [](MotionSettings &m) { m.horizon = std::max(shortest_horizon, m.horizon - 1); }));
-    entries.push_back(parameter("RESET PARAMETERS", [](MotionSettings &m) {
-        m.speed = reset_speed;
-        m.force = reset_force;
-        m.horizon = reset_horizon;
-    }));
-    entries.push_back({"UPS +", [this] { change_update_rate(true); }});
-    entries.push_back({"UPS -", [this] { change_update_rate(false); }});
-    entries.push_back(motion_switch("PARKING TRAFFIC", &MotionSettings::parking_traffic));
-    entries.push_back(motion_switch("JUNCTION TRAFFIC", &MotionSettings::junction_traffic));
+    entries.push_back(std::move(passing));
 }
 
 std::vector<MenuEntry> FactoryController::menu() {
     std::vector<MenuEntry> entries;
-    entries.push_back(
-        {motion_page_ ? "PAGE: MOTION" : "PAGE: VIEW", [this] { motion_page_ = !motion_page_; }});
-    if (motion_page_)
-        add_motion_entries(entries);
-    else
-        add_view_entries(entries);
+    using Adder = void (FactoryController::*)(std::vector<MenuEntry> &);
+    const std::tuple<std::string_view, MenuSection, Adder> sections[]{
+        {"SIMULATION", MenuSection::simulation, &FactoryController::add_simulation_entries},
+        {"LAYERS", MenuSection::layers, &FactoryController::add_layer_entries},
+        {"MOTION", MenuSection::motion, &FactoryController::add_motion_entries},
+        {"TRAFFIC", MenuSection::traffic, &FactoryController::add_traffic_entries}};
+    for (const auto &[label, section, add] : sections) {
+        entries.push_back(section_heading(label, section));
+        if (open_section_ == section)
+            (this->*add)(entries);
+    }
+    entries.push_back({.label = "FRAME SCENE", .action = [this] { fit_pending_ = true; }});
+    entries.push_back({.label = "BLUEPRINTS", .action = [this] { close_requested_ = true; }});
     return entries;
 }
 } // namespace i4sim
