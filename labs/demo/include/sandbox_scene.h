@@ -102,9 +102,9 @@ class Sandbox {
                 ball = regular_polygon(i == 2 ? 3 : i == 3 ? 5 : 6, 0.5f);
             else
                 ball.shape = i % 2 ? Shape::circle : Shape::box;
-            ball.position = {-22.f + i * 8, 16};
+            ball.position = {-22.f + float(i) * 8, 16};
             ball.velocity = {i % 2 ? -4.f : 4.f, -1};
-            ball.angle = 0.35f * i;
+            ball.angle = 0.35f * float(i);
             ball.angular_velocity = 0.7f;
             ball.restitution = 0.9f;
             world.add(ball);
@@ -160,7 +160,7 @@ class Sandbox {
         }
         // Remember only resident chunks, allowing bounded state and fresh populations on return.
         std::erase_if(populated_, [&](const auto &coordinate) {
-            const Vec2 corner{coordinate.first * 32.f, coordinate.second * 32.f};
+            const Vec2 corner{float(coordinate.first) * 32.f, float(coordinate.second) * 32.f};
             return !retained.overlaps({corner, corner + Vec2{32, 32}});
         });
         const bool changed = terrain.update(retained, 0) || removed;
@@ -172,8 +172,8 @@ class Sandbox {
         }
         bool added = false;
         for (const auto &[coordinate, obstacles] : terrain.chunks()) {
-            const Vec2 corner{coordinate.first * Terrain::chunk_size,
-                              coordinate.second * Terrain::chunk_size};
+            const Vec2 corner{float(coordinate.first) * Terrain::chunk_size,
+                              float(coordinate.second) * Terrain::chunk_size};
             if (!active_view.overlaps({corner, corner + Vec2{32, 32}}) || agents_.size() >= maximum_agents ||
                 !populated_.insert(coordinate).second)
                 continue;

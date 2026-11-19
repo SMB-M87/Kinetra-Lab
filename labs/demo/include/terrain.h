@@ -95,8 +95,8 @@ class Terrain {
             Body body;
             body.motion = Motion::fixed;
             body.shape = random() % 2 ? Shape::box : Shape::circle;
-            body.position = {coordinate.first * chunk_size + 4 + unit() * 24,
-                             coordinate.second * chunk_size + 4 + unit() * 24};
+            body.position = {float(coordinate.first) * chunk_size + 4 + unit() * 24,
+                             float(coordinate.second) * chunk_size + 4 + unit() * 24};
             body.half_extents = {0.6f + unit() * 1.8f, 0.6f + unit() * 1.8f};
             body.radius = 0.7f + unit() * 1.7f;
             body.angle = unit() * 6.28318530718f;
