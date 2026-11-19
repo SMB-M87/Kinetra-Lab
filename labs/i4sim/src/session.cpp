@@ -1,4 +1,5 @@
 #include "session.h"
+#include "blueprint_screen.h"
 #include "hud.h"
 #include "scenario.h"
 #include "simulation.h"
@@ -14,17 +15,13 @@
 namespace i4sim {
 namespace {
 using namespace kinetra;
-/// Subdirectory of the catalog with the showcase scenes, listed under one SHOWCASE row.
-constexpr const char *showcase_directory = "showcase";
 /// No debug layer at all: what the world view draws outside debug mode.
 constexpr ViewLayers hidden_layers{false, false, false, false, false, false, false};
 class FactorySession final : public lab::Session {
     std::uint32_t seed_;
-    /// Bundled blueprints in the catalog directory, then the scenes in its showcase/ subdirectory.
-    std::vector<std::filesystem::path> files_, showcase_files_;
+    BlueprintScreen screen_;
     /// Setup of the loaded blueprint; R replays it.
     std::optional<Scenario> scenario_;
-    std::unique_ptr<LaunchMenu> loadscreen_;
     std::unique_ptr<Simulation> simulation_;
     bool back_{}, exit_{}, fitted_{}, running_{};
     bool workload_{true};
@@ -164,40 +161,17 @@ class FactorySession final : public lab::Session {
     std::string error_;
     double error_remaining_{};
     unsigned ups_;
-    std::filesystem::path directory_;
     void report_error(const std::string &message) {
         error_ = message;
         std::cerr << "i4sim: " << error_ << '\n';
     }
     void refresh_catalog() {
-        files_.clear();
-        showcase_files_.clear();
-        loadscreen_.reset();
         try {
-            files_ = discover_blueprints(directory_);
-            const auto showcase = directory_ / showcase_directory;
-            showcase_files_ = std::filesystem::is_directory(showcase) ? discover_blueprints(showcase)
-                                                                      : std::vector<std::filesystem::path>{};
-            if (files_.empty() && showcase_files_.empty())
-                throw std::runtime_error("No JSON blueprints found in " + directory_.string());
-            loadscreen_ = std::make_unique<LaunchMenu>(choices(), "I4SIM LOADSCREEN");
+            screen_.refresh();
             error_.clear();
         } catch (const std::exception &e) {
             report_error(e.what());
         }
-    }
-    std::vector<LaunchChoice> choices() const {
-        std::vector<LaunchChoice> result;
-        for (const auto &f : files_)
-            result.push_back({f.stem().string(), "JSON BLUEPRINT", {}, 0});
-        // One row whose second page lists the scenes, so the catalog stays one page per group.
-        if (!showcase_files_.empty()) {
-            std::vector<std::string> scenes;
-            for (const auto &f : showcase_files_)
-                scenes.push_back(f.stem().string());
-            result.push_back({"SHOWCASE", "SCENES WITH THEIR OWN SETUP", std::move(scenes), 0});
-        }
-        return result;
     }
     void load(const std::filesystem::path &path) {
         try {
@@ -258,7 +232,7 @@ class FactorySession final : public lab::Session {
     FactorySession(std::uint32_t seed, const std::filesystem::path &directory,
                    const std::optional<std::filesystem::path> &initial, bool running, unsigned ups,
                    std::optional<std::filesystem::path>)
-        : seed_(seed), running_(running), ups_(ups), directory_(directory) {
+        : seed_(seed), screen_(directory), running_(running), ups_(ups) {
         if (ups < 1 || ups > 10000)
             throw std::invalid_argument("UPS must be in 1..10000");
         refresh_catalog();
@@ -267,29 +241,23 @@ class FactorySession final : public lab::Session {
     }
     void advance(double elapsed, const Input &input, Camera2D &camera) override {
         if (!simulation_) {
-            const bool leave = input.hit(Key::escape) || input.hit(Key::m);
-            if (leave && loadscreen_ && loadscreen_->configuring()) {
-                // On the SHOWCASE page, Escape and M go back to the blueprint list, which
-                // LaunchMenu does on M; the launcher itself only sees M from a session.
-                Input back;
-                back.pressed[std::size_t(Key::m)] = true;
-                back.mouse = input.mouse;
-                loadscreen_->update(back, camera.viewport);
-                return;
-            }
-            if (leave) {
+            const auto event = screen_.update(input, camera.viewport);
+            switch (event.action) {
+            case ScreenAction::leave:
                 back_ = true;
-                return;
-            }
-            if (loadscreen_) {
-                if (const auto choice = loadscreen_->update(input, camera.viewport)) {
-                    load(choice->application < files_.size() ? files_[choice->application]
-                                                             : showcase_files_.at(choice->configuration));
-                    return;
-                }
-                exit_ = loadscreen_->exit_requested();
-            } else if (input.hit(Key::enter))
+                break;
+            case ScreenAction::exit:
+                exit_ = true;
+                break;
+            case ScreenAction::load:
+                load(event.blueprint);
+                break;
+            case ScreenAction::rediscover:
                 refresh_catalog();
+                break;
+            case ScreenAction::none:
+                break;
+            }
             return;
         }
         if (back_to_blueprints_) {
@@ -387,20 +355,7 @@ class FactorySession final : public lab::Session {
     }
     void render(Runtime &runtime) override {
         if (!simulation_) {
-            if (loadscreen_)
-                loadscreen_->draw(runtime, error_);
-            if (!loadscreen_) {
-                runtime.begin();
-                draw_text(runtime, "I4SIM LOAD ERROR - ESC TO LAUNCHER", {12, 12}, 1, {1, 0.4f, 0.3f});
-                draw_text(runtime, "ENTER RETRIES BLUEPRINT DISCOVERY", {12, 30}, 1, {1, 1, 1});
-                const auto columns = std::size_t(std::max(1.f, (runtime.camera.viewport.x - 24) / 6));
-                float y = 50;
-                for (std::size_t offset = 0; offset < error_.size() && y + 8 < runtime.camera.viewport.y;
-                     offset += columns, y += 12)
-                    draw_text(runtime, std::string_view(error_).substr(offset, columns), {12, y}, 1,
-                              {1, 0.8f, 0.7f});
-                runtime.end();
-            }
+            screen_.draw(runtime, error_);
             return;
         }
         if (!fitted_)
