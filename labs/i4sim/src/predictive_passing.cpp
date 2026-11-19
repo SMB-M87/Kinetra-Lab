@@ -1,18 +1,17 @@
 #include "geometry.h"
-#include "simulation.h"
 #include "simulation_constants.h"
+#include "simulation_core.h"
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
 
-namespace i4sim {
+namespace i4sim::detail {
 using namespace kinetra;
-using namespace detail;
-bool Simulation::predictive_enabled() const {
+bool SimulationCore::predictive_enabled() const {
     return motion_.predictive_passing &&
            (motion_.profile == SteeringProfile::improved || motion_.profile == SteeringProfile::reciprocal);
 }
-std::optional<Vec2> Simulation::passing_target(std::size_t mover) const {
+std::optional<Vec2> SimulationCore::passing_target(std::size_t mover) const {
     if (mover >= movers_.size())
         throw std::out_of_range("Mover index");
     for (const auto &plan : passing_plans_)
@@ -21,7 +20,7 @@ std::optional<Vec2> Simulation::passing_target(std::size_t mover) const {
                 return plan.crossing ? plan.exit[side] : plan.entry[side];
     return std::nullopt;
 }
-void Simulation::restore_passing_routes(std::array<std::size_t, 2> ids) {
+void SimulationCore::restore_passing_routes(std::array<std::size_t, 2> ids) {
     for (auto id : ids) {
         auto &m = movers_[id];
         m.coordination.passing = false;
@@ -41,7 +40,7 @@ void Simulation::restore_passing_routes(std::array<std::size_t, 2> ids) {
             passing_retry_[id] = ticks_ + passing_retry_ticks;
     }
 }
-void Simulation::record_passing(EventKind kind, const PassingPlan &plan, std::optional<PassingEnd> end) {
+void SimulationCore::record_passing(EventKind kind, const PassingPlan &plan, std::optional<PassingEnd> end) {
     if (!recording_)
         return;
     SimulationEvent event{.tick = ticks_, .kind = kind, .plan = plan.id, .movers = plan.movers};
@@ -52,13 +51,13 @@ void Simulation::record_passing(EventKind kind, const PassingPlan &plan, std::op
     event.end = end;
     events_.push_back(event);
 }
-void Simulation::end_passing(std::size_t index, PassingEnd end) {
+void SimulationCore::end_passing(std::size_t index, PassingEnd end) {
     record_passing(EventKind::passing_ended, passing_plans_[index], end);
     const auto ids = passing_plans_[index].movers;
     passing_plans_.erase(passing_plans_.begin() + std::ptrdiff_t(index));
     restore_passing_routes(ids);
 }
-void Simulation::cancel_predictive_passing(Mover &m) {
+void SimulationCore::cancel_predictive_passing(Mover &m) {
     for (std::size_t i = 0; i < passing_plans_.size();) {
         const auto ids = passing_plans_[i].movers;
         if (&m != &movers_[ids[0]] && &m != &movers_[ids[1]]) {
@@ -68,7 +67,7 @@ void Simulation::cancel_predictive_passing(Mover &m) {
         end_passing(i, PassingEnd::goal_changed);
     }
 }
-void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
+void SimulationCore::coordinate_predictive_passing(const SpatialGrid &index) {
     passing_retry_.resize(movers_.size());
     for (std::size_t i = 0; i < passing_plans_.size();) {
         auto &plan = passing_plans_[i];
@@ -247,4 +246,4 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
                                                    plan.crossing ? plan.exit[side] : plan.entry[side], false};
         }
 }
-} // namespace i4sim
+} // namespace i4sim::detail
