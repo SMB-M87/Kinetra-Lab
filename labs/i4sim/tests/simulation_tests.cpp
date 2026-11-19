@@ -3,7 +3,7 @@
 // parking traffic, the bundled blueprints and showcase scenarios, recipes, workloads,
 // determinism and export.
 //
-// The `the bundled catalog holds fourteen blueprints that all load` case doubles as the
+// The `the bundled catalog holds six blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "flow_metrics.h"
 #include "recorder.h"
@@ -1397,21 +1397,21 @@ TEST_CASE("drawing interpolates between a mover's last two ticks") {
     CHECK(simulation.interpolation() == 1);
 }
 
-TEST_CASE("the bundled catalog holds fourteen blueprints that all load") {
+TEST_CASE("the bundled catalog holds six blueprints that all load") {
     const auto files = discover_blueprints(default_blueprint_directory());
-    REQUIRE_MESSAGE(files.size() == 14, "Original blueprint bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 6, "Original blueprint bundle is incomplete");
     for (const auto &file : files)
         load_blueprint(file);
 }
 
-TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply") {
+TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply") {
     const auto files = discover_blueprints(default_blueprint_directory() / "showcase");
-    REQUIRE_MESSAGE(files.size() == 4, "Showcase bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 5, "Showcase bundle is incomplete");
     for (const auto &file : files) {
         CAPTURE(file);
         const auto scenario = load_scenario(file);
         REQUIRE_MESSAGE(scenario, "Showcase blueprint has no scenario");
-        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() == 2),
+        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() >= 2),
                       "Showcase scenario lacks a description, disables no workload or misses goals");
         Simulation simulation(load_blueprint(file));
         apply_scenario(*scenario, simulation);
@@ -1422,9 +1422,13 @@ TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply
         apply_scenario(*scenario, running);
         CHECK_MESSAGE(running.running(), "Applying a scenario must keep a running simulation running");
         CHECK_MESSAGE(!simulation.workload(), "Scenario workload not applied");
-        CHECK_MESSAGE((simulation.movers()[0].goal == GoalKind::manual &&
-                       simulation.movers()[1].goal == GoalKind::manual),
-                      "Scenario goals were not sent");
+        const bool shuttles = scenario->repeat == ScenarioRepeat::shuttle;
+        for (std::size_t mover = 0; mover < simulation.movers().size(); ++mover) {
+            CAPTURE(mover);
+            CHECK_MESSAGE(simulation.movers()[mover].goal == GoalKind::manual,
+                          "Scenario goals were not sent");
+            CHECK_MESSAGE(simulation.shuttling(mover) == shuttles, "Scenario repeat mode not applied");
+        }
     }
 }
 
@@ -1435,33 +1439,54 @@ TEST_CASE("an original blueprint has no scenario") {
 TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
     struct Scene {
         const char *name;
+        SteeringProfile profile;
         void (*enable)(MotionSettings &);
-        Vec2 first_goal, second_goal;
+        /// One goal per mover, in blueprint order.
+        std::vector<Vec2> goals;
+    };
+    const auto passing = [](MotionSettings &m) {
+        m.predictive_passing = true;
+        m.heatmap = false;
     };
     const Scene scenes[]{
-        {"junction-crossing", [](MotionSettings &m) { m.junction_traffic = true; }, {1100, 700}, {700, 1100}},
-        {"corridor-passing", [](MotionSettings &m) { m.corridor_traffic = true; }, {1900, 700}, {300, 700}},
-        {"corridor-recovery", [](MotionSettings &m) { m.corridor_traffic = true; }, {1900, 700}, {300, 700}},
-        {"predictive-passing",
-         [](MotionSettings &m) {
-             m.predictive_passing = true;
-             m.heatmap = false;
-         },
-         {1900, 800},
-         {500, 800}},
+        {"junction-crossing",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) { m.junction_traffic = true; },
+         {{1100, 700}, {700, 1100}}},
+        {"corridor-passing",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) { m.corridor_traffic = true; },
+         {{1900, 700}, {300, 700}}},
+        {"corridor-recovery",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) { m.corridor_traffic = true; },
+         {{1900, 700}, {300, 700}}},
+        {"predictive-passing", SteeringProfile::reciprocal, passing, {{1900, 800}, {500, 800}}},
+        // The four corners of the H swap diagonally.
+        {"h-crossing",
+         SteeringProfile::improved,
+         passing,
+         {{1323.75f, 843.75f}, {1323.75f, 116.25f}, {116.25f, 843.75f}, {116.25f, 116.25f}}},
     };
-    constexpr std::uint64_t ticks = 2000;
+    // Long enough for the shuttling scenes to turn at least once.
+    constexpr std::uint64_t ticks = 6000;
     for (const auto &scene : scenes) {
         CAPTURE(scene.name);
         const auto file = i4sim::test::showcase_blueprint(scene.name);
-        // The setup the presentation and golden tests build by hand.
+        // The setup the presentation and golden tests build by hand, shuttling where the
+        // scene does.
         MotionSettings motion;
-        motion.profile = SteeringProfile::reciprocal;
+        motion.profile = scene.profile;
         scene.enable(motion);
         Simulation by_hand(load_blueprint(file));
         by_hand.set_workload(false);
         by_hand.configure_motion(motion);
-        REQUIRE((by_hand.move_to(0, scene.first_goal) && by_hand.move_to(1, scene.second_goal)));
+        const auto send = [&](std::size_t mover, Vec2 goal) {
+            return load_scenario(file)->repeat == ScenarioRepeat::shuttle ? by_hand.shuttle(mover, goal)
+                                                                          : by_hand.move_to(mover, goal);
+        };
+        for (std::size_t mover = 0; mover < scene.goals.size(); ++mover)
+            REQUIRE(send(mover, scene.goals[mover]));
         by_hand.run();
         i4sim::test::Recorder hand_recorder;
         hand_recorder.run(by_hand, ticks);
@@ -1474,6 +1499,170 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
 
         CHECK(scenario_recorder.summary(from_scenario) == hand_recorder.summary(by_hand));
     }
+}
+
+TEST_CASE("shuttling movers turn together after the pause") {
+    Simulation s(crossing_fixture());
+    s.set_workload(false);
+    auto config = s.motion_settings();
+    config.profile = SteeringProfile::reciprocal;
+    config.junction_traffic = true;
+    s.configure_motion(config);
+    const auto west_start = s.movers()[0].body.position;
+    const auto north_start = s.movers()[1].body.position;
+    REQUIRE((s.shuttle(0, {1100, 700}) && s.shuttle(1, {700, 1100})));
+    CHECK((s.shuttling(0) && s.shuttling(1)));
+    s.run();
+    const auto both_idle = [&] {
+        return s.movers()[0].lifecycle == MoverLifecycle::idle &&
+               s.movers()[1].lifecycle == MoverLifecycle::idle;
+    };
+    // Runs until both movers have arrived; returns whether a junction wait happened on the way.
+    const auto drive_leg = [&] {
+        bool waited = false;
+        for (int tick = 0; tick < 5000 && !both_idle(); ++tick) {
+            s.tick();
+            waited = waited || s.junction_waiting() > 0;
+        }
+        REQUIRE_MESSAGE(both_idle(), "Shuttling movers did not complete their leg");
+        return waited;
+    };
+    std::uint64_t first_arrival = 0;
+    while (!both_idle() && s.ticks() < 5000) {
+        s.tick();
+        if (!first_arrival && (s.movers()[0].lifecycle == MoverLifecycle::idle ||
+                               s.movers()[1].lifecycle == MoverLifecycle::idle))
+            first_arrival = s.ticks();
+    }
+    REQUIRE(both_idle());
+    const auto last_arrival = s.ticks();
+    CHECK_MESSAGE(first_arrival < last_arrival, "The junction should make one mover arrive later");
+    for (std::uint64_t tick = 1; tick < shuttle_pause_ticks; ++tick) {
+        s.tick();
+        REQUIRE_MESSAGE(both_idle(),
+                        "A shuttling mover turned before the pause after the last arrival ended");
+    }
+    s.tick();
+    CHECK_MESSAGE(s.ticks() == last_arrival + shuttle_pause_ticks, "Pause counted from the wrong tick");
+    REQUIRE_MESSAGE((s.movers()[0].moving() && s.movers()[1].moving()),
+                    "Shuttling movers did not turn together");
+    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    CHECK((s.movers()[1].destination.x == north_start.x && s.movers()[1].destination.y == north_start.y));
+    CHECK_MESSAGE(drive_leg(), "The return leg did not meet at the junction again");
+    CHECK((s.movers()[0].body.position.x == west_start.x && s.movers()[0].body.position.y == west_start.y));
+    CHECK((s.movers()[1].body.position.x == north_start.x && s.movers()[1].body.position.y == north_start.y));
+    CHECK((s.shuttling(0) && s.shuttling(1)));
+    CHECK(s.collisions() == 0);
+}
+
+TEST_CASE("a manual goal ends shuttling for that mover only") {
+    Simulation s(crossing_fixture());
+    s.set_workload(false);
+    const auto west_start = s.movers()[0].body.position;
+    // (300, 300) lies in the northwest forbidden zone.
+    CHECK_FALSE(s.shuttle(0, {300, 300}));
+    CHECK_FALSE(s.shuttling(0));
+    CHECK(s.movers()[0].lifecycle == MoverLifecycle::idle);
+    CHECK_THROWS_AS(s.shuttle(2, {1100, 700}), std::out_of_range);
+    CHECK_THROWS_AS((void)s.shuttling(2), std::out_of_range);
+
+    REQUIRE((s.shuttle(0, {1100, 700}) && s.shuttle(1, {700, 1100})));
+    CHECK_FALSE(s.move_to(1, {300, 300})); // A rejected goal changes nothing.
+    CHECK(s.shuttling(1));
+    REQUIRE(s.move_to(1, {700, 1100}));
+    CHECK_FALSE(s.shuttling(1));
+    CHECK(s.shuttling(0));
+    s.run();
+    // Each mover is checked from its own arrival, so the test does not depend on which one
+    // the junction lets through first.
+    const auto run_until_idle = [&](std::size_t mover) {
+        for (int tick = 0; tick < 5000 && s.movers()[mover].lifecycle != MoverLifecycle::idle; ++tick)
+            s.tick();
+        REQUIRE(s.movers()[mover].lifecycle == MoverLifecycle::idle);
+    };
+    // The west mover now shuttles alone, so it turns one pause after its own arrival.
+    run_until_idle(0);
+    for (std::uint64_t tick = 0; tick < shuttle_pause_ticks; ++tick)
+        s.tick();
+    CHECK_MESSAGE(s.movers()[0].moving(), "The remaining shuttling mover did not turn on its own");
+    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    run_until_idle(1);
+    for (std::uint64_t tick = 0; tick <= shuttle_pause_ticks; ++tick)
+        s.tick();
+    CHECK_MESSAGE(s.movers()[1].lifecycle == MoverLifecycle::idle,
+                  "A mover with a manual goal kept shuttling");
+}
+
+TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
+    for (const auto &file : discover_blueprints(default_blueprint_directory() / "showcase")) {
+        CAPTURE(file);
+        const auto scenario = load_scenario(file);
+        REQUIRE(scenario);
+        if (scenario->repeat != ScenarioRepeat::shuttle)
+            continue;
+        Simulation s(load_blueprint(file));
+        apply_scenario(*scenario, s);
+        s.run();
+        // A leg runs from one turn to the next; count the legs in which traffic coordination
+        // stepped in, which is the situation the scene exists to show.
+        constexpr int wanted_legs = 4;
+        int legs = 0, coordinated_legs = 0;
+        bool coordinated = false, under_way = true;
+        while (legs < wanted_legs && s.ticks() < 40000) {
+            s.tick();
+            for (const auto &m : s.movers()) {
+                const auto &c = m.coordination;
+                coordinated = coordinated || c.junction_waiting || c.exit_waiting || c.corridor_waiting ||
+                              c.corridor_retreating || c.passing;
+            }
+            const bool idle = std::all_of(s.movers().begin(), s.movers().end(),
+                                          [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
+            if (under_way && idle) {
+                ++legs;
+                coordinated_legs += coordinated;
+                coordinated = false;
+            }
+            under_way = !idle;
+        }
+        CHECK_MESSAGE(legs == wanted_legs, "The scene did not complete its legs");
+        CHECK_MESSAGE(coordinated_legs == wanted_legs, "A leg did not show the traffic situation again");
+        CHECK(s.collisions() == 0);
+        for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
+            CHECK(s.shuttling(mover));
+    }
+}
+
+TEST_CASE("a restarting scene is due once its movers have stood still for the pause") {
+    const auto file = i4sim::test::showcase_blueprint("corridor-recovery");
+    const auto scenario = load_scenario(file);
+    REQUIRE(scenario);
+    REQUIRE(scenario->repeat == ScenarioRepeat::restart);
+    Simulation s(load_blueprint(file));
+    apply_scenario(*scenario, s);
+    CHECK_FALSE_MESSAGE((s.shuttling(0) || s.shuttling(1)), "A restarting scene must not shuttle");
+    s.run();
+    RestartTimer timer;
+    const auto settled = [&] {
+        return std::all_of(s.movers().begin(), s.movers().end(),
+                           [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
+    };
+    bool retreated = false;
+    while (!settled() && s.ticks() < 20000) {
+        s.tick();
+        retreated = retreated || s.corridor_recovering() > 0;
+        REQUIRE_FALSE_MESSAGE(timer.due(s), "Restart due while a mover is under way");
+    }
+    REQUIRE_MESSAGE(settled(), "The corridor-recovery scene did not settle");
+    CHECK_MESSAGE(retreated, "The scene did not show its corridor retreat");
+    const auto arrival = s.ticks();
+    CHECK_FALSE(timer.due(s));
+    while (s.ticks() < arrival + shuttle_pause_ticks - 1) {
+        s.tick();
+        REQUIRE_FALSE_MESSAGE(timer.due(s), "Restart due before the pause ended");
+    }
+    s.tick();
+    CHECK(timer.due(s));
+    CHECK(s.collisions() == 0);
 }
 
 TEST_CASE("an invalid scenario is rejected with its cause") {
@@ -1513,6 +1702,10 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
           std::string::npos);
     CHECK(load_error(with_scenario(R"({"workload": 0})")).find("workload must be true or false") !=
           std::string::npos);
+    CHECK(load_error(with_scenario(R"({"repeat": true})")).find("scenario.repeat must be a string") !=
+          std::string::npos);
+    CHECK(load_error(with_scenario(R"({"repeat": "forever"})")).find("Unknown repeat: forever") !=
+          std::string::npos);
     CHECK(load_error(with_scenario(R"({"goals": [{"mover": "west", "position": {"x": 1, "y": 2, "z": 3}}]})"))
               .find("Unknown property in scenario.goals[].position: z") != std::string::npos);
     CHECK(apply_error(with_scenario(R"({"goals": [{"mover": "south", "position": {"x": 700, "y": 700}}]})"))
@@ -1525,6 +1718,10 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     REQUIRE(loaded);
     CHECK(loaded->motion.profile == SteeringProfile::experimental_rvo);
     CHECK(loaded->workload);
+    CHECK(loaded->repeat == ScenarioRepeat::none);
+    const auto restarting = load_scenario(with_scenario(R"({"Repeat": "Restart"})"));
+    REQUIRE(restarting);
+    CHECK(restarting->repeat == ScenarioRepeat::restart);
 }
 
 TEST_CASE("every bundled blueprint expands its groups and starts paused") {

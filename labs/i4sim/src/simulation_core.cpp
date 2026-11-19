@@ -123,6 +123,29 @@ void SimulationCore::toggle_producer(std::size_t index) {
     production_.toggle_producer(index);
 }
 bool SimulationCore::move_to(std::size_t index, Vec2 target) {
+    if (!send_manual(index, target))
+        return false;
+    shuttle_.leave(index);
+    return true;
+}
+bool SimulationCore::shuttle(std::size_t index, Vec2 target) {
+    const auto start = fleet_.movers.at(index).body.position;
+    if (!send_manual(index, target))
+        return false;
+    shuttle_.join(index, start, target);
+    return true;
+}
+bool SimulationCore::shuttling(std::size_t index) const {
+    if (index >= fleet_.movers.size())
+        throw std::out_of_range("Mover index");
+    return shuttle_.contains(index);
+}
+void SimulationCore::turn_shuttle() {
+    for (const auto &leg : shuttle_.update(fleet_.movers, ticks_))
+        if (!send_manual(leg.mover, leg.destination))
+            shuttle_.leave(leg.mover);
+}
+bool SimulationCore::send_manual(std::size_t index, Vec2 target) {
     auto &m = fleet_.movers.at(index);
     if (m.held || m.product || floor_.grid().blocked(floor_.grid().cell(target)))
         return false;
@@ -201,6 +224,7 @@ void SimulationCore::tick() {
     goals_now.coordinate_parking();
     motion_step_.run(goals_now, production_);
     production_.update(goals_now);
+    turn_shuttle();
     if (ticks_ >= blueprint_.tick_cap)
         state_ = RunState::finished;
 }

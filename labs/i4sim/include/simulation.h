@@ -65,6 +65,9 @@ enum class RunState {
     /// The blueprint's tick cap was reached; no further tick runs.
     finished,
 };
+/// Ticks shuttling movers stand at their ends before they turn together: two seconds at
+/// the default 200 ticks per second. See `Simulation::shuttle`.
+inline constexpr std::uint64_t shuttle_pause_ticks = 400;
 /// The two products of the original factory.
 enum class ProductKind { trimmer, personalized };
 /// Where a product is in its recipe.
@@ -326,9 +329,21 @@ class Simulation {
     void toggle_producer(std::size_t index);
     /// Sends mover `index` to `destination` (a mover center, in millimeters) as a manual
     /// goal. Returns false, and changes nothing, when the mover is held or carries a
-    /// product, the destination cell is blocked, or no route exists. Throws
-    /// std::out_of_range for an unknown mover.
+    /// product, the destination cell is blocked, or no route exists. A mover that shuttles
+    /// stops shuttling when the goal is accepted. Throws std::out_of_range for an unknown
+    /// mover.
     bool move_to(std::size_t index, Vec2 destination);
+    /// Sends mover `index` to `destination` like `move_to`, and then back and forth between
+    /// its current position and `destination`. All shuttling movers turn together: once
+    /// every one of them has arrived and none is held, they stand `shuttle_pause_ticks`
+    /// ticks and then each heads for its other end. A mover stops shuttling when it gets a
+    /// manual goal, a product or a factory goal, or when a leg has no route; the others
+    /// carry on. Calling it again for a shuttling mover replaces both ends. Returns false,
+    /// and changes nothing, when `move_to` would. Throws std::out_of_range for an unknown
+    /// mover.
+    bool shuttle(std::size_t index, Vec2 destination);
+    /// True while mover `index` shuttles. Throws std::out_of_range for an unknown mover.
+    bool shuttling(std::size_t index) const;
     /// Writes `summary.json` with run totals and per-mover, per-producer and per-product
     /// statistics into `directory`, creating it. Throws std::runtime_error when the file
     /// cannot be written.

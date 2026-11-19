@@ -2,7 +2,7 @@ find_package(nlohmann_json 3.11 REQUIRED)
 # Headless: the simulation, its loaders and the session's controller.
 add_library(kinetra_i4sim_application src/blueprint.cpp src/controller.cpp src/flow_metrics.cpp src/floor_plan.cpp
     src/geometry.cpp src/goals.cpp src/motion_step.cpp src/predictive_passing.cpp src/production.cpp
-    src/routing.cpp src/scenario.cpp src/simulation.cpp src/simulation_core.cpp src/traffic.cpp)
+    src/routing.cpp src/scenario.cpp src/shuttle.cpp src/simulation.cpp src/simulation_core.cpp src/traffic.cpp)
 target_include_directories(kinetra_i4sim_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab_common: the controller uses the headless input policy in lab/input.h.
 target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation kinetra_lab_common
@@ -25,8 +25,11 @@ if(kinetra_i4sim_multi_config)
 endif()
 # Always out of date, so every build refreshes the catalog: edited, added or renamed
 # blueprints arrive without a file list or a relink (the former copy ran only after a
-# relink). Dependents wait for it but do not relink because of it.
+# relink). Dependents wait for it but do not relink because of it. The old copy is removed
+# first, so a deleted or renamed blueprint does not linger in an existing build directory.
 add_custom_target(kinetra_i4sim_blueprints ALL
+    # remove_directory rather than rm: `cmake -E rm` needs CMake 3.17, the minimum is 3.16.
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
         "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"

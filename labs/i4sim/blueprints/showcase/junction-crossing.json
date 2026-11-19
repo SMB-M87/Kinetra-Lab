@@ -20,6 +20,7 @@
     "description": "Junction traffic: two movers reach one crossing; one waits until the other has passed.",
     "motion": {"profile": "reciprocal", "junctionTraffic": true},
     "workload": false,
+    "repeat": "shuttle",
     "goals": [
       {"mover": "west", "position": {"x": 1100, "y": 700}},
       {"mover": "north", "position": {"x": 700, "y": 1100}}

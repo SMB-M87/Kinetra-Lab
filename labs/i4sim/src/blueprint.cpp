@@ -141,8 +141,8 @@ class UnitReader {
     void add_producer(const std::string &id, Model model, Vec2 position, Vec2 processing, bool rectangular) {
         if (model < Model::Kuka || blueprint_.producers.size() >= most_units)
             throw std::runtime_error("Invalid producer model or count");
-        // H/Madrid deliberately draw stations outside the navigable envelope;
-        // only their processing areas must be accessible inside the factory.
+        // The H layout (showcase/h-crossing.json) deliberately draws stations outside the
+        // navigable envelope; only their processing areas must be accessible inside the factory.
         if (std::abs(position.x) > blueprint_.dimension.x * 2 ||
             std::abs(position.y) > blueprint_.dimension.y * 2)
             throw std::runtime_error("Producer position exceeds supported envelope");

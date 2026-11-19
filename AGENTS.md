@@ -83,6 +83,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 
 ## Git with the engine submodule
 
+- Before starting work on a local branch, pull it first (`git pull --ff-only`; the HTTPS fallback from the global Git rules when SSH is unavailable), in Lab and in `external/Kinetra`. A local branch can lag behind its remote, for example `main` after a merged pull request or a feature branch after review commits.
 - Lab records one exact Kinetra commit. A change to `external/Kinetra` is committed **in Kinetra** on its own branch, then the pointer is committed in Lab (`git add external/Kinetra`).
 - Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. Push the Kinetra branch and open its pull request before pushing Lab.
 - The Lab pull request links the Kinetra pull request. It states that Kinetra merges first, with a merge commit rather than a squash, so the pointer stays reachable.

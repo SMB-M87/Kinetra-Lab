@@ -61,6 +61,7 @@ bool FactoryController::load(const std::filesystem::path &path) {
             apply_scenario(*scenario, next);
         simulation_ = std::move(next);
         scenario_ = std::move(scenario);
+        restart_timer_ = {};
         if (start_running_)
             simulation_->run();
         simulation_->updates_per_second(updates_per_second_);
@@ -155,6 +156,7 @@ void FactoryController::restart() {
     const auto motion = simulation_->motion_settings();
     Simulation fresh(simulation_->blueprint(), seed_);
     simulation_ = std::move(fresh);
+    restart_timer_ = {};
     clear_message();
     if (scenario_) {
         // Replay the scene with the motion settings in use, so a changed setting can be
@@ -174,6 +176,20 @@ void FactoryController::restart() {
         simulation_->configure_motion(motion);
     selected_mover_.reset();
     selected_producer_.reset();
+}
+
+void FactoryController::restart_when_due() {
+    if (!scenario_ || scenario_->repeat != ScenarioRepeat::restart || !restart_timer_.due(*simulation_))
+        return;
+    // Unlike R, the restart continues the show: same update rate, same run state.
+    const bool was_running = simulation_->running();
+    const unsigned rate = simulation_->updates_per_second();
+    restart();
+    if (!loaded())
+        return;
+    simulation_->updates_per_second(rate);
+    if (was_running)
+        simulation_->run();
 }
 
 void FactoryController::fit(Camera2D &camera) {
@@ -272,6 +288,7 @@ void FactoryController::handle_input(double elapsed, const Input &input, Camera2
     if (!panels.pointer_captured)
         handle_pointer(input, camera);
     simulation_->advance(elapsed);
+    restart_when_due();
 }
 
 MenuEntry FactoryController::motion_switch(std::string_view label, bool MotionSettings::*setting) {

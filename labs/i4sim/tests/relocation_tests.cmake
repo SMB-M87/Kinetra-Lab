@@ -1,6 +1,9 @@
 # The probe is kinetra_i4sim_tests; its catalog case discovers and loads every bundled
 # blueprint. doctest reports to standard output, so failures are matched there too.
-set(probe_case "--test-case=the bundled catalog holds fourteen blueprints that all load")
+set(probe_case "--test-case=the bundled catalog holds six blueprints that all load")
+# Start from an empty directory: a copy left by an earlier run would keep blueprints that
+# have since been removed from the catalog.
+file(REMOVE_RECURSE "${TEST_DIRECTORY}")
 file(MAKE_DIRECTORY "${TEST_DIRECTORY}/bundle" "${TEST_DIRECTORY}/unrelated" "${TEST_DIRECTORY}/missing")
 file(COPY "${PROBE}" DESTINATION "${TEST_DIRECTORY}/bundle")
 file(COPY "${RESOURCES}/" DESTINATION "${TEST_DIRECTORY}/bundle/i4sim-blueprints")

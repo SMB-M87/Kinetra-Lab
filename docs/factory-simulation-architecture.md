@@ -60,6 +60,7 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Production` | [production.h](../labs/i4sim/src/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/src/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
 | `EventLog` | [event_log.h](../labs/i4sim/src/event_log.h) | Recording flag, events | Opt-in passing and contact events |
+| `Shuttle` | [shuttle.h](../labs/i4sim/src/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
 
 ```mermaid
 flowchart TD
@@ -89,7 +90,8 @@ flowchart TD
 4. Run the parking interlock (`Goals::coordinate_parking`).
 5. Move (`MotionStep::run`): prepare routes, snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
 6. Advance production and drop completed products.
-7. At the blueprint's tick cap, change to `RunState::finished`.
+7. Turn the shuttle: once every shuttling mover has stood still for `shuttle_pause_ticks` (400), send each one to its other end through the checks of `move_to`.
+8. At the blueprint's tick cap, change to `RunState::finished`.
 
 **Mover state.** Each axis of a mover's state is one value. The lifecycle:
 
@@ -104,7 +106,7 @@ stateDiagram-v2
     moving --> moving: new goal with a route
 ```
 
-The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces all of this to the HUD's status, and `Simulation::stalled` reports a mover that made no progress for 120 ticks while no coordination held it back.
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces all of this to the HUD's status, and `Simulation::stalled` reports a mover that made no progress for 120 ticks while no coordination held it back.
 
 ## Execution
 

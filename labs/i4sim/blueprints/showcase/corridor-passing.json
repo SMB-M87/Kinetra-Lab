@@ -20,6 +20,7 @@
     "description": "Corridor traffic: opposing movers take turns through a one-lane corridor.",
     "motion": {"profile": "reciprocal", "corridorTraffic": true},
     "workload": false,
+    "repeat": "shuttle",
     "goals": [
       {"mover": "west", "position": {"x": 1900, "y": 700}},
       {"mover": "east", "position": {"x": 300, "y": 700}}

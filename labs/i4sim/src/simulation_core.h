@@ -7,6 +7,7 @@
 #include "motion_step.h"
 #include "predictive_passing.h"
 #include "production.h"
+#include "shuttle.h"
 #include "simulation.h"
 #include "traffic.h"
 
@@ -105,6 +106,8 @@ class SimulationCore {
     void toggle_producer(std::size_t index);
     /// Manual goals only apply to unallocated movers and free destination cells.
     bool move_to(std::size_t index, Vec2 destination);
+    bool shuttle(std::size_t index, Vec2 destination);
+    bool shuttling(std::size_t index) const;
     void dump(const std::filesystem::path &directory) const;
 
   private:
@@ -112,6 +115,12 @@ class SimulationCore {
     Goals goals() { return {floor_, fleet_, traffic_, passing_, log_, motion_, ticks_}; }
     /// Aligns every mover's previous position with its current one.
     void settle_previous_positions();
+    /// Gives mover `index` the manual goal `target` when move_to's conditions allow it;
+    /// leaves shuttle membership alone. Returns false, changing nothing, otherwise.
+    bool send_manual(std::size_t index, Vec2 target);
+    /// Sends the legs the shuttle asks for after this tick; a mover whose leg is
+    /// rejected leaves the shuttle.
+    void turn_shuttle();
 
     RunState state_{RunState::paused};
     bool workload_{true};
@@ -125,6 +134,7 @@ class SimulationCore {
     Fleet fleet_;
     Production production_;
     MotionStep motion_step_;
+    Shuttle shuttle_;
     std::uint32_t seed_;
     /// Set while not running; the first running advance() then aligns previous positions
     /// with the current ones, so drawing does not step back behind the state shown.

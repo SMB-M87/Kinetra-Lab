@@ -59,13 +59,13 @@ One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or th
 
 For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output /tmp/i4sim-check`.
 
-`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds fourteen blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
+`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds six blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
 
 ## What the simulation suite covers
 
 | Area | The cases require |
 | --- | --- |
-| Blueprints | All fourteen originals load, groups expand as in the reference, and invalid input is rejected with the path and the cause |
+| Blueprints | All six originals load, groups expand as in the reference, and invalid input is rejected with the path and the cause |
 | Production | Both recipes complete; a 50000-tick MAS workload reproduces its totals; queues stay bounded; a blocked producer pauses and resumes; an interaction takes exactly its duration |
 | Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
 | Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
@@ -80,7 +80,8 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/bluepr
 | Predictive passing | Eight encounter directions with square and long footprints under Improved and Reciprocal: deterministic replay, early commitment, unchanged goals, bounded acceleration, no contact, completion, cancellation, the switch-off and hold life cycle, shifted lanes near a wall, and no plan where no space exists. Original and RVO form no pairs. Heatmap costs are off in these cases, so A* does not resolve the conflict first |
 | Event log | A plan's formation, crossing and completion; the `goal_changed` and `participant_held` reasons; mover and border contacts with tick and pair; recording changes no pose |
 | Flow metrics | A free trip, a corridor standstill, a held mover, invalid limits |
-| Scenarios | The four showcase scenes load and apply; each runs tick for tick like the same setup built by hand; invalid scenario sections are rejected with their cause |
+| Scenarios | The five showcase scenes load and apply; each runs tick for tick like the same setup built by hand, past its first turn; invalid scenario sections are rejected with their cause |
+| Shuttle and restart | Shuttling movers wait for each other, stand `shuttle_pause_ticks` and turn together; a manual goal ends shuttling for that mover only; every shuttling scene shows its traffic situation on four legs in a row without contacts; corridor recovery shows its retreat and its restart is due exactly one pause after its movers settle |
 | Large factories | `3840x2400` and `8640x4800` with seed `915839214` and route recovery on, which guards the spatial query limits |
 | Determinism and export | Equal runs for equal inputs; the summary file |
 
@@ -111,6 +112,7 @@ Each case then compares one recorded line: contacts, contacts during passing, pl
 | Area | The cases require |
 | --- | --- |
 | Loading | A blueprint loads paused, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
+| Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
 | Keys | Space and P, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart is paused, keeps the motion settings in use and replays a scene's goals |
 | Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
 | Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, within the zoom limits |
@@ -121,7 +123,7 @@ Not covered: a scene that cannot be replayed after `R`, which needs a scenario t
 
 ## Graphics suite
 
-`presentation_tests.cpp` runs the whole session with an actual OpenGL context, as one case, because only one `Runtime` may exist at a time. It selects a blueprint on the blueprint screen, pauses and resumes, edits motion settings through the debug menu while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`.
+`presentation_tests.cpp` runs the whole session with an actual OpenGL context, as one case, because only one `Runtime` may exist at a time. It selects a blueprint on the blueprint screen, pauses and resumes, edits motion settings through the debug menu while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
 
 Set `I4SIM_CAPTURE=<file.ppm>` to save the frame after the Motion checks. Software rendering verifies drawing and input contracts, not desktop feel or performance.
 

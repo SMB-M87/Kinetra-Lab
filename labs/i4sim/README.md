@@ -48,7 +48,7 @@ cmake --build build -j2
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --run --ups 200
 ```
 
-The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. The last row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload and mover goals, so pressing Space plays the scene.
+The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. The first row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload, mover goals and how the scene repeats, so pressing Space plays the scene. The scenes repeat: their movers drive back and forth between start and goal and turn together after a two-second pause, or, for corridor recovery, the scene starts again from its blueprint after the same pause.
 
 CMake copies the catalog to `i4sim-blueprints/` beside the executables, and the session finds it through the executable's location, whatever the working directory is. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog; `--blueprint FILE` loads one file directly. A file that fails to load reports its name and the cause, and the blueprint screen stays open. A missing or empty catalog shows the directory on screen and on standard error; restore the directory and press Enter to read it again.
 
@@ -76,7 +76,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | --- | --- |
 | Escape / M on the blueprint screen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page they return to the blueprint list |
 | Space / P | Pause or resume |
-| R | Restart the blueprint with the same seed, paused, and keep the motion settings. A showcase scene also gets its goals and workload setting again, so a changed setting can be compared with the original run |
+| R | Restart the blueprint with the same seed, paused, and keep the motion settings. A showcase scene also gets its goals, workload and repeat setting again, so a changed setting can be compared with the original run |
 | G | Toggle the automatic workload |
 | Q / E | Halve / double the ticks per second |
 | 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode) |
@@ -114,7 +114,8 @@ The two statistics lines show ticks, ticks per second, contacts and contact dura
 | Zone | A junction or corridor that a traffic policy admits movers to, one at a time |
 | Exit pocket | The space behind a zone that an admitted mover needs to leave it; it is reserved with the admission |
 | Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
-| Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch and mover goals; a showcase scene is a small blueprint with one |
+| Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch, mover goals and a repeat mode; a showcase scene is a small blueprint with one |
+| Shuttle | Movers that drive back and forth between their start and a goal and turn together after `shuttle_pause_ticks` (`Simulation::shuttle`); how most showcase scenes repeat |
 | Event log, flow metrics | Opt-in observation: passing and contact events ([events.h](include/events.h)), and waiting and stuck movers ([flow_metrics.h](include/flow_metrics.h)). Neither changes a run |
 
 ## Structure
@@ -170,7 +171,7 @@ Sources, in [src/](src/):
 | [main.cpp](src/main.cpp) | Command line; the batch loop, or a `Runtime` with the session |
 | [blueprint.cpp](src/blueprint.cpp), [scenario.cpp](src/scenario.cpp), [json_fields.h](src/json_fields.h) | The loaders and the case-insensitive JSON field readers they share |
 | [simulation.cpp](src/simulation.cpp), [simulation_core.cpp](src/simulation_core.cpp) | The facade, and the private core that owns the components and runs the tick |
-| [floor_plan.cpp](src/floor_plan.cpp), [routing.cpp](src/routing.cpp), [goals.cpp](src/goals.cpp), [traffic.cpp](src/traffic.cpp), [predictive_passing.cpp](src/predictive_passing.cpp), [production.cpp](src/production.cpp), [motion_step.cpp](src/motion_step.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
+| [floor_plan.cpp](src/floor_plan.cpp), [routing.cpp](src/routing.cpp), [goals.cpp](src/goals.cpp), [traffic.cpp](src/traffic.cpp), [predictive_passing.cpp](src/predictive_passing.cpp), [production.cpp](src/production.cpp), [motion_step.cpp](src/motion_step.cpp), [shuttle.cpp](src/shuttle.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
 | [fleet.h](src/fleet.h), [event_log.h](src/event_log.h), [geometry.cpp](src/geometry.cpp), [simulation_constants.h](src/simulation_constants.h) | Shared mover data, the event log, geometry helpers and the named tuning values |
 | [flow_metrics.cpp](src/flow_metrics.cpp) | `FlowMetrics` |
 | [controller.cpp](src/controller.cpp) | `FactoryController` |
@@ -219,7 +220,7 @@ sequenceDiagram
 
 ### A tick of the simulation
 
-`Simulation` forwards every call to a private `SimulationCore`, which owns one instance of each component and runs the tick: open a product when the workload allows it, refresh the heatmap every ten ticks, run the parking interlock, move, then advance production. Moving means: prepare routes, take one snapshot of all bodies, run corridor recovery, predictive passing and zone admission against that snapshot, steer and integrate every mover, and finally count and resolve contacts. The component table, their dependency diagram, the exact tick order and the mover's state diagram are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure).
+`Simulation` forwards every call to a private `SimulationCore`, which owns one instance of each component and runs the tick: open a product when the workload allows it, refresh the heatmap every ten ticks, run the parking interlock, move, advance production, then turn the shuttling movers once all of them have stood still for the pause. Moving means: prepare routes, take one snapshot of all bodies, run corridor recovery, predictive passing and zone admission against that snapshot, steer and integrate every mover, and finally count and resolve contacts. The component table, their dependency diagram, the exact tick order and the mover's state diagram are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure).
 
 Two design choices explain most of the code:
 
@@ -324,7 +325,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
 | Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases, a showcase scene when it is worth showing |
-| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the fourteen original files stay unchanged | The loader cases in `simulation_tests.cpp` |
+| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the six original files stay unchanged | The loader cases in `simulation_tests.cpp` |
 | Add a tuning value | `simulation_constants.h` when components share it, otherwise a named constant where it is used | |
 
 Pitfalls:
@@ -356,7 +357,7 @@ Not covered: desktop feel and real-time performance, which software rendering ca
 
 ## Provenance and differences
 
-Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. All fourteen JSON blueprints are bundled unchanged; their city aliases keep the original internal names. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
+Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. Six of its fourteen JSON blueprints are bundled unchanged; `H` became the h-crossing showcase scene (same floor, with a scenario, a longer tick cap and a descriptive name), and the seven city aliases, each identical to one of the others apart from its name, were removed. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
 
 | Reference | This port |
 | --- | --- |

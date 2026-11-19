@@ -119,9 +119,11 @@ class FactoryController {
     /// Shift-click sends the selected mover there. Pointer commands are skipped while
     /// `panels.pointer_captured`.
     ///
-    /// When a scenario cannot be replayed after R, the blueprint is closed with the cause as
-    /// the message. Throws std::invalid_argument for a negative or non-finite `elapsed`,
-    /// before any input is applied.
+    /// A scene whose scenario repeats by `ScenarioRepeat::restart` restarts as with R once its
+    /// movers have stood still for the pause (RestartTimer), but keeps its update rate and
+    /// its run state. When a scenario cannot be replayed after R or such a restart, the
+    /// blueprint is closed with the cause as the message. Throws std::invalid_argument for a
+    /// negative or non-finite `elapsed`, before any input is applied.
     void handle_input(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera,
                       PanelState panels);
     /// Fits the camera to the floor when a fit is pending: after a load and after the
@@ -131,6 +133,8 @@ class FactoryController {
   private:
     void close();
     void restart();
+    /// Restarts a restarting scene when its RestartTimer says so; see handle_input().
+    void restart_when_due();
     void toggle_pause();
     void change_motion(const std::function<void(MotionSettings &)> &change);
     void change_update_rate(bool faster);
@@ -149,6 +153,8 @@ class FactoryController {
     std::optional<Simulation> simulation_;
     /// Setup of the loaded blueprint; R replays it.
     std::optional<Scenario> scenario_;
+    /// When a restarting scene starts again; replaced with every new simulation.
+    RestartTimer restart_timer_;
     ViewLayers layers_;
     std::optional<std::size_t> selected_mover_, selected_producer_;
     std::string message_;
