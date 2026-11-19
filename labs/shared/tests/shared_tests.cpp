@@ -1,5 +1,5 @@
 // Window-free tests for the policy shared by the Lab applications
-// (labs/common/include/lab/): input mapping and modal pause (input.h), the debug-menu rows
+// (labs/shared/include/kinetra_lab/): input mapping and modal pause (input.h), the debug-menu rows
 // every application shows (debug.h) and the settings rows (settings.h).
 #include "kinetra_lab/debug.h"
 #include "kinetra_lab/input.h"

@@ -42,7 +42,7 @@ flowchart TD
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) | The session with a real window and context |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
-Shared test code: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree). The four `pressure-*.json` files are the fixtures of the pressure suite.
+Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_test_support` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite.
 
 ## Running
 

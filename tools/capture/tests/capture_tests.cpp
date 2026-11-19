@@ -1,8 +1,7 @@
-// Window-free tests for kinetra_capture: the PNG writer (tools/capture/src/png.h), the
-// scene list and the menu rows the scripts click (tools/capture/src/scenes.h), the showcase
-// cycle measurement (tools/capture/src/showcase.h), the busiest stretch of the captured
-// i4sim floor (tools/capture/src/busy_stretch.h) and the scripted Dotio player
-// (tools/capture/src/dotio_player.h). No Runtime or session is created.
+// Window-free tests for kinetra_capture, whose headers are in tools/capture/include/capture/: the
+// PNG writer (png.h), the scene list and the menu rows the scripts click (scenes.h), the showcase
+// cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h)
+// and the scripted Dotio player (dotio_player.h). No Runtime or session is created.
 #include "capture/busy_stretch.h"
 #include "capture/dotio_player.h"
 #include "capture/png.h"

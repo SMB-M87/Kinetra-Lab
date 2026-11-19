@@ -103,7 +103,7 @@ labs/dotio/
 | `entities/` | Moving and static world objects and their physics |
 | `ai/` | The enemy state machine, steering wander, fuzzy decisions and the population tracker |
 | `navigation/` | The occupancy grid, the path graph and the storage that A* uses |
-| `math/` | The small `gmath` vector helpers and the portable compatibility header; `gmath` used to live in its own `gmath/` folder |
+| `math/` | The small `gmath` vector helpers and the portable compatibility header, in namespace `dotio::math` |
 | `presentation/` | Session and drawing; needs `Kinetra::Runtime` |
 
 ### Top level
