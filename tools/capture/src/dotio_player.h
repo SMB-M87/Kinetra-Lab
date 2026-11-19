@@ -28,7 +28,9 @@ inline constexpr float longest_lead_ticks = 90;
 /// between two advances of the session, when the camera is on the player.
 std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const kinetra::Camera2D &camera);
 
-/// Whether an enemy on screen for `camera` is in its Recover state: out of ammunition and
-/// on its way to shelter, or reloading there.
-bool dotio_recovery_on_screen(dotio::Application &application, const kinetra::Camera2D &camera);
+/// Whether an enemy in its Recover state (out of ammunition and on its way to shelter, or
+/// reloading there) is on screen for `camera`, at least `margin` logical pixels away from
+/// every edge of the window. A margin keeps an enemy that is about to leave the view from
+/// counting.
+bool dotio_recovery_in_view(dotio::Application &application, const kinetra::Camera2D &camera, float margin);
 } // namespace capture

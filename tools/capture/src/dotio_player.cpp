@@ -6,12 +6,14 @@
 
 namespace capture {
 namespace {
-/// Whether `enemy` is alive, simulated and with its center on screen for `camera`.
-bool on_screen(const logic::Enemy &enemy, const kinetra::Camera2D &camera) {
+/// Whether `enemy` is alive, simulated and with its center on screen for `camera`, at least
+/// `margin` logical pixels away from every edge of the window.
+bool on_screen(const logic::Enemy &enemy, const kinetra::Camera2D &camera, float margin = 0) {
     if (!enemy.IsActive || enemy.Frozen)
         return false;
     const auto point = camera.world_to_screen(dotio::to_world(enemy.Position));
-    return point.x >= 0 && point.y >= 0 && point.x <= camera.viewport.x && point.y <= camera.viewport.y;
+    return point.x >= margin && point.y >= margin && point.x <= camera.viewport.x - margin &&
+           point.y <= camera.viewport.y - margin;
 }
 
 /// Whether no wall cell lies between `from` and `to`.
@@ -76,9 +78,9 @@ std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const ki
                          std::clamp(screen.y, 0.f, camera.viewport.y)};
 }
 
-bool dotio_recovery_on_screen(dotio::Application &application, const kinetra::Camera2D &camera) {
+bool dotio_recovery_in_view(dotio::Application &application, const kinetra::Camera2D &camera, float margin) {
     for (auto &enemy : application.world().GetEnemies())
-        if (on_screen(enemy, camera) && enemy.IsRecovering())
+        if (on_screen(enemy, camera, margin) && enemy.IsRecovering())
             return true;
     return false;
 }

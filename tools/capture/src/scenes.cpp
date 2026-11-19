@@ -46,6 +46,9 @@ constexpr float dotio_debug_zoom_out = -3, dotio_debug_clip_zoom_out = -9;
 /// Longest the Dotio debug clip waits for an enemy to recover before it records anyway, in
 /// seconds. A recovery needs nine shots at the player; it usually comes within twenty.
 constexpr int dotio_recovery_wait_seconds = 60;
+/// How far inside the window that enemy has to be, as a share of the window's height from
+/// every edge: it runs for shelter, and from the edge it would leave the clip at once.
+constexpr float dotio_recovery_margin = 0.2f;
 
 /// A point at a fraction of the window, for clicks and aiming.
 Vec2 at(const Stage &stage, float x, float y) {
@@ -219,8 +222,9 @@ void dotio_debug_clip(Stage &stage) {
     dotio_debug_view(stage, dotio_debug_clip_zoom_out);
     stage.press(Key::backquote);
     const int limit = dotio_recovery_wait_seconds * clip_fps;
+    const float margin = stage.viewport().y * dotio_recovery_margin;
     const int waited = stage.play_until(limit, dotio_sidestep, [&] {
-        return dotio_recovery_on_screen(stage.dotio(), stage.runtime().camera);
+        return dotio_recovery_in_view(stage.dotio(), stage.runtime().camera, margin);
     });
     if (waited == limit)
         std::cerr << "kinetra_capture: no Dotio enemy recovered within " << dotio_recovery_wait_seconds

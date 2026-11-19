@@ -373,12 +373,15 @@ TEST_CASE("dotio_aim points at the target on screen, ahead of one that moves, in
     CHECK(aim->x == doctest::Approx(960));
 }
 
-TEST_CASE("dotio_recovery_on_screen finds a recovering enemy only in view") {
+TEST_CASE("dotio_recovery_in_view finds a recovering enemy on screen, inside the margin") {
     OpenDotioWorld world;
     auto &enemy = world.place(0, {300, 0});
-    CHECK_FALSE(capture::dotio_recovery_on_screen(world.application, world.camera));
+    CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
     enemy.SetState(enemy.GetRecoverState());
-    CHECK(capture::dotio_recovery_on_screen(world.application, world.camera));
+    CHECK(capture::dotio_recovery_in_view(world.application, world.camera, 0));
+    // 180 pixels from the right edge of the 960-pixel window.
+    CHECK(capture::dotio_recovery_in_view(world.application, world.camera, 170));
+    CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 190));
     enemy.Position = world.player().Position + gmath::Vec2{0, 400};
-    CHECK_FALSE(capture::dotio_recovery_on_screen(world.application, world.camera));
+    CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
 }
