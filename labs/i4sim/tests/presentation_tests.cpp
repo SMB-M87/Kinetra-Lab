@@ -54,6 +54,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     CHECK_MESSAGE(session->status().find("Loadscreen") != std::string::npos, "Missing loadscreen");
     Input choose;
     choose.pressed[std::size_t(Key::enter)] = true;
+    Input down;
+    down.pressed[std::size_t(Key::down)] = true;
+    session->advance(0, down, runtime.camera); // past SHOWCASE to the first blueprint
     session->advance(0, choose, runtime.camera);
     session->render(runtime);
     CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
@@ -355,11 +358,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     }
     CHECK_MESSAGE((passing_pixels > 20 && glGetError() == GL_NO_ERROR),
                   "Actual predictive passing rendering failed");
-    // Showcase: the last loadscreen row opens a page of scenes that load with their setup.
+    // Showcase: the first loadscreen row opens a page of scenes that load with their setup.
     session = i4sim::create_session();
-    Input up;
-    up.pressed[std::size_t(Key::up)] = true;
-    session->advance(0, up, runtime.camera); // wraps to the SHOWCASE row
     session->advance(0, choose, runtime.camera);
     CHECK_MESSAGE(session->status() == "Loadscreen", "SHOWCASE loaded a blueprint instead of its scenes");
     Input escape;
@@ -416,10 +416,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     // movers have stood still for the pause. They settle near tick 2200 and the scene restarts
     // at tick 2600, so around tick 3000 they move again; without a restart they stand still.
     session = i4sim::create_session();
-    session->advance(0, up, runtime.camera);
     session->advance(0, choose, runtime.camera);
-    Input down;
-    down.pressed[std::size_t(Key::down)] = true;
     session->advance(0, down, runtime.camera);
     session->advance(0, choose, runtime.camera);
     REQUIRE_MESSAGE(session->status() == "Corridor retreat recovery | PAUSED",

@@ -34,7 +34,7 @@ The seven originals are the top-level files; discovery does not descend into sub
 
 ## Showcase scenes
 
-The files in [showcase/](showcase/) are small traffic scenes that double as test fixtures. The loadscreen lists them on the page behind its last row, SHOWCASE, sorted by file name; `--blueprint FILE` and the batch mode `--ticks` apply them the same way.
+The files in [showcase/](showcase/) are small traffic scenes that double as test fixtures. The loadscreen lists them on the page behind its first row, SHOWCASE, sorted by file name; `--blueprint FILE` and the batch mode `--ticks` apply them the same way.
 
 | File | Shows | Scenario | Repeat |
 | --- | --- | --- | --- |

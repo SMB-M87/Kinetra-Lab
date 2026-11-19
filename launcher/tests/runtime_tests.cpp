@@ -108,8 +108,11 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
         CAPTURE(static_cast<int>(variant));
         auto session = start(variant, runtime.camera);
         if (variant == Variant::i4sim) {
-            Input choose;
+            // The first row is SHOWCASE; the first blueprint is the next one.
+            Input down, choose;
+            down.pressed[std::size_t(Key::down)] = true;
             choose.pressed[std::size_t(Key::enter)] = true;
+            session->advance(0, down, runtime.camera);
             session->advance(0, choose, runtime.camera);
         }
         Input menu;
@@ -251,8 +254,10 @@ TEST_CASE("every launch creates a clean session with its own camera") {
     session->render(runtime);
     CHECK_MESSAGE(status(*session).find("Loadscreen") != std::string::npos,
                   "i4sim skipped its blueprint screen");
-    Input blueprint_choice;
+    Input past_showcase, blueprint_choice;
+    past_showcase.pressed[std::size_t(Key::down)] = true;
     blueprint_choice.pressed[std::size_t(Key::enter)] = true;
+    session->advance(0, past_showcase, runtime.camera);
     session->advance(0, blueprint_choice, runtime.camera);
     session->render(runtime);
     CHECK_MESSAGE(paused(*session), "the factory blueprint did not start paused");

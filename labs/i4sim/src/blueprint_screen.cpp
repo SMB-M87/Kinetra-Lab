@@ -35,15 +35,16 @@ void BlueprintScreen::refresh() {
 
 std::vector<LaunchChoice> BlueprintScreen::choices() const {
     std::vector<LaunchChoice> result;
-    for (const auto &file : files_)
-        result.push_back({file.stem().string(), "JSON BLUEPRINT", {}, 0});
     // One row whose second page lists the scenes, so the catalog stays one page per group.
+    // It comes first: the scenes are what a new viewer should see first.
     if (!showcase_files_.empty()) {
         std::vector<std::string> scenes;
         for (const auto &file : showcase_files_)
             scenes.push_back(file.stem().string());
         result.push_back({"SHOWCASE", "SCENES WITH THEIR OWN SETUP", std::move(scenes), 0});
     }
+    for (const auto &file : files_)
+        result.push_back({file.stem().string(), "JSON BLUEPRINT", {}, 0});
     return result;
 }
 
@@ -62,11 +63,14 @@ ScreenEvent BlueprintScreen::update(const Input &input, Vec2 viewport) {
         return {ScreenAction::leave, {}};
     if (!menu_)
         return {input.hit(Key::enter) ? ScreenAction::rediscover : ScreenAction::none, {}};
-    if (const auto choice = menu_->update(input, viewport))
-        // The SHOWCASE row follows the blueprints; its configuration is the scene.
-        return {ScreenAction::load, choice->application < files_.size()
-                                        ? files_[choice->application]
-                                        : showcase_files_.at(choice->configuration)};
+    if (const auto choice = menu_->update(input, viewport)) {
+        // The SHOWCASE row, when there is one, precedes the blueprints; its configuration
+        // is the scene.
+        const bool showcase = !showcase_files_.empty();
+        if (showcase && choice->application == 0)
+            return {ScreenAction::load, showcase_files_.at(choice->configuration)};
+        return {ScreenAction::load, files_.at(choice->application - (showcase ? 1 : 0))};
+    }
     return {menu_->exit_requested() ? ScreenAction::exit : ScreenAction::none, {}};
 }
 

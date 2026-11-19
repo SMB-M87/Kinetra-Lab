@@ -28,9 +28,9 @@ struct ScreenEvent {
     std::filesystem::path blueprint;
 };
 
-/// The blueprint catalog as a paged menu: one row per JSON file in the catalog directory
-/// and, when its `showcase/` subdirectory holds scenes, a last row SHOWCASE whose second
-/// page lists them. Reuses kinetra::LaunchMenu for layout, paging and picking.
+/// The blueprint catalog as a paged menu: when its `showcase/` subdirectory holds scenes,
+/// a first row SHOWCASE whose second page lists them, then one row per JSON file in the
+/// catalog directory. Reuses kinetra::LaunchMenu for layout, paging and picking.
 ///
 /// A new screen has no catalog until refresh() succeeds. Without one it draws a load-error
 /// screen and waits for Enter.
@@ -56,7 +56,7 @@ class BlueprintScreen {
     std::vector<kinetra::LaunchChoice> choices() const;
 
     std::filesystem::path directory_;
-    /// Top-level blueprints, then the scenes of the showcase subdirectory, each sorted by name.
+    /// Top-level blueprints and the scenes of the showcase subdirectory, each sorted by name.
     std::vector<std::filesystem::path> files_, showcase_files_;
     std::unique_ptr<kinetra::LaunchMenu> menu_;
 };
