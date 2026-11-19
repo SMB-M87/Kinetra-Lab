@@ -69,8 +69,8 @@ std::string outcome(const Recorder &recorder, const Simulation &simulation, cons
     }
     std::size_t arrived = 0;
     for (const auto &mover : simulation.movers()) {
-        fingerprint.add(std::uint64_t{mover.moving});
-        arrived += !mover.moving && kinetra::distance(mover.body.position, mover.destination) < 0.1f;
+        fingerprint.add(std::uint64_t{mover.moving()});
+        arrived += !mover.moving() && kinetra::distance(mover.body.position, mover.destination) < 0.1f;
     }
     const auto passing_contacts =
         std::count_if(events.begin(), events.end(), [](const SimulationEvent &event) {

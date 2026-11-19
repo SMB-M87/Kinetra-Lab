@@ -59,6 +59,22 @@ Segment stop_before(const Body &body, Aabb area) {
     return {start, end};
 }
 } // namespace
+MoverStatus mover_status(const Mover &m) {
+    if (m.held)
+        return MoverStatus::held;
+    if (m.coordination.corridor_retreating)
+        return MoverStatus::corridor_retreat;
+    if (m.coordination.passing)
+        return MoverStatus::passing_detour;
+    if (m.lifecycle == MoverLifecycle::unreachable)
+        return MoverStatus::unreachable;
+    return m.product ? MoverStatus::allocated : MoverStatus::available;
+}
+bool Simulation::stalled(std::size_t index) const {
+    const auto &m = movers_.at(index);
+    return progress_[index].no_progress >= stall_ticks && !m.coordination.corridor_retreating &&
+           !m.coordination.corridor_waiting && !m.coordination.passing;
+}
 std::vector<Interaction> recipe(ProductKind kind) {
     using enum Interaction;
     if (kind == ProductKind::personalized)
@@ -175,6 +191,7 @@ Simulation::Simulation(Blueprint b, std::uint32_t seed)
             throw std::runtime_error("Mover starts in a forbidden cell: " + definition.id);
         movers_.push_back(m);
     }
+    progress_.resize(movers_.size());
     update_heatmap();
 }
 void Simulation::configure_motion(MotionSettings settings) {
@@ -190,24 +207,26 @@ void Simulation::configure_motion(MotionSettings settings) {
             zone.recovery.reset();
         }
     for (auto &m : movers_) {
+        auto &coordination = m.coordination;
         if (!settings.junction_traffic)
-            m.junction_waiting = false;
+            coordination.junction_waiting = false;
         if (!settings.corridor_traffic)
-            m.corridor_waiting = m.corridor_retreating = false;
-        if (!m.junction_waiting && !m.corridor_waiting)
-            m.junction_exit_waiting = false;
+            coordination.corridor_waiting = coordination.corridor_retreating = false;
+        if (!coordination.junction_waiting && !coordination.corridor_waiting)
+            coordination.exit_waiting = false;
     }
     traffic_stops_.clear();
     motion_ = settings;
     update_heatmap();
     for (auto &m : movers_) {
         m.body.velocity = limited(m.body.velocity, settings.speed);
-        if (!settings.parking_traffic && m.parking_deferred)
+        if (!settings.parking_traffic && m.goal == GoalKind::parking_staging)
             set_goal(m, m.parking);
-        else if (m.moving) {
-            const bool deferred = m.parking_deferred;
+        else if (m.moving()) {
+            // Setting the same goal again replans the route but keeps its origin.
+            const auto goal = m.goal;
             set_goal(m, m.destination);
-            m.parking_deferred = deferred;
+            m.goal = goal;
         }
     }
 }
@@ -266,8 +285,8 @@ std::uint64_t Simulation::add_product(ProductKind kind) {
 }
 void Simulation::toggle_mover(std::size_t index) {
     auto &m = movers_.at(index);
-    m.blocked = !m.blocked;
-    if (m.blocked)
+    m.held = !m.held;
+    if (m.held)
         m.body.velocity = {};
 }
 void Simulation::toggle_producer(std::size_t index) {
@@ -277,11 +296,12 @@ void Simulation::toggle_producer(std::size_t index) {
 std::vector<Vec2> Simulation::plan_route(const Mover &m, Vec2 target, bool require_departure) const {
     auto route = grid_.path(m.body.position, target, m.body.half_extents);
     if (route.empty() || (!require_departure && distance(target, m.parking) > same_point_mm &&
-                          m.no_progress < obstruction_ticks))
+                          progress(m).no_progress < obstruction_ticks))
         return route;
     std::vector<const Body *> obstacles;
     for (const auto &other : movers_)
-        if (&other != &m && (!other.moving || other.blocked || other.no_progress >= obstruction_ticks))
+        if (&other != &m &&
+            (!other.moving() || other.held || progress(other).no_progress >= obstruction_ticks))
             obstacles.push_back(&other.body);
     auto clear = [&](Vec2 from, Vec2 to) {
         if (!grid_.clear(from, to, m.body.half_extents))
@@ -361,25 +381,27 @@ std::vector<Vec2> Simulation::plan_route(const Mover &m, Vec2 target, bool requi
 void Simulation::set_goal(Mover &m, Vec2 target) {
     cancel_corridor_recovery(m);
     cancel_predictive_passing(m);
-    m.parking_deferred = false;
+    // A manual goal stays manual until arrival; a parking staging goal is replaced.
+    if (m.goal == GoalKind::parking_staging)
+        m.goal = GoalKind::automatic;
     m.destination = target;
     m.route = plan_route(m, target);
-    m.unreachable = m.route.empty();
-    m.moving = !m.unreachable;
-    m.stalled = m.replan = m.no_progress = 0;
-    m.best_remaining = route_remaining(m.body.position, m.route);
+    m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
+    auto &tracking = progress(m);
+    tracking.replan = tracking.no_progress = 0;
+    tracking.best_remaining = route_remaining(m.body.position, m.route);
     m.detour = false;
-    m.recovery_attempts = 0;
+    tracking.recovery_attempts = 0;
 }
 bool Simulation::move_to(std::size_t index, Vec2 target) {
     auto &m = movers_.at(index);
-    if (m.blocked || m.product || grid_.blocked(grid_.cell(target)))
+    if (m.held || m.product || grid_.blocked(grid_.cell(target)))
         return false;
     auto route = grid_.path(m.body.position, target, m.body.half_extents);
     if (route.empty())
         return false;
     set_goal(m, target);
-    m.manual = true;
+    m.goal = GoalKind::manual;
     return true;
 }
 Vec2 Simulation::holding_position(const Mover &m, Vec2 target) const {
@@ -407,8 +429,8 @@ Vec2 Simulation::holding_position(const Mover &m, Vec2 target) const {
             if (&other != &m &&
                 (distance(candidate, other.body.position) <
                      length(m.body.half_extents + other.body.half_extents) + 10 ||
-                 (other.moving && distance(candidate, other.destination) <
-                                      length(m.body.half_extents + other.body.half_extents) + 10)))
+                 (other.moving() && distance(candidate, other.destination) <
+                                        length(m.body.half_extents + other.body.half_extents) + 10)))
                 available = false;
         if (!available || (motion_.parking_traffic && parking_conflict(m, candidate)))
             continue;
@@ -422,14 +444,15 @@ Vec2 Simulation::holding_position(const Mover &m, Vec2 target) const {
     return result;
 }
 std::size_t Simulation::parking_waiting() const {
-    return std::count_if(movers_.begin(), movers_.end(), [](const Mover &m) { return m.parking_deferred; });
+    return std::count_if(movers_.begin(), movers_.end(),
+                         [](const Mover &m) { return m.goal == GoalKind::parking_staging; });
 }
 bool Simulation::parking_conflict(const Mover &m, Vec2 position) const {
     Body parked = m.body;
     parked.position = position;
     for (const auto &other : movers_) {
-        if (&other == &m || other.blocked || !other.moving || other.parking_deferred ||
-            (!other.manual && distance(other.destination, other.parking) < same_point_mm))
+        if (&other == &m || other.held || !other.moving() || other.goal == GoalKind::parking_staging ||
+            (other.goal != GoalKind::manual && distance(other.destination, other.parking) < same_point_mm))
             continue;
         Vec2 from = other.body.position;
         for (const auto to : other.route) {
@@ -444,23 +467,24 @@ void Simulation::coordinate_parking() {
     if (!motion_.parking_traffic)
         return;
     for (auto &m : movers_) {
-        if (m.blocked || m.manual ||
-            (!m.parking_deferred && (!m.moving || distance(m.destination, m.parking) >= same_point_mm)))
+        const bool staging = m.goal == GoalKind::parking_staging;
+        if (m.held || m.goal == GoalKind::manual ||
+            (!staging && (!m.moving() || distance(m.destination, m.parking) >= same_point_mm)))
             continue;
         if (!parking_conflict(m, m.parking)) {
-            if (m.parking_deferred)
+            if (staging)
                 set_goal(m, m.parking);
             continue;
         }
-        if (m.parking_deferred)
+        if (staging)
             continue;
         // Reuse footprint-aware staging selection, excluding protected routes.
         // If no staging place is reachable, retain the existing goal and let
         // local avoidance stop safely; retry the interlock on the next tick.
-        const auto staging = holding_position(m, m.parking);
-        if (distance(staging, m.parking) > same_point_mm) {
-            set_goal(m, staging);
-            m.parking_deferred = true;
+        const auto staging_place = holding_position(m, m.parking);
+        if (distance(staging_place, m.parking) > same_point_mm) {
+            set_goal(m, staging_place);
+            m.goal = GoalKind::parking_staging;
         }
     }
 }
@@ -514,7 +538,7 @@ void Simulation::schedule(Product &product) {
         float best = std::numeric_limits<float>::infinity();
         for (std::size_t i = 0; i < movers_.size(); ++i) {
             const auto &m = movers_[i];
-            if (m.blocked || m.product || m.manual || m.parking_deferred)
+            if (m.held || m.product || m.goal != GoalKind::automatic)
                 continue;
             const float cost = distance(m.body.position, goal);
             if (cost < best) {
@@ -531,12 +555,12 @@ void Simulation::schedule(Product &product) {
         movers_[*product.mover].product = product.id;
     }
     auto &m = movers_[*product.mover];
-    if (m.blocked)
+    if (m.held)
         return;
     set_goal(m, goal);
     if (!departure.empty()) {
         m.route = std::move(departure);
-        m.best_remaining = route_remaining(m.body.position, m.route);
+        progress(m).best_remaining = route_remaining(m.body.position, m.route);
     }
     product.state = ProductState::transporting;
 }
@@ -575,32 +599,33 @@ void Simulation::recover_route(Mover &m) {
         m.route = std::move(route);
         m.detour = true;
     }
-    m.no_progress = 0;
-    m.best_remaining = route_remaining(m.body.position, m.route);
+    progress(m).no_progress = 0;
+    progress(m).best_remaining = route_remaining(m.body.position, m.route);
 }
 bool Simulation::prepare_route(Mover &m) {
-    if (m.blocked || !m.moving)
+    if (m.held || !m.moving())
         return false;
     // Congestion includes this mover's footprint; it is not evidence that
     // its route is obstructed. Replan only after sustained lack of progress.
-    if (!m.detour && ++m.replan >= replan_ticks && m.no_progress >= obstruction_ticks) {
+    if (!m.detour && ++progress(m).replan >= replan_ticks && progress(m).no_progress >= obstruction_ticks) {
         auto route = plan_route(m, m.destination);
         if (!route.empty()) {
             m.route = std::move(route);
-            m.best_remaining = route_remaining(m.body.position, m.route);
+            progress(m).best_remaining = route_remaining(m.body.position, m.route);
         }
-        m.replan = 0;
+        progress(m).replan = 0;
     }
     if (m.route.empty()) {
         set_goal(m, m.destination);
-        if (m.unreachable)
+        if (m.lifecycle == MoverLifecycle::unreachable)
             return false;
     }
-    if (++m.no_progress >=
-            stall_ticks + std::min(recovery_backoff_limit, m.recovery_attempts) * recovery_backoff_ticks &&
+    if (++progress(m).no_progress >=
+            stall_ticks +
+                std::min(recovery_backoff_limit, progress(m).recovery_attempts) * recovery_backoff_ticks &&
         motion_.recovery) {
         recover_route(m);
-        ++m.recovery_attempts;
+        ++progress(m).recovery_attempts;
     }
     while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < waypoint_reach_mm &&
            grid_.clear(m.body.position, m.route[1], m.body.half_extents))
@@ -613,7 +638,8 @@ Vec2 Simulation::junction_center(std::size_t index) const {
     return traffic_zones_[index].center;
 }
 std::size_t Simulation::corridor_waiting() const {
-    return std::count_if(movers_.begin(), movers_.end(), [](const Mover &m) { return m.corridor_waiting; });
+    return std::count_if(movers_.begin(), movers_.end(),
+                         [](const Mover &m) { return m.coordination.corridor_waiting; });
 }
 Aabb Simulation::corridor_bounds(std::size_t index) const {
     if (index >= corridor_count())
@@ -628,11 +654,12 @@ std::optional<Aabb> Simulation::corridor_exit_reservation(std::size_t index) con
     return exit ? std::optional(exit->area) : std::nullopt;
 }
 std::size_t Simulation::junction_waiting() const {
-    return std::count_if(movers_.begin(), movers_.end(), [](const Mover &m) { return m.junction_waiting; });
+    return std::count_if(movers_.begin(), movers_.end(),
+                         [](const Mover &m) { return m.coordination.junction_waiting; });
 }
 std::size_t Simulation::junction_exit_waiting() const {
     return std::count_if(movers_.begin(), movers_.end(),
-                         [](const Mover &m) { return m.junction_exit_waiting; });
+                         [](const Mover &m) { return m.coordination.exit_waiting; });
 }
 std::optional<Aabb> Simulation::junction_exit_reservation(std::size_t index) const {
     if (index >= junction_count_)
@@ -697,8 +724,8 @@ void Simulation::cancel_corridor_recovery(Mover &m) {
         if (&m != &movers_[recovery.yielding] && &m != &movers_[recovery.passing])
             continue;
         for (auto id : {recovery.yielding, recovery.passing}) {
-            movers_[id].corridor_retreating = false;
-            movers_[id].corridor_waiting = false;
+            movers_[id].coordination.corridor_retreating = false;
+            movers_[id].coordination.corridor_waiting = false;
             if (id < traffic_controls_.size())
                 traffic_controls_[id].reset();
         }
@@ -717,11 +744,11 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
         };
         if (zone.recovery) {
             auto &recovery = *zone.recovery;
-            if (!movers_[recovery.yielding].moving || !movers_[recovery.passing].moving ||
+            if (!movers_[recovery.yielding].moving() || !movers_[recovery.passing].moving() ||
                 (recovery.yielded && !inside(movers_[recovery.passing]))) {
                 for (auto id : {recovery.yielding, recovery.passing}) {
-                    movers_[id].no_progress = movers_[id].replan = 0;
-                    movers_[id].best_remaining =
+                    progress(movers_[id]).no_progress = progress(movers_[id]).replan = 0;
+                    progress(movers_[id]).best_remaining =
                         route_remaining(movers_[id].body.position, movers_[id].route);
                 }
                 zone.recovery.reset();
@@ -738,8 +765,8 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
                 continue;
             auto axis = [&](Vec2 value) { return zone.vertical ? value.y : value.x; };
             const auto &a = movers_[occupants[0]], &b = movers_[occupants[1]];
-            if (a.blocked || b.blocked || !a.moving || !b.moving || a.no_progress < stall_ticks ||
-                b.no_progress < stall_ticks || length(a.body.velocity) > stop_speed ||
+            if (a.held || b.held || !a.moving() || !b.moving() || progress(a).no_progress < stall_ticks ||
+                progress(b).no_progress < stall_ticks || length(a.body.velocity) > stop_speed ||
                 length(b.body.velocity) > stop_speed ||
                 axis(a.destination - a.body.position) * axis(b.destination - b.body.position) >= 0)
                 continue;
@@ -819,22 +846,21 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
                                  length(yielding.body.velocity) < stop_speed);
         traffic_controls_[recovery.yielding] =
             TrafficControl{j, recovery.route.front(), recovery.route.size() == 1};
-        yielding.corridor_retreating = true;
+        yielding.coordination.corridor_retreating = true;
         if (recovery.yielded)
-            yielding.corridor_waiting = true;
+            yielding.coordination.corridor_waiting = true;
         else {
             traffic_controls_[recovery.passing] = TrafficControl{j, recovery.hold, true};
-            movers_[recovery.passing].corridor_waiting = true;
+            movers_[recovery.passing].coordination.corridor_waiting = true;
         }
     }
 }
 void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aabb> bodies) {
     traffic_stops_.assign(movers_.size(), {});
     traffic_controls_.assign(movers_.size(), std::nullopt);
+    // Coordination is an output of this tick; passing coordination below sets its part too.
     for (auto &m : movers_)
-        m.corridor_retreating = false;
-    for (auto &m : movers_)
-        m.junction_waiting = m.junction_exit_waiting = m.corridor_waiting = false;
+        m.coordination = {};
     if (motion_.corridor_traffic)
         recover_corridors(index);
     coordinate_predictive_passing(index);
@@ -857,7 +883,7 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
             const auto extent = m.body.half_extents + half;
             if (std::abs(offset.x) < extent.x && std::abs(offset.y) < extent.y)
                 occupants[j].push_back(i);
-            if (m.blocked || !m.moving || m.route.empty())
+            if (m.held || !m.moving() || m.route.empty())
                 continue;
             Body zone;
             zone.position = traffic_zones_[j].center;
@@ -929,7 +955,7 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
                     if (other == id)
                         continue;
                     const auto &moving = movers_[other];
-                    const auto velocity = moving.moving && !moving.blocked ? moving.body.velocity : Vec2{};
+                    const auto velocity = moving.moving() && !moving.held ? moving.body.velocity : Vec2{};
                     const auto coast =
                         moving.body.position + velocity * (length(velocity) / motion_.force + 1);
                     if (bodies[other].overlaps(*exits[n]) ||
@@ -967,10 +993,10 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
             traffic_stops_[id].push_back(
                 stop_before(movers_[id].body, {junction.center - half, junction.center + half}));
             if (junction.corridor)
-                movers_[id].corridor_waiting = true;
+                movers_[id].coordination.corridor_waiting = true;
             else
-                movers_[id].junction_waiting = true;
-            movers_[id].junction_exit_waiting =
+                movers_[id].coordination.junction_waiting = true;
+            movers_[id].coordination.exit_waiting =
                 std::find(blocked.begin(), blocked.end(), id) != blocked.end();
         }
     }
@@ -988,7 +1014,7 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
              index.query({exit.area.min - Vec2{reach, reach}, exit.area.max + Vec2{reach, reach}})) {
             auto &m = movers_[id];
             if ((traffic_controls_[id] && traffic_controls_[id]->zone == j) || id == exit.agent ||
-                occupied[id] || m.blocked || !m.moving || m.route.empty() || bodies[id].overlaps(exit.area))
+                occupied[id] || m.held || !m.moving() || m.route.empty() || bodies[id].overlaps(exit.area))
                 continue;
             const auto coast =
                 m.body.position + m.body.velocity * (length(m.body.velocity) / motion_.force + 1);
@@ -998,10 +1024,10 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
                 continue;
             traffic_stops_[id].push_back(stop_before(m.body, exit.area));
             if (junction.corridor)
-                m.corridor_waiting = true;
+                m.coordination.corridor_waiting = true;
             else
-                m.junction_waiting = true;
-            m.junction_exit_waiting = true;
+                m.coordination.junction_waiting = true;
+            m.coordination.exit_waiting = true;
         }
     }
 }
@@ -1017,7 +1043,7 @@ void Simulation::move_agents() {
     std::vector<Aabb> boxes;
     for (const auto &m : movers_) {
         snapshot.push_back(m.body);
-        if (m.blocked || !m.moving) {
+        if (m.held || !m.moving()) {
             snapshot.back().motion = Motion::fixed;
             snapshot.back().velocity = {};
         }
@@ -1030,7 +1056,7 @@ void Simulation::move_agents() {
         auto &m = movers_[i];
         if (!m.product)
             ++m.idle_ticks;
-        if (m.blocked || !m.moving)
+        if (m.held || !m.moving())
             continue;
         if (!prepare_together && !prepare_route(m))
             continue;
@@ -1046,8 +1072,8 @@ void Simulation::move_agents() {
                     const auto &other = snapshot[id];
                     avoidance_neighbors.push_back({id, other.position, other.velocity, bounding_radius(other),
                                                    other.motion != Motion::fixed &&
-                                                       !movers_[id].junction_waiting &&
-                                                       !movers_[id].corridor_waiting,
+                                                       !movers_[id].coordination.junction_waiting &&
+                                                       !movers_[id].coordination.corridor_waiting,
                                                    other.half_extents});
                 }
             }
@@ -1125,11 +1151,10 @@ void Simulation::move_agents() {
         // Arrival slows continuously; a fixed 2 mm threshold would classify
         // the final approach as stalled even while it is still converging.
         const float progress_step = std::clamp(remaining * progress_step_fraction, 0.001f, 2.f);
-        if (remaining + progress_step < m.best_remaining) {
-            m.best_remaining = remaining;
-            m.no_progress = 0;
+        if (remaining + progress_step < progress(m).best_remaining) {
+            progress(m).best_remaining = remaining;
+            progress(m).no_progress = 0;
         }
-        m.stalled = moved < 0.1f ? m.stalled + 1 : 0;
         if (m.product)
             ++m.transport_ticks;
         if (!control && m.route.size() == 1 &&
@@ -1145,8 +1170,9 @@ void Simulation::move_agents() {
             m.body.position = m.destination;
             m.body.velocity = {};
             m.body.acceleration = {};
-            m.moving = false;
-            m.manual = false;
+            m.lifecycle = MoverLifecycle::idle;
+            if (m.goal == GoalKind::manual)
+                m.goal = GoalKind::automatic;
             m.route.clear();
         }
     }
@@ -1169,7 +1195,8 @@ void Simulation::move_agents() {
                 SimulationEvent event{.tick = ticks_, .kind = EventKind::contact};
                 event.border = b >= movers_.size();
                 event.movers = {a, event.border ? b - movers_.size() : b};
-                event.passing = movers_[a].passing_detour || (!event.border && movers_[b].passing_detour);
+                event.passing =
+                    movers_[a].coordination.passing || (!event.border && movers_[b].coordination.passing);
                 events_.push_back(event);
             }
         }
@@ -1183,9 +1210,9 @@ void Simulation::move_agents() {
                     ++movers_[j].collision_ticks;
                     auto &a = movers_[i].body;
                     auto &b = movers_[j].body;
-                    if (movers_[i].blocked || !movers_[i].moving)
+                    if (movers_[i].held || !movers_[i].moving())
                         a.motion = Motion::fixed;
-                    if (movers_[j].blocked || !movers_[j].moving)
+                    if (movers_[j].held || !movers_[j].moving())
                         b.motion = Motion::fixed;
                     resolve_contact(a, b, *c);
                     a.motion = b.motion = Motion::controlled;
@@ -1206,7 +1233,7 @@ void Simulation::move_agents() {
                 // touching that artificial skin is not a physical wall contact.
                 c->penetration -= 0.001f;
                 contact(i, movers_.size() + j);
-                if (!movers_[i].blocked)
+                if (!movers_[i].held)
                     resolve_contact(movers_[i].body, wall, *c);
             }
         }
@@ -1220,7 +1247,7 @@ void Simulation::update_product(Product &p) {
     }
     auto &m = movers_.at(*p.mover);
     auto &producer = producers_.at(*p.producer);
-    if (m.blocked)
+    if (m.held)
         return;
     if (producer.blocked && p.state != ProductState::processing) {
         std::erase(producer.queue, p.id);
@@ -1247,7 +1274,7 @@ void Simulation::update_product(Product &p) {
     }
     if (p.state == ProductState::transporting) {
         ++p.transport_ticks;
-        if (!m.moving && !m.unreachable)
+        if (m.lifecycle == MoverLifecycle::idle)
             p.state = ProductState::queued;
     }
     if (p.state == ProductState::queued && !producer.blocked && !producer.product &&
@@ -1327,7 +1354,7 @@ void Simulation::dump(const std::filesystem::path &directory) const {
                                   {"idleTicks", m.idle_ticks},
                                   {"transportTicks", m.transport_ticks},
                                   {"interactions", m.interactions},
-                                  {"blocked", m.blocked}});
+                                  {"blocked", m.held}});
     for (const auto &p : producers_)
         data["producers"].push_back({{"id", p.definition.id},
                                      {"interactions", p.interactions},

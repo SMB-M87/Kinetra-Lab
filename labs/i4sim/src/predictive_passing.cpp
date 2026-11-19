@@ -32,15 +32,15 @@ std::optional<Vec2> Simulation::passing_target(std::size_t mover) const {
 void Simulation::restore_passing_routes(std::array<std::size_t, 2> ids) {
     for (auto id : ids) {
         auto &m = movers_[id];
-        m.passing_detour = false;
+        m.coordination.passing = false;
         m.route = plan_route(m, m.destination);
-        m.unreachable = m.route.empty();
-        m.moving = !m.unreachable;
-        m.no_progress = m.replan = 0;
-        m.best_remaining = 0;
+        m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
+        auto &tracking = progress(m);
+        tracking.no_progress = tracking.replan = 0;
+        tracking.best_remaining = 0;
         Vec2 from = m.body.position;
         for (auto point : m.route) {
-            m.best_remaining += distance(from, point);
+            tracking.best_remaining += distance(from, point);
             from = point;
         }
         if (id < traffic_controls_.size())
@@ -78,8 +78,6 @@ void Simulation::cancel_predictive_passing(Mover &m) {
 }
 void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
     passing_retry_.resize(movers_.size());
-    for (auto &m : movers_)
-        m.passing_detour = false;
     for (std::size_t i = 0; i < passing_plans_.size();) {
         auto &plan = passing_plans_[i];
         // The first reason found ends the plan; the event log reports it.
@@ -97,9 +95,9 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
             arrived = arrived && d < arrival_distance_mm && length(m.body.velocity) < stop_speed;
             if (end)
                 continue;
-            if (!m.moving)
+            if (!m.moving())
                 end = PassingEnd::participant_stopped;
-            else if (m.blocked)
+            else if (m.held)
                 end = PassingEnd::participant_held;
             else if (traffic_controls_[id].has_value())
                 end = PassingEnd::traffic_control;
@@ -141,8 +139,8 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
     };
     auto eligible = [&](std::size_t id) {
         const auto &m = movers_[id];
-        return !claimed[id] && m.moving && !m.blocked && !m.corridor_retreating && !m.route.empty() &&
-               passing_retry_[id] <= ticks_;
+        return !claimed[id] && m.moving() && !m.held && !m.coordination.corridor_retreating &&
+               !m.route.empty() && passing_retry_[id] <= ticks_;
     };
     for (std::size_t a = 0; a < movers_.size(); ++a) {
         if (!eligible(a))
@@ -252,7 +250,7 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
     for (const auto &plan : passing_plans_)
         for (std::size_t side = 0; side < 2; ++side) {
             const auto id = plan.movers[side];
-            movers_[id].passing_detour = true;
+            movers_[id].coordination.passing = true;
             traffic_controls_[id] = TrafficControl{std::numeric_limits<std::size_t>::max(),
                                                    plan.crossing ? plan.exit[side] : plan.entry[side], false};
         }

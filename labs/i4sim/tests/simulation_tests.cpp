@@ -147,12 +147,12 @@ void check_encounters(bool crossing) {
         trial.run();
         for (int tick = 0; tick < 5000; ++tick)
             trial.tick();
-        INFO("contacts " << trial.collisions() << " moving " << trial.movers()[0].moving
-                         << trial.movers()[1].moving);
+        INFO("contacts " << trial.collisions() << " moving " << trial.movers()[0].moving()
+                         << trial.movers()[1].moving());
         if (profile == SteeringProfile::original)
             reference_contacts = trial.collisions();
         else {
-            CHECK_MESSAGE((!trial.movers()[0].moving && !trial.movers()[1].moving),
+            CHECK_MESSAGE((!trial.movers()[0].moving() && !trial.movers()[1].moving()),
                           "Encounter did not reach both goals");
             CHECK_MESSAGE((trial.collisions() == 0 && trial.collisions() <= reference_contacts),
                           "Encounter increased contacts");
@@ -197,7 +197,7 @@ std::string recipe_diagnostics(const Simulation &simulation) {
         text << "stuck product step=" << p.step << " state=" << int(p.state) << '\n';
     const auto &m = simulation.movers()[0];
     text << "mover=" << m.body.position.x << "," << m.body.position.y << " dest=" << m.destination.x << ","
-         << m.destination.y << " moving=" << m.moving;
+         << m.destination.y << " moving=" << m.moving();
     return text.str();
 }
 
@@ -208,8 +208,9 @@ std::string workload_diagnostics(const Simulation &factory) {
     for (const auto &m : factory.movers())
         text << '\n'
              << m.definition.id << " pos=" << m.body.position.x << ',' << m.body.position.y
-             << " goal=" << m.destination.x << ',' << m.destination.y << " moving=" << m.moving
-             << " unreachable=" << m.unreachable << " route=" << m.route.size() << " blocked-start="
+             << " goal=" << m.destination.x << ',' << m.destination.y << " moving=" << m.moving()
+             << " unreachable=" << (m.lifecycle == MoverLifecycle::unreachable) << " route=" << m.route.size()
+             << " blocked-start="
              << !factory.grid().clear(m.body.position, m.body.position, m.body.half_extents);
     return text.str();
 }
@@ -302,7 +303,7 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
                 }
                 CHECK_MESSAGE(present <= 1, "Late goal change released a coasting approach too early");
             }
-            CHECK_MESSAGE((!cancelled.movers()[0].moving && !cancelled.movers()[1].moving &&
+            CHECK_MESSAGE((!cancelled.movers()[0].moving() && !cancelled.movers()[1].moving() &&
                            cancelled.collisions() == 0),
                           "Late cancellation failed to release after braking");
             checked_late_cancel = true;
@@ -321,7 +322,7 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
             blocked.toggle_mover(0);
             for (int t = 0; t < 1000; ++t)
                 blocked.tick();
-            CHECK_MESSAGE((!blocked.movers()[0].moving && !blocked.movers()[1].moving),
+            CHECK_MESSAGE((!blocked.movers()[0].moving() && !blocked.movers()[1].moving()),
                           "Crossing did not resume after its occupant was unblocked");
             auto disabled = trial;
             disabled.pause();
@@ -336,9 +337,9 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
     }
     for (int t = 0; t < 5000; ++t)
         reference.tick();
-    CHECK_MESSAGE((reference.movers()[1].moving && waited && checked_block && checked_late_cancel &&
-                   trial.junction_waiting() == 0 && !trial.movers()[0].moving && !trial.movers()[1].moving &&
-                   trial.collisions() == 0),
+    CHECK_MESSAGE((reference.movers()[1].moving() && waited && checked_block && checked_late_cancel &&
+                   trial.junction_waiting() == 0 && !trial.movers()[0].moving() &&
+                   !trial.movers()[1].moving() && trial.collisions() == 0),
                   "Junction admission did not resolve the narrow crossing regression");
 }
 
@@ -368,7 +369,7 @@ TEST_CASE("crossing admission works for every approach orientation") {
         for (int t = 0; t < 1500; ++t)
             rotated.tick();
         CHECK_MESSAGE(
-            (!rotated.movers()[0].moving && !rotated.movers()[1].moving && rotated.collisions() == 0),
+            (!rotated.movers()[0].moving() && !rotated.movers()[1].moving() && rotated.collisions() == 0),
             "Crossing admission depended on approach orientation");
     }
 }
@@ -387,7 +388,7 @@ TEST_CASE("a T-junction admits a turning movement") {
     tee.run();
     for (int t = 0; t < 2000; ++t)
         tee.tick();
-    CHECK_MESSAGE((!tee.movers()[0].moving && !tee.movers()[1].moving && tee.collisions() == 0),
+    CHECK_MESSAGE((!tee.movers()[0].moving() && !tee.movers()[1].moving() && tee.collisions() == 0),
                   "T-junction admission failed to clear a turning movement");
 }
 
@@ -399,7 +400,7 @@ TEST_CASE("a cancelled approach releases its junction admission") {
     for (int t = 0; t < 1000; ++t)
         cancelled.tick();
     CHECK_MESSAGE(
-        (!cancelled.movers()[0].moving && !cancelled.movers()[1].moving && cancelled.collisions() == 0),
+        (!cancelled.movers()[0].moving() && !cancelled.movers()[1].moving() && cancelled.collisions() == 0),
         "Cancelled approach retained a stale junction admission");
 }
 
@@ -428,8 +429,8 @@ TEST_CASE("a mover waits outside a junction until its blocked exit clears in eve
         bool saw_exit_wait = false, saw_free_exit = false;
         for (int t = 0; t < 1000; ++t) {
             trial.tick();
-            saw_exit_wait = saw_exit_wait || trial.movers()[0].junction_exit_waiting;
-            saw_free_exit = saw_free_exit || !trial.movers()[1].moving;
+            saw_exit_wait = saw_exit_wait || trial.movers()[0].coordination.exit_waiting;
+            saw_free_exit = saw_free_exit || !trial.movers()[1].moving();
             const auto &west = trial.movers()[0];
             const auto approach = kinetra::rotated({1, 0}, angle);
             CHECK_MESSAGE(kinetra::dot(west.body.position - Vec2{700, 700}, approach) + half.x <= -101.999f,
@@ -455,8 +456,9 @@ TEST_CASE("a mover waits outside a junction until its blocked exit clears in eve
             reserved_after_release = reserved_after_release || trial.junction_exit_reservation(0).has_value();
         }
         CHECK_MESSAGE((reserved_after_release && trial.collisions() == 0 && trial.contact_ticks() == 0 &&
-                       !trial.movers()[0].moving && !trial.movers()[1].moving && !trial.movers()[2].moving &&
-                       trial.junction_exit_waiting() == 0 && !trial.junction_exit_reservation(0)),
+                       !trial.movers()[0].moving() && !trial.movers()[1].moving() &&
+                       !trial.movers()[2].moving() && trial.junction_exit_waiting() == 0 &&
+                       !trial.junction_exit_reservation(0)),
                       "Clearing the exit did not resume and release crossing traffic");
     }
 }
@@ -484,7 +486,7 @@ TEST_CASE("an exit reservation keeps an opposing approach outside its pocket") {
                       "Another approach occupied reserved exit space");
         CHECK_MESSAGE(kinetra::length(other.body.acceleration) <= config.force + 0.00001f,
                       "Reserved-exit stop exceeded the acceleration limit");
-        held_outside_exit = held_outside_exit || other.junction_exit_waiting;
+        held_outside_exit = held_outside_exit || other.coordination.exit_waiting;
     }
     CHECK_MESSAGE((held_outside_exit && protected_exit.collisions() == 0),
                   "Exit reservation did not constrain competing traffic");
@@ -512,8 +514,9 @@ TEST_CASE("a coasting approach prevents an unsafe exit reservation") {
                     "Late-enabled crossing goals rejected");
     coasting.single_step();
     const auto admitted_exit = coasting.junction_exit_reservation(0);
-    CHECK_MESSAGE((coasting.movers()[0].junction_exit_waiting && admitted_exit && admitted_exit->min.y > 799),
-                  "A coasting approach was ignored when admitting an exit reservation");
+    CHECK_MESSAGE(
+        (coasting.movers()[0].coordination.exit_waiting && admitted_exit && admitted_exit->min.y > 799),
+        "A coasting approach was ignored when admitting an exit reservation");
 }
 
 TEST_CASE("the corridor fixture stalls head-on without corridor traffic") {
@@ -521,7 +524,7 @@ TEST_CASE("the corridor fixture stalls head-on without corridor traffic") {
     start_corridor(reference, false, {1900, 700}, {300, 700});
     for (int t = 0; t < 5000; ++t)
         reference.tick();
-    CHECK_MESSAGE((reference.movers()[0].moving && reference.movers()[1].moving),
+    CHECK_MESSAGE((reference.movers()[0].moving() && reference.movers()[1].moving()),
                   "Corridor fixture no longer reproduces the head-on stall");
 }
 
@@ -587,14 +590,14 @@ TEST_CASE("corridor admission passes opposing movers one at a time in every orie
                 for (int step = 0; step < 200; ++step)
                     blocked.tick();
                 CHECK_MESSAGE((kinetra::distance(position, blocked.movers()[0].body.position) == 0 &&
-                               blocked.movers()[1].corridor_waiting),
+                               blocked.movers()[1].coordination.corridor_waiting),
                               "Blocked occupant released corridor admission");
                 blocked.toggle_mover(0);
                 for (int step = 0; step < 5000; ++step)
                     blocked.tick();
-                CHECK_MESSAGE(
-                    (!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0),
-                    "Corridor traffic failed to resume after unblocking");
+                CHECK_MESSAGE((!blocked.movers()[0].moving() && !blocked.movers()[1].moving() &&
+                               blocked.collisions() == 0),
+                              "Corridor traffic failed to resume after unblocking");
                 auto independent = trial;
                 independent.pause();
                 auto config = independent.motion_settings();
@@ -615,8 +618,8 @@ TEST_CASE("corridor admission passes opposing movers one at a time in every orie
                 checked_block = true;
             }
         }
-        CHECK_MESSAGE((saw_wait && saw_exit && checked_block && !trial.movers()[0].moving &&
-                       !trial.movers()[1].moving && trial.collisions() == 0 && trial.contact_ticks() == 0 &&
+        CHECK_MESSAGE((saw_wait && saw_exit && checked_block && !trial.movers()[0].moving() &&
+                       !trial.movers()[1].moving() && trial.collisions() == 0 && trial.contact_ticks() == 0 &&
                        trial.corridor_waiting() == 0 && !trial.corridor_exit_reservation(0)),
                       "Corridor traffic did not clear both goals without contact");
     }
@@ -636,15 +639,17 @@ TEST_CASE("a parked corridor occupant keeps its exit space and can depart") {
     stopped.run();
     for (int t = 0; t < 300; ++t)
         stopped.tick();
-    CHECK_MESSAGE((stopped.movers()[0].body.position.x == 1100 && stopped.movers()[1].corridor_waiting &&
+    CHECK_MESSAGE((stopped.movers()[0].body.position.x == 1100 &&
+                   stopped.movers()[1].coordination.corridor_waiting &&
                    stopped.movers()[1].body.position.x - stopped.movers()[1].body.half_extents.x > 1725.7f),
                   "Waiting traffic consumed an unassigned occupant's exit space");
     stopped.toggle_mover(0);
     CHECK_MESSAGE(stopped.move_to(0, {1900, 700}), "Parked corridor occupant could not depart");
     for (int t = 0; t < 5000; ++t)
         stopped.tick();
-    CHECK_MESSAGE((!stopped.movers()[0].moving && !stopped.movers()[1].moving && stopped.collisions() == 0),
-                  "A previously parked occupant could not clear the corridor");
+    CHECK_MESSAGE(
+        (!stopped.movers()[0].moving() && !stopped.movers()[1].moving() && stopped.collisions() == 0),
+        "A previously parked occupant could not clear the corridor");
 }
 
 TEST_CASE("dead ends and overlong lanes are not registered as passing corridors") {
@@ -690,7 +695,7 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
         trial.run();
         for (int t = 0; t < 1500; ++t)
             trial.tick();
-        CHECK_MESSAGE((trial.movers()[0].moving && trial.movers()[1].moving),
+        CHECK_MESSAGE((trial.movers()[0].moving() && trial.movers()[1].moving()),
                       "Recovery fixture did not stall");
         trial.pause();
         config.corridor_traffic = true;
@@ -709,7 +714,7 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
                                kinetra::distance(m.destination,
                                                  rotate(i == 0 ? Vec2{1900, 700} : Vec2{300, 700})) == 0),
                               "Retreat exceeded acceleration limits or replaced a goal");
-                if (!m.corridor_retreating)
+                if (!m.coordination.corridor_retreating)
                     continue;
                 saw_retreat = true;
                 saw_reverse =
@@ -729,7 +734,7 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
                 off.corridor_traffic = false;
                 disabled.configure_motion(off);
                 CHECK_MESSAGE((disabled.corridor_recovering() == 0 &&
-                               !disabled.movers()[i].corridor_retreating &&
+                               !disabled.movers()[i].coordination.corridor_retreating &&
                                kinetra::distance(disabled.movers()[i].body.position, m.body.position) == 0),
                               "Disabling traffic retained retreat state or moved a body");
                 auto blocked = trial;
@@ -741,15 +746,15 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
                 blocked.toggle_mover(i);
                 for (int step = 0; step < 6000; ++step)
                     blocked.tick();
-                CHECK_MESSAGE(
-                    (!blocked.movers()[0].moving && !blocked.movers()[1].moving && blocked.collisions() == 0),
-                    "Retreat did not resume after a temporary blockage");
+                CHECK_MESSAGE((!blocked.movers()[0].moving() && !blocked.movers()[1].moving() &&
+                               blocked.collisions() == 0),
+                              "Retreat did not resume after a temporary blockage");
                 checked_lifecycle = true;
             }
         }
         CHECK_MESSAGE((saw_retreat && saw_reverse && checked_lifecycle && trial.corridor_recovering() == 0 &&
-                       !trial.movers()[0].moving && !trial.movers()[1].moving && trial.collisions() == 0 &&
-                       trial.contact_ticks() == 0),
+                       !trial.movers()[0].moving() && !trial.movers()[1].moving() &&
+                       trial.collisions() == 0 && trial.contact_ticks() == 0),
                       "Retreat failed to restore both original goals without contact");
     }
 }
@@ -778,7 +783,7 @@ TEST_CASE("retreat refuges fit long rectangular movers") {
         long_movers.tick();
         long_recovery = long_recovery || long_movers.corridor_recovering() > 0;
     }
-    CHECK_MESSAGE((long_recovery && !long_movers.movers()[0].moving && !long_movers.movers()[1].moving &&
+    CHECK_MESSAGE((long_recovery && !long_movers.movers()[0].moving() && !long_movers.movers()[1].moving() &&
                    long_movers.collisions() == 0),
                   "Retreat refuge failed to fit long rectangular movers");
 }
@@ -807,7 +812,7 @@ TEST_CASE("recovery avoids occupied refuges and retries once one is free") {
         obstructed.tick();
         recovered = recovered || obstructed.corridor_recovering() > 0;
     }
-    CHECK_MESSAGE((recovered && !obstructed.movers()[0].moving && !obstructed.movers()[1].moving &&
+    CHECK_MESSAGE((recovered && !obstructed.movers()[0].moving() && !obstructed.movers()[1].moving() &&
                    obstructed.collisions() == 0),
                   "Freeing a refuge did not permit a safe retry");
 }
@@ -848,19 +853,20 @@ TEST_CASE("predictive passing completes open-floor encounters in every orientati
                     CHECK_MESSAGE((kinetra::distance(m.destination, i == 0 ? second : first) == 0 &&
                                    kinetra::length(m.body.acceleration) <= config.force + 0.00001f),
                                   "Passing changed a goal or exceeded acceleration bounds");
-                    CHECK_MESSAGE(!m.corridor_retreating, "Open-floor passing invoked corridor retreat");
+                    CHECK_MESSAGE(!m.coordination.corridor_retreating,
+                                  "Open-floor passing invoked corridor retreat");
                 }
                 if (!trial.predictive_pairs())
                     continue;
                 if (!saw_pair)
-                    CHECK_MESSAGE(
-                        (trial.movers()[0].no_progress < 120 && trial.movers()[1].no_progress < 120 &&
-                         kinetra::distance(trial.movers()[0].body.position, trial.movers()[1].body.position) >
-                             300),
-                        "Passing was detected only after a packed standstill");
+                    CHECK_MESSAGE((!trial.stalled(0) && !trial.stalled(1) &&
+                                   kinetra::distance(trial.movers()[0].body.position,
+                                                     trial.movers()[1].body.position) > 300),
+                                  "Passing was detected only after a packed standstill");
                 saw_pair = true;
-                CHECK_MESSAGE((trial.movers()[0].passing_detour && trial.movers()[1].passing_detour &&
-                               trial.passing_target(0) && trial.passing_target(1)),
+                CHECK_MESSAGE((trial.movers()[0].coordination.passing &&
+                               trial.movers()[1].coordination.passing && trial.passing_target(0) &&
+                               trial.passing_target(1)),
                               "Pair did not share temporary targets");
                 if (checked_lifecycle)
                     continue;
@@ -889,7 +895,8 @@ TEST_CASE("predictive passing completes open-floor encounters in every orientati
                 checked_lifecycle = true;
             }
             CHECK_MESSAGE((saw_pair && checked_lifecycle && trial.predictive_pairs() == 0 &&
-                           !trial.movers()[0].moving && !trial.movers()[1].moving && trial.collisions() == 0),
+                           !trial.movers()[0].moving() && !trial.movers()[1].moving() &&
+                           trial.collisions() == 0),
                           "Predictive passing failed to complete without contact");
         }
 }
@@ -906,8 +913,9 @@ TEST_CASE("shared passing lanes shift away from a wall") {
         wall.tick();
         shifted = shifted || wall.predictive_pairs() > 0;
     }
-    CHECK_MESSAGE((shifted && !wall.movers()[0].moving && !wall.movers()[1].moving && wall.collisions() == 0),
-                  "Shared passing lanes did not shift away from a wall");
+    CHECK_MESSAGE(
+        (shifted && !wall.movers()[0].moving() && !wall.movers()[1].moving() && wall.collisions() == 0),
+        "Shared passing lanes did not shift away from a wall");
 }
 
 TEST_CASE("passing without free space keeps the original routes") {
@@ -951,7 +959,7 @@ TEST_CASE("the event log records a passing plan from formation to completion") {
     const std::array entries{*pair.passing_target(0), *pair.passing_target(1)};
     for (int tick = 0; tick < 5000; ++tick)
         pair.tick();
-    REQUIRE_MESSAGE((!pair.movers()[0].moving && !pair.movers()[1].moving && pair.collisions() == 0),
+    REQUIRE_MESSAGE((!pair.movers()[0].moving() && !pair.movers()[1].moving() && pair.collisions() == 0),
                     "Passing fixture did not complete without contact");
     const auto events = pair.events();
     REQUIRE(events.size() == 3);
@@ -1057,11 +1065,11 @@ TEST_CASE("flow metrics count no waiting or stuck mover on a free trip") {
     REQUIRE(solo.move_to(0, {1900, 750}));
     solo.run();
     FlowMetrics flow;
-    for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick) {
+    for (int tick = 0; tick < 5000 && solo.movers()[0].moving(); ++tick) {
         solo.tick();
         flow.observe(solo);
     }
-    REQUIRE(!solo.movers()[0].moving);
+    REQUIRE(!solo.movers()[0].moving());
     CHECK(flow.waiting_ticks() == 0);
     CHECK(flow.stuck_movers() == 0);
     CHECK(flow.stuck_now() == 0);
@@ -1075,7 +1083,7 @@ TEST_CASE("flow metrics count a head-on corridor standstill as waiting and stuck
         standstill.tick();
         flow.observe(standstill);
     }
-    REQUIRE((standstill.movers()[0].moving && standstill.movers()[1].moving));
+    REQUIRE((standstill.movers()[0].moving() && standstill.movers()[1].moving()));
     CHECK(flow.waiting_ticks() > 0);
     CHECK(flow.stuck_movers() == 2);
     CHECK(flow.stuck_now() == 2);
@@ -1127,19 +1135,20 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
         for (std::size_t i = 0; i < simulation.movers().size(); ++i) {
             const auto &m = simulation.movers()[i];
             const auto &copy = replay.movers()[i];
-            CHECK_MESSAGE((kinetra::distance(m.body.position, copy.body.position) == 0 &&
-                           m.parking_deferred == copy.parking_deferred),
-                          "Parking traffic replay was nondeterministic");
+            CHECK_MESSAGE(
+                (kinetra::distance(m.body.position, copy.body.position) == 0 && m.goal == copy.goal),
+                "Parking traffic replay was nondeterministic");
             CHECK_MESSAGE(kinetra::distance(m.parking, blueprint.movers[i].position + m.body.half_extents) ==
                               0,
                           "Parking traffic changed an owned reservation");
             CHECK_MESSAGE(kinetra::length(m.body.acceleration) <=
                               simulation.motion_settings().force + 0.00001f,
                           "Parking traffic bypassed bounded movement");
-            if (waiting[i] && !m.parking_deferred && kinetra::distance(m.destination, m.parking) < 0.05f)
+            if (waiting[i] && m.goal != GoalKind::parking_staging &&
+                kinetra::distance(m.destination, m.parking) < 0.05f)
                 saw_return = true;
-            waiting[i] = m.parking_deferred;
-            if (!m.parking_deferred)
+            waiting[i] = m.goal == GoalKind::parking_staging;
+            if (m.goal != GoalKind::parking_staging)
                 continue;
             saw_wait = true;
             if (!checked_release) {
@@ -1156,17 +1165,18 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
                 blocked.set_workload(false);
                 blocked.pause();
                 for (std::size_t j = 0; j < blocked.movers().size(); ++j)
-                    if (j != i && !blocked.movers()[j].blocked)
+                    if (j != i && !blocked.movers()[j].held)
                         blocked.toggle_mover(j);
                 blocked.single_step();
-                CHECK_MESSAGE(!blocked.movers()[i].parking_deferred,
+                CHECK_MESSAGE(blocked.movers()[i].goal != GoalKind::parking_staging,
                               "A blocked departure retained a stale parking interlock");
                 checked_release = true;
             }
             if (!checked_manual && !m.product) {
                 auto manual = simulation;
-                CHECK_MESSAGE((manual.move_to(i, m.destination) && manual.movers()[i].manual &&
-                               !manual.movers()[i].parking_deferred),
+                CHECK_MESSAGE((manual.move_to(i, m.destination) &&
+                               manual.movers()[i].goal == GoalKind::manual &&
+                               manual.movers()[i].goal != GoalKind::parking_staging),
                               "Manual command did not replace an automatic parking wait");
                 checked_manual = true;
             }
@@ -1186,7 +1196,7 @@ TEST_CASE("manual goals and single steps work under every profile and invalid mo
     probe.set_workload(false);
     const auto start = probe.movers()[0].body.position;
     REQUIRE_MESSAGE(probe.move_to(0, {1300, 800}), "Manual goal rejected");
-    CHECK_MESSAGE(probe.movers()[0].manual, "Manual mover not reserved");
+    CHECK_MESSAGE(probe.movers()[0].goal == GoalKind::manual, "Manual mover not reserved");
     probe.add_product(ProductKind::trimmer);
     probe.single_step();
     CHECK_MESSAGE(!probe.movers()[0].product, "Manual mover allocated by factory");
@@ -1251,7 +1261,7 @@ TEST_CASE("movers return to their reservations beside walls and in corners and b
             for (const auto goal : {Vec2{800, 950} + size / 2, reserved}) {
                 REQUIRE_MESSAGE(parking.move_to(0, goal), "Parking approach rejected");
                 parking.run();
-                for (int tick = 0; tick < 8000 && parking.movers()[0].moving; ++tick) {
+                for (int tick = 0; tick < 8000 && parking.movers()[0].moving(); ++tick) {
                     parking.tick();
                     const auto &m = parking.movers()[0];
                     CHECK_MESSAGE((kinetra::finite(m.forces.border) &&
@@ -1262,7 +1272,7 @@ TEST_CASE("movers return to their reservations beside walls and in corners and b
                 INFO("pos=" << m.body.position.x << ',' << m.body.position.y << " goal=" << goal.x << ','
                             << goal.y << " route=" << m.route.size() << " velocity=" << m.body.velocity.x
                             << ',' << m.body.velocity.y);
-                CHECK_MESSAGE(!parking.movers()[0].moving, "Parking approach failed to settle");
+                CHECK_MESSAGE(!parking.movers()[0].moving(), "Parking approach failed to settle");
                 CHECK_MESSAGE(parking.collisions() == 0, "Parking approach contacted a wall or neighbor");
             }
             CHECK_MESSAGE((kinetra::distance(parking.movers()[0].body.position, reserved) == 0 &&
@@ -1316,12 +1326,11 @@ TEST_CASE("a solo mover ignores its own heatmap footprint and arrives without co
     solo.set_workload(false);
     REQUIRE_MESSAGE(solo.move_to(0, {1900, 750}), "Solo goal rejected");
     solo.run();
-    for (int tick = 0; tick < 80; ++tick)
+    for (int tick = 0; tick < 5000 && solo.movers()[0].moving(); ++tick) {
         solo.tick();
-    CHECK_MESSAGE(solo.movers()[0].replan == 80, "A mover replanned because of its own heatmap footprint");
-    for (int tick = 0; tick < 5000 && solo.movers()[0].moving; ++tick)
-        solo.tick();
-    CHECK_MESSAGE((!solo.movers()[0].moving && solo.collisions() == 0),
+        CHECK_MESSAGE(!solo.stalled(0), "A solo mover stalled on its own heatmap footprint");
+    }
+    CHECK_MESSAGE((!solo.movers()[0].moving() && solo.collisions() == 0),
                   "Solo route failed to arrive without contact");
 }
 
@@ -1351,12 +1360,11 @@ TEST_CASE("a valid detour counts as progress and arrives without contact") {
     detour.set_workload(false);
     REQUIRE_MESSAGE(detour.move_to(0, {1300, 750}), "Detour goal rejected");
     detour.run();
-    for (int tick = 0; tick < 5000 && detour.movers()[0].moving; ++tick) {
+    for (int tick = 0; tick < 5000 && detour.movers()[0].moving(); ++tick) {
         detour.tick();
-        CHECK_MESSAGE(detour.movers()[0].no_progress < 100,
-                      "A valid detour was classified as lack of route progress");
+        CHECK_MESSAGE(!detour.stalled(0), "A valid detour was classified as lack of route progress");
     }
-    CHECK_MESSAGE((!detour.movers()[0].moving && detour.collisions() == 0),
+    CHECK_MESSAGE((!detour.movers()[0].moving() && detour.collisions() == 0),
                   "Detour failed to reach its goal without contact");
 }
 
@@ -1414,7 +1422,8 @@ TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply
         apply_scenario(*scenario, running);
         CHECK_MESSAGE(running.running(), "Applying a scenario must keep a running simulation running");
         CHECK_MESSAGE(!simulation.workload(), "Scenario workload not applied");
-        CHECK_MESSAGE((simulation.movers()[0].manual && simulation.movers()[1].manual),
+        CHECK_MESSAGE((simulation.movers()[0].goal == GoalKind::manual &&
+                       simulation.movers()[1].goal == GoalKind::manual),
                       "Scenario goals were not sent");
     }
 }
@@ -1632,6 +1641,42 @@ TEST_CASE("the tick cap pauses the simulation") {
     for (int i = 0; i < 10; ++i)
         cap.tick();
     CHECK_MESSAGE((cap.ticks() == 3 && cap.state() == RunState::finished), "Tick cap ignored");
+}
+
+TEST_CASE("a manual goal stays manual until arrival and then returns the mover to the factory") {
+    auto b = fixture();
+    b.producers.clear();
+    Simulation simulation(b);
+    simulation.set_workload(false);
+    const auto &mover = simulation.movers()[0];
+    CHECK((mover.lifecycle == MoverLifecycle::idle && mover.goal == GoalKind::automatic));
+    REQUIRE(simulation.move_to(0, {1300, 800}));
+    CHECK((mover.lifecycle == MoverLifecycle::moving && mover.goal == GoalKind::manual));
+    REQUIRE(simulation.move_to(0, {1500, 800}));
+    CHECK_MESSAGE(mover.goal == GoalKind::manual, "A second manual goal lost its origin");
+    simulation.run();
+    for (int tick = 0; tick < 5000 && mover.moving(); ++tick)
+        simulation.tick();
+    CHECK((mover.lifecycle == MoverLifecycle::idle && mover.goal == GoalKind::automatic));
+}
+
+TEST_CASE("the mover status follows the HUD priority") {
+    auto b = fixture();
+    Simulation simulation(b);
+    simulation.set_workload(false);
+    CHECK(mover_status(simulation.movers()[0]) == MoverStatus::available);
+    simulation.add_product(ProductKind::trimmer);
+    simulation.single_step();
+    REQUIRE(simulation.movers()[0].product);
+    CHECK(mover_status(simulation.movers()[0]) == MoverStatus::allocated);
+    simulation.toggle_mover(0);
+    CHECK(mover_status(simulation.movers()[0]) == MoverStatus::held);
+
+    auto pair = passing_pair(SteeringProfile::reciprocal, false);
+    run_until_pair(pair);
+    CHECK(mover_status(pair.movers()[0]) == MoverStatus::passing_detour);
+    pair.toggle_mover(0);
+    CHECK_MESSAGE(mover_status(pair.movers()[0]) == MoverStatus::held, "Held did not take priority");
 }
 
 TEST_CASE("run and pause move between the run states and the tick cap finishes a run") {

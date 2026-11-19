@@ -33,25 +33,76 @@ enum class RunState {
 enum class ProductKind { trimmer, personalized };
 enum class ProductState { waiting, transporting, queued, processing, completed };
 std::vector<Interaction> recipe(ProductKind kind);
+/// Where a mover is in reaching its goal.
+enum class MoverLifecycle {
+    /// No active goal: the mover arrived, or never had a goal.
+    idle,
+    /// The mover follows a route to `Mover::destination`.
+    moving,
+    /// The last goal had no route; the mover stays until it gets a new goal.
+    unreachable,
+};
+/// Who chose a mover's current goal.
+enum class GoalKind {
+    /// The factory: production, parking, or none yet.
+    automatic,
+    /// An operator command (`Simulation::move_to`). The factory does not allocate the mover
+    /// until it arrives; a new goal on the way keeps it manual.
+    manual,
+    /// Parking traffic: the mover waits at a staging place because its own parking place
+    /// lies on another mover's route. Survives arrival; any new goal replaces it.
+    parking_staging,
+};
+/// What traffic coordination decided for a mover in the last tick. Several fields can be
+/// true at once; all are false again at the start of the next coordination.
+struct Coordination {
+    /// Stopped before a junction that admitted another mover.
+    bool junction_waiting{};
+    /// Waiting, before a junction or corridor, because its exit space is not free.
+    bool exit_waiting{};
+    /// Stopped before a corridor, or held by corridor recovery.
+    bool corridor_waiting{};
+    /// Backing out of a corridor to a refuge during corridor recovery.
+    bool corridor_retreating{};
+    /// Following the temporary targets of a predictive passing plan.
+    bool passing{};
+};
+/// One transport mover: its definition, physical state, goal and statistics. Positions are
+/// in millimeters, velocities in millimeters per tick. Only Simulation changes a mover.
 struct Mover {
     MoverDefinition definition;
     kinetra::Body body;
     /// Center at the start of the last tick, in millimeters; drawing blends it with
     /// `body.position` by Simulation::interpolation(). Never read by the simulation.
     Vec2 previous_position;
+    /// Center of the mover's own parking place, from the blueprint, and of its current goal.
     Vec2 parking, destination;
-    bool blocked{}, moving{}, unreachable{};
+    MoverLifecycle lifecycle{MoverLifecycle::idle};
+    GoalKind goal{GoalKind::automatic};
+    /// Held by the operator (`Simulation::toggle_mover`): the mover stands still and keeps
+    /// its goal and product.
+    bool held{};
+    /// Product the mover carries, by id.
     std::optional<std::uint64_t> product;
+    /// Remaining waypoints to `destination`; the last one is the destination.
     std::vector<Vec2> route;
+    /// Steering components of the last tick, for debug drawing.
     kinetra::SteeringForces forces;
     std::uint64_t idle_ticks{}, transport_ticks{}, interactions{}, collision_ticks{};
+    /// Distance travelled, in millimeters.
     double distance{};
-    unsigned stalled{}, replan{}, no_progress{};
-    float best_remaining{};
-    unsigned recovery_attempts{};
-    bool detour{}, manual{}, contacting{}, parking_deferred{}, junction_waiting{}, junction_exit_waiting{},
-        corridor_waiting{}, corridor_retreating{}, passing_detour{};
+    /// The route came from route recovery (Navigation around blocked cells and movers).
+    bool detour{};
+    Coordination coordination;
+    /// Touched another mover or a border in the last tick.
+    bool contacting{};
+    bool moving() const { return lifecycle == MoverLifecycle::moving; }
 };
+/// Summary of a mover's state for the HUD, in the order Simulation reports it.
+enum class MoverStatus { held, corridor_retreat, passing_detour, unreachable, allocated, available };
+/// The first status that applies to `mover`: held, then corridor retreat, passing detour,
+/// unreachable, allocated to a product, and otherwise available for a manual goal.
+MoverStatus mover_status(const Mover &mover);
 struct Producer {
     ProducerDefinition definition;
     bool blocked{};
@@ -101,6 +152,10 @@ class Simulation {
     std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
     std::size_t predictive_pairs() const { return passing_plans_.size(); }
     std::optional<Vec2> passing_target(std::size_t mover) const;
+    /// True when `mover` has made no route progress for 120 ticks while no
+    /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
+    /// std::out_of_range for an unknown mover.
+    bool stalled(std::size_t mover) const;
     const MotionSettings &motion_settings() const { return motion_; }
     /// Replaces the motion settings, in any run state. Clears the coordination state of the
     /// features it turns off and sets every moving mover's goal again, which ends passing
@@ -154,6 +209,22 @@ class Simulation {
     void dump(const std::filesystem::path &directory) const;
 
   private:
+    /// Route-following counters of one mover, kept beside `movers_` in the same order.
+    struct RouteProgress {
+        /// Ticks since the last replanning attempt.
+        unsigned replan{};
+        /// Ticks since the remaining route last shrank by a progress step.
+        unsigned no_progress{};
+        /// Shortest remaining route length seen since the route changed, in millimeters.
+        float best_remaining{};
+        /// Route recoveries since the last goal; lengthens the wait before the next one.
+        unsigned recovery_attempts{};
+    };
+    std::vector<RouteProgress> progress_;
+    RouteProgress &progress(const Mover &mover) { return progress_[std::size_t(&mover - movers_.data())]; }
+    const RouteProgress &progress(const Mover &mover) const {
+        return progress_[std::size_t(&mover - movers_.data())];
+    }
     RunState state_{RunState::paused};
     bool workload_{true};
     struct PassingPlan {

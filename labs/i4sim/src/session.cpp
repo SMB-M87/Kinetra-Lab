@@ -12,6 +12,24 @@
 namespace i4sim {
 namespace {
 using namespace kinetra;
+/// HUD text for a selected mover's status.
+const char *status_text(MoverStatus status) {
+    switch (status) {
+    case MoverStatus::held:
+        return "BLOCKED";
+    case MoverStatus::corridor_retreat:
+        return "CORRIDOR RETREAT";
+    case MoverStatus::passing_detour:
+        return "PASSING DETOUR";
+    case MoverStatus::unreachable:
+        return "UNREACHABLE";
+    case MoverStatus::allocated:
+        return "ALLOCATED";
+    case MoverStatus::available:
+        return "IDLE - SHIFT CLICK GOAL";
+    }
+    return "";
+}
 Vec2 world(Vec2 p) {
     return {p.x, -p.y};
 }
@@ -454,7 +472,7 @@ class FactorySession final : public lab::Session {
             const Vec2 position = shown(m);
             const auto center = world(position);
             runtime.box(center, m.body.half_extents, 0,
-                        (m.blocked || m.contacting) ? Color{1, 0, 0} : Color{.7f, .7f, .7f});
+                        (m.held || m.contacting) ? Color{1, 0, 0} : Color{.7f, .7f, .7f});
             if (selected_mover_ == i)
                 runtime.circle(center, 6 / runtime.camera.pixels_per_unit, {1, 1, 0});
             if (debug_ && contacts_)
@@ -572,21 +590,12 @@ class FactorySession final : public lab::Session {
             const auto &m = simulation_->movers()[*selected_mover_];
             std::ostringstream text;
             text << m.definition.id << " | DISTANCE " << int(m.distance) << " MM | CONTACT TICKS "
-                 << m.collision_ticks << " | "
-                 << (m.blocked               ? "BLOCKED"
-                     : m.corridor_retreating ? "CORRIDOR RETREAT"
-                     : m.passing_detour      ? "PASSING DETOUR"
-                     : m.unreachable         ? "UNREACHABLE"
-                     : m.product             ? "ALLOCATED"
-                                             : "IDLE - SHIFT CLICK GOAL");
+                 << m.collision_ticks << " | " << status_text(mover_status(m));
             draw_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
             std::ostringstream details;
             details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
                     << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
-                    << (m.no_progress >= 120 && !m.corridor_retreating && !m.corridor_waiting &&
-                                !m.passing_detour
-                            ? " STALLED"
-                            : "");
+                    << (simulation_->stalled(*selected_mover_) ? " STALLED" : "");
             draw_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
         if (selected_producer_) {

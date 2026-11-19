@@ -29,7 +29,7 @@ void FlowMetrics::observe(const Simulation &simulation) {
     for (std::size_t i = 0; i < movers.size(); ++i) {
         const auto &mover = movers[i];
         auto &track = tracks_[i];
-        if (!mover.moving || mover.blocked) {
+        if (!mover.moving() || mover.held) {
             track.active = track.stuck = false;
             continue;
         }
