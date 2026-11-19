@@ -164,11 +164,62 @@ Step 1 adds observation only, so the existing golden lines are the proof that be
 
 ## Review
 
+Step 1, `/code-review` at high effort on `main...HEAD`:
+
+| Finding | Resolution |
+| --- | --- |
+| The `PassingEnd` documentation claimed enum order, but `completed` is checked last and participant reasons side by side | Fixed: the documentation states the real check order |
+| `events()` returns a span that the next recording call may invalidate | Fixed: the contract says how long the span stays valid |
+| A mover within the arrival distance never counts as stuck, which was not documented | Fixed: documented in `FlowMetrics::stuck_movers` |
+| The lane-intrusion check also passed if movers 0 and 1 were in two different plans | Fixed: it requires them to hold the only plan |
+| Event counting is written twice, in the benchmark and the pressure suite | Skipped: two small lambdas in test code; a shared helper fits the API work of step 2 |
+
+Found while implementing: the confirmed stuck definition missed movers that shuffle back and forth (see [decisions](#decisions)); and the warning check caught a missing default initializer for `SimulationEvent::end`, fixed before commit.
+
 ## Verification
 
+Step 1, on the final branch state (Full level, because the Kinetra pointer moved and a test target was added):
+
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | passed: 140/140 tests (engine warnings as errors) |
+| `cmake --workflow --preset headless` | passed: 133/133 tests |
+| `cmake --workflow --preset graphics` | passed: 152/152 tests |
+| `ctest --preset release -R '^kinetra_i4sim'` | 71/71, including the ten unchanged golden lines and the eight pressure cases |
+| `clang-format --dry-run --Werror` on every changed C++ file | clean |
+| `python3 external/Kinetra/tools/check_docs.py` | all links resolve |
+| Lab warnings for i4sim (`dev` and `ci`) | no warning on a changed line. The `ci` log also lists a `-Wmaybe-uninitialized` at `simulation.cpp:786`, an unchanged line in corridor recovery that the `dev` (Debug) build does not report; `main` was not rebuilt in `ci` to compare |
+| `kinetra_i4sim_motion_benchmark`, four configurations, 50000 ticks | completed products and contacts equal the roadmap baseline in all 24 runs; table in the [test guide](../../labs/i4sim/tests/README.md#motion-benchmark) |
+
+Not run: a desktop playtest, because the session did not change.
+
 ## Pull request
+
+**Title:** `test(i4sim): passing safety net with event log, flow metrics and pressure scenarios`
+
+**Description:**
+
+> **Summary.** Step 1 of roadmap phase 4 ([design](2026-11-19-i4sim-restructuring.md)). Makes predictive passing and traffic flow observable and records today's passing behavior under pressure, so the coming refactor of `Simulation` cannot change it unnoticed and phase 7 has a baseline. No behavior change: every golden line is unchanged.
+>
+> **Changes.**
+> - `Simulation::record_events` and `events()`: an opt-in log of passing plans (formed, crossing, ended with reason) and contact starts; `seed()` for replay.
+> - `FlowMetrics`: waiting mover-ticks and movers without progress toward their destination for 2000 ticks.
+> - `kinetra_i4sim_motion_benchmark`: six new columns; new baseline in the i4sim test guide.
+> - `kinetra_i4sim_pressure_tests`: four fixtures (three oncoming, lane intrusion, simultaneous pairs, narrow aisle) under Reciprocal and Improved, each with an occurrence check and a recorded line. The golden recorder moved to a shared test header.
+> - Kinetra pointer to `d6ffdc6` (documentation-only cleanup, SMB-M87/Kinetra#6, already merged).
+>
+> **Findings for phase 7.** Under Reciprocal, three oncoming movers leave two movers without a plan and without arrival. Reciprocal on `MAS-demonstrator` ends with a stuck mover for both seeds. With passing on, Improved waits 11–13 times longer on `8640x4800`, but only 17 and 5 of its 767 and 823 contacts start during a plan.
+>
+> **Verification.** See the design document's Verification section.
+>
+> **Review notes.** Five findings, four fixed, one deferred to step 2. The stuck definition differs from the one in the original plan; the design document explains why.
+>
+> **Dependencies and merge order.** None; merge with a merge commit. Step 2 starts on the merged result.
+>
+> **Follow-up.** Step 2 (`refactor/i4sim-simulation`) and step 3 (`refactor/i4sim-session`).
 
 ## Open points
 
 - `stalled` in `Mover` is written but never read. Step 2 removes it.
+- Parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory can race: a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`, and passed on a rerun. This predates this branch.
 - The `disabled` end reason is effectively unreachable, because `configure_motion` sets every moving mover's goal again and so ends plans as `goal_changed` first. Phase 7 decides whether disabling should end plans with their own reason.
