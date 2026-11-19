@@ -1,5 +1,5 @@
 {
-  "name": "Junction crossing (manual)",
+  "name": "Junction crossing",
   "tickCap": 100000,
   "dimension": {"x": 1400, "y": 1400},
   "cellsize": {"x": 200, "y": 200},
@@ -15,5 +15,14 @@
     {"id": "northeast", "position": {"x": 800, "y": 0}, "dimension": {"x": 600, "y": 600}},
     {"id": "southwest", "position": {"x": 0, "y": 800}, "dimension": {"x": 600, "y": 600}},
     {"id": "southeast", "position": {"x": 800, "y": 800}, "dimension": {"x": 600, "y": 600}}
-  ]
+  ],
+  "scenario": {
+    "description": "Junction traffic: two movers reach one crossing; one waits until the other has passed.",
+    "motion": {"profile": "reciprocal", "junctionTraffic": true},
+    "workload": false,
+    "goals": [
+      {"mover": "west", "position": {"x": 1100, "y": 700}},
+      {"mover": "north", "position": {"x": 700, "y": 1100}}
+    ]
+  }
 }

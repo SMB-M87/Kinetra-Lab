@@ -1,4 +1,5 @@
 #include "session.h"
+#include "scenario.h"
 #include "simulation.h"
 #include <iostream>
 #include <kinetra/bitmap_text.h>
@@ -14,11 +15,16 @@ using namespace kinetra;
 Vec2 world(Vec2 p) {
     return {p.x, -p.y};
 }
+/// Subdirectory of the catalog with the showcase scenes, listed under one SHOWCASE row.
+constexpr const char *showcase_directory = "showcase";
 /// Camera zoom range in pixels per millimeter: from a whole hall to a single mover.
 constexpr ZoomLimits zoom_limits{0.005f, 10};
 class FactorySession final : public lab::Session {
     std::uint32_t seed_;
-    std::vector<std::filesystem::path> files_;
+    /// Bundled blueprints in the catalog directory, then the scenes in its showcase/ subdirectory.
+    std::vector<std::filesystem::path> files_, showcase_files_;
+    /// Setup of the loaded blueprint; R replays it.
+    std::optional<Scenario> scenario_;
     std::unique_ptr<LaunchMenu> loadscreen_;
     std::unique_ptr<Simulation> simulation_;
     bool back_{}, exit_{}, fitted_{}, running_{};
@@ -158,10 +164,14 @@ class FactorySession final : public lab::Session {
     }
     void refresh_catalog() {
         files_.clear();
+        showcase_files_.clear();
         loadscreen_.reset();
         try {
             files_ = discover_blueprints(directory_);
-            if (files_.empty())
+            const auto showcase = directory_ / showcase_directory;
+            showcase_files_ = std::filesystem::is_directory(showcase) ? discover_blueprints(showcase)
+                                                                      : std::vector<std::filesystem::path>{};
+            if (files_.empty() && showcase_files_.empty())
                 throw std::runtime_error("No JSON blueprints found in " + directory_.string());
             loadscreen_ = std::make_unique<LaunchMenu>(choices(), "I4SIM LOADSCREEN");
             error_.clear();
@@ -173,12 +183,23 @@ class FactorySession final : public lab::Session {
         std::vector<LaunchChoice> result;
         for (const auto &f : files_)
             result.push_back({f.stem().string(), "JSON BLUEPRINT", {}, 0});
+        // One row whose second page lists the scenes, so the catalog stays one page per group.
+        if (!showcase_files_.empty()) {
+            std::vector<std::string> scenes;
+            for (const auto &f : showcase_files_)
+                scenes.push_back(f.stem().string());
+            result.push_back({"SHOWCASE", "SCENES WITH THEIR OWN SETUP", std::move(scenes), 0});
+        }
         return result;
     }
     void load(const std::filesystem::path &path) {
         try {
             auto next = std::make_unique<Simulation>(load_blueprint(path), seed_);
+            auto scenario = load_scenario(path);
+            if (scenario)
+                apply_scenario(*scenario, *next);
             simulation_ = std::move(next);
+            scenario_ = std::move(scenario);
             simulation_->paused = !running_;
             simulation_->updates_per_second(ups_);
             selected_mover_.reset();
@@ -244,7 +265,8 @@ class FactorySession final : public lab::Session {
             }
             if (loadscreen_) {
                 if (const auto choice = loadscreen_->update(input, camera.viewport)) {
-                    load(files_.at(choice->application));
+                    load(choice->application < files_.size() ? files_[choice->application]
+                                                             : showcase_files_.at(choice->configuration));
                     return;
                 }
                 exit_ = loadscreen_->exit_requested();
@@ -254,6 +276,7 @@ class FactorySession final : public lab::Session {
         }
         if (back_to_blueprints_) {
             simulation_.reset();
+            scenario_.reset();
             // The saved pause state belonged to this simulation; the next one starts fresh.
             pause_ = {};
             back_to_blueprints_ = false;
@@ -281,8 +304,20 @@ class FactorySession final : public lab::Session {
         if (input.hit(Key::r)) {
             const auto config = simulation_->motion_settings();
             simulation_ = std::make_unique<Simulation>(simulation_->blueprint(), seed_);
-            simulation_->configure_motion(config);
             error_.clear();
+            if (scenario_) {
+                // Replay the scene with the motion settings in use, so a changed setting can be
+                // compared against the original run.
+                auto replay = *scenario_;
+                replay.motion = config;
+                try {
+                    apply_scenario(replay, *simulation_);
+                } catch (const std::exception &e) {
+                    error_ = e.what();
+                    error_remaining_ = 4;
+                }
+            } else
+                simulation_->configure_motion(config);
             selected_mover_.reset();
             selected_producer_.reset();
         }
@@ -525,6 +560,9 @@ class FactorySession final : public lab::Session {
                               std::to_string(p.interactions) + (p.blocked ? " | BLOCKED" : "");
             draw_text(runtime, text, {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
         }
+        if (scenario_ && !scenario_->description.empty())
+            draw_text(runtime, scenario_->description, {10, runtime.camera.viewport.y - 100}, 1.5f,
+                      {0.75f, 0.85f, 1});
         if (!error_.empty())
             draw_text(runtime, error_, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
         auto rows = options();

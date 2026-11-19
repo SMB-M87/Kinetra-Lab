@@ -31,13 +31,13 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 
 | Source | CTest suite (cases) |
 | --- | --- |
-| `simulation_tests.cpp` | `kinetra_i4sim` (52) |
+| `simulation_tests.cpp` | `kinetra_i4sim` (56) |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (8: four scenarios under Reciprocal and Improved) |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) |
 
-`simulation_tests.cpp` checks all original blueprints and group expansion, both complete recipes, a 50000-tick original MAS workload regression, queue bounds, producer blocking/resumption, exact production duration, pause/tick cap, determinism, blocked movers, invalid input and metrics export. `presentation_tests.cpp` exercises an actual OpenGL context, blueprint selection, pause, Motion edits while running and paused (including rendered speed changes), every debug layer, right-button edges, return-to-launcher behavior, and rediscovery after repairing a missing catalog. `relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds fourteen blueprints that all load` case from an unrelated working directory. It verifies both successful discovery and actionable failure without adjacent assets; renaming that case requires the same change in the script.
+`simulation_tests.cpp` checks all original blueprints and group expansion, both complete recipes, a 50000-tick original MAS workload regression, queue bounds, producer blocking/resumption, exact production duration, pause/tick cap, determinism, blocked movers, invalid input and metrics export. Its scenario cases load and apply the four showcase scenes, run each one tick for tick against the same setup built by hand, and reject invalid scenario sections with their cause. `presentation_tests.cpp` exercises an actual OpenGL context, blueprint selection, pause, Motion edits while running and paused (including rendered speed changes), every debug layer, right-button edges, return-to-launcher behavior, rediscovery after repairing a missing catalog, and the SHOWCASE page: a scene loads paused with its setup, runs its corridor traffic and restarts with `R`. `relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds fourteen blueprints that all load` case from an unrelated working directory. It verifies both successful discovery and actionable failure without adjacent assets; renaming that case requires the same change in the script.
 
 `golden_tests.cpp` (`kinetra_i4sim_golden`) pins the current behavior for the planned i4sim refactor. Ten seeded scenarios cover the MAS factory with default motion and with every coordination feature, the large `3840x2400` factory, the Original, RVO and recovery steering variants, and the junction, corridor, corridor-recovery and predictive-passing fixtures with manual goals. Each scenario is one case and must reproduce one recorded line: ticks, completed products, contacts, producer interactions, distance travelled and a 64-bit fingerprint of every mover's exact position and velocity after every tick. A mismatch shows the expected and actual line. A refactor must leave every line unchanged. For a deliberate behavior change, run `KINETRA_PRINT_GOLDEN=1 ./build-release/kinetra_i4sim_golden_tests` to print the current lines, update the expected values and explain the change in the commit. The fingerprint needs exact floating-point results; Release and Debug builds without fast-math reproduce it. The scenarios do not reach every path: heatmap refresh timing and the stalled-pair cancellation of predictive passing leave the values unchanged.
 
@@ -99,24 +99,24 @@ in its regression.
 
 ## Crossing demonstration
 
-[junction-crossing.json](../blueprints/showcase/junction-crossing.json) is the shared headless/graphics
-fixture and a manually controlled visual example, separate from the fourteen
-unchanged original blueprints:
+[junction-crossing.json](../blueprints/showcase/junction-crossing.json) is a [showcase scene](../blueprints/README.md#showcase-scenes) and the shared
+headless/graphics fixture. Open it under SHOWCASE on the loadscreen, or directly:
 
 ```sh
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/junction-crossing.json
 ```
 
-Keep the simulation paused while setting up. Disable workload with `G`, choose
-Reciprocal and enable JUNCTION TRAFFIC in DEBUG → Motion, then close the menu.
-Select the west mover and Shift-click the center of the east arm at `(1100, 700)`;
-select the north mover and Shift-click the south arm at `(700, 1100)`. Press Space.
-The cyan boundary marks the exclusive zone. Repeat with junction traffic disabled
-to observe the uncoordinated narrow-crossing failure. There are no producers in
-this fixture; goals are manual.
+Its scenario disables the workload, selects Reciprocal with JUNCTION TRAFFIC and
+sends the west mover to the east arm at `(1100, 700)` and the north mover to the
+south arm at `(700, 1100)`. Press Space. The cyan boundary marks the exclusive zone.
+Disable JUNCTION TRAFFIC in DEBUG → Motion and press `R` to replay the scene
+without it and observe the uncoordinated narrow-crossing failure. There are no
+producers in this fixture. The graphics test builds the same setup through the
+debug menu and Shift-click goals, from a copy without the scenario.
 
-For a blocked-exit demonstration, reload and first send the north mover to
-`(900, 700)`. Once it has stopped, command the west mover to `(1100, 700)`; it waits
+For a blocked-exit demonstration, change the goals before pressing Space: send the
+north mover to `(900, 700)` and the west mover back to `(300, 700)`. Once the north
+mover has stopped, command the west mover to `(1100, 700)`; it waits
 before entry and `EXIT` increases. Move the blocker farther east to `(1250, 700)`
 to free the pocket and let the west mover proceed. Lime outlines show an admitted
 exit reservation, which protects enough space to clear the zone, not the entire
@@ -124,19 +124,18 @@ outbound corridor.
 
 ## Corridor demonstration
 
-[corridor-passing.json](../blueprints/showcase/corridor-passing.json) contains two wide rooms joined by a
-straight single-cell corridor, with two manually controlled movers:
+[corridor-passing.json](../blueprints/showcase/corridor-passing.json), a showcase scene, contains two wide rooms joined by a
+straight single-cell corridor:
 
 ```sh
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/corridor-passing.json
 ```
 
-While paused, disable workload with `G`, select Reciprocal under DEBUG → Motion,
-and enable CORRIDOR TRAFFIC under DEBUG → View. Close the menu. Select the west
-mover and Shift-click `(1900, 700)`, then select the east mover and Shift-click
-`(300, 700)`. Press Space. One waits in its entrance room while the other traverses
-the blue corridor and clears the lime exit pocket. Repeating without corridor
-traffic reproduces the head-on standstill. Enabling corridor traffic after a
+Its scenario disables the workload, selects Reciprocal with CORRIDOR TRAFFIC and
+sends the west mover to `(1900, 700)` and the east mover to `(300, 700)`. Press
+Space. One waits in its entrance room while the other traverses the blue corridor
+and clears the lime exit pocket. Disabling CORRIDOR TRAFFIC (DEBUG → View) and
+pressing `R` replays the head-on standstill. Enabling corridor traffic after a
 standstill also permits the two-mover retreat recovery described below.
 
 The regression runs all four orientations and requires exclusive full-body
@@ -147,16 +146,16 @@ independent junction toggling, disabling without teleportation, dead-end exclusi
 and the 256-cell detection/indexing budget. Graphics tests exercise both the View
 toggle/statistics and the actual blue corridor/lime reservation with moving agents.
 
-[corridor-recovery.json](../blueprints/showcase/corridor-recovery.json) starts the movers inside the same
+[corridor-recovery.json](../blueprints/showcase/corridor-recovery.json), a showcase scene, starts the movers inside the same
 corridor, so recovery can be inspected directly:
 
 ```sh
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/corridor-recovery.json
 ```
 
-Disable workload, choose Reciprocal and enable CORRIDOR TRAFFIC as above. Select
-the mover at `(1000, 700)` and Shift-click `(1900, 700)`, then select `(1200, 700)`
-and Shift-click `(300, 700)`. Run the scene. After sustained standstill one backs
+Its scenario uses the corridor-passing setup: the mover at `(1000, 700)` heads for
+`(1900, 700)` and the one at `(1200, 700)` for `(300, 700)`. Run the scene. After
+sustained standstill one backs
 into the side of an entrance room; its pink arrow and `RETREAT` identify the
 manoeuvre. The other waits, passes, and both resume their unchanged goals.
 
@@ -278,10 +277,10 @@ rejection when no passing space exists. Congestion costs are disabled in these
 controlled encounters to prevent A* from resolving the conflict before coordination.
 Original and RVO are checked for absence of pair commitments.
 
-[predictive-passing.json](../blueprints/showcase/predictive-passing.json) provides an open-floor graphical fixture. Disable workload
-with G, select Reciprocal, enable DEBUG → View → PREDICTIVE PASS, and assign swapped
-center goals (1900, 800) and (500, 800) with Shift-click. Mint arrows show temporary
-targets. The benchmark accepts `--predictive-passing` and
+[predictive-passing.json](../blueprints/showcase/predictive-passing.json), a showcase scene, provides an open floor. Its scenario
+disables the workload and heatmap costs, selects Reciprocal with PREDICTIVE PASS
+and sends the movers to swapped center goals (1900, 800) and (500, 800). Mint
+arrows show temporary targets. The benchmark accepts `--predictive-passing` and
 `--no-predictive-passing` (default); compare the same profile, seeds and policy flags.
 The policy remains opt-in pending broader factory throughput evaluation.
 

@@ -22,7 +22,10 @@ Graphical and batch entry paths share the same validated blueprint and determini
 ```mermaid
 flowchart TD
     JSON["Original JSON blueprints"] --> Loader["Blueprint loader and validation"]
+    Showcase["Showcase scenes: blueprint plus scenario"] --> Loader
+    Showcase --> Scenario["Scenario loader: motion, workload, goals"]
     Loader --> Sim["Simulation: products, movers and producers"]
+    Scenario -->|apply_scenario| Sim
     Session["Graphical session: Loadscreen and controls"] --> Loader
     Session --> Sim
     Batch["Batch CLI: blueprint and tick limit"] --> Loader
@@ -47,7 +50,7 @@ cmake --build build -j2
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --run --ups 200
 ```
 
-The launcher opens a paginated Loadscreen. Select a JSON blueprint using arrows/Enter or mouse; loading starts paused. CMake bundles the default resources in `i4sim-blueprints/` beside the executable. Discovery uses the executable location, independent of the current working directory and the original build location. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog. An explicit `--blueprint FILE` loads a file directly. Invalid input reports its filename and retains the loadscreen. A missing/empty catalog displays the directory and logs the full error to stderr. Restore the adjacent resource directory and press Enter to rediscover the catalog; then select a blueprint.
+The launcher opens a paginated Loadscreen. Select a JSON blueprint using arrows/Enter or mouse; loading starts paused. The last row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the steering profile, coordination features, workload and mover goals, so pressing Space plays the scene. CMake bundles the default resources in `i4sim-blueprints/` beside the executable. Discovery uses the executable location, independent of the current working directory and the original build location. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog. An explicit `--blueprint FILE` loads a file directly. Invalid input reports its filename and retains the loadscreen. A missing/empty catalog displays the directory and logs the full error to stderr. Restore the adjacent resource directory and press Enter to rediscover the catalog; then select a blueprint.
 
 A deterministic batch executable is available even with `KINETRA_LAB_BUILD_RUNTIME=OFF`:
 
@@ -67,7 +70,7 @@ Debug Mode, statistics and every visual debug layer start enabled. Click DEBUG n
 | --- | --- |
 | Escape / M on the Loadscreen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim` |
 | Space / P | Pause or resume |
-| R | Reset the blueprint and seed, retaining motion configuration; start paused |
+| R | Reset the blueprint and seed, retaining motion configuration; start paused. A showcase scene also re-sends its goals and workload setting, so a changed motion setting can be compared against the original run |
 | G | Toggle automatic factory workload |
 | Q / E | Halve / double target UPS |
 | 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode) |
