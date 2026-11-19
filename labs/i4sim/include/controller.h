@@ -67,7 +67,8 @@ class FactoryController {
 
     /// Loads the blueprint at `path` with its scenario section, if it has one, and replaces
     /// the loaded blueprint. The new simulation is paused, or running when the controller
-    /// was built so; the selection and the message are cleared and a camera fit is pending.
+    /// was built so; the selection and the message are cleared, a camera fit is pending and
+    /// a close that the BLUEPRINTS entry requested for the old blueprint is dropped.
     /// On failure nothing changes except the message: report_error() gets the path and the
     /// cause, and the function returns false.
     bool load(const std::filesystem::path &path);
@@ -119,7 +120,8 @@ class FactoryController {
     /// `panels.pointer_captured`.
     ///
     /// When a scenario cannot be replayed after R, the blueprint is closed with the cause as
-    /// the message. Throws std::invalid_argument for a negative or non-finite `elapsed`.
+    /// the message. Throws std::invalid_argument for a negative or non-finite `elapsed`,
+    /// before any input is applied.
     void handle_input(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera,
                       PanelState panels);
     /// Fits the camera to the floor when a fit is pending: after a load and after the

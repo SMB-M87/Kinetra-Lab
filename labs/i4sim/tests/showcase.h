@@ -7,14 +7,16 @@
 #include <string_view>
 
 namespace i4sim::test {
-/// Path of `labs/i4sim/blueprints/showcase/<name>.json`.
-inline std::filesystem::path showcase_blueprint(std::string_view name) {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() / "blueprints" / "showcase" /
-           (std::string(name) + ".json");
+/// The directory `labs/i4sim/blueprints` in the source tree.
+inline std::filesystem::path blueprint_directory() {
+    return std::filesystem::path(__FILE__).parent_path().parent_path() / "blueprints";
 }
 /// Path of `labs/i4sim/blueprints/<name>.json`, one of the original factory blueprints.
 inline std::filesystem::path original_blueprint(std::string_view name) {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() / "blueprints" /
-           (std::string(name) + ".json");
+    return blueprint_directory() / (std::string(name) + ".json");
+}
+/// Path of `labs/i4sim/blueprints/showcase/<name>.json`.
+inline std::filesystem::path showcase_blueprint(std::string_view name) {
+    return blueprint_directory() / "showcase" / (std::string(name) + ".json");
 }
 } // namespace i4sim::test

@@ -44,8 +44,7 @@ std::string totals_text(const Simulation &simulation) {
     std::ostringstream text;
     text << "TICK " << simulation.ticks() << " UPS " << simulation.updates_per_second() << " CONTACTS "
          << simulation.collisions() << " DURATION " << simulation.contact_ticks();
-    if (motion.predictive_passing &&
-        (motion.profile == SteeringProfile::improved || motion.profile == SteeringProfile::reciprocal))
+    if (motion.predictive_passing && supports_predictive_passing(motion.profile))
         text << " PASS " << simulation.predictive_pairs();
     if (motion.corridor_traffic)
         text << " RETREAT " << simulation.corridor_recovering();

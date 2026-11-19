@@ -92,8 +92,10 @@ class FactorySession final : public lab::Session {
         draw_hud(runtime, simulation,
                  {statistics_, controller_.selected_mover(), controller_.selected_producer(),
                   controller_.description(), controller_.message()});
-        const DebugRows rows(controller_.menu());
-        menu_.draw(runtime, rows.options);
+        if (menu_.visible) {
+            const DebugRows rows(controller_.menu());
+            menu_.draw(runtime, rows.options);
+        }
         if (frame_times_)
             draw_frame_times(runtime, runtime.frame_times());
         settings_.draw(runtime);

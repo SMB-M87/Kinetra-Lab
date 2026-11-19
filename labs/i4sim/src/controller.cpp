@@ -1,6 +1,7 @@
 #include "controller.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -25,6 +26,11 @@ constexpr float pan_speed = 400;
 constexpr double longest_pan_frame = 0.1;
 /// Factor of one SPEED or FORCE step, and the range of the horizon in ticks.
 constexpr float parameter_step = 1.25f, shortest_horizon = 1, longest_horizon = 64;
+/// What RESET PARAMETERS sets: the original factory's speed in millimeters per tick and
+/// force in millimeters per tick squared, which are also the defaults of MotionSettings,
+/// and a horizon in ticks. The horizon is shorter than the default of 32 a new simulation
+/// starts with; which of the two is meant is an open point in the module README.
+constexpr float reset_speed = 2, reset_force = .6f, reset_horizon = 8;
 
 const char *profile_name(SteeringProfile profile) {
     switch (profile) {
@@ -37,11 +43,6 @@ const char *profile_name(SteeringProfile profile) {
     default:
         return "IMPROVED";
     }
-}
-
-/// Whether `profile` supports predictive passing; the other profiles ignore the setting.
-bool passes_predictively(SteeringProfile profile) {
-    return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
 }
 } // namespace
 
@@ -67,6 +68,8 @@ bool FactoryController::load(const std::filesystem::path &path) {
         selected_producer_.reset();
         clear_message();
         fit_pending_ = true;
+        // A BLUEPRINTS request was for the blueprint this load replaced.
+        close_requested_ = false;
         return true;
     } catch (const std::exception &e) {
         report_error(e.what());
@@ -254,6 +257,9 @@ void FactoryController::handle_pointer(const Input &input, const Camera2D &camer
 
 void FactoryController::handle_input(double elapsed, const Input &input, Camera2D &camera,
                                      PanelState panels) {
+    // Simulation::advance rejects the same values, but only after the input was applied.
+    if (!std::isfinite(elapsed) || elapsed < 0)
+        throw std::invalid_argument("Frame time must be finite and not negative");
     update_camera(camera);
     handle_keys(input, camera);
     if (!loaded())
@@ -303,7 +309,7 @@ void FactoryController::add_view_entries(std::vector<MenuEntry> &entries) {
          [this] { change_motion([](MotionSettings &m) { m.predictive_passing = !m.predictive_passing; }); },
          [this] {
              const auto &motion = simulation_->motion_settings();
-             if (!passes_predictively(motion.profile))
+             if (!supports_predictive_passing(motion.profile))
                  return std::string("LEGACY");
              return std::string(motion.predictive_passing ? "ON" : "OFF");
          }});
@@ -332,9 +338,9 @@ void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {
     entries.push_back(parameter(
         "HORIZON -", [](MotionSettings &m) { m.horizon = std::max(shortest_horizon, m.horizon - 1); }));
     entries.push_back(parameter("RESET PARAMETERS", [](MotionSettings &m) {
-        m.speed = 2;
-        m.force = .6f;
-        m.horizon = 8;
+        m.speed = reset_speed;
+        m.force = reset_force;
+        m.horizon = reset_horizon;
     }));
     entries.push_back({"UPS +", [this] { change_update_rate(true); }});
     entries.push_back({"UPS -", [this] { change_update_rate(false); }});

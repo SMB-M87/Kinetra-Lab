@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 
+#include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
@@ -178,7 +179,18 @@ TEST_CASE("a running blueprint advances by the frame time and a paused one stand
     frame(controller, camera, key(Key::space));
     frame(controller, camera, {}, 0.1);
     CHECK_MESSAGE(controller.simulation().ticks() == 20, "0.1 s at 200 updates per second");
-    CHECK_THROWS_AS(controller.handle_input(-1, {}, camera, {}), std::invalid_argument);
+}
+
+TEST_CASE("an invalid frame time is rejected before any input is applied") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    auto camera = camera_for(controller);
+    auto input = click(camera, mover_position(controller, 0));
+    input.pressed[static_cast<std::size_t>(Key::space)] = true;
+    CHECK_THROWS_AS(controller.handle_input(-1, input, camera, {}), std::invalid_argument);
+    CHECK_THROWS_AS(controller.handle_input(std::nan(""), input, camera, {}), std::invalid_argument);
+    CHECK(controller.simulation().state() == RunState::paused);
+    CHECK_FALSE(controller.selected_mover());
 }
 
 TEST_CASE("g toggles the workload") {
@@ -592,4 +604,9 @@ TEST_CASE("the blueprints entry closes the blueprint at the next frame") {
     controller.suspend(false);
     CHECK_MESSAGE(controller.simulation().running(), "the next blueprint does not inherit the old pause");
     CHECK(controller.begin_frame(0));
+
+    choose(controller, "BLUEPRINTS");
+    REQUIRE(controller.load(open_floor));
+    CHECK_MESSAGE(controller.begin_frame(0), "a load drops the close requested for the old blueprint");
+    CHECK(controller.simulation().blueprint().name == "Predictive passing");
 }
