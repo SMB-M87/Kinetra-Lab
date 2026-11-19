@@ -1,5 +1,5 @@
 if(BUILD_TESTING)
-    # Header-only helpers for the test programs of every application.
+    # Header-only helpers (the Fingerprint hash) for the test suites of every application.
     add_library(kinetra_lab_test_support INTERFACE)
     target_include_directories(kinetra_lab_test_support INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/test_support)
     target_link_libraries(kinetra_lab_test_support INTERFACE Kinetra::Simulation)
