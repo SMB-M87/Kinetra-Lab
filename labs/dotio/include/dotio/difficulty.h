@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string_view>
 
-namespace logic {
+namespace dotio {
 enum class Difficulty { easy, medium, hard };
 
 /// Session-owned balancing policy; geometry, player abilities and spawn exclusion are invariant.
@@ -134,4 +134,4 @@ void validate(const DifficultySettings &settings);
 /// `wander` must be a WanderMode enumerator and every force finite and in
 /// [0, max_state_force]. A force of zero makes the state stand still.
 void validate(const EnemyTuning &tuning);
-} // namespace logic
+} // namespace dotio

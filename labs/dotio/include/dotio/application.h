@@ -16,10 +16,10 @@
 
 namespace dotio {
 
-inline kinetra::Vec2 to_world(gmath::Vec2 point) {
+inline kinetra::Vec2 to_world(dotio::math::Vec2 point) {
     return {point.X / 25, -point.Y / 25};
 }
-inline gmath::Vec2 from_world(kinetra::Vec2 point) {
+inline dotio::math::Vec2 from_world(kinetra::Vec2 point) {
     return {point.x * 25, -point.y * 25};
 }
 
@@ -37,11 +37,11 @@ inline constexpr kinetra::Color vectors{0.8f, 1, 0.3f}, collisions{0.6f, 0.8f, 1
 } // namespace layer_color
 
 /// Limits of the tuning rows, as {minimum, maximum, step, whether the step is a factor}.
-/// They stay within what logic::validate() accepts for the values they change.
+/// They stay within what dotio::validate() accepts for the values they change.
 namespace tuning_step {
-inline constexpr kinetra::DebugStep movement{0.25f, logic::max_movement_multiplier, 1.25f, true},
+inline constexpr kinetra::DebugStep movement{0.25f, dotio::max_movement_multiplier, 1.25f, true},
     fire_interval{0.2f, 4, 1.25f, true}, projectile_speed{4, 30, 1}, prediction{0, 1.5f, 0.05f},
-    state_force{0, logic::max_state_force, 0.05f}, spawn_rate{0, 8, 0.25f}, crowd_load{0, 2, 0.1f},
+    state_force{0, dotio::max_state_force, 0.05f}, spawn_rate{0, 8, 0.25f}, crowd_load{0, 2, 0.1f},
     spawn_spacing{100, 600, 25};
 /// Limits of the whole-number rows: pursuit cycles, hits per enemy and the active limit.
 inline constexpr int fewest_pursuit_cycles = 1, most_pursuit_cycles = 40, fewest_hits = 1, most_hits = 5,
@@ -60,11 +60,11 @@ struct Commands {
 /// Legacy movement uses 60-Hz frame units; AI decisions run at the original 20 Hz,
 /// now sequentially on the main thread rather than racing the update/render loop.
 class Application {
-    std::unique_ptr<logic::World> world_ = std::make_unique<logic::World>();
+    std::unique_ptr<dotio::World> world_ = std::make_unique<dotio::World>();
     kinetra::FixedClock clock_{1.0 / 60, 8};
     int tick_{};
     /// moving_positions() before and after the last tick; presentation only.
-    std::vector<std::optional<gmath::Vec2>> before_tick_, after_tick_;
+    std::vector<std::optional<dotio::math::Vec2>> before_tick_, after_tick_;
     /// Whether the previous frame was paused; the first running frame drops the old snapshots.
     bool was_paused_{};
     /// Set by the SINGLE TICK row; the next advance() runs one tick of the paused world.
@@ -117,13 +117,13 @@ class Application {
         using kinetra::debug_number;
         auto &settings = world_->settings();
         auto &tuning = world_->enemy_tuning();
-        const auto wander_name = [](logic::WanderMode mode) {
-            return mode == logic::WanderMode::path ? "PATH" : "STEERING";
+        const auto wander_name = [](dotio::WanderMode mode) {
+            return mode == dotio::WanderMode::path ? "PATH" : "STEERING";
         };
         entries.push_back(
             folds.list("WANDER", [&tuning, wander_name] { return std::string(wander_name(tuning.wander)); }));
         if (folds.list_open("WANDER"))
-            for (const auto mode : {logic::WanderMode::steering, logic::WanderMode::path})
+            for (const auto mode : {dotio::WanderMode::steering, dotio::WanderMode::path})
                 entries.push_back({.label = wander_name(mode),
                                    .action =
                                        [this, &tuning, mode] {
@@ -182,7 +182,7 @@ class Application {
     /// GHOST CAMERA and RESET PARAMETERS. At most one section is open; SIMULATION is at the
     /// start. PATHS lists its four parts only while it is on.
     ///
-    /// The tuning rows change the world's balance (logic::World::settings) and its enemy
+    /// The tuning rows change the world's balance (dotio::World::settings) and its enemy
     /// tuning in place, within tuning_step; RESET PARAMETERS restores both and the time
     /// scale. The rows follow the contract of kinetra::DebugEntry: they refer to this
     /// application, which must outlive them.
@@ -214,8 +214,8 @@ class Application {
     std::array<bool, 6> paths{};
     /// The player and every enemy, arrow and bolt slot, in a fixed order: the objects that
     /// move each tick and that drawing interpolates. Pointers stay valid as long as the world.
-    std::vector<logic::StaticObject *> moving_objects() {
-        std::vector<logic::StaticObject *> result{&world_->GetPlayer()};
+    std::vector<dotio::StaticObject *> moving_objects() {
+        std::vector<dotio::StaticObject *> result{&world_->GetPlayer()};
         for (auto &enemy : world_->GetEnemies())
             result.push_back(&enemy);
         for (auto &arrow : world_->GetArrows())
@@ -226,21 +226,21 @@ class Application {
     }
     /// Positions of moving_objects() including the world offset, so a streaming shift between
     /// two snapshots cancels out; empty for an inactive slot.
-    std::vector<std::optional<gmath::Vec2>> moving_positions() {
+    std::vector<std::optional<dotio::math::Vec2>> moving_positions() {
         const auto offset = world_->WorldOffset();
-        std::vector<std::optional<gmath::Vec2>> result;
+        std::vector<std::optional<dotio::math::Vec2>> result;
         for (const auto *object : moving_objects())
             result.push_back(object->IsActive ? std::optional{object->Position + offset} : std::nullopt);
         return result;
     }
     /// moving_positions() before and after the last tick, for drawing between them.
-    const std::vector<std::optional<gmath::Vec2>> &before_tick() const { return before_tick_; }
-    const std::vector<std::optional<gmath::Vec2>> &after_tick() const { return after_tick_; }
+    const std::vector<std::optional<dotio::math::Vec2>> &before_tick() const { return before_tick_; }
+    const std::vector<std::optional<dotio::math::Vec2>> &after_tick() const { return after_tick_; }
     /// Fraction of the next tick already accumulated, in [0, 1); one while paused, so a
     /// paused frame shows the exact state.
     double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
     explicit Application(std::uint32_t seed = std::random_device{}(),
-                         logic::Difficulty difficulty = logic::Difficulty::medium) {
+                         dotio::Difficulty difficulty = dotio::Difficulty::medium) {
         world_->Initialize(seed, difficulty);
     }
 
@@ -257,9 +257,9 @@ class Application {
             }
         return counts;
     }
-    logic::World &world() { return *world_; }
+    dotio::World &world() { return *world_; }
     /// Reject destinations overlapping terrain, physical props or active enemies.
-    bool teleport_clear(gmath::Position point, float radius) {
+    bool teleport_clear(dotio::math::Position point, float radius) {
         if (!std::isfinite(point.X) || !std::isfinite(point.Y) || std::abs(point.X) > 10000000 ||
             std::abs(point.Y) > 10000000)
             return false;
@@ -267,7 +267,7 @@ class Application {
         candidate.position = physics_vector(point);
         candidate.radius = radius;
         const auto area = kinetra::bounds(candidate);
-        const float cell = logic::Grid::CellSize;
+        const float cell = dotio::Grid::CellSize;
         const int first_row = int(std::floor(area.min.y / cell));
         const int last_row = int(std::floor(area.max.y / cell));
         const int first_col = int(std::floor(area.min.x / cell));
@@ -352,7 +352,7 @@ class Application {
         std::uint64_t resets_before_tick = 0;
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->GetPlayer();
-            player.Heading = ghost ? gmath::Vec2{} : gmath::Vec2{commands.direction.x, -commands.direction.y};
+            player.Heading = ghost ? dotio::math::Vec2{} : dotio::math::Vec2{commands.direction.x, -commands.direction.y};
             if (!running)
                 continue;
             if (step == steps - 1) {
@@ -363,7 +363,7 @@ class Application {
             player.Update(1);
             update_rate.count();
             aim -= world_->StreamAroundPlayer();
-            logic::Grid::HandleGridCollision(player, 1, &logic::Grid::Array[0][0]);
+            dotio::Grid::HandleGridCollision(player, 1, &dotio::Grid::Array[0][0]);
             if (commands.shoot && !ghost)
                 player.Shoot(aim, debug && invulnerable);
             if (++tick_ == 3) {

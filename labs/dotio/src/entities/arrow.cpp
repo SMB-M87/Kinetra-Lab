@@ -5,8 +5,8 @@
 
 #include "dotio/entities/arrow.h"
 
-namespace logic {
-Arrow::Arrow(gmath::Position position, gmath::Vector2 velocity) : MovingObject(position, 0, false) {
+namespace dotio {
+Arrow::Arrow(dotio::math::Position position, dotio::math::Vector2 velocity) : MovingObject(position, 0, false) {
     Velocity = velocity;
 }
 
@@ -17,7 +17,7 @@ void Arrow::Update(float delta) {
     MovingObject::Update(delta);
 }
 
-void Arrow::Draw(gamef::Renderer &renderer) {
+void Arrow::Draw(dotio::Renderer &renderer) {
     renderer.DrawSegment({Position, Position - (Velocity).GetNormalized() * 30.0f}, {1.0f, 0.8f, 0.8f, 1.0f});
 }
-} // namespace logic
+} // namespace dotio

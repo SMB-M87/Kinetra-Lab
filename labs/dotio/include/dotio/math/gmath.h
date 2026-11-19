@@ -2,7 +2,7 @@
 #ifndef GMATH_H
 #define GMATH_H
 
-namespace gmath {
+namespace dotio::math {
 /// Legacy field/coordinate compatibility facade; shared vector calculations use kinetra::Vec2.
 typedef struct Vec2 {
     union {
@@ -180,8 +180,8 @@ typedef struct GridEntry {
                           const GridEntry &gridSize, GridEntry &output);
     static Position GetCellPosition(const Position &position, const Coordinates &origin,
                                     const float cellSize);
-    static bool ActivatePath(const gmath::GridEntry &start, const gmath::GridEntry &candidate);
-    static bool PathRefresh(const gmath::GridEntry &start, const gmath::GridEntry &candidate);
+    static bool ActivatePath(const dotio::math::GridEntry &start, const dotio::math::GridEntry &candidate);
+    static bool PathRefresh(const dotio::math::GridEntry &start, const dotio::math::GridEntry &candidate);
     static unsigned char GetSquarePartition(const Position &position, float semiWidth,
                                             const Coordinates &origin, float cellSize);
     static void GetPartitions(uint8_t partition, const Position &position, const Coordinates &origin,
@@ -190,11 +190,11 @@ typedef struct GridEntry {
     bool operator!=(const GridEntry &other) const;
     static GridEntry NullGridEntry;
 } GridSize, GridPosition, GridCoordinates;
-} // namespace gmath
+} // namespace dotio::math
 
 namespace std {
-template <> struct hash<gmath::GridEntry> {
-    std::size_t operator()(const gmath::GridEntry &entry) const noexcept {
+template <> struct hash<dotio::math::GridEntry> {
+    std::size_t operator()(const dotio::math::GridEntry &entry) const noexcept {
         std::hash<float> hasher;
         std::size_t hashValue = 0;
         hashValue ^= hasher(float(entry.Row)) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);

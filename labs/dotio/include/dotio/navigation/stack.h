@@ -3,24 +3,24 @@
 
 #include "dotio/math/gmath.h"
 
-namespace logic {
+namespace dotio {
 class Stack {
   private:
     int topIndex;
     static const int MAX_SIZE = 50;
-    gmath::GridEntry stackArray[MAX_SIZE];
+    dotio::math::GridEntry stackArray[MAX_SIZE];
 
   public:
     Stack();
-    bool push(const gmath::GridEntry &entry);
+    bool push(const dotio::math::GridEntry &entry);
     void pop();
-    const gmath::GridEntry &top() const;
+    const dotio::math::GridEntry &top() const;
     int size() const;
     int capacity() const;
     bool empty() const;
     void clear();
-    gmath::GridEntry get(int index) const;
+    dotio::math::GridEntry get(int index) const;
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // STACK_H

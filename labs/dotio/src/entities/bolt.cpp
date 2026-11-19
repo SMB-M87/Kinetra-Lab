@@ -5,8 +5,8 @@
 
 #include "dotio/entities/bolt.h"
 
-namespace logic {
-Bolt::Bolt(gmath::Position position, gmath::Vector2 velocity) : MovingObject(position, 0, false) {
+namespace dotio {
+Bolt::Bolt(dotio::math::Position position, dotio::math::Vector2 velocity) : MovingObject(position, 0, false) {
     Velocity = velocity;
 }
 
@@ -17,7 +17,7 @@ void Bolt::Update(float delta) {
     MovingObject::Update(delta);
 }
 
-void Bolt::Draw(gamef::Renderer &renderer) {
+void Bolt::Draw(dotio::Renderer &renderer) {
     renderer.DrawCircle({Position}, Radius, {1.0f, 0.3f, 0.0f, 1.0f});
 }
-} // namespace logic
+} // namespace dotio

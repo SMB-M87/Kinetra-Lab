@@ -1,12 +1,12 @@
 #include "dotio/navigation/vertex.h"
 #include "dotio/math/portable.h"
 
-namespace logic {
-Vertex::Vertex() : G(FLT_MAX), H(0), F(FLT_MAX), prev(gmath::GridEntry::NullGridEntry), steps(0) {
+namespace dotio {
+Vertex::Vertex() : G(FLT_MAX), H(0), F(FLT_MAX), prev(dotio::math::GridEntry::NullGridEntry), steps(0) {
 }
 
-Vertex::Vertex(const gmath::GridEntry &cell)
-    : cell(cell), G(FLT_MAX), H(0), F(FLT_MAX), prev(gmath::GridEntry::NullGridEntry), steps(0) {
+Vertex::Vertex(const dotio::math::GridEntry &cell)
+    : cell(cell), G(FLT_MAX), H(0), F(FLT_MAX), prev(dotio::math::GridEntry::NullGridEntry), steps(0) {
 }
 
 Vertex::Vertex(const Vertex &other)
@@ -47,21 +47,21 @@ Vertex &Vertex::operator=(const Vertex &other) {
 }
 
 void Vertex::Reset() {
-    prev = gmath::GridEntry::NullGridEntry;
+    prev = dotio::math::GridEntry::NullGridEntry;
     G = FLT_MAX;
     H = 0;
     F = FLT_MAX;
     steps = 0;
 }
 
-void Vertex::AddAdjacent(logic::Vertex &source, const gmath::GridEntry &dest) {
+void Vertex::AddAdjacent(dotio::Vertex &source, const dotio::math::GridEntry &dest) {
     if (source.cell.Row != dest.Row && source.cell.Column != dest.Column)
         source.diagonal[source.diagonalIndex++] = {dest.Row, dest.Column};
     else
         source.straight[source.straightIndex++] = {dest.Row, dest.Column};
 }
 
-float Vertex::Calculate(const gmath::GridEntry &goal) {
+float Vertex::Calculate(const dotio::math::GridEntry &goal) {
     const int row = std::abs(cell.Row - goal.Row);
     const int column = std::abs(cell.Column - goal.Column);
     H = float(std::max(row, column)) + (std::numbers::sqrt2_v<float> - 1) * std::min(row, column);
@@ -70,4 +70,4 @@ float Vertex::Calculate(const gmath::GridEntry &goal) {
 }
 
 Vertex Vertex::NullVertex = Vertex();
-} // namespace logic
+} // namespace dotio

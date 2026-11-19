@@ -3,14 +3,14 @@
 #include <kinetra/simulation/physics.h>
 
 namespace dotio {
-inline kinetra::Vec2 physics_vector(gmath::Vec2 value) {
+inline kinetra::Vec2 physics_vector(dotio::math::Vec2 value) {
     return {value.X, value.Y};
 }
-inline gmath::Vec2 legacy_vector(kinetra::Vec2 value) {
+inline dotio::math::Vec2 legacy_vector(kinetra::Vec2 value) {
     return {value.x, value.y};
 }
 /// Legacy pixels and frame time remain coherent units at this adapter boundary.
-inline kinetra::Body physics_body(const logic::PhysicsObject &object) {
+inline kinetra::Body physics_body(const dotio::PhysicsObject &object) {
     kinetra::Body body;
     body.position = physics_vector(object.Position);
     body.velocity = physics_vector(object.Velocity);
@@ -23,7 +23,7 @@ inline kinetra::Body physics_body(const logic::PhysicsObject &object) {
     body.restitution = 0;
     return body;
 }
-inline void apply_body(logic::PhysicsObject &object, const kinetra::Body &body) {
+inline void apply_body(dotio::PhysicsObject &object, const kinetra::Body &body) {
     object.Position = legacy_vector(body.position);
     object.Velocity = legacy_vector(body.velocity);
     object.Direction = body.angle;

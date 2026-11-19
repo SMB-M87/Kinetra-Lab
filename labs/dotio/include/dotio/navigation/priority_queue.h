@@ -2,7 +2,7 @@
 #include "dotio/navigation/vertex.h"
 #include <queue>
 #include <vector>
-namespace logic {
+namespace dotio {
 /// Unbounded A* frontier; capture priority at insertion so later vertex changes cannot corrupt the heap.
 class PriorityQueue {
     struct Entry {
@@ -11,10 +11,10 @@ class PriorityQueue {
         bool operator<(const Entry &other) const { return priority > other.priority; }
     };
     std::priority_queue<Entry> entries_;
-    gmath::GridEntry goal_;
+    dotio::math::GridEntry goal_;
 
   public:
-    explicit PriorityQueue(const gmath::GridEntry &goal) : goal_(goal) {}
+    explicit PriorityQueue(const dotio::math::GridEntry &goal) : goal_(goal) {}
     void push(Vertex &vertex) { entries_.push({&vertex, vertex.Calculate(goal_)}); }
     Vertex &pop() {
         if (entries_.empty())
@@ -27,4 +27,4 @@ class PriorityQueue {
     int size() const { return int(entries_.size()); }
     void clear() { entries_ = {}; }
 };
-} // namespace logic
+} // namespace dotio

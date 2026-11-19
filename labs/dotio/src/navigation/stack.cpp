@@ -1,11 +1,11 @@
 #include "dotio/navigation/stack.h"
 #include "dotio/math/portable.h"
 
-namespace logic {
+namespace dotio {
 Stack::Stack() : topIndex(-1) {
 }
 
-bool Stack::push(const gmath::GridEntry &entry) {
+bool Stack::push(const dotio::math::GridEntry &entry) {
     if (topIndex < MAX_SIZE - 1) {
         stackArray[++topIndex] = entry;
         return true;
@@ -18,7 +18,7 @@ void Stack::pop() {
         topIndex--;
 }
 
-const gmath::GridEntry &Stack::top() const {
+const dotio::math::GridEntry &Stack::top() const {
     if (!empty())
         return stackArray[topIndex];
     throw std::out_of_range("Empty Dotio path");
@@ -40,9 +40,9 @@ void Stack::clear() {
     topIndex = -1;
 }
 
-gmath::GridEntry Stack::get(int index) const {
+dotio::math::GridEntry Stack::get(int index) const {
     if (index >= 0 && index <= topIndex)
         return stackArray[index];
     throw std::out_of_range("Dotio path index");
 }
-} // namespace logic
+} // namespace dotio

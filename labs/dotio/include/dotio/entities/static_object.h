@@ -3,18 +3,18 @@
 
 #include "dotio/renderer.h"
 
-namespace logic {
+namespace dotio {
 class StaticObject {
   public:
     bool IsActive;
-    gmath::Position Position{};
+    dotio::math::Position Position{};
     float Direction{};
 
-    explicit StaticObject(gmath::Position position, float direction, bool active);
+    explicit StaticObject(dotio::math::Position position, float direction, bool active);
 
     virtual ~StaticObject();
 
-    virtual void Draw(gamef::Renderer &renderer);
+    virtual void Draw(dotio::Renderer &renderer);
 };
-} // namespace logic
+} // namespace dotio
 #endif // OBJECT_H

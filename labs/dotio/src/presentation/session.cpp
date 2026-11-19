@@ -18,7 +18,7 @@ class DotioSession final : public Session {
     kinetra_lab::ModalPause pause_;
 
   public:
-    DotioSession(std::uint32_t seed, logic::Difficulty difficulty) : application_(seed, difficulty) {}
+    DotioSession(std::uint32_t seed, dotio::Difficulty difficulty) : application_(seed, difficulty) {}
     DotioSession(const DotioSession &) = delete;
     DotioSession &operator=(const DotioSession &) = delete;
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
@@ -55,16 +55,16 @@ class DotioSession final : public Session {
 } // namespace
 std::vector<std::string> difficulty_names() {
     std::vector<std::string> names;
-    for (const auto &preset : logic::difficulty_presets)
+    for (const auto &preset : dotio::difficulty_presets)
         names.emplace_back(preset.name);
     return names;
 }
 std::size_t difficulty_index(std::string_view name) {
-    return static_cast<std::size_t>(logic::parse_difficulty(name));
+    return static_cast<std::size_t>(dotio::parse_difficulty(name));
 }
 std::unique_ptr<Session> create_session(std::uint32_t seed, std::size_t difficulty) {
-    if (difficulty >= logic::difficulty_presets.size())
+    if (difficulty >= dotio::difficulty_presets.size())
         throw std::invalid_argument("Unsupported Dotio difficulty");
-    return std::make_unique<DotioSession>(seed, static_cast<logic::Difficulty>(difficulty));
+    return std::make_unique<DotioSession>(seed, static_cast<dotio::Difficulty>(difficulty));
 }
 } // namespace dotio

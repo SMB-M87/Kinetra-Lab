@@ -5,7 +5,7 @@
 #include <bitset>
 #include <iostream>
 
-namespace gmath {
+namespace dotio::math {
 namespace {
 kinetra::Vec2 canonical(const Vec2 &value) {
     return {value.X, value.Y};
@@ -286,14 +286,14 @@ Position GridEntry::GetCellPosition(const Position &position, const Coordinates 
     return Vec2{position - origin}.Modulo(cellSize);
 }
 
-bool GridEntry::ActivatePath(const gmath::GridEntry &origin, const gmath::GridEntry &target) {
+bool GridEntry::ActivatePath(const dotio::math::GridEntry &origin, const dotio::math::GridEntry &target) {
     int far = 6;
     int row = abs(origin.Row - target.Row);
     int column = abs(origin.Column - target.Column);
     return row < far && column < far;
 }
 
-bool GridEntry::PathRefresh(const gmath::GridEntry &origin, const gmath::GridEntry &target) {
+bool GridEntry::PathRefresh(const dotio::math::GridEntry &origin, const dotio::math::GridEntry &target) {
     int near = 1;
     int row = abs(origin.Row - target.Row);
     int column = abs(origin.Column - target.Column);
@@ -407,4 +407,4 @@ bool GridEntry::operator!=(const GridEntry &other) const {
 }
 
 GridEntry GridEntry::NullGridEntry = {-1, -1};
-} // namespace gmath
+} // namespace dotio::math

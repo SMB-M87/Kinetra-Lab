@@ -8,7 +8,7 @@
 #include <concepts>
 #include <cstddef>
 
-namespace logic {
+namespace dotio {
 template <typename T>
 concept IsActive = requires(T t) {
     { t.IsActive } -> std::convertible_to<bool>;
@@ -81,6 +81,6 @@ template <typename T, size_t size> struct TrackerData {
 
     [[nodiscard]] size_t GetCapacity() const { return _tracker.GetCapacity(); }
 };
-} // namespace logic
+} // namespace dotio
 
 #endif

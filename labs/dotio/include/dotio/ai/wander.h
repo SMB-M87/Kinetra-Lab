@@ -5,7 +5,7 @@
 #include <array>
 #include <cstddef>
 
-namespace logic {
+namespace dotio {
 class Enemy;
 
 // Steering wander: how an enemy roams in its WANDER state under WanderMode::steering.
@@ -42,7 +42,7 @@ inline constexpr std::size_t wander_forward_feeler = 0, wander_positive_feeler =
 /// blocked when Grid::IsIntersectingAnyCell reports a hit for it. SteerWander() tests exactly
 /// these segments, so a drawing of them shows what the logic sees. Reads the enemy's
 /// position and heading and Grid::CellSize; changes nothing.
-std::array<gmath::Segment, 3> WanderFeelers(const Enemy &enemy);
+std::array<dotio::math::Segment, 3> WanderFeelers(const Enemy &enemy);
 
 /// Gives `enemy` a random wander heading and preferred turning side from its world's
 /// World::wander_random(). Enemy::Initialize() and Enemy::Reset() call it; the enemy must
@@ -62,4 +62,4 @@ void DriftWanderHeading(Enemy &enemy);
 /// The enemy then gains speed along its heading: EnemyTuning::wander_force scaled by `delta`
 /// and DifficultySettings::movement_multiplier. Clears Enemy::Path.
 void SteerWander(Enemy &enemy, float delta);
-} // namespace logic
+} // namespace dotio

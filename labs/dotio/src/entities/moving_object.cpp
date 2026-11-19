@@ -2,8 +2,8 @@
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/portable.h"
 
-namespace logic {
-MovingObject::MovingObject(const gmath::Position position, const float direction, bool active)
+namespace dotio {
+MovingObject::MovingObject(const dotio::math::Position position, const float direction, bool active)
     : StaticObject(position, direction, active) {
 }
 
@@ -24,14 +24,14 @@ void MovingObject::Update(const float delta) {
 void MovingObject::Tick() {
 }
 
-gmath::Vector2 MovingObject::GetVelocity() const {
+dotio::math::Vector2 MovingObject::GetVelocity() const {
     return Velocity;
 }
-void MovingObject::SetVelocity(const gmath::Vec2 velocity) {
+void MovingObject::SetVelocity(const dotio::math::Vec2 velocity) {
     Velocity = velocity;
 }
 
-gmath::Vector2 MovingObject::GetNextPosition() const {
+dotio::math::Vector2 MovingObject::GetNextPosition() const {
     return Position + Velocity;
 }
-} // namespace logic
+} // namespace dotio

@@ -5,7 +5,7 @@
 
 #include "dotio/entities/moving_object.h"
 
-namespace logic {
+namespace dotio {
 class PhysicsObject : public MovingObject {
   protected:
     float _mass;
@@ -14,16 +14,16 @@ class PhysicsObject : public MovingObject {
 
   public:
     float Radius;
-    gmath::GridEntry LastPartition[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
+    dotio::math::GridEntry LastPartition[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
     PhysicsObject();
 
     explicit PhysicsObject(float mass, float radius, float friction, float rotationalFriction,
-                           gmath::Position position, float direction, bool active);
+                           dotio::math::Position position, float direction, bool active);
 
     virtual ~PhysicsObject();
 
-    void ApplyForce(const gmath::Vector2 &force, float mass);
+    void ApplyForce(const dotio::math::Vector2 &force, float mass);
 
     void Update(float delta) override;
 
@@ -35,6 +35,6 @@ class PhysicsObject : public MovingObject {
 
     [[nodiscard]] float GetMass() const;
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // PHYSICS_OBJECT_H

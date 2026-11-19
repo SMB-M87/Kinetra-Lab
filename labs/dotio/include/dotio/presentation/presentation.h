@@ -23,7 +23,7 @@ class PresentedPositions {
     PresentedPositions &operator=(const PresentedPositions &) = delete;
 
   private:
-    std::vector<std::pair<logic::StaticObject *, gmath::Vec2>> simulated_;
+    std::vector<std::pair<dotio::StaticObject *, dotio::math::Vec2>> simulated_;
 };
 /// Draws the world, the HUD, the debug menu and, last, the settings overlay. Moving objects
 /// are drawn between their last two ticks (PresentedPositions).

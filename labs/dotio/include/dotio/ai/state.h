@@ -1,7 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 
-namespace logic {
+namespace dotio {
 class Enemy;
 
 class State {
@@ -40,6 +40,6 @@ struct KamikazeState : State {
     void Execute(const float delta) override;
     void Update() override;
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // STATE_H

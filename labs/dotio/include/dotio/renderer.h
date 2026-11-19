@@ -1,12 +1,12 @@
 #pragma once
 #include "dotio/math/gmath.h"
 
-namespace gamef {
+namespace dotio {
 /// Drawing boundary retained by the ported game; the runtime adapter owns Y-axis conversion.
 class Renderer {
   public:
     virtual ~Renderer() = default;
-    virtual void DrawCircle(gmath::Position center, float radius, gmath::RGBA color) = 0;
-    virtual void DrawSegment(gmath::Segment segment, gmath::RGBA color) = 0;
+    virtual void DrawCircle(dotio::math::Position center, float radius, dotio::math::RGBA color) = 0;
+    virtual void DrawSegment(dotio::math::Segment segment, dotio::math::RGBA color) = 0;
 };
-} // namespace gamef
+} // namespace dotio

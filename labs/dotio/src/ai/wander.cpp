@@ -7,12 +7,12 @@
 #include <numbers>
 #include <random>
 
-namespace logic {
+namespace dotio {
 namespace {
 constexpr float pi = std::numbers::pi_v<float>;
 
 /// Unit vector of a heading in legacy coordinates.
-gmath::Vec2 direction(float heading) {
+dotio::math::Vec2 direction(float heading) {
     return {std::cos(heading), std::sin(heading)};
 }
 
@@ -23,17 +23,17 @@ float wrapped(float heading) {
 
 /// The feelers of a body at `position` that follows `heading`; the geometry behind both
 /// WanderFeelers() and the directions a blocked enemy tries.
-std::array<gmath::Segment, 3> feelers_at(gmath::Position position, float heading) {
+std::array<dotio::math::Segment, 3> feelers_at(dotio::math::Position position, float heading) {
     const auto feeler = [&](float angle, float cells) {
-        return gmath::Segment{position, position + direction(angle) * (cells * Grid::CellSize)};
+        return dotio::math::Segment{position, position + direction(angle) * (cells * Grid::CellSize)};
     };
     return {{feeler(heading, wander_forward_feeler_cells),
              feeler(heading + wander_side_feeler_angle_rad, wander_side_feeler_cells),
              feeler(heading - wander_side_feeler_angle_rad, wander_side_feeler_cells)}};
 }
 
-bool blocked(const gmath::Segment &feeler) {
-    gmath::Point2 hit{};
+bool blocked(const dotio::math::Segment &feeler) {
+    dotio::math::Point2 hit{};
     return Grid::IsIntersectingAnyCell(feeler, &Grid::Array[0][0], hit);
 }
 
@@ -65,7 +65,7 @@ void turn_to_free_direction(Enemy &enemy) {
 }
 } // namespace
 
-std::array<gmath::Segment, 3> WanderFeelers(const Enemy &enemy) {
+std::array<dotio::math::Segment, 3> WanderFeelers(const Enemy &enemy) {
     return feelers_at(enemy.Position, enemy.WanderHeading);
 }
 
@@ -98,8 +98,8 @@ void SteerWander(Enemy &enemy, const float delta) {
     }
     enemy.WanderHeading = wrapped(enemy.WanderHeading);
     auto &world = enemy.GetWorld();
-    const gmath::Vec2 force = direction(enemy.WanderHeading) * world.enemy_tuning().wander_force;
+    const dotio::math::Vec2 force = direction(enemy.WanderHeading) * world.enemy_tuning().wander_force;
     enemy.ApplyForce(force * (delta * world.difficulty_settings().movement_multiplier),
                      0.5f * enemy.GetMass());
 }
-} // namespace logic
+} // namespace dotio

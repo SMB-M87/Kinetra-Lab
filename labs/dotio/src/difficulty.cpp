@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string_view>
 
-namespace logic {
+namespace dotio {
 namespace {
 /// Upper limit of a value that has none.
 constexpr float unbounded = std::numeric_limits<float>::infinity();
@@ -56,4 +56,4 @@ void validate(const EnemyTuning &tuning) {
     require_range(tuning.recover_force, 0, max_state_force, "recover force");
     require_range(tuning.kamikaze_force, 0, max_state_force, "kamikaze force");
 }
-} // namespace logic
+} // namespace dotio

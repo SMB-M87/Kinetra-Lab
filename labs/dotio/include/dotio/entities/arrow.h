@@ -7,16 +7,16 @@
 
 #include "dotio/entities/moving_object.h"
 
-namespace logic {
+namespace dotio {
 struct Arrow : MovingObject {
-    explicit Arrow(gmath::Position position, gmath::Vector2 velocity);
+    explicit Arrow(dotio::math::Position position, dotio::math::Vector2 velocity);
 
     Arrow();
 
     void Update(float delta) override;
 
-    void Draw(gamef::Renderer &renderer) override;
+    void Draw(dotio::Renderer &renderer) override;
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // ARROW_H

@@ -6,7 +6,7 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
 
-namespace logic {
+namespace dotio {
 void WanderState::Execute(const float delta) {
     if (_enemy->GetWorld().enemy_tuning().wander == WanderMode::steering) {
         SteerWander(*_enemy, delta);
@@ -16,28 +16,28 @@ void WanderState::Execute(const float delta) {
     if (_enemy->Path.empty())
         return;
 
-    gmath::GridEntry cell = _enemy->Path.top();
-    gmath::Coordinates pos =
-        gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-    pos.X += logic::Grid::CellSize / 2;
-    pos.Y += logic::Grid::CellSize / 2;
+    dotio::math::GridEntry cell = _enemy->Path.top();
+    dotio::math::Coordinates pos =
+        dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+    pos.X += dotio::Grid::CellSize / 2;
+    pos.Y += dotio::Grid::CellSize / 2;
 
-    if ((pos - _enemy->Position) < logic::Grid::CellSize * 0.666) {
+    if ((pos - _enemy->Position) < dotio::Grid::CellSize * 0.666) {
         _enemy->Path.pop();
         if (!_enemy->Path.empty()) {
             cell = _enemy->Path.top();
             pos =
-                gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-            pos.X += logic::Grid::CellSize / 2;
-            pos.Y += logic::Grid::CellSize / 2;
+                dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+            pos.X += dotio::Grid::CellSize / 2;
+            pos.Y += dotio::Grid::CellSize / 2;
         }
     }
 
     float angle = static_cast<float>(std::rand()) / RAND_MAX * 2 * std::numbers::pi_v<float>;
-    gmath::Vec2 displacement((logic::Grid::CellSize)*std::cos(angle),
-                             (logic::Grid::CellSize * 0.4f) * std::sin(angle));
-    gmath::Vec2 target = pos + displacement;
-    gmath::Vec2 force =
+    dotio::math::Vec2 displacement((dotio::Grid::CellSize)*std::cos(angle),
+                             (dotio::Grid::CellSize * 0.4f) * std::sin(angle));
+    dotio::math::Vec2 target = pos + displacement;
+    dotio::math::Vec2 force =
         (target - _enemy->Position).GetNormalized() * _enemy->GetWorld().enemy_tuning().wander_force;
     _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                        0.5f * _enemy->GetMass());
@@ -56,12 +56,12 @@ void WanderState::Update() {
     }
 
     if (_enemy->Path.empty()) {
-        gmath::GridEntry enemy_output;
-        if (gmath::GridEntry::FromWorld(_enemy->Position, logic::Grid::Origin, logic::Grid::CellSize,
-                                        logic::Grid::GridSize, enemy_output)) {
-            gmath::GridEntry enemy_grid = {enemy_output.Row, enemy_output.Column};
-            if (logic::Vertex _; _enemy->GetWorld().GetGraph().AStar(
-                    enemy_grid, logic::Grid::GenerateGridEntry(enemy_grid), _))
+        dotio::math::GridEntry enemy_output;
+        if (dotio::math::GridEntry::FromWorld(_enemy->Position, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                        dotio::Grid::GridSize, enemy_output)) {
+            dotio::math::GridEntry enemy_grid = {enemy_output.Row, enemy_output.Column};
+            if (dotio::Vertex _; _enemy->GetWorld().GetGraph().AStar(
+                    enemy_grid, dotio::Grid::GenerateGridEntry(enemy_grid), _))
                 _enemy->Path = _enemy->GetWorld().GetGraph().GetPath(enemy_grid, _);
         }
     }
@@ -70,9 +70,9 @@ void WanderState::Update() {
 void AttackState::Execute(const float delta) {
     bool boundary =
         sqrt(pow(_enemy->Position.X - _enemy->Target.X, 2) + pow(_enemy->Position.Y - _enemy->Target.Y, 2)) <
-        (logic::Grid::CellSize * (_enemy->Fear * (_enemy->AmmoUsedRatio())) + logic::Grid::CellSize * 0.5f);
+        (dotio::Grid::CellSize * (_enemy->Fear * (_enemy->AmmoUsedRatio())) + dotio::Grid::CellSize * 0.5f);
 
-    gmath::Vec2 force = {
+    dotio::math::Vec2 force = {
         (boundary ? _enemy->Position - _enemy->Target : _enemy->Target - _enemy->Position).GetNormalized() *
         _enemy->GetWorld().enemy_tuning().attack_force};
 
@@ -83,7 +83,7 @@ void AttackState::Execute(const float delta) {
 void AttackState::Update() {
     // Kamikaze is a last-health behavior; fuzzy combat rules still choose when to commit.
     if (_enemy->HitsRemaining == 1 &&
-        logic::Fuzzy::Evaluate(_enemy->Distance(), _enemy->Fear, _enemy->GetAmmo())) {
+        dotio::Fuzzy::Evaluate(_enemy->Distance(), _enemy->Fear, _enemy->GetAmmo())) {
         _enemy->SetState(_enemy->GetKamikazeState());
         return;
     }
@@ -102,10 +102,10 @@ void AttackState::Update() {
         _enemy->AmmoFired();
         const auto &settings = _enemy->GetWorld().difficulty_settings();
         const float arrowSpeed = settings.projectile_speed;
-        gmath::Vector2 shoot = {arrowSpeed, 0.0f};
+        dotio::math::Vector2 shoot = {arrowSpeed, 0.0f};
         shoot.Rotate(_enemy->Position.SignedAngleDifference(shoot, _enemy->Target) +
                      settings.prediction *
-                         gmath::Vec2::Intercept(
+                         dotio::math::Vec2::Intercept(
                              _enemy->TargetVelocity.GetLength(), arrowSpeed,
                              _enemy->Target.SignedAngleDifference(_enemy->TargetVelocity, _enemy->Position)));
         _enemy->GetWorld().AddArrow(_enemy->Position, shoot);
@@ -116,25 +116,25 @@ void PursueState::Execute(const float delta) {
     if (_enemy->Path.empty())
         return;
 
-    gmath::GridEntry cell = _enemy->Path.top();
-    gmath::Coordinates pos =
-        gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-    pos.X += logic::Grid::CellSize / 2;
-    pos.Y += logic::Grid::CellSize / 2;
+    dotio::math::GridEntry cell = _enemy->Path.top();
+    dotio::math::Coordinates pos =
+        dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+    pos.X += dotio::Grid::CellSize / 2;
+    pos.Y += dotio::Grid::CellSize / 2;
 
-    if ((pos - _enemy->Position) < logic::Grid::CellSize * 0.666) {
+    if ((pos - _enemy->Position) < dotio::Grid::CellSize * 0.666) {
         _enemy->Path.pop();
         if (!_enemy->Path.empty()) {
             cell = _enemy->Path.top();
             pos =
-                gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-            pos.X += logic::Grid::CellSize / 2;
-            pos.Y += logic::Grid::CellSize / 2;
+                dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+            pos.X += dotio::Grid::CellSize / 2;
+            pos.Y += dotio::Grid::CellSize / 2;
         }
     }
 
     if (pos != _enemy->Position) {
-        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
+        dotio::math::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
                              _enemy->GetWorld().enemy_tuning().pursue_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
@@ -160,17 +160,17 @@ void PursueState::Update() {
             _enemy->AmmoRecovered();
     }
 
-    gmath::GridEntry target_output{};
-    gmath::GridEntry::FromWorld(_enemy->Target, logic::Grid::Origin, logic::Grid::CellSize,
-                                logic::Grid::GridSize, target_output);
+    dotio::math::GridEntry target_output{};
+    dotio::math::GridEntry::FromWorld(_enemy->Target, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                dotio::Grid::GridSize, target_output);
     if (_enemy->Path.empty() ||
-        gmath::GridEntry::PathRefresh(_enemy->Path.get(0), {target_output.Row, target_output.Column})) {
-        gmath::GridEntry enemy_output;
-        if (gmath::GridEntry::FromWorld(_enemy->Target, logic::Grid::Origin, logic::Grid::CellSize,
-                                        logic::Grid::GridSize, target_output) &&
-            gmath::GridEntry::FromWorld(_enemy->Position, logic::Grid::Origin, logic::Grid::CellSize,
-                                        logic::Grid::GridSize, enemy_output)) {
-            if (logic::Vertex _; _enemy->GetWorld().GetGraph().AStar(
+        dotio::math::GridEntry::PathRefresh(_enemy->Path.get(0), {target_output.Row, target_output.Column})) {
+        dotio::math::GridEntry enemy_output;
+        if (dotio::math::GridEntry::FromWorld(_enemy->Target, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                        dotio::Grid::GridSize, target_output) &&
+            dotio::math::GridEntry::FromWorld(_enemy->Position, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                        dotio::Grid::GridSize, enemy_output)) {
+            if (dotio::Vertex _; _enemy->GetWorld().GetGraph().AStar(
                     {enemy_output.Row, enemy_output.Column}, {target_output.Row, target_output.Column}, _))
                 _enemy->Path =
                     _enemy->GetWorld().GetGraph().GetPath({enemy_output.Row, enemy_output.Column}, _);
@@ -182,25 +182,25 @@ void RecoverState::Execute(const float delta) {
     if (_enemy->Path.empty())
         return;
 
-    gmath::GridEntry cell = _enemy->Path.top();
-    gmath::Coordinates pos =
-        gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-    pos.X += logic::Grid::CellSize / 2;
-    pos.Y += logic::Grid::CellSize / 2;
+    dotio::math::GridEntry cell = _enemy->Path.top();
+    dotio::math::Coordinates pos =
+        dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+    pos.X += dotio::Grid::CellSize / 2;
+    pos.Y += dotio::Grid::CellSize / 2;
 
-    if ((pos - _enemy->Position) < logic::Grid::CellSize * (_enemy->Path.size() > 1 ? 0.666 : 0.1)) {
+    if ((pos - _enemy->Position) < dotio::Grid::CellSize * (_enemy->Path.size() > 1 ? 0.666 : 0.1)) {
         _enemy->Path.pop();
         if (!_enemy->Path.empty()) {
             cell = _enemy->Path.top();
             pos =
-                gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-            pos.X += logic::Grid::CellSize / 2;
-            pos.Y += logic::Grid::CellSize / 2;
+                dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+            pos.X += dotio::Grid::CellSize / 2;
+            pos.Y += dotio::Grid::CellSize / 2;
         }
     }
 
     if (pos != _enemy->Position) {
-        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
+        dotio::math::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
                              _enemy->GetWorld().enemy_tuning().recover_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
@@ -225,12 +225,12 @@ void RecoverState::Update() {
     }
 
     if ((_enemy->LineOfSight && _enemy->Path.empty()) ||
-        ((abs(_enemy->Position.X - _enemy->Target.X) <= logic::Grid::CellSize * 2.5f) &&
-         ((abs(_enemy->Position.Y - _enemy->Target.Y) <= logic::Grid::CellSize * 2.5f)))) {
-        gmath::GridEntry enemy_output;
-        if (gmath::GridEntry::FromWorld(_enemy->Position, logic::Grid::Origin, logic::Grid::CellSize,
-                                        logic::Grid::GridSize, enemy_output)) {
-            if (logic::Vertex _; _enemy->GetWorld().GetGraph().HideStar(
+        ((abs(_enemy->Position.X - _enemy->Target.X) <= dotio::Grid::CellSize * 2.5f) &&
+         ((abs(_enemy->Position.Y - _enemy->Target.Y) <= dotio::Grid::CellSize * 2.5f)))) {
+        dotio::math::GridEntry enemy_output;
+        if (dotio::math::GridEntry::FromWorld(_enemy->Position, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                        dotio::Grid::GridSize, enemy_output)) {
+            if (dotio::Vertex _; _enemy->GetWorld().GetGraph().HideStar(
                     {enemy_output.Row, enemy_output.Column}, _enemy->Target, _enemy->Fear, _))
                 _enemy->Path =
                     _enemy->GetWorld().GetGraph().GetPath({enemy_output.Row, enemy_output.Column}, _);
@@ -242,7 +242,7 @@ void RecoverState::Update() {
 
 void KamikazeState::Execute(const float delta) {
     if (_enemy->LineOfSight) {
-        gmath::Vec2 force = {(_enemy->Target - _enemy->Position).GetNormalized() *
+        dotio::math::Vec2 force = {(_enemy->Target - _enemy->Position).GetNormalized() *
                              _enemy->GetWorld().enemy_tuning().kamikaze_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
@@ -253,25 +253,25 @@ void KamikazeState::Execute(const float delta) {
     if (_enemy->Path.empty())
         return;
 
-    gmath::GridEntry cell = _enemy->Path.top();
-    gmath::Coordinates pos =
-        gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-    pos.X += logic::Grid::CellSize / 2;
-    pos.Y += logic::Grid::CellSize / 2;
+    dotio::math::GridEntry cell = _enemy->Path.top();
+    dotio::math::Coordinates pos =
+        dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+    pos.X += dotio::Grid::CellSize / 2;
+    pos.Y += dotio::Grid::CellSize / 2;
 
-    if ((pos - _enemy->Position) < logic::Grid::CellSize * 0.666) {
+    if ((pos - _enemy->Position) < dotio::Grid::CellSize * 0.666) {
         _enemy->Path.pop();
         if (!_enemy->Path.empty()) {
             cell = _enemy->Path.top();
             pos =
-                gmath::GridEntry::ToWorld(cell.Row, cell.Column, logic::Grid::CellSize, logic::Grid::Origin);
-            pos.X += logic::Grid::CellSize / 2;
-            pos.Y += logic::Grid::CellSize / 2;
+                dotio::math::GridEntry::ToWorld(cell.Row, cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin);
+            pos.X += dotio::Grid::CellSize / 2;
+            pos.Y += dotio::Grid::CellSize / 2;
         }
     }
 
     if (pos != _enemy->Position) {
-        gmath::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
+        dotio::math::Vec2 force = {(pos - _enemy->Position).GetNormalized() *
                              _enemy->GetWorld().enemy_tuning().kamikaze_force};
         _enemy->ApplyForce(force * (delta * _enemy->GetWorld().difficulty_settings().movement_multiplier),
                            0.5f * _enemy->GetMass());
@@ -284,10 +284,10 @@ void KamikazeState::Update() {
         _enemy->AmmoFired();
         const auto &settings = _enemy->GetWorld().difficulty_settings();
         const float arrowSpeed = settings.projectile_speed;
-        gmath::Vector2 shoot = {arrowSpeed, 0.0f};
+        dotio::math::Vector2 shoot = {arrowSpeed, 0.0f};
         shoot.Rotate(_enemy->Position.SignedAngleDifference(shoot, _enemy->Target) +
                      settings.prediction *
-                         gmath::Vec2::Intercept(
+                         dotio::math::Vec2::Intercept(
                              _enemy->TargetVelocity.GetLength(), arrowSpeed,
                              _enemy->Target.SignedAngleDifference(_enemy->TargetVelocity, _enemy->Position)));
         _enemy->GetWorld().AddArrow(_enemy->Position, shoot);
@@ -295,22 +295,22 @@ void KamikazeState::Update() {
         _enemy->AmmoRecovered();
     }
 
-    gmath::GridEntry target_output{};
-    gmath::GridEntry::FromWorld(_enemy->Target, logic::Grid::Origin, logic::Grid::CellSize,
-                                logic::Grid::GridSize, target_output);
+    dotio::math::GridEntry target_output{};
+    dotio::math::GridEntry::FromWorld(_enemy->Target, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                dotio::Grid::GridSize, target_output);
     if (!_enemy->LineOfSight &&
         (_enemy->Path.empty() ||
-         gmath::GridEntry::PathRefresh(_enemy->Path.get(0), {target_output.Row, target_output.Column}))) {
-        gmath::GridEntry enemy_output;
-        if (gmath::GridEntry::FromWorld(_enemy->Target, logic::Grid::Origin, logic::Grid::CellSize,
-                                        logic::Grid::GridSize, target_output) &&
-            gmath::GridEntry::FromWorld(_enemy->Position, logic::Grid::Origin, logic::Grid::CellSize,
-                                        logic::Grid::GridSize, enemy_output)) {
-            if (logic::Vertex _; _enemy->GetWorld().GetGraph().AStar(
+         dotio::math::GridEntry::PathRefresh(_enemy->Path.get(0), {target_output.Row, target_output.Column}))) {
+        dotio::math::GridEntry enemy_output;
+        if (dotio::math::GridEntry::FromWorld(_enemy->Target, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                        dotio::Grid::GridSize, target_output) &&
+            dotio::math::GridEntry::FromWorld(_enemy->Position, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                        dotio::Grid::GridSize, enemy_output)) {
+            if (dotio::Vertex _; _enemy->GetWorld().GetGraph().AStar(
                     {enemy_output.Row, enemy_output.Column}, {target_output.Row, target_output.Column}, _))
                 _enemy->Path =
                     _enemy->GetWorld().GetGraph().GetPath({enemy_output.Row, enemy_output.Column}, _);
         }
     }
 }
-} // namespace logic
+} // namespace dotio

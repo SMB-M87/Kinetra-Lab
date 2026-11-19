@@ -1,7 +1,7 @@
 // Headless tests for Dotio: legacy math, arena generation and streaming, geometry and
 // routes, fuzzy AI states, combat, spawning, difficulty and the application commands.
 //
-// logic::Grid::Array is global. Generating or initializing a world overwrites all of it.
+// dotio::Grid::Array is global. Generating or initializing a world overwrites all of it.
 // Cases that build on the plain bordered arena start with open_map(), so no case depends
 // on the order in which cases run or on what an earlier case left behind.
 #include "dotio/ai/fuzzy.h"
@@ -25,19 +25,19 @@
 namespace {
 /// Resets the global grid to an empty arena with a one-cell wall along its border.
 void open_map() {
-    for (int row = 0; row < logic::Grid::Rows; ++row)
-        for (int column = 0; column < logic::Grid::Columns; ++column)
-            logic::Grid::Array[row][column] =
-                row == 0 || column == 0 || row == logic::Grid::Rows - 1 || column == logic::Grid::Columns - 1;
+    for (int row = 0; row < dotio::Grid::Rows; ++row)
+        for (int column = 0; column < dotio::Grid::Columns; ++column)
+            dotio::Grid::Array[row][column] =
+                row == 0 || column == 0 || row == dotio::Grid::Rows - 1 || column == dotio::Grid::Columns - 1;
 }
 
 /// A small easy world on the current grid: player and Ghost at (550, 550) without
 /// cooldown, and one wandering enemy at (850, 550) aimed at the player.
-std::unique_ptr<logic::World> fixture() {
-    auto world = std::make_unique<logic::World>(logic::Difficulty::easy);
+std::unique_ptr<dotio::World> fixture() {
+    auto world = std::make_unique<dotio::World>(dotio::Difficulty::easy);
     world->ExtractGraph();
-    world->SetPlayer(logic::Player(world.get(), {550, 550}, 0));
-    world->SetGhost(logic::Player(world.get(), {550, 550}, 0));
+    world->SetPlayer(dotio::Player(world.get(), {550, 550}, 0));
+    world->SetGhost(dotio::Player(world.get(), {550, 550}, 0));
     world->GetPlayer().Cooldown = 0;
     world->AddEnemy({850, 550}, {550, 550}, 8, true);
     world->GetEnemies()[0].Initialize();
@@ -47,22 +47,22 @@ std::unique_ptr<logic::World> fixture() {
 /// Streams a seeded world with enemies around its player for `duration` seconds in steps
 /// of `dt`, checks spawn placement, spacing and admission, and returns the positions of
 /// the active enemies. `active` is the normal player view in world units.
-std::vector<gmath::Vec2> population(float dt, float resources, gmath::Vec2 active = {1120, 700},
-                                    logic::Difficulty difficulty = logic::Difficulty::easy,
+std::vector<dotio::math::Vec2> population(float dt, float resources, dotio::math::Vec2 active = {1120, 700},
+                                    dotio::Difficulty difficulty = dotio::Difficulty::easy,
                                     float duration = 20) {
     CAPTURE(dt);
     CAPTURE(duration);
-    auto world = std::make_unique<logic::World>();
+    auto world = std::make_unique<dotio::World>();
     world->Initialize(42, difficulty);
     auto &player = world->GetPlayer();
     const auto center = player.Position;
-    const gmath::Vec2 retained{8000, 8000};
+    const dotio::math::Vec2 retained{8000, 8000};
     world->StreamEnemies(center, active / 1.75f, active * (9.f / 1.75f), retained);
     open_map();
     player.Health = player.Mana = resources;
     for (int frame = 0; float(frame) < duration / dt; ++frame)
         world->StreamEnemies(center, active / 1.75f, active * (9.f / 1.75f), retained, dt);
-    std::vector<gmath::Vec2> positions;
+    std::vector<dotio::math::Vec2> positions;
     for (const auto &enemy : world->GetEnemies())
         if (enemy.IsActive) {
             const auto delta = enemy.Position - center;
@@ -71,7 +71,7 @@ std::vector<gmath::Vec2> population(float dt, float resources, gmath::Vec2 activ
                           "Spawned enemy body overlaps 1.1x maximum normal player view");
             for (const auto position : positions)
                 CHECK_MESSAGE((enemy.Position - position).GetLength() >=
-                                  logic::settings_for(difficulty).spawn_spacing,
+                                  dotio::settings_for(difficulty).spawn_spacing,
                               "Spawn spacing allowed a dense enemy cluster");
             positions.push_back(enemy.Position);
         }
@@ -86,7 +86,7 @@ std::vector<gmath::Vec2> population(float dt, float resources, gmath::Vec2 activ
         CHECK_MESSAGE((std::abs(delta.X) <= spawn_half.X && std::abs(delta.Y) <= spawn_half.Y),
                       "Spawn escaped its time-dependent placement rectangle");
     }
-    CHECK_MESSAGE((!positions.empty() && local_count <= logic::settings_for(difficulty).active_spawn_limit),
+    CHECK_MESSAGE((!positions.empty() && local_count <= dotio::settings_for(difficulty).active_spawn_limit),
                   "Spawn admission did not bound the local population");
     if (duration >= 120)
         CHECK_MESSAGE(expanded, "Survival did not place enemies beyond the initial spawn range");
@@ -101,12 +101,12 @@ struct Encounter {
 };
 
 /// Runs one second of an attacking enemy 700 units from the player on the open arena.
-Encounter encounter(logic::Difficulty difficulty) {
-    auto world = std::make_unique<logic::World>();
+Encounter encounter(dotio::Difficulty difficulty) {
+    auto world = std::make_unique<dotio::World>();
     world->Initialize(42, difficulty);
     open_map();
     auto &enemy = world->GetEnemies()[0];
-    enemy.Position = world->GetPlayer().Position + gmath::Vec2{700, 0};
+    enemy.Position = world->GetPlayer().Position + dotio::math::Vec2{700, 0};
     enemy.Target = world->GetPlayer().Position;
     enemy.Fear = 9;
     enemy.IsActive = true;
@@ -133,7 +133,7 @@ Encounter encounter(logic::Difficulty difficulty) {
 
 /// Fills the global grid with walls; carve() then opens the floor a case needs.
 void walled_map() {
-    for (auto &row : logic::Grid::Array)
+    for (auto &row : dotio::Grid::Array)
         std::fill(std::begin(row), std::end(row), 1);
 }
 
@@ -141,19 +141,19 @@ void walled_map() {
 void carve(int row, int column, int last_row, int last_column) {
     for (int y = row; y <= last_row; ++y)
         for (int x = column; x <= last_column; ++x)
-            logic::Grid::Array[y][x] = 0;
+            dotio::Grid::Array[y][x] = 0;
 }
 
 /// Center of a cell in legacy coordinates.
-gmath::Vec2 cell_center(int row, int column) {
-    return {(float(column) + 0.5f) * logic::Grid::CellSize, (float(row) + 0.5f) * logic::Grid::CellSize};
+dotio::math::Vec2 cell_center(int row, int column) {
+    return {(float(column) + 0.5f) * dotio::Grid::CellSize, (float(row) + 0.5f) * dotio::Grid::CellSize};
 }
 
 /// A seeded Medium world on a grid of walls: the player stands in a sealed cell, so it sees
 /// no enemy and every enemy keeps wandering. The pool is dormant; a case carves its floor
 /// and wakes the enemies it needs with wanderer().
-std::unique_ptr<logic::World> walled_world(std::uint32_t seed = 42) {
-    auto world = std::make_unique<logic::World>();
+std::unique_ptr<dotio::World> walled_world(std::uint32_t seed = 42) {
+    auto world = std::make_unique<dotio::World>();
     world->Initialize(seed);
     walled_map();
     carve(150, 150, 150, 150);
@@ -163,7 +163,7 @@ std::unique_ptr<logic::World> walled_world(std::uint32_t seed = 42) {
 
 /// Wakes pool slot `index` as a wandering enemy at rest at `position`, facing `heading`
 /// radians in legacy coordinates.
-logic::Enemy &wanderer(logic::World &world, gmath::Vec2 position, float heading, int index = 0) {
+dotio::Enemy &wanderer(dotio::World &world, dotio::math::Vec2 position, float heading, int index = 0) {
     auto &enemy = world.GetEnemies()[index];
     enemy.Position = position;
     enemy.Velocity = {};
@@ -175,7 +175,7 @@ logic::Enemy &wanderer(logic::World &world, gmath::Vec2 position, float heading,
 
 /// Runs `updates` 60 Hz updates the way the application does: before every third one the
 /// active enemies get their 20 Hz decision tick. `first` continues an earlier run.
-void run(logic::World &world, int updates, int first = 0) {
+void run(dotio::World &world, int updates, int first = 0) {
     for (int update = first; update < first + updates; ++update) {
         if (update % 3 == 2)
             for (auto &enemy : world.GetEnemies())
@@ -187,14 +187,14 @@ void run(logic::World &world, int updates, int first = 0) {
 
 /// Speed a wandering enemy settles at, in legacy pixels per update: every update it gains
 /// its force times the movement multiplier and then loses a fifth of its speed.
-float wander_speed(const logic::World &world) {
+float wander_speed(const dotio::World &world) {
     return 4 * world.enemy_tuning().wander_force * world.difficulty_settings().movement_multiplier;
 }
 
 /// Speed an enemy at rest gains from one update of `state`, in legacy pixels per update.
 /// The enemy gets a waypoint far along its row and sight of the player, so every state
 /// that needs a path or a target has one.
-float acceleration(logic::Enemy &enemy, logic::State &state) {
+float acceleration(dotio::Enemy &enemy, dotio::State &state) {
     enemy.Velocity = {};
     enemy.Path.clear();
     enemy.Path.push({5, 60});
@@ -225,21 +225,21 @@ float travelled(float movement_multiplier, bool pursuing) {
 
 // Incremental residency must preserve the exact graph produced by a full rebuild.
 TEST_CASE("incremental residency matches the terrain and graph of a full rebuild") {
-    auto world = std::make_unique<logic::World>();
+    auto world = std::make_unique<dotio::World>();
     world->Initialize(42);
     for (int step = 0; step < 12; ++step) {
         if (step == 8)
             world->Initialize(43);
-        const gmath::Position center{7050.f + float(step * 100), 7950.f + float((step % 3) * 100)};
+        const dotio::math::Position center{7050.f + float(step * 100), 7950.f + float((step % 3) * 100)};
         const float half = step % 4 == 0 ? 1200.f : 2400.f;
         world->StreamEnemies(center, {100, 100}, {500, 500}, {half, half});
-        for (int row = 0; row < logic::Grid::Rows; ++row)
-            for (int col = 0; col < logic::Grid::Columns; ++col) {
+        for (int row = 0; row < dotio::Grid::Rows; ++row)
+            for (int col = 0; col < dotio::Grid::Columns; ++col) {
                 const bool inside = row >= int(std::floor((center.Y - half) / 100)) &&
                                     row <= int(std::floor((center.Y + half) / 100)) &&
                                     col >= int(std::floor((center.X - half) / 100)) &&
                                     col <= int(std::floor((center.X + half) / 100));
-                CHECK_MESSAGE(logic::Grid::Array[row][col] == (inside ? world->TerrainCell(row, col) : 1),
+                CHECK_MESSAGE(dotio::Grid::Array[row][col] == (inside ? world->TerrainCell(row, col) : 1),
                               "Incremental residency changed terrain occupancy");
             }
         const auto incremental = world->GetGraph().vertexMap;
@@ -268,46 +268,46 @@ TEST_CASE("incremental residency matches the terrain and graph of a full rebuild
 
 TEST_CASE("projectile segments and line of sight stop at walls and A* routes avoid them") {
     open_map();
-    gmath::Point2 hit{};
+    dotio::math::Point2 hit{};
     CHECK_MESSAGE(
-        ((logic::Grid::SegementCircleIntersection({{550, 300}, {550, 800}}, {550, 550}, 20, hit) & 1) &&
+        ((dotio::Grid::SegementCircleIntersection({{550, 300}, {550, 800}}, {550, 550}, 20, hit) & 1) &&
          std::abs(hit.Y - 530) < 0.01f),
         "Vertical projectile failed continuous collision");
     CHECK_MESSAGE(
-        !(logic::Grid::SegementCircleIntersection({{500, 300}, {500, 800}}, {550, 550}, 20, hit) & 1),
+        !(dotio::Grid::SegementCircleIntersection({{500, 300}, {500, 800}}, {550, 550}, 20, hit) & 1),
         "Projectile hit a circle outside its segment");
     CHECK_MESSAGE(
-        (logic::Grid::SegementCircleIntersection({{550, 550}, {550, 550}}, {550, 550}, 20, hit) & 1),
+        (dotio::Grid::SegementCircleIntersection({{550, 550}, {550, 550}}, {550, 550}, 20, hit) & 1),
         "Point segment inside circle must hit");
-    logic::Grid::Array[7][5] = 1;
+    dotio::Grid::Array[7][5] = 1;
     CHECK_MESSAGE(
-        (logic::Grid::IsIntersectingAnyCell({{550, 550}, {550, 900}}, &logic::Grid::Array[0][0], hit) &&
+        (dotio::Grid::IsIntersectingAnyCell({{550, 550}, {550, 900}}, &dotio::Grid::Array[0][0], hit) &&
          std::abs(hit.Y - 700) < 0.01f),
         "Vertical line of sight must stop at wall");
     CHECK_MESSAGE(
-        !logic::Grid::IsIntersectingAnyCell({{450, 550}, {450, 900}}, &logic::Grid::Array[0][0], hit),
+        !dotio::Grid::IsIntersectingAnyCell({{450, 550}, {450, 900}}, &dotio::Grid::Array[0][0], hit),
         "Clear vertical sight falsely blocked");
     CHECK_MESSAGE(
-        logic::Grid::IsIntersectingAnyCell({{550, 550}, {-50, 550}}, &logic::Grid::Array[0][0], hit),
+        dotio::Grid::IsIntersectingAnyCell({{550, 550}, {-50, 550}}, &dotio::Grid::Array[0][0], hit),
         "Finite world boundary must block projectiles");
     auto world = fixture();
-    logic::Vertex goal;
+    dotio::Vertex goal;
     CHECK_MESSAGE(world->GetGraph().AStar({5, 5}, {9, 5}, goal), "A* did not find wall detour");
     auto path = world->GetGraph().GetPath({5, 5}, goal);
     CHECK_MESSAGE(!path.empty(), "A* returned no waypoints");
     while (!path.empty()) {
         const auto cell = path.top();
-        CHECK_MESSAGE(logic::Grid::Array[cell.Row][cell.Column] == 0, "A* path entered wall");
+        CHECK_MESSAGE(dotio::Grid::Array[cell.Row][cell.Column] == 0, "A* path entered wall");
         path.pop();
     }
     CHECK_MESSAGE(world->GetGraph().HideStar({5, 5}, {550, 950}, 2, goal), "HideStar did not find shelter");
-    logic::Grid::Array[7][5] = 0;
+    dotio::Grid::Array[7][5] = 0;
 }
 
 TEST_CASE("fuzzy rules move an enemy between wander attack kamikaze recovery and pursuit") {
     open_map();
-    CHECK_MESSAGE(logic::Fuzzy::Evaluate(400, 3, 4), "Original close/warrior/midway fuzzy rule missing");
-    CHECK_MESSAGE((!logic::Fuzzy::Evaluate(2000, 3, 4) && !logic::Fuzzy::Evaluate(400, 9, 4)),
+    CHECK_MESSAGE(dotio::Fuzzy::Evaluate(400, 3, 4), "Original close/warrior/midway fuzzy rule missing");
+    CHECK_MESSAGE((!dotio::Fuzzy::Evaluate(2000, 3, 4) && !dotio::Fuzzy::Evaluate(400, 9, 4)),
                   "Fuzzy kamikaze trigger ignored distance/fear");
     auto world = fixture();
     auto &enemy = world->GetEnemies()[0];
@@ -336,14 +336,14 @@ TEST_CASE("fuzzy rules move an enemy between wander attack kamikaze recovery and
     enemy.Reset();
     enemy.Fear = 9;
     enemy.SetState(enemy.GetAttackState());
-    logic::Grid::Array[5][7] = 1;
+    dotio::Grid::Array[5][7] = 1;
     enemy.Tick();
     CHECK_MESSAGE(enemy.IsPursueing(), "Losing sight must trigger pursue");
     for (int i = 0; i < 11; ++i)
         enemy.PursueCountdown();
     enemy.Tick();
     CHECK_MESSAGE(enemy.IsWandering(), "Expired pursuit must resume wander");
-    logic::Grid::Array[5][7] = 0;
+    dotio::Grid::Array[5][7] = 0;
     enemy.Reset();
     enemy.SetState(enemy.GetRecoverState());
     enemy.Tick();
@@ -360,7 +360,7 @@ TEST_CASE("a failed escape triggers kamikaze only at exactly one health") {
     enemy.Fear = 9;
     for (int i = 0; i < 10; ++i)
         enemy.AmmoFired();
-    logic::Vertex shelter;
+    dotio::Vertex shelter;
     CHECK_MESSAGE(!world->GetGraph().HideStar({5, 8}, enemy.Target, enemy.Fear, shelter),
                   "Recovery health fixture must have no shelter");
     for (int health : {3, 2, 0, 1}) {
@@ -387,11 +387,11 @@ TEST_CASE("combat rewards hits behind no wall and reset restores resources and A
     world->UpdateBolts(1);
     CHECK_MESSAGE((!enemy.IsActive && player.Kills == 2 && player.Health == 60), "Bolt kill/reward missing");
     enemy.Reset();
-    logic::Grid::Array[5][7] = 1;
+    dotio::Grid::Array[5][7] = 1;
     world->AddBolt({550, 550}, {600, 0});
     world->UpdateBolts(1);
     CHECK_MESSAGE(enemy.IsActive, "Bullet killed enemy behind wall");
-    logic::Grid::Array[5][7] = 0;
+    dotio::Grid::Array[5][7] = 0;
     world->AddArrow({550, 350}, {0, 400});
     world->UpdateArrows(1, false);
     CHECK_MESSAGE(player.Health == 50, "Enemy arrow did not damage player");
@@ -406,7 +406,7 @@ TEST_CASE("combat rewards hits behind no wall and reset restores resources and A
         CHECK_MESSAGE(!bolt.IsActive, "Reset retained live bolts");
     enemy.IsActive = true;
     enemy.Frozen = false;
-    enemy.Position = player.Position + gmath::Vec2{10, 0};
+    enemy.Position = player.Position + dotio::math::Vec2{10, 0};
     enemy.Target = player.Position;
     player.Mana = 50;
     enemy.Tick();
@@ -415,7 +415,7 @@ TEST_CASE("combat rewards hits behind no wall and reset restores resources and A
                   "Contact kill bypassed the timed offscreen spawn controller");
     enemy.IsActive = true;
     enemy.Frozen = false;
-    enemy.Position = player.Position + gmath::Vec2{10, 0};
+    enemy.Position = player.Position + dotio::math::Vec2{10, 0};
     enemy.Target = player.Position;
     enemy.SetState(enemy.GetKamikazeState());
     enemy.Debug = true;
@@ -424,44 +424,44 @@ TEST_CASE("combat rewards hits behind no wall and reset restores resources and A
 }
 
 TEST_CASE("the generated arena is reproducible per seed and its floor is connected") {
-    logic::Grid::Generate(42);
+    dotio::Grid::Generate(42);
     std::vector<int> first;
-    for (const auto &row : logic::Grid::Array)
+    for (const auto &row : dotio::Grid::Array)
         first.insert(first.end(), std::begin(row), std::end(row));
-    logic::Grid::Generate(42);
+    dotio::Grid::Generate(42);
     std::size_t index = 0;
-    for (int row = 0; row < logic::Grid::Rows; ++row)
-        for (int col = 0; col < logic::Grid::Columns; ++col) {
-            CHECK_MESSAGE(logic::Grid::Array[row][col] == first[index++], "Arena seed is not reproducible");
-            CHECK_MESSAGE(logic::Grid::Array[row][col] == logic::Grid::TerrainCell(42, row, col),
+    for (int row = 0; row < dotio::Grid::Rows; ++row)
+        for (int col = 0; col < dotio::Grid::Columns; ++col) {
+            CHECK_MESSAGE(dotio::Grid::Array[row][col] == first[index++], "Arena seed is not reproducible");
+            CHECK_MESSAGE(dotio::Grid::Array[row][col] == dotio::Grid::TerrainCell(42, row, col),
                           "Streamed window differs from absolute terrain");
         }
     // Flood fill verifies every free cell belongs to the playable region.
     std::vector<std::pair<int, int>> queue{{2, 2}};
-    std::vector<bool> visited(logic::Grid::Rows * logic::Grid::Columns);
-    visited[2 * logic::Grid::Columns + 2] = true;
+    std::vector<bool> visited(dotio::Grid::Rows * dotio::Grid::Columns);
+    visited[2 * dotio::Grid::Columns + 2] = true;
     for (std::size_t i = 0; i < queue.size(); ++i) {
         const auto [row, col] = queue[i];
         for (const auto &[dy, dx] : {std::pair{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
             const int y = row + dy, x = col + dx;
-            if (y < 0 || x < 0 || y >= logic::Grid::Rows || x >= logic::Grid::Columns)
+            if (y < 0 || x < 0 || y >= dotio::Grid::Rows || x >= dotio::Grid::Columns)
                 continue;
-            const int id = y * logic::Grid::Columns + x;
-            if (!visited[id] && !logic::Grid::Array[y][x]) {
+            const int id = y * dotio::Grid::Columns + x;
+            if (!visited[id] && !dotio::Grid::Array[y][x]) {
                 visited[id] = true;
                 queue.emplace_back(y, x);
             }
         }
     }
     bool changed = false;
-    for (int row = 0; row < logic::Grid::Rows; ++row)
-        for (int col = 0; col < logic::Grid::Columns; ++col)
-            CHECK_MESSAGE((row >= 128 || col >= 128 || logic::Grid::Array[row][col] ||
-                           visited[row * logic::Grid::Columns + col]),
+    for (int row = 0; row < dotio::Grid::Rows; ++row)
+        for (int col = 0; col < dotio::Grid::Columns; ++col)
+            CHECK_MESSAGE((row >= 128 || col >= 128 || dotio::Grid::Array[row][col] ||
+                           visited[row * dotio::Grid::Columns + col]),
                           "Disconnected arena floor");
-    logic::Grid::Generate(43);
+    dotio::Grid::Generate(43);
     index = 0;
-    for (const auto &row : logic::Grid::Array)
+    for (const auto &row : dotio::Grid::Array)
         for (const auto cell : row)
             changed |= cell != first[index++];
     CHECK_MESSAGE(changed, "Different arena seeds produced identical geometry");
@@ -469,12 +469,12 @@ TEST_CASE("the generated arena is reproducible per seed and its floor is connect
 }
 
 TEST_CASE("crates interact with actors and streaming keeps geometry continuous across rebases") {
-    logic::World world;
+    dotio::World world;
     world.Initialize(42);
     const auto initial_offset = world.WorldOffset();
     auto &player = world.GetPlayer();
     std::vector<int> first;
-    for (const auto &row : logic::Grid::Array)
+    for (const auto &row : dotio::Grid::Array)
         first.insert(first.end(), std::begin(row), std::end(row));
     REQUIRE_MESSAGE(!world.GetObjects().empty(), "No physics objects generated");
     const auto crate = world.GetObjects().front().body;
@@ -509,24 +509,24 @@ TEST_CASE("crates interact with actors and streaming keeps geometry continuous a
         const auto old_position = player.Position;
         const auto old_ghost = world.GetGhost().Position;
         const auto shift = world.StreamAroundPlayer();
-        CHECK_MESSAGE(shift != gmath::Vec2{}, "Streaming window did not advance");
+        CHECK_MESSAGE(shift != dotio::math::Vec2{}, "Streaming window did not advance");
         CHECK_MESSAGE(player.Position + world.WorldOffset() == absolute,
                       "Streaming changed absolute player position");
         CHECK_MESSAGE(world.GetGhost().Position == old_ghost - shift, "Streaming failed to rebase camera");
         CHECK_MESSAGE(player.Position != old_position, "Local origin was not rebased");
         for (const auto &resident : world.GetEnemies())
             CHECK_MESSAGE(resident.Path.empty(), "Streaming retained stale navigation path");
-        for (int row = 0; row < logic::Grid::Rows; ++row)
-            for (int col = 0; col < logic::Grid::Columns; ++col)
-                CHECK_MESSAGE(logic::Grid::Array[row][col] == world.TerrainCell(row, col),
+        for (int row = 0; row < dotio::Grid::Rows; ++row)
+            for (int col = 0; col < dotio::Grid::Columns; ++col)
+                CHECK_MESSAGE(dotio::Grid::Array[row][col] == world.TerrainCell(row, col),
                               "Streamed collision and terrain geometry diverged");
     }
     CHECK_MESSAGE(world.WorldOffset().X < initial_offset.X, "Negative world exploration did not stream");
-    player.Position = gmath::Vec2{8050, 8050} - world.WorldOffset();
+    player.Position = dotio::math::Vec2{8050, 8050} - world.WorldOffset();
     world.StreamAroundPlayer();
     CHECK_MESSAGE(world.WorldOffset() == initial_offset, "Return trip did not recover original window");
     std::size_t index = 0;
-    for (const auto &row : logic::Grid::Array)
+    for (const auto &row : dotio::Grid::Array)
         for (int cell : row)
             CHECK_MESSAGE(cell == first[index++], "Revisited world geometry changed");
     int solid = 0;
@@ -538,17 +538,17 @@ TEST_CASE("crates interact with actors and streaming keeps geometry continuous a
     for (int district = -2; district <= 2; ++district) {
         int horizontal = 0, vertical = 0;
         for (int cell = 0; cell < 32; ++cell) {
-            horizontal += !logic::Grid::TerrainCell(42, district * 32 - 1, cell) &&
-                          !logic::Grid::TerrainCell(42, district * 32, cell);
-            vertical += !logic::Grid::TerrainCell(42, cell, district * 32 - 1) &&
-                        !logic::Grid::TerrainCell(42, cell, district * 32);
+            horizontal += !dotio::Grid::TerrainCell(42, district * 32 - 1, cell) &&
+                          !dotio::Grid::TerrainCell(42, district * 32, cell);
+            vertical += !dotio::Grid::TerrainCell(42, cell, district * 32 - 1) &&
+                        !dotio::Grid::TerrainCell(42, cell, district * 32);
         }
         CHECK_MESSAGE((horizontal >= 4 && vertical >= 4), "District edge lacks alternate exits");
     }
     for (int i = 0; i < 64; ++i) {
-        const auto cell = logic::Grid::GenerateGridEntry({150, 150});
-        CHECK_MESSAGE((cell.Row >= 0 && cell.Row < logic::Grid::Rows && cell.Column >= 0 &&
-                       cell.Column < logic::Grid::Columns && !logic::Grid::Array[cell.Row][cell.Column]),
+        const auto cell = dotio::Grid::GenerateGridEntry({150, 150});
+        CHECK_MESSAGE((cell.Row >= 0 && cell.Row < dotio::Grid::Rows && cell.Column >= 0 &&
+                       cell.Column < dotio::Grid::Columns && !dotio::Grid::Array[cell.Row][cell.Column]),
                       "Edge wander target escaped streamed raster");
     }
     open_map();
@@ -561,7 +561,7 @@ TEST_CASE("bolts hit enemies within their combined radii including moving target
         auto &target = matching->GetEnemies()[0];
         target.Position = {575.0001f, 550};
         matching->UpdateEnemies(0, false);
-        target.Position += gmath::Vec2{599.9998f, 0};
+        target.Position += dotio::math::Vec2{599.9998f, 0};
         matching->AddBolt({550, 550}, {600, 0});
         matching->UpdateBolts(1);
         CHECK_MESSAGE(!target.IsActive, "Co-moving bullet tunneled through enemy at tiny relative speed");
@@ -627,22 +627,22 @@ TEST_CASE("debug teleport accepts only free targets in range and keeps absolute 
     application.paused = true;
     player.Velocity = {4, 5};
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.Position == gmath::Vec2{8150, 8050} && player.Velocity == gmath::Vec2{}),
+    CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050} && player.Velocity == dotio::math::Vec2{}),
                   "Paused debug teleport failed");
-    logic::Grid::Array[80][82] = 1;
+    dotio::Grid::Array[80][82] = 1;
     commands.teleport_target = dotio::to_world({8190, 8050});
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.Position == gmath::Vec2{8150, 8050}), "Teleport accepted circle overlapping wall");
+    CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050}), "Teleport accepted circle overlapping wall");
     commands.teleport_target = dotio::to_world({100000000, 550});
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.Position == gmath::Vec2{8150, 8050}),
+    CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050}),
                   "Teleport accepted outside supported coordinate range");
     // A distant Ghost click can cross the current local raster while paused.
     bool teleported = false;
     const auto offset = application.world().WorldOffset();
     for (int row = 75; row < 85 && !teleported; ++row)
         for (int col = -20; col < -1 && !teleported; ++col) {
-            const gmath::Vec2 target{(float(col) + 0.5f) * 100, (float(row) + 0.5f) * 100};
+            const dotio::math::Vec2 target{(float(col) + 0.5f) * 100, (float(row) + 0.5f) * 100};
             if (!application.teleport_clear(target, player.Radius))
                 continue;
             commands.teleport_target = dotio::to_world(target);
@@ -728,7 +728,7 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
     CHECK(menu_row(application, "WANDER").value() == "STEERING");
     menu_row(application, "WANDER").action();
     menu_row(application, "PATH").action();
-    CHECK(world.enemy_tuning().wander == logic::WanderMode::path);
+    CHECK(world.enemy_tuning().wander == dotio::WanderMode::path);
     CHECK(menu_row(application, "WANDER").value() == "PATH");
     CHECK_MESSAGE(menu_labels(application).size() == 19, "choosing a value closes the list");
 
@@ -748,8 +748,8 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
                 up ? menu_row(application, label).increase() : menu_row(application, label).decrease();
             CAPTURE(label);
             CAPTURE(up);
-            CHECK_NOTHROW(logic::validate(world.difficulty_settings()));
-            CHECK_NOTHROW(logic::validate(world.enemy_tuning()));
+            CHECK_NOTHROW(dotio::validate(world.difficulty_settings()));
+            CHECK_NOTHROW(dotio::validate(world.enemy_tuning()));
         }
     menu_row(application, "SPAWNING").action();
     for (const char *label : {"ACTIVE LIMIT", "SPAWN RATE", "CROWD LOAD", "SPACING"})
@@ -757,14 +757,14 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
             for (int click = 0; click < 200; ++click)
                 up ? menu_row(application, label).increase() : menu_row(application, label).decrease();
             CAPTURE(label);
-            CHECK_NOTHROW(logic::validate(world.difficulty_settings()));
+            CHECK_NOTHROW(dotio::validate(world.difficulty_settings()));
         }
     CHECK(world.difficulty_settings().active_spawn_limit == dotio::tuning_step::smallest_spawn_limit);
 
     application.time_scale = 4;
     menu_row(application, "RESET PARAMETERS").action();
     CHECK(world.difficulty_settings() == preset);
-    CHECK(world.enemy_tuning() == logic::EnemyTuning{});
+    CHECK(world.enemy_tuning() == dotio::EnemyTuning{});
     CHECK(application.time_scale == 1);
     open_map();
 }
@@ -899,7 +899,7 @@ TEST_CASE("help pause and Ghost commands work and long play keeps finite state")
         commands = {};
         commands.direction = {frame % 60 < 30 ? 1.f : -1.f, 0};
         commands.shoot = true;
-        commands.aim = dotio::to_world(player.Position + gmath::Vec2{500, 0});
+        commands.aim = dotio::to_world(player.Position + dotio::math::Vec2{500, 0});
         application.advance(1.0 / 60, commands, camera);
         CHECK_MESSAGE((std::isfinite(player.Position.X) && std::isfinite(player.Position.Y)),
                       "Nonfinite player pose");
@@ -912,12 +912,12 @@ TEST_CASE("help pause and Ghost commands work and long play keeps finite state")
 }
 
 TEST_CASE("fuzzy spawn rates fall continuously with crowding") {
-    CHECK_MESSAGE((logic::Fuzzy::SpawnRate(0) == 1 && logic::Fuzzy::SpawnRate(3) == 0.25f &&
-                   logic::Fuzzy::SpawnRate(5) == 0 && logic::Fuzzy::SpawnRate(100) == 0),
+    CHECK_MESSAGE((dotio::Fuzzy::SpawnRate(0) == 1 && dotio::Fuzzy::SpawnRate(3) == 0.25f &&
+                   dotio::Fuzzy::SpawnRate(5) == 0 && dotio::Fuzzy::SpawnRate(100) == 0),
                   "Fuzzy spawn rules lost sparse/occupied/crowded outputs");
     float previous = 1;
     for (int step = 0; step <= 100; ++step) {
-        const float rate = logic::Fuzzy::SpawnRate(float(step) / 10.f);
+        const float rate = dotio::Fuzzy::SpawnRate(float(step) / 10.f);
         CHECK_MESSAGE((rate >= 0 && rate <= previous && previous - rate < 0.1f),
                       "Fuzzy spawn rate is discontinuous or increases with crowding");
         previous = rate;
@@ -930,16 +930,16 @@ TEST_CASE("spawned enemies stay outside the view and spaced and only difficulty 
     CHECK_MESSAGE(std::abs(int(population(0.125f, 100).size()) - int(population(0.03125f, 100).size())) <= 3,
                   "Spawn pacing changes substantially with frame rate");
     const auto easy = population(0.125f, 100).size();
-    const auto medium = population(0.125f, 100, {1120, 700}, logic::Difficulty::medium).size();
-    const auto hard = population(0.125f, 100, {1120, 700}, logic::Difficulty::hard).size();
+    const auto medium = population(0.125f, 100, {1120, 700}, dotio::Difficulty::medium).size();
+    const auto hard = population(0.125f, 100, {1120, 700}, dotio::Difficulty::hard).size();
     CHECK_MESSAGE((easy < medium && medium < hard), "Difficulty did not increase actual spawn population");
-    population(0.125f, 100, {1120, 700}, logic::Difficulty::easy, 120);
+    population(0.125f, 100, {1120, 700}, dotio::Difficulty::easy, 120);
     population(0.125f, 100, {700, 1120}); // Portrait viewport uses the same proportional exclusion.
 }
 
 TEST_CASE("paused frames and a crowded player area spawn no new enemies") {
-    auto world = std::make_unique<logic::World>();
-    world->Initialize(42, logic::Difficulty::easy);
+    auto world = std::make_unique<dotio::World>();
+    world->Initialize(42, dotio::Difficulty::easy);
     const auto center = world->GetPlayer().Position;
     for (int frame = 0; frame < 1000; ++frame)
         world->StreamEnemies(center, {640, 400}, {5760, 3600}, {8000, 5000}, 0);
@@ -947,7 +947,7 @@ TEST_CASE("paused frames and a crowded player area spawn no new enemies") {
         CHECK_MESSAGE(!enemy.IsActive, "Paused/render-only frames created enemies");
     for (int i = 0; i < 5; ++i) {
         auto &enemy = world->GetEnemies()[i];
-        enemy.Position = center + gmath::Vec2{float(100 + i * 50), 0};
+        enemy.Position = center + dotio::math::Vec2{float(100 + i * 50), 0};
         enemy.IsActive = true;
     }
     for (int second = 0; second < 120; ++second)
@@ -959,8 +959,8 @@ TEST_CASE("paused frames and a crowded player area spawn no new enemies") {
 }
 
 TEST_CASE("difficulty sets enemy hit points and the spawn range grows with survival time") {
-    for (auto difficulty : {logic::Difficulty::easy, logic::Difficulty::medium, logic::Difficulty::hard}) {
-        auto world = std::make_unique<logic::World>();
+    for (auto difficulty : {dotio::Difficulty::easy, dotio::Difficulty::medium, dotio::Difficulty::hard}) {
+        auto world = std::make_unique<dotio::World>();
         world->Initialize(42, difficulty);
         open_map();
         auto &enemy = world->GetEnemies()[0];
@@ -969,7 +969,7 @@ TEST_CASE("difficulty sets enemy hit points and the spawn range grows with survi
         world->GetPlayer().Position = {550, 550};
         world->GetPlayer().Health = 50;
         const int kills = world->GetPlayer().Kills;
-        const int hits = logic::settings_for(difficulty).enemy_hits;
+        const int hits = dotio::settings_for(difficulty).enemy_hits;
         for (int shot = 1; shot <= hits; ++shot) {
             world->AddBolt({550, 550}, {600, 0});
             world->UpdateBolts(1);
@@ -980,7 +980,7 @@ TEST_CASE("difficulty sets enemy hit points and the spawn range grows with survi
         }
         enemy.Reset();
         CHECK_MESSAGE(enemy.HitsRemaining == hits, "Reused enemy retained previous damage");
-        const gmath::Vec2 normal{640, 400}, active{5760, 3600}, retained{8000, 5000};
+        const dotio::math::Vec2 normal{640, 400}, active{5760, 3600}, retained{8000, 5000};
         const auto initial = world->SpawnHalf(normal, active);
         CHECK_MESSAGE(initial == normal * 1.75f, "Initial spawn range changed");
         world->StreamEnemies(world->GetPlayer().Position, normal, active, retained, 150);
@@ -1001,8 +1001,8 @@ TEST_CASE("difficulty sets enemy hit points and the spawn range grows with survi
 }
 
 TEST_CASE("harder difficulties fire more and move and pursue more aggressively") {
-    const auto easy = encounter(logic::Difficulty::easy), medium = encounter(logic::Difficulty::medium),
-               hard = encounter(logic::Difficulty::hard);
+    const auto easy = encounter(dotio::Difficulty::easy), medium = encounter(dotio::Difficulty::medium),
+               hard = encounter(dotio::Difficulty::hard);
     CHECK_MESSAGE((easy.shots < hard.shots && easy.speed < medium.speed && medium.speed < hard.speed &&
                    easy.acceleration < medium.acceleration && medium.acceleration < hard.acceleration &&
                    easy.cooldown > medium.cooldown && medium.cooldown > hard.cooldown && !easy.pursuing &&
@@ -1061,7 +1061,7 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
         population[i].Frozen = true;
         population[i].Position =
             player_center +
-            gmath::Vec2{i == 0 ? 2000.f : camera.viewport.x * 4.5f + (i == 1 ? -1.f : 1.f), 0};
+            dotio::math::Vec2{i == 0 ? 2000.f : camera.viewport.x * 4.5f + (i == 1 ? -1.f : 1.f), 0};
     }
     application.advance(0, {}, camera);
     CHECK_MESSAGE((!population[0].Frozen && !population[1].Frozen && population[2].Frozen),
@@ -1070,7 +1070,7 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
     application.debug = true;
     application.ghost = true;
     application.world().GetGhost().Position =
-        application.world().GetPlayer().Position + gmath::Vec2{5000, 5000};
+        application.world().GetPlayer().Position + dotio::math::Vec2{5000, 5000};
     application.advance(0, commands, camera);
     for (const auto &agent : application.world().GetEnemies())
         if (agent.IsActive) {
@@ -1085,40 +1085,40 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
 }
 
 TEST_CASE("legacy vector math and coordinate conversion keep their contracts") {
-    const gmath::Vec2 vector{3, 4};
+    const dotio::math::Vec2 vector{3, 4};
     CHECK_MESSAGE((vector.GetLength() == 5 && vector.DotProduct({2, -1}) == 2),
                   "Legacy vector units or dot product changed");
     CHECK_MESSAGE(vector.Determinant({2, -1}) == -11, "Legacy cross product changed");
-    CHECK_MESSAGE(gmath::Vec2{}.GetNormalized() == gmath::Vec2{}, "Legacy zero normalization changed");
+    CHECK_MESSAGE(dotio::math::Vec2{}.GetNormalized() == dotio::math::Vec2{}, "Legacy zero normalization changed");
     auto normalized = vector.GetNormalized();
     CHECK_MESSAGE((std::abs(normalized.X - 0.6f) < 0.000001f && std::abs(normalized.Y - 0.8f) < 0.000001f),
                   "Legacy normalization changed");
-    auto rotated = gmath::Vec2{1, 0}.Rotate(std::numbers::pi_v<float> / 2);
+    auto rotated = dotio::math::Vec2{1, 0}.Rotate(std::numbers::pi_v<float> / 2);
     CHECK_MESSAGE((std::abs(rotated.X) < 0.000001f && std::abs(rotated.Y - 1) < 0.000001f),
                   "Legacy rotation orientation changed");
-    CHECK_MESSAGE(std::abs(gmath::Vec2{1, 0}.SignedAngleDifference({0, 1}) - std::numbers::pi_v<float> / 2) <
+    CHECK_MESSAGE(std::abs(dotio::math::Vec2{1, 0}.SignedAngleDifference({0, 1}) - std::numbers::pi_v<float> / 2) <
                       0.000001f,
                   "Legacy signed angle changed");
-    CHECK_MESSAGE((dotio::from_world(dotio::to_world({250, -125})) == gmath::Vec2{250, -125}),
+    CHECK_MESSAGE((dotio::from_world(dotio::to_world({250, -125})) == dotio::math::Vec2{250, -125}),
                   "Legacy/world coordinate conversion changed");
 }
 
 TEST_CASE("a world starts with the preset of its difficulty and the default enemy tuning") {
-    for (auto difficulty : {logic::Difficulty::easy, logic::Difficulty::medium, logic::Difficulty::hard}) {
-        const auto constructed = std::make_unique<logic::World>(difficulty);
-        CHECK_MESSAGE(constructed->settings() == logic::settings_for(difficulty),
+    for (auto difficulty : {dotio::Difficulty::easy, dotio::Difficulty::medium, dotio::Difficulty::hard}) {
+        const auto constructed = std::make_unique<dotio::World>(difficulty);
+        CHECK_MESSAGE(constructed->settings() == dotio::settings_for(difficulty),
                       "A constructed world does not start with its preset");
-        auto world = std::make_unique<logic::World>();
+        auto world = std::make_unique<dotio::World>();
         world->Initialize(42, difficulty);
-        CHECK_MESSAGE(world->settings() == logic::settings_for(difficulty),
+        CHECK_MESSAGE(world->settings() == dotio::settings_for(difficulty),
                       "An initialized world does not start with its preset");
         CHECK_MESSAGE(&world->difficulty_settings() == &world->settings(),
                       "Readers of the difficulty settings do not see the tunable copy");
-        CHECK_MESSAGE(world->enemy_tuning() == logic::EnemyTuning{},
+        CHECK_MESSAGE(world->enemy_tuning() == dotio::EnemyTuning{},
                       "Enemy tuning does not start at default");
     }
-    const logic::EnemyTuning defaults;
-    CHECK_MESSAGE((defaults.wander == logic::WanderMode::steering && defaults.wander_force == 0.75f &&
+    const dotio::EnemyTuning defaults;
+    CHECK_MESSAGE((defaults.wander == dotio::WanderMode::steering && defaults.wander_force == 0.75f &&
                    defaults.attack_force == 0.85f && defaults.pursue_force == 0.85f &&
                    defaults.recover_force == 1.1f && defaults.kamikaze_force == 1.3f),
                   "Default enemy tuning lost steering wander or a force of the original game");
@@ -1126,14 +1126,14 @@ TEST_CASE("a world starts with the preset of its difficulty and the default enem
 }
 
 TEST_CASE("tuned balance survives the player's death and reset_tuning restores preset and defaults") {
-    auto world = std::make_unique<logic::World>();
-    world->Initialize(42, logic::Difficulty::hard);
+    auto world = std::make_unique<dotio::World>();
+    world->Initialize(42, dotio::Difficulty::hard);
     open_map();
-    const auto preset = logic::settings_for(logic::Difficulty::hard);
+    const auto preset = dotio::settings_for(dotio::Difficulty::hard);
     world->settings().movement_multiplier = 2;
     world->settings().enemy_hits = 5;
     world->settings().active_spawn_limit = 3;
-    world->enemy_tuning().wander = logic::WanderMode::path;
+    world->enemy_tuning().wander = dotio::WanderMode::path;
     world->enemy_tuning().pursue_force = 2;
     const auto tuned_settings = world->settings();
     const auto tuned_enemies = world->enemy_tuning();
@@ -1145,14 +1145,14 @@ TEST_CASE("tuned balance survives the player's death and reset_tuning restores p
     CHECK_MESSAGE(enemy.HitsRemaining == 5, "A respawned enemy ignores the tuned hit points");
     world->reset_tuning();
     CHECK_MESSAGE(world->settings() == preset, "reset_tuning did not restore the preset of the difficulty");
-    CHECK_MESSAGE(world->enemy_tuning() == logic::EnemyTuning{},
+    CHECK_MESSAGE(world->enemy_tuning() == dotio::EnemyTuning{},
                   "reset_tuning did not restore the default enemy tuning");
     CHECK_MESSAGE(world->difficulty_settings().name == "HARD", "reset_tuning changed the difficulty");
     world->settings().movement_multiplier = 2;
     world->enemy_tuning().wander_force = 2;
-    world->Initialize(42, logic::Difficulty::easy);
-    CHECK_MESSAGE((world->settings() == logic::settings_for(logic::Difficulty::easy) &&
-                   world->enemy_tuning() == logic::EnemyTuning{}),
+    world->Initialize(42, dotio::Difficulty::easy);
+    CHECK_MESSAGE((world->settings() == dotio::settings_for(dotio::Difficulty::easy) &&
+                   world->enemy_tuning() == dotio::EnemyTuning{}),
                   "A new world kept tuning of the previous one");
     open_map();
 }
@@ -1160,9 +1160,9 @@ TEST_CASE("tuned balance survives the player's death and reset_tuning restores p
 TEST_CASE("a changed movement multiplier changes how far wandering and pursuing enemies get") {
     for (const bool pursuing : {false, true}) {
         CAPTURE(pursuing);
-        const float preset = logic::settings_for(logic::Difficulty::easy).movement_multiplier;
+        const float preset = dotio::settings_for(dotio::Difficulty::easy).movement_multiplier;
         const float normal = travelled(preset, pursuing), doubled = travelled(2 * preset, pursuing);
-        CHECK_MESSAGE(normal > logic::Grid::CellSize, "The enemy hardly moved at its preset");
+        CHECK_MESSAGE(normal > dotio::Grid::CellSize, "The enemy hardly moved at its preset");
         // Speed gained and speed lost are both proportional, so the distance scales with it.
         CHECK_MESSAGE(std::abs(doubled - 2 * normal) < 0.01f * normal,
                       "Twice the movement multiplier did not carry the enemy twice as far");
@@ -1171,24 +1171,24 @@ TEST_CASE("a changed movement multiplier changes how far wandering and pursuing 
 }
 
 TEST_CASE("validation accepts the presets and rejects balance a world cannot run with") {
-    using Settings = logic::DifficultySettings;
-    using Tuning = logic::EnemyTuning;
-    for (const auto &preset : logic::difficulty_presets)
-        CHECK_NOTHROW_MESSAGE(logic::validate(preset), preset.name);
-    CHECK_NOTHROW(logic::validate(Tuning{}));
+    using Settings = dotio::DifficultySettings;
+    using Tuning = dotio::EnemyTuning;
+    for (const auto &preset : dotio::difficulty_presets)
+        CHECK_NOTHROW_MESSAGE(dotio::validate(preset), preset.name);
+    CHECK_NOTHROW(dotio::validate(Tuning{}));
     const std::vector<std::pair<const char *, void (*)(Settings &)>> accepted_settings{
         {"no spawns", [](Settings &s) { s.active_spawn_limit = 0; }},
         {"no spawn rate", [](Settings &s) { s.spawn_rate_multiplier = 0; }},
         {"standing enemies", [](Settings &s) { s.movement_multiplier = 0; }},
-        {"fastest enemies", [](Settings &s) { s.movement_multiplier = logic::max_movement_multiplier; }},
+        {"fastest enemies", [](Settings &s) { s.movement_multiplier = dotio::max_movement_multiplier; }},
         {"a shot per decision", [](Settings &s) { s.fire_interval_multiplier = 0; }},
         {"no prediction", [](Settings &s) { s.prediction = 0; }},
         {"one pursuit cycle and one hit", [](Settings &s) { s.pursuit_cycles = s.enemy_hits = 1; }},
     };
     for (const auto &[what, change] : accepted_settings) {
-        auto settings = logic::settings_for(logic::Difficulty::medium);
+        auto settings = dotio::settings_for(dotio::Difficulty::medium);
         change(settings);
-        CHECK_NOTHROW_MESSAGE(logic::validate(settings), what);
+        CHECK_NOTHROW_MESSAGE(dotio::validate(settings), what);
     }
     const std::vector<std::pair<const char *, void (*)(Settings &)>> rejected_settings{
         {"negative spawn limit", [](Settings &s) { s.active_spawn_limit = -1; }},
@@ -1201,7 +1201,7 @@ TEST_CASE("validation accepts the presets and rejects balance a world cannot run
         {"negative movement", [](Settings &s) { s.movement_multiplier = -1; }},
         {"nonfinite movement", [](Settings &s) { s.movement_multiplier = std::nanf(""); }},
         {"movement past walls",
-         [](Settings &s) { s.movement_multiplier = std::nextafter(logic::max_movement_multiplier, 100.f); }},
+         [](Settings &s) { s.movement_multiplier = std::nextafter(dotio::max_movement_multiplier, 100.f); }},
         {"negative fire interval", [](Settings &s) { s.fire_interval_multiplier = -1; }},
         {"nonfinite fire interval",
          [](Settings &s) { s.fire_interval_multiplier = std::numeric_limits<float>::infinity(); }},
@@ -1215,27 +1215,27 @@ TEST_CASE("validation accepts the presets and rejects balance a world cannot run
         {"no hit point", [](Settings &s) { s.enemy_hits = 0; }},
     };
     for (const auto &[what, change] : rejected_settings) {
-        auto settings = logic::settings_for(logic::Difficulty::medium);
+        auto settings = dotio::settings_for(dotio::Difficulty::medium);
         change(settings);
-        CHECK_THROWS_AS_MESSAGE(logic::validate(settings), std::invalid_argument, what);
+        CHECK_THROWS_AS_MESSAGE(dotio::validate(settings), std::invalid_argument, what);
     }
     for (const auto force : {&Tuning::wander_force, &Tuning::attack_force, &Tuning::pursue_force,
                              &Tuning::recover_force, &Tuning::kamikaze_force}) {
-        for (const float accepted : {0.f, logic::max_state_force}) {
+        for (const float accepted : {0.f, dotio::max_state_force}) {
             Tuning tuning;
             tuning.*force = accepted;
-            CHECK_NOTHROW_MESSAGE(logic::validate(tuning), accepted);
+            CHECK_NOTHROW_MESSAGE(dotio::validate(tuning), accepted);
         }
-        for (const float rejected : {-0.1f, std::nextafter(logic::max_state_force, 100.f), std::nanf(""),
+        for (const float rejected : {-0.1f, std::nextafter(dotio::max_state_force, 100.f), std::nanf(""),
                                      std::numeric_limits<float>::infinity()}) {
             Tuning tuning;
             tuning.*force = rejected;
-            CHECK_THROWS_AS_MESSAGE(logic::validate(tuning), std::invalid_argument, rejected);
+            CHECK_THROWS_AS_MESSAGE(dotio::validate(tuning), std::invalid_argument, rejected);
         }
     }
     Tuning unknown_mode;
-    unknown_mode.wander = static_cast<logic::WanderMode>(2);
-    CHECK_THROWS_AS(logic::validate(unknown_mode), std::invalid_argument);
+    unknown_mode.wander = static_cast<dotio::WanderMode>(2);
+    CHECK_THROWS_AS(dotio::validate(unknown_mode), std::invalid_argument);
 }
 
 TEST_CASE("the largest accepted speed does not carry an enemy through a wall") {
@@ -1243,19 +1243,19 @@ TEST_CASE("the largest accepted speed does not carry an enemy through a wall") {
     // A corridor along row 10 that a single wall cell at column 21 cuts in two.
     carve(10, 10, 10, 20);
     carve(10, 22, 10, 30);
-    world->settings().movement_multiplier = logic::max_movement_multiplier;
-    world->enemy_tuning().attack_force = logic::max_state_force;
-    REQUIRE_NOTHROW(logic::validate(world->settings()));
-    REQUIRE_NOTHROW(logic::validate(world->enemy_tuning()));
+    world->settings().movement_multiplier = dotio::max_movement_multiplier;
+    world->enemy_tuning().attack_force = dotio::max_state_force;
+    REQUIRE_NOTHROW(dotio::validate(world->settings()));
+    REQUIRE_NOTHROW(dotio::validate(world->enemy_tuning()));
     world->GetPlayer().Position = cell_center(10, 29);
     auto &enemy = wanderer(*world, cell_center(10, 11), 0);
     enemy.Fear = 0; // Without fear an attacker charges the player instead of keeping its distance.
     enemy.SetState(enemy.GetAttackState());
-    const float wall = 21 * logic::Grid::CellSize;
+    const float wall = 21 * dotio::Grid::CellSize;
     float fastest = 0, deepest = 0;
     // Different starts make the last and longest step meet the wall at different depths.
     for (int start = 0; start < 50; start += 5) {
-        enemy.Position = cell_center(10, 11) + gmath::Vec2{float(start), 0};
+        enemy.Position = cell_center(10, 11) + dotio::math::Vec2{float(start), 0};
         enemy.Velocity = {};
         for (int update = 0; update < 120; ++update) {
             const auto before = enemy.Position;
@@ -1264,7 +1264,7 @@ TEST_CASE("the largest accepted speed does not carry an enemy through a wall") {
             deepest = std::max(deepest, enemy.Position.X + enemy.Radius - wall);
         }
     }
-    CHECK_MESSAGE(fastest > 0.4f * logic::Grid::CellSize, "The enemy did not reach the speed under test");
+    CHECK_MESSAGE(fastest > 0.4f * dotio::Grid::CellSize, "The enemy did not reach the speed under test");
     // Contact resolution leaves a body a fraction of a pixel inside the face it hit.
     CHECK_MESSAGE(deepest < 1, "An enemy at the largest accepted speed got into a wall");
     open_map();
@@ -1278,18 +1278,18 @@ TEST_CASE("every state accelerates an enemy with its force from the enemy tuning
     const float multiplier = world->difficulty_settings().movement_multiplier;
     struct StateForce {
         const char *name;
-        logic::State &state;
-        float logic::EnemyTuning::*force;
+        dotio::State &state;
+        float dotio::EnemyTuning::*force;
         float original;
     };
     const std::array<StateForce, 5> states{
-        {{"wander", enemy.GetWanderState(), &logic::EnemyTuning::wander_force, 0.75f},
-         {"attack", enemy.GetAttackState(), &logic::EnemyTuning::attack_force, 0.85f},
-         {"pursue", enemy.GetPursueState(), &logic::EnemyTuning::pursue_force, 0.85f},
-         {"recover", enemy.GetRecoverState(), &logic::EnemyTuning::recover_force, 1.1f},
-         {"kamikaze", enemy.GetKamikazeState(), &logic::EnemyTuning::kamikaze_force, 1.3f}}};
+        {{"wander", enemy.GetWanderState(), &dotio::EnemyTuning::wander_force, 0.75f},
+         {"attack", enemy.GetAttackState(), &dotio::EnemyTuning::attack_force, 0.85f},
+         {"pursue", enemy.GetPursueState(), &dotio::EnemyTuning::pursue_force, 0.85f},
+         {"recover", enemy.GetRecoverState(), &dotio::EnemyTuning::recover_force, 1.1f},
+         {"kamikaze", enemy.GetKamikazeState(), &dotio::EnemyTuning::kamikaze_force, 1.3f}}};
     const auto near = [](float actual, float expected) { return std::abs(actual - expected) < 0.0001f; };
-    for (const auto mode : {logic::WanderMode::steering, logic::WanderMode::path}) {
+    for (const auto mode : {dotio::WanderMode::steering, dotio::WanderMode::path}) {
         for (const auto &tuned : states) {
             CAPTURE(tuned.name);
             tuning = {};
@@ -1320,7 +1320,7 @@ TEST_CASE("a steering wanderer moves down a corridor without a path and stays of
     CHECK_MESSAGE(enemy.IsWandering(), "The enemy left its wander state without seeing the player");
     CHECK_MESSAGE(path_free, "Steering wander planned a path");
     CHECK_MESSAGE(enemy.Position.X > cell_center(10, 18).X, "The wanderer did not advance down the corridor");
-    CHECK_MESSAGE(off_middle + enemy.Radius < logic::Grid::CellSize / 2,
+    CHECK_MESSAGE(off_middle + enemy.Radius < dotio::Grid::CellSize / 2,
                   "The wanderer's body touched a corridor wall");
     open_map();
 }
@@ -1328,7 +1328,7 @@ TEST_CASE("a steering wanderer moves down a corridor without a path and stays of
 TEST_CASE("a steering wanderer turns away from a wall ahead before touching it and keeps moving") {
     auto world = walled_world();
     carve(10, 10, 30, 30);
-    const float wall = 10 * logic::Grid::CellSize; // The room's west face.
+    const float wall = 10 * dotio::Grid::CellSize; // The room's west face.
     auto &enemy = wanderer(*world, cell_center(20, 12), std::numbers::pi_v<float>);
     float nearest = enemy.Position.X, slowest_second = std::numeric_limits<float>::infinity();
     float retreat = 0; // Furthest the enemy got from the wall again after its nearest approach.
@@ -1349,7 +1349,7 @@ TEST_CASE("a steering wanderer turns away from a wall ahead before touching it a
     CHECK_MESSAGE(nearest < cell_center(20, 11).X, "The wanderer never approached the wall");
     CHECK_MESSAGE(nearest - enemy.Radius > wall, "The wanderer's body reached the wall it was heading for");
     CHECK_MESSAGE(slowest_second > 0.5f * 60 * wander_speed(*world), "The wanderer stalled at the wall");
-    CHECK_MESSAGE(retreat > logic::Grid::CellSize, "The wanderer stayed at the wall");
+    CHECK_MESSAGE(retreat > dotio::Grid::CellSize, "The wanderer stayed at the wall");
     open_map();
 }
 
@@ -1364,7 +1364,7 @@ TEST_CASE("a steering wanderer turns around in a dead end and leaves it") {
         deepest = std::max(deepest, enemy.Position.X);
     }
     CHECK_MESSAGE(deepest > cell_center(10, 19).X, "The wanderer never walked into the dead end");
-    CHECK_MESSAGE(deepest + enemy.Radius < 21 * logic::Grid::CellSize, "The wanderer ran into the end wall");
+    CHECK_MESSAGE(deepest + enemy.Radius < 21 * dotio::Grid::CellSize, "The wanderer ran into the end wall");
     CHECK_MESSAGE(updates < 600, "The wanderer did not leave the dead end within ten seconds");
     CHECK_MESSAGE(enemy.Path.empty(), "Leaving a dead end planned a path");
     open_map();
@@ -1377,7 +1377,7 @@ TEST_CASE("a steering wanderer heading into a corner keeps walking and gets out 
         CAPTURE(heading);
         auto world = walled_world();
         carve(10, 10, 30, 30);
-        const gmath::Vec2 corner{31 * logic::Grid::CellSize, 10 * logic::Grid::CellSize};
+        const dotio::math::Vec2 corner{31 * dotio::Grid::CellSize, 10 * dotio::Grid::CellSize};
         auto &enemy = wanderer(*world, cell_center(11, 29), heading);
         float slowest_half_second = std::numeric_limits<float>::infinity();
         float closest = std::numeric_limits<float>::infinity();
@@ -1405,7 +1405,7 @@ TEST_CASE("a steering wanderer heading into a corner keeps walking and gets out 
         CHECK_MESSAGE(slowest_half_second > 0.5f * 30 * wander_speed(*world),
                       "The wanderer stalled in the corner");
         CHECK_MESSAGE(sharp_turns <= 4, "The wanderer kept turning back and forth in the corner");
-        CHECK_MESSAGE(retreat > logic::Grid::CellSize, "The wanderer did not get out of the corner");
+        CHECK_MESSAGE(retreat > dotio::Grid::CellSize, "The wanderer did not get out of the corner");
     }
     open_map();
 }
@@ -1413,29 +1413,29 @@ TEST_CASE("a steering wanderer heading into a corner keeps walking and gets out 
 TEST_CASE("the wander feelers follow the heading and steering reacts to exactly those segments") {
     auto world = walled_world();
     carve(10, 10, 30, 30);
-    const float cell = logic::Grid::CellSize;
+    const float cell = dotio::Grid::CellSize;
     auto &enemy = wanderer(*world, cell_center(20, 20), 0.5f);
-    const auto feelers = logic::WanderFeelers(enemy);
-    const std::array<float, 3> lengths{logic::wander_forward_feeler_cells * cell,
-                                       logic::wander_side_feeler_cells * cell,
-                                       logic::wander_side_feeler_cells * cell};
-    const std::array<float, 3> angles{0.5f, 0.5f + logic::wander_side_feeler_angle_rad,
-                                      0.5f - logic::wander_side_feeler_angle_rad};
+    const auto feelers = dotio::WanderFeelers(enemy);
+    const std::array<float, 3> lengths{dotio::wander_forward_feeler_cells * cell,
+                                       dotio::wander_side_feeler_cells * cell,
+                                       dotio::wander_side_feeler_cells * cell};
+    const std::array<float, 3> angles{0.5f, 0.5f + dotio::wander_side_feeler_angle_rad,
+                                      0.5f - dotio::wander_side_feeler_angle_rad};
     for (std::size_t i = 0; i < feelers.size(); ++i) {
         const auto reach = feelers[i].End - feelers[i].Start;
         CHECK_MESSAGE(feelers[i].Start == enemy.Position, "A feeler does not start at the enemy");
         CHECK_MESSAGE(std::abs(reach.GetLength() - lengths[i]) < 0.001f, "A feeler has the wrong length");
         CHECK_MESSAGE(std::abs(reach.GetDirection() - angles[i]) < 0.0001f, "A feeler has the wrong angle");
     }
-    CHECK_MESSAGE((logic::wander_forward_feeler == 0 && logic::wander_positive_feeler == 1 &&
-                   logic::wander_negative_feeler == 2),
+    CHECK_MESSAGE((dotio::wander_forward_feeler == 0 && dotio::wander_positive_feeler == 1 &&
+                   dotio::wander_negative_feeler == 2),
                   "The feeler order changed");
-    const auto blocked = [](const gmath::Segment &feeler) {
-        gmath::Point2 hit{};
-        return logic::Grid::IsIntersectingAnyCell(feeler, &logic::Grid::Array[0][0], hit);
+    const auto blocked = [](const dotio::math::Segment &feeler) {
+        dotio::math::Point2 hit{};
+        return dotio::Grid::IsIntersectingAnyCell(feeler, &dotio::Grid::Array[0][0], hit);
     };
-    const auto blocked_feelers = [&](const logic::Enemy &subject) {
-        const auto tested = logic::WanderFeelers(subject);
+    const auto blocked_feelers = [&](const dotio::Enemy &subject) {
+        const auto tested = dotio::WanderFeelers(subject);
         return std::array<bool, 3>{blocked(tested[0]), blocked(tested[1]), blocked(tested[2])};
     };
     // In the middle of the room no feeler touches a wall and the heading is left alone.
@@ -1452,19 +1452,19 @@ TEST_CASE("the wander feelers follow the heading and steering reacts to exactly 
                   "Only the side feeler toward the wall should be blocked");
     enemy.GetState().Execute(1);
     CHECK_MESSAGE(std::abs(enemy.WanderHeading - (std::numbers::pi_v<float> / 2 +
-                                                  logic::wander_side_turn_rad_per_update)) < 0.0001f,
+                                                  dotio::wander_side_turn_rad_per_update)) < 0.0001f,
                   "A blocked side feeler did not nudge the heading away from its side");
     CHECK_MESSAGE(enemy.WanderSide == 1, "The side away from the wall did not become the preferred one");
     // Straight at the east wall: the forward feeler is blocked and the heading turns until it is free.
     enemy.Position = {east_wall - 50, cell_center(20, 30).Y};
     enemy.Velocity = {};
     enemy.WanderHeading = 0;
-    CHECK_MESSAGE(blocked_feelers(enemy)[logic::wander_forward_feeler], "The forward feeler misses the wall");
+    CHECK_MESSAGE(blocked_feelers(enemy)[dotio::wander_forward_feeler], "The forward feeler misses the wall");
     enemy.GetState().Execute(1);
-    CHECK_MESSAGE(!blocked_feelers(enemy)[logic::wander_forward_feeler],
+    CHECK_MESSAGE(!blocked_feelers(enemy)[dotio::wander_forward_feeler],
                   "Steering left the heading on a blocked forward feeler");
     // The smallest turn points at the wall on both sides; the second is free on the preferred side.
-    CHECK_MESSAGE(std::abs(enemy.WanderHeading - logic::wander_fan_rad[1]) < 0.0001f,
+    CHECK_MESSAGE(std::abs(enemy.WanderHeading - dotio::wander_fan_rad[1]) < 0.0001f,
                   "The heading did not turn to the first free direction on the preferred side");
     CHECK_MESSAGE(enemy.WanderSide == 1, "A turn to the preferred side changed the preference");
     CHECK_MESSAGE(enemy.Velocity.X < 0, "The enemy still accelerates toward the wall");
@@ -1474,7 +1474,7 @@ TEST_CASE("the wander feelers follow the heading and steering reacts to exactly 
     enemy.WanderHeading = 0;
     enemy.WanderSide = -1;
     enemy.GetState().Execute(1);
-    CHECK_MESSAGE(std::abs(enemy.WanderHeading - logic::wander_fan_rad[1]) < 0.0001f,
+    CHECK_MESSAGE(std::abs(enemy.WanderHeading - dotio::wander_fan_rad[1]) < 0.0001f,
                   "The heading did not turn to the free side");
     CHECK_MESSAGE(enemy.WanderSide == 1, "The side that was free did not become the preferred one");
     open_map();
@@ -1514,7 +1514,7 @@ TEST_CASE("path mode still plans wander paths and steering drops them again") {
     auto world = walled_world();
     carve(10, 10, 20, 20);
     world->ExtractGraph();
-    world->enemy_tuning().wander = logic::WanderMode::path;
+    world->enemy_tuning().wander = dotio::WanderMode::path;
     auto &enemy = wanderer(*world, cell_center(15, 15), 0);
     // The random goal can be the enemy's own cell, which gives an empty path; the next
     // decision tick plans again.
@@ -1524,13 +1524,13 @@ TEST_CASE("path mode still plans wander paths and steering drops them again") {
     REQUIRE_MESSAGE(!enemy.Path.empty(), "Path mode planned no wander path");
     for (int i = 0; i < enemy.Path.size(); ++i) {
         const auto cell = enemy.Path.get(i);
-        CHECK_MESSAGE(logic::Grid::Array[cell.Row][cell.Column] == 0, "A wander path enters a wall");
+        CHECK_MESSAGE(dotio::Grid::Array[cell.Row][cell.Column] == 0, "A wander path enters a wall");
     }
     const float heading = enemy.WanderHeading;
     run(*world, 30, updates);
     CHECK_MESSAGE(enemy.WanderHeading == heading, "Path mode changed the steering heading");
     CHECK_MESSAGE(enemy.IsWandering(), "The enemy left its wander state without seeing the player");
-    world->enemy_tuning().wander = logic::WanderMode::steering;
+    world->enemy_tuning().wander = dotio::WanderMode::steering;
     enemy.Path.push({15, 15});
     world->UpdateEnemies(1, false);
     CHECK_MESSAGE(enemy.Path.empty(), "Steering wander kept a path from path mode");

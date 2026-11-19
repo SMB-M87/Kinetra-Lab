@@ -6,13 +6,13 @@
 #include <tuple>
 #include <vector>
 
-namespace logic {
+namespace dotio {
 kinetra::CollisionGrid Grid::CollisionView(const int *cells) {
     return {{cells, std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
 }
 
-const gmath::GridSize Grid::GridSize{Rows, Columns};
-gmath::Coordinates Grid::Origin = {0.0f, 0.0f};
+const dotio::math::GridSize Grid::GridSize{Rows, Columns};
+dotio::math::Coordinates Grid::Origin = {0.0f, 0.0f};
 float Grid::CellSize = 100.0f;
 
 int Grid::Array[Rows][Columns]{};
@@ -133,24 +133,24 @@ void Grid::Generate(std::uint32_t seed, int offset_row, int offset_column) {
             Array[row][column] = TerrainCell(seed, row + offset_row, column + offset_column);
 }
 
-void Grid::HandleGridCollision(logic::PhysicsObject &object, const float, const int *cells) {
+void Grid::HandleGridCollision(dotio::PhysicsObject &object, const float, const int *cells) {
     auto body = dotio::physics_body(object);
     kinetra::collide_grid(body, CollisionView(cells));
     dotio::apply_body(object, body);
 }
 
-bool Grid::GridIntersection(const gmath::Segment &segment, const int *cells, gmath::Point2 &intersection) {
+bool Grid::GridIntersection(const dotio::math::Segment &segment, const int *cells, dotio::math::Point2 &intersection) {
     return IsIntersectingAnyCell(segment, cells, intersection);
 }
 
-bool Grid::SegmentIsIntersecingCircle(const gmath::Segment &segment, const gmath::Point2 center,
+bool Grid::SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 center,
                                       const float radius) {
-    gmath::Point2 hit;
+    dotio::math::Point2 hit;
     return SegementCircleIntersection(segment, center, radius, hit) & 1;
 }
 
-uint8_t Grid::SegementCircleIntersection(const gmath::Segment &segment, const gmath::Point2 center,
-                                         const float radius, gmath::Point2 &intersection) {
+uint8_t Grid::SegementCircleIntersection(const dotio::math::Segment &segment, const dotio::math::Point2 center,
+                                         const float radius, dotio::math::Point2 &intersection) {
     const auto start = dotio::physics_vector(segment.Start), end = dotio::physics_vector(segment.End);
     const auto c = dotio::physics_vector(center);
     const uint8_t flags =
@@ -162,7 +162,7 @@ uint8_t Grid::SegementCircleIntersection(const gmath::Segment &segment, const gm
     return flags;
 }
 
-bool Grid::IsIntersectingAnyCell(gmath::Segment segment, const int *cells, gmath::Point2 &intersection) {
+bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, const int *cells, dotio::math::Point2 &intersection) {
     if (const auto fraction = kinetra::segment_grid(
             dotio::physics_vector(segment.Start), dotio::physics_vector(segment.End), CollisionView(cells))) {
         intersection = segment.Start + (segment.End - segment.Start) * *fraction;
@@ -171,12 +171,12 @@ bool Grid::IsIntersectingAnyCell(gmath::Segment segment, const int *cells, gmath
     return false;
 }
 
-gmath::GridEntry Grid::GenerateGridEntry(gmath::GridEntry origin) {
+dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) {
     std::random_device random;
     std::mt19937 generator(random());
     const int center_row = std::clamp(origin.Row, 0, Rows - 1);
     const int center_col = std::clamp(origin.Column, 0, Columns - 1);
-    std::vector<gmath::GridEntry> candidates;
+    std::vector<dotio::math::GridEntry> candidates;
     // Enumerate once: unlike rejection sampling, sealed neighborhoods cannot hang.
     for (int row = std::max(0, center_row - 5); row <= std::min(Rows - 1, center_row + 5); ++row)
         for (int col = std::max(0, center_col - 5); col <= std::min(Columns - 1, center_col + 5); ++col)
@@ -188,13 +188,13 @@ gmath::GridEntry Grid::GenerateGridEntry(gmath::GridEntry origin) {
     return candidates[choose(generator)];
 }
 
-gmath::Position Grid::GeneratePosition() {
+dotio::math::Position Grid::GeneratePosition() {
     std::random_device rd;
     std::mt19937 gen(rd());
 
     int minIndex = 3;
-    int maxIndexRow = logic::Grid::GridSize.Rows - minIndex;
-    int maxIndexCol = logic::Grid::GridSize.Columns - minIndex;
+    int maxIndexRow = dotio::Grid::GridSize.Rows - minIndex;
+    int maxIndexCol = dotio::Grid::GridSize.Columns - minIndex;
 
     std::uniform_int_distribution<int> dis_row(minIndex, maxIndexRow);
     std::uniform_int_distribution<int> dis_col(minIndex, maxIndexCol);
@@ -203,9 +203,9 @@ gmath::Position Grid::GeneratePosition() {
     do {
         row = dis_row(gen);
         column = dis_col(gen);
-    } while (logic::Grid::Array[row][column] != 0);
-    float posX = column * logic::Grid::CellSize + (logic::Grid::CellSize * 0.5f);
-    float posY = row * logic::Grid::CellSize + (logic::Grid::CellSize * 0.5f);
+    } while (dotio::Grid::Array[row][column] != 0);
+    float posX = column * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
+    float posY = row * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     return {posX, posY};
 }
-} // namespace logic
+} // namespace dotio

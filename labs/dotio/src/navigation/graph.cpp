@@ -1,7 +1,7 @@
 #include "dotio/navigation/graph.h"
 #include "dotio/math/portable.h"
 
-namespace logic {
+namespace dotio {
 Graph::Graph() : vertexMap() {
 }
 
@@ -12,22 +12,22 @@ void Graph::ClearAll() {
     }
 }
 
-void Graph::AddVertex(const gmath::GridEntry &cell) {
+void Graph::AddVertex(const dotio::math::GridEntry &cell) {
     if (vertexMap.find(cell) == vertexMap.end()) {
         vertexMap[cell] = Vertex(cell);
     }
 }
 
-Vertex &Graph::GetVertex(const gmath::GridEntry &cell) {
+Vertex &Graph::GetVertex(const dotio::math::GridEntry &cell) {
     if (vertexMap.find(cell) != vertexMap.end())
         return vertexMap[cell];
     else
-        return logic::Vertex::NullVertex;
+        return dotio::Vertex::NullVertex;
 }
 
-bool Graph::AStar(const gmath::GridEntry &start, const gmath::GridEntry &goal, Vertex &output) {
+bool Graph::AStar(const dotio::math::GridEntry &start, const dotio::math::GridEntry &goal, Vertex &output) {
     ClearAll();
-    logic::PriorityQueue q(goal);
+    dotio::PriorityQueue q(goal);
 
     Vertex *vertex = &GetVertex(start);
     vertex->G = 0;
@@ -70,13 +70,13 @@ bool Graph::AStar(const gmath::GridEntry &start, const gmath::GridEntry &goal, V
     return false;
 }
 
-bool Graph::HideStar(const gmath::GridEntry &start, const gmath::Position &player, const float fear,
+bool Graph::HideStar(const dotio::math::GridEntry &start, const dotio::math::Position &player, const float fear,
                      Vertex &output) {
     ClearAll();
-    logic::PriorityQueue q(start);
+    dotio::PriorityQueue q(start);
 
-    gmath::GridEntry player_output;
-    gmath::GridEntry::FromWorld(player, logic::Grid::Origin, logic::Grid::CellSize, logic::Grid::GridSize,
+    dotio::math::GridEntry player_output;
+    dotio::math::GridEntry::FromWorld(player, dotio::Grid::Origin, dotio::Grid::CellSize, dotio::Grid::GridSize,
                                 player_output);
     int row = start.Row - player_output.Row;
     int column = start.Column - player_output.Column;
@@ -93,13 +93,13 @@ bool Graph::HideStar(const gmath::GridEntry &start, const gmath::Position &playe
 
     while (!q.empty()) {
         vertex = &q.pop();
-        gmath::Point2 intersection{gmath::GridEntry::ToWorld(vertex->cell.Row, vertex->cell.Column,
-                                                             logic::Grid::CellSize, logic::Grid::Origin)};
-        intersection.X += logic::Grid::CellSize / 2;
-        intersection.Y += logic::Grid::CellSize / 2;
+        dotio::math::Point2 intersection{dotio::math::GridEntry::ToWorld(vertex->cell.Row, vertex->cell.Column,
+                                                             dotio::Grid::CellSize, dotio::Grid::Origin)};
+        intersection.X += dotio::Grid::CellSize / 2;
+        intersection.Y += dotio::Grid::CellSize / 2;
 
-        if (logic::Grid::IsIntersectingAnyCell(
-                {intersection, player}, reinterpret_cast<const int *>(logic::Grid::Array), intersection)) {
+        if (dotio::Grid::IsIntersectingAnyCell(
+                {intersection, player}, reinterpret_cast<const int *>(dotio::Grid::Array), intersection)) {
             count++;
             if (count > fear) {
                 output = *vertex;
@@ -162,9 +162,9 @@ bool Graph::HideStar(const gmath::GridEntry &start, const gmath::Position &playe
     return false;
 }
 
-logic::Stack Graph::GetPath(const gmath::GridEntry &, const Vertex &goal) {
+dotio::Stack Graph::GetPath(const dotio::math::GridEntry &, const Vertex &goal) {
     Vertex vertex = goal;
-    logic::Stack path;
+    dotio::Stack path;
     int end = goal.steps;
     bool smaller = end <= path.capacity() - 1;
     int boundary = smaller ? end : end - path.capacity();
@@ -181,4 +181,4 @@ logic::Stack Graph::GetPath(const gmath::GridEntry &, const Vertex &goal) {
 
     return path;
 }
-} // namespace logic
+} // namespace dotio

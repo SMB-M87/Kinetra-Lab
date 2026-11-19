@@ -30,7 +30,7 @@ The session is a `dotio::Session` ([session.h](../labs/dotio/include/dotio/prese
 
 ## Lifecycle and constraints
 
-Application owns logic::World through a unique_ptr to keep the address stable: enemies and AI states reference that world. World owns actor/projectile pools, navigation graph and props. Static Grid storage limits the process to one active Dotio world. Return to the launcher menu and destroy the session before creating its replacement.
+Application owns dotio::World through a unique_ptr to keep the address stable: enemies and AI states reference that world. World owns actor/projectile pools, navigation graph and props. Static Grid storage limits the process to one active Dotio world. Return to the launcher menu and destroy the session before creating its replacement.
 
 Streaming rebases actors, projectiles, props and the camera together; routes and spatial partitions rebuild. Absolute district coordinates retain seeded terrain identity while local coordinates bound the active simulation. Presentation adapts legacy drawing to Runtime; game rules and the graph remain independent of SDL/OpenGL.
 

@@ -6,13 +6,13 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
 
-namespace logic {
+namespace dotio {
 Enemy::Enemy() : PhysicsObject() {
 }
 
-Enemy::Enemy(World *world, gmath::Position position, gmath::Position target, const float direction,
+Enemy::Enemy(World *world, dotio::math::Position position, dotio::math::Position target, const float direction,
              const float fear)
-    : PhysicsObject(60.0f, logic::Grid::CellSize * 0.2, 0.2f, 0.2f, position, direction, true), _world(world),
+    : PhysicsObject(60.0f, dotio::Grid::CellSize * 0.2, 0.2f, 0.2f, position, direction, true), _world(world),
       Target(target), Path{}, Fear(fear) {
 }
 
@@ -40,12 +40,12 @@ void Enemy::Tick() {
     _state->Update();
 }
 
-void Enemy::Draw(gamef::Renderer &renderer) {
-    gmath::RGBA red = {1.0f, 0.0f, 0.0f, 1.0f};
-    gmath::RGBA orange = {1.0f, 0.65f, 0.0f, 1.0f};
-    gmath::RGBA kamikaze = {1.0f, 0.3f, 0.3f, 1.0f};
-    gmath::RGBA green = {0.0f, 1.0f, 0.0f, 1.0f};
-    gmath::RGBA blue = {0.0f, 0.5f, 1.0f, 1.0f};
+void Enemy::Draw(dotio::Renderer &renderer) {
+    dotio::math::RGBA red = {1.0f, 0.0f, 0.0f, 1.0f};
+    dotio::math::RGBA orange = {1.0f, 0.65f, 0.0f, 1.0f};
+    dotio::math::RGBA kamikaze = {1.0f, 0.3f, 0.3f, 1.0f};
+    dotio::math::RGBA green = {0.0f, 1.0f, 0.0f, 1.0f};
+    dotio::math::RGBA blue = {0.0f, 0.5f, 1.0f, 1.0f};
     renderer.DrawCircle(Position, Radius,
                         IsKamikazing()   ? kamikaze
                         : !Debug         ? red
@@ -87,22 +87,22 @@ void Enemy::SpatialPartitioning(const float delta) {
     kinetra::integrate(motion, delta, _friction);
     Velocity = dotio::legacy_vector(motion.velocity);
 
-    gmath::Vector2 next{Position + Velocity};
+    dotio::math::Vector2 next{Position + Velocity};
     uint8_t p =
-        gmath::GridEntry::GetSquarePartition(next, Radius, logic::Grid::Origin, logic::Grid::CellSize);
-    gmath::GridEntry partitions[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
+        dotio::math::GridEntry::GetSquarePartition(next, Radius, dotio::Grid::Origin, dotio::Grid::CellSize);
+    dotio::math::GridEntry partitions[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
-    gmath::GridEntry::GetPartitions(p, next, logic::Grid::Origin, logic::Grid::CellSize,
-                                    logic::Grid::GridSize, partitions);
+    dotio::math::GridEntry::GetPartitions(p, next, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                    dotio::Grid::GridSize, partitions);
 
     bool keep[4]{false, false, false, false};
 
     for (int i = 0; i < 4; i++) {
-        gmath::GridEntry *np = &partitions[i];
+        dotio::math::GridEntry *np = &partitions[i];
 
         if (_world->EnemyPartitionMap.contains(*np))
             for (auto o : _world->EnemyPartitionMap[*np]) {
-                logic::Enemy &other = *(logic::Enemy *)o;
+                dotio::Enemy &other = *(dotio::Enemy *)o;
                 if (!other.IsActive || other.Frozen)
                     continue;
 
@@ -126,14 +126,14 @@ void Enemy::SpatialPartitioning(const float delta) {
     kinetra::integrate(motion, delta);
     dotio::apply_body(*this, motion);
 
-    p = gmath::GridEntry::GetSquarePartition(Position, Radius, logic::Grid::Origin, logic::Grid::CellSize);
+    p = dotio::math::GridEntry::GetSquarePartition(Position, Radius, dotio::Grid::Origin, dotio::Grid::CellSize);
     partitions[0] = {-1, -1};
     partitions[1] = {-1, -1};
     partitions[2] = {-1, -1};
     partitions[3] = {-1, -1};
 
-    gmath::GridEntry::GetPartitions(p, Position, logic::Grid::Origin, logic::Grid::CellSize,
-                                    logic::Grid::GridSize, partitions);
+    dotio::math::GridEntry::GetPartitions(p, Position, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                    dotio::Grid::GridSize, partitions);
 
     keep[0] = false;
     keep[1] = false;
@@ -141,7 +141,7 @@ void Enemy::SpatialPartitioning(const float delta) {
     keep[3] = false;
 
     for (int i = 0; i < 4; i++) {
-        gmath::GridEntry *np = &partitions[i];
+        dotio::math::GridEntry *np = &partitions[i];
 
         if (np->Row == -1)
             continue;
@@ -151,8 +151,8 @@ void Enemy::SpatialPartitioning(const float delta) {
     }
 
     for (int i = 0; i < 4; i++) {
-        gmath::GridEntry *np = &partitions[i];
-        gmath::GridEntry *lp = &LastPartition[i];
+        dotio::math::GridEntry *np = &partitions[i];
+        dotio::math::GridEntry *lp = &LastPartition[i];
 
         if (np->Row != lp->Row || np->Column != lp->Column) {
             if (np->Row == -1 || np->Column == -1) {
@@ -237,8 +237,8 @@ bool Enemy::IsKamikazing() {
     return &GetState() == &GetKamikazeState();
 }
 bool Enemy::IsInLineOfSight() {
-    if (gmath::Point2 _; logic::Grid::IsIntersectingAnyCell(
-            {Position, _world->GetPlayer().Position}, reinterpret_cast<const int *>(logic::Grid::Array), _))
+    if (dotio::math::Point2 _; dotio::Grid::IsIntersectingAnyCell(
+            {Position, _world->GetPlayer().Position}, reinterpret_cast<const int *>(dotio::Grid::Array), _))
         return false;
     else {
         return true;
@@ -296,4 +296,4 @@ void Enemy::Reset() {
     _countdown = 0;
     Path.clear();
 }
-} // namespace logic
+} // namespace dotio

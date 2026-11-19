@@ -13,18 +13,18 @@
 #include <random>
 #include <unordered_set>
 
-namespace logic {
+namespace dotio {
 /// Own the streamed-world game population, projectiles and navigation graph.
 /// Addresses stay stable because enemies and their state objects reference this world.
 class World {
     float _tickRate{1.0f / 20.0f};
-    logic::Player _player;
-    logic::Player _ghost;
+    dotio::Player _player;
+    dotio::Player _ghost;
     TrackerData<Enemy, 666> _enemies;
     TrackerData<Arrow, 666> _arrows;
     TrackerData<Bolt, 20> _bolts;
-    logic::Graph _graph{};
-    std::array<gmath::Position, 666> previous_enemy_positions_{};
+    dotio::Graph _graph{};
+    std::array<dotio::math::Position, 666> previous_enemy_positions_{};
     bool enemies_moved_{};
     float spawn_credit_{};
     double survival_seconds_{};
@@ -46,7 +46,7 @@ class World {
     };
     std::vector<Prop> props_;
     void PopulateObjects();
-    std::optional<std::pair<std::size_t, float>> FirstObjectHit(gmath::Segment segment, float radius) const;
+    std::optional<std::pair<std::size_t, float>> FirstObjectHit(dotio::math::Segment segment, float radius) const;
 
   public:
     /// Throws std::invalid_argument for a difficulty without a preset.
@@ -54,7 +54,7 @@ class World {
         : difficulty_(difficulty), settings_(settings_for(difficulty)) {}
     World(const World &) = delete;
     World &operator=(const World &) = delete;
-    std::unordered_map<gmath::GridEntry, std::unordered_set<logic::PhysicsObject *>> EnemyPartitionMap;
+    std::unordered_map<dotio::math::GridEntry, std::unordered_set<dotio::PhysicsObject *>> EnemyPartitionMap;
 
     /// Starts a new world for `seed` at `difficulty`: terrain, player, a dormant enemy pool,
     /// the preset of the difficulty as settings() and a default enemy_tuning(). The seed also
@@ -91,15 +91,15 @@ class World {
     std::uint64_t ResetCount() const { return resets_; }
     double survival_seconds() const { return survival_seconds_; }
     /// Reach the activity rectangle after five unpaused simulated minutes.
-    gmath::Vec2 SpawnHalf(gmath::Vec2 normal_half, gmath::Vec2 active_half) const {
+    dotio::math::Vec2 SpawnHalf(dotio::math::Vec2 normal_half, dotio::math::Vec2 active_half) const {
         const float progress = float(std::clamp(survival_seconds_ / 300.0, 0.0, 1.0));
         const auto initial = normal_half * 1.75f;
         return {std::min(active_half.X, initial.X + (active_half.X - initial.X) * progress),
                 std::min(active_half.Y, initial.Y + (active_half.Y - initial.Y) * progress)};
     }
     /// Shift the local navigation/physics window before the player reaches its edge.
-    gmath::Vec2 StreamAroundPlayer();
-    gmath::Vec2 WorldOffset() const {
+    dotio::math::Vec2 StreamAroundPlayer();
+    dotio::math::Vec2 WorldOffset() const {
         return {float(offset_column_) * Grid::CellSize, float(offset_row_) * Grid::CellSize};
     }
     int TerrainCell(int row, int column) const {
@@ -114,8 +114,8 @@ class World {
     }
     /// Update residency; timed fuzzy density control refills at most one offscreen slot per call.
     /// elapsed is simulated seconds, zero while paused; nearby counts ignore health and mana.
-    void StreamEnemies(gmath::Position center, gmath::Vec2 normal_half, gmath::Vec2 active_half,
-                       gmath::Vec2 retained_half, float elapsed = 0);
+    void StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal_half, dotio::math::Vec2 active_half,
+                       dotio::math::Vec2 retained_half, float elapsed = 0);
     void UpdateObjects(float delta);
     const auto &GetObjects() const { return props_; }
 
@@ -123,19 +123,19 @@ class World {
 
     void ExtractGraph();
 
-    void SetPlayer(logic::Player player);
+    void SetPlayer(dotio::Player player);
 
-    logic::Player &GetPlayer();
+    dotio::Player &GetPlayer();
 
-    void SetGhost(logic::Player ghost);
+    void SetGhost(dotio::Player ghost);
 
-    logic::Player &GetGhost();
+    dotio::Player &GetGhost();
 
-    void AddEnemy(gmath::Position position, gmath::Position target, const float fear, bool active);
+    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear, bool active);
 
-    void AddArrow(gmath::Position position, gmath::Vector2 velocity);
+    void AddArrow(dotio::math::Position position, dotio::math::Vector2 velocity);
 
-    void AddBolt(const gmath::Position position, const gmath::Vector2 velocity);
+    void AddBolt(const dotio::math::Position position, const dotio::math::Vector2 velocity);
 
     void UpdateEnemies(const float delta, const bool debug);
 
@@ -143,7 +143,7 @@ class World {
 
     void UpdateBolts(const float delta);
 
-    void Draw(gamef::Renderer &renderer);
+    void Draw(dotio::Renderer &renderer);
 
     [[nodiscard]] Tracker<Enemy> &GetEnemies();
 
@@ -151,8 +151,8 @@ class World {
 
     [[nodiscard]] Tracker<Bolt> &GetBolts();
 
-    [[nodiscard]] logic::Graph &GetGraph();
+    [[nodiscard]] dotio::Graph &GetGraph();
 };
-} // namespace logic
+} // namespace dotio
 
 #endif

@@ -7,17 +7,17 @@
 
 #include "dotio/entities/moving_object.h"
 
-namespace logic {
+namespace dotio {
 struct Bolt : MovingObject {
     static constexpr float Radius = 5.f;
-    explicit Bolt(gmath::Position position, gmath::Vector2 velocity);
+    explicit Bolt(dotio::math::Position position, dotio::math::Vector2 velocity);
 
     Bolt();
 
     void Update(float delta) override;
 
-    void Draw(gamef::Renderer &renderer) override;
+    void Draw(dotio::Renderer &renderer) override;
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // MAIN_BOLT_H

@@ -1,12 +1,12 @@
 #include "dotio/entities/static_object.h"
 #include "dotio/math/portable.h"
 
-namespace logic {
+namespace dotio {
 StaticObject::~StaticObject() = default;
-StaticObject::StaticObject(const gmath::Position position, const float direction, bool active)
+StaticObject::StaticObject(const dotio::math::Position position, const float direction, bool active)
     : IsActive(active), Position(position), Direction(direction) {
 }
 
-void StaticObject::Draw(gamef::Renderer &) {
+void StaticObject::Draw(dotio::Renderer &) {
 }
-} // namespace logic
+} // namespace dotio

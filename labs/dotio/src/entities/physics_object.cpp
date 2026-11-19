@@ -2,20 +2,20 @@
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/portable.h"
 
-namespace logic {
+namespace dotio {
 PhysicsObject::~PhysicsObject() = default;
 
 PhysicsObject::PhysicsObject() {
 }
 
 PhysicsObject::PhysicsObject(const float mass, const float radius, const float friction,
-                             const float rotationalFriction, const gmath::Position position,
+                             const float rotationalFriction, const dotio::math::Position position,
                              const float direction, bool active)
     : MovingObject(position, direction, active), _mass(mass), _friction(friction),
       _angularFriction(rotationalFriction), Radius(radius) {
 }
 
-void PhysicsObject::ApplyForce(const gmath::Vector2 &force, const float) {
+void PhysicsObject::ApplyForce(const dotio::math::Vector2 &force, const float) {
     // Legacy steering supplies a velocity change, not a force in newtons.
     auto body = dotio::physics_body(*this);
     kinetra::apply_body_impulse(body, dotio::physics_vector(force) * body.mass, body.position);
@@ -42,4 +42,4 @@ float PhysicsObject::GetFriction() const {
 float PhysicsObject::GetMass() const {
     return _mass;
 }
-} // namespace logic
+} // namespace dotio

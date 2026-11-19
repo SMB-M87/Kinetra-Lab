@@ -4,7 +4,7 @@
 #include "dotio/entities/physics_object.h"
 #include "dotio/navigation/grid.h"
 
-namespace logic {
+namespace dotio {
 class World;
 
 class Player final : public PhysicsObject {
@@ -22,20 +22,20 @@ class Player final : public PhysicsObject {
     float BoltSpeed{10.0f};
     int Kills{1};
     float MaxBulletKills{100.0f};
-    gmath::Vec2 Heading;
+    dotio::math::Vec2 Heading;
 
     Player();
 
-    explicit Player(World *world, gmath::Position position, float direction);
+    explicit Player(World *world, dotio::math::Position position, float direction);
 
     ~Player() override = default;
 
     void Update(float delta) override;
 
-    void Draw(gamef::Renderer &renderer) override;
+    void Draw(dotio::Renderer &renderer) override;
 
-    void Shoot(const gmath::Coordinates mouse, const bool debug);
+    void Shoot(const dotio::math::Coordinates mouse, const bool debug);
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // PLAYER_H

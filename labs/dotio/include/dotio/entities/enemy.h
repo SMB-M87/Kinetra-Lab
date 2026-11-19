@@ -5,7 +5,7 @@
 #include "dotio/entities/physics_object.h"
 #include "dotio/navigation/stack.h"
 
-namespace logic {
+namespace dotio {
 class World;
 
 /// Stateful game enemy; embedded state objects share one stable owning enemy.
@@ -27,9 +27,9 @@ class Enemy final : public PhysicsObject {
     void SpatialPartitioning(const float delta);
 
   public:
-    gmath::Vec2 Target{};
-    gmath::Vec2 TargetVelocity{};
-    logic::Stack Path;
+    dotio::math::Vec2 Target{};
+    dotio::math::Vec2 TargetVelocity{};
+    dotio::Stack Path;
     float Fear{};
     int HitsRemaining{1};
     bool LineOfSight{false}, Debug{false}, Frozen{};
@@ -44,7 +44,7 @@ class Enemy final : public PhysicsObject {
 
     Enemy();
 
-    explicit Enemy(World *world, gmath::Position position, gmath::Position target, float direction,
+    explicit Enemy(World *world, dotio::math::Position position, dotio::math::Position target, float direction,
                    float fear);
 
     ~Enemy() override = default;
@@ -53,7 +53,7 @@ class Enemy final : public PhysicsObject {
 
     void Tick() override;
 
-    void Draw(gamef::Renderer &renderer) override;
+    void Draw(dotio::Renderer &renderer) override;
 
     void Initialize();
 
@@ -90,6 +90,6 @@ class Enemy final : public PhysicsObject {
     void ResetPursue();
     void Reset();
 };
-} // namespace logic
+} // namespace dotio
 
 #endif // ENEMY_H

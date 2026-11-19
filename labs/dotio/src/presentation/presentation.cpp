@@ -30,7 +30,7 @@ Commands read_commands(const Input &input, const Camera2D &camera) {
 }
 
 namespace {
-class Renderer final : public gamef::Renderer {
+class RuntimeRenderer final : public dotio::Renderer {
     Runtime &runtime_;
     Vec2 half_view_;
 
@@ -42,22 +42,22 @@ class Renderer final : public gamef::Renderer {
     }
 
   public:
-    explicit Renderer(Runtime &runtime)
+    explicit RuntimeRenderer(Runtime &runtime)
         : runtime_(runtime), half_view_(runtime.camera.viewport / (2 * runtime.camera.pixels_per_unit)) {}
-    void DrawCircle(gmath::Position center, float radius, gmath::RGBA color) override {
+    void DrawCircle(dotio::math::Position center, float radius, dotio::math::RGBA color) override {
         const auto position = to_world(center);
         const float world_radius = radius / 25;
         if (visible(position, {world_radius, world_radius}))
             runtime_.circle(position, world_radius, {color.R, color.G, color.B, color.A});
     }
-    void DrawSegment(gmath::Segment segment, gmath::RGBA color) override {
+    void DrawSegment(dotio::math::Segment segment, dotio::math::RGBA color) override {
         const auto start = to_world(segment.Start), end = to_world(segment.End);
         const Vec2 half{std::abs(end.x - start.x) / 2 + 0.03f, std::abs(end.y - start.y) / 2 + 0.03f};
         if (visible((start + end) / 2, half))
             runtime_.line(start, end, 0.06f, {color.R, color.G, color.B, color.A});
     }
 };
-Color color_of_state(logic::Enemy &enemy) {
+Color color_of_state(dotio::Enemy &enemy) {
     return enemy.IsKamikazing()   ? state_color::kamikaze
            : enemy.IsRecovering() ? state_color::recover
            : enemy.IsPursueing()  ? state_color::pursue
@@ -102,7 +102,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     const kinetra_lab::ScopedCameraShift follow_drawn_player(
         runtime.camera, application.ghost ? Vec2{} : to_world(world.GetPlayer().Position) - simulated_player);
     runtime.begin({0, 0, 0});
-    Renderer renderer(runtime);
+    RuntimeRenderer renderer(runtime);
     // Cull generated arena geometry against the active camera.
     const auto top_left = from_world(runtime.camera.screen_to_world({0, 0}));
     const auto bottom_right = from_world(runtime.camera.screen_to_world(runtime.camera.viewport));
@@ -111,8 +111,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     const int first_col = int(std::floor(top_left.X / 100)) - 1;
     const int last_col = int(std::floor(bottom_right.X / 100)) + 1;
     const auto offset = world.WorldOffset();
-    const int row_offset = int(std::lround(offset.Y / logic::Grid::CellSize));
-    const int column_offset = int(std::lround(offset.X / logic::Grid::CellSize));
+    const int row_offset = int(std::lround(offset.Y / dotio::Grid::CellSize));
+    const int column_offset = int(std::lround(offset.X / dotio::Grid::CellSize));
     for (int row = first_row; row <= last_row; ++row)
         for (int column = first_col; column <= last_col; ++column) {
             const auto center = to_world({column * 100.f + 50, row * 100.f + 50});
@@ -168,7 +168,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                           layer_color::collisions);
         for (const auto &bolt : world.GetBolts())
             if (bolt.IsActive)
-                draw_debug_circle(runtime, to_world(bolt.Position), logic::Bolt::Radius / 25, {1, 1, 0});
+                draw_debug_circle(runtime, to_world(bolt.Position), dotio::Bolt::Radius / 25, {1, 1, 0});
     }
     if (application.debug)
         for (auto &enemy : world.GetEnemies()) {
@@ -189,18 +189,18 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const Vec2 position = to_world(enemy.Position);
             const Vec2 heading = normalized(to_world(enemy.Velocity));
             // A feeler and, where it meets a wall, the point of contact.
-            const auto draw_probe = [&](gmath::Segment probe) {
+            const auto draw_probe = [&](dotio::math::Segment probe) {
                 runtime.line(to_world(probe.Start), to_world(probe.End), 0.04f, color_of_state(enemy));
-                gmath::Point2 hit{};
-                if (logic::Grid::IsIntersectingAnyCell(probe, &logic::Grid::Array[0][0], hit))
+                dotio::math::Point2 hit{};
+                if (dotio::Grid::IsIntersectingAnyCell(probe, &dotio::Grid::Array[0][0], hit))
                     runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
             };
             if (application.probes) {
                 // An enemy that wanders by steering shows the three feelers its steering
                 // tests; every other one the original probes: forward and two to the rear.
                 if (!enemy.Frozen && enemy.IsWandering() &&
-                    world.enemy_tuning().wander == logic::WanderMode::steering)
-                    for (const auto &feeler : logic::WanderFeelers(enemy))
+                    world.enemy_tuning().wander == dotio::WanderMode::steering)
+                    for (const auto &feeler : dotio::WanderFeelers(enemy))
                         draw_probe(feeler);
                 else
                     for (const float angle : {0.f, 2.35619449f, -2.35619449f})
@@ -208,9 +208,9 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                                                                               (angle == 0 ? 4.f : 1.2f))});
             }
             if (p[5] && enemy.IsRecovering()) {
-                gmath::Point2 hit{};
-                if (logic::Grid::IsIntersectingAnyCell({enemy.Position, enemy.Target},
-                                                       &logic::Grid::Array[0][0], hit)) {
+                dotio::math::Point2 hit{};
+                if (dotio::Grid::IsIntersectingAnyCell({enemy.Position, enemy.Target},
+                                                       &dotio::Grid::Array[0][0], hit)) {
                     runtime.line(to_world(enemy.Position), to_world(enemy.Target), 0.04f,
                                  layer_color::hiding_hits);
                     runtime.circle(to_world(hit), 0.2f, {1, 1, 0});

@@ -12,17 +12,17 @@ namespace capture {
 /// and that a bolt can reach in a straight line. No wall cell lies between it and the
 /// player, the sight line the enemies' own AI uses, and no crate, because crates stop
 /// bolts. Null when there is no such enemy. The pointer is valid until the session advances.
-logic::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera);
+dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera);
 
 /// Where a bolt fired now at `bolt_speed` meets a target at `offset` from the shooter that
 /// moves on at `velocity`, relative to the shooter. Lengths in legacy pixels, speeds in
 /// legacy pixels per tick. Returns `offset` when the bolt cannot catch the target or would
 /// need more than `longest_lead_ticks`, so the shot goes at the target itself.
-gmath::Vec2 lead_offset(gmath::Vec2 offset, gmath::Vec2 velocity, float bolt_speed);
+dotio::math::Vec2 lead_offset(dotio::math::Vec2 offset, dotio::math::Vec2 velocity, float bolt_speed);
 
 /// Speed of the bolt `player` fires now, in legacy pixels per tick: it grows with the
-/// player's kills, as in logic::Player::Shoot.
-float dotio_bolt_speed(const logic::Player &player);
+/// player's kills, as in dotio::Player::Shoot.
+float dotio_bolt_speed(const dotio::Player &player);
 
 /// Longest flight a shot is led for, in ticks of 1/60 s: beyond it the enemy has turned
 /// long before the bolt arrives.

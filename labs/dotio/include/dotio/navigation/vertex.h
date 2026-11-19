@@ -5,28 +5,28 @@
 
 #include "dotio/math/gmath.h"
 
-namespace logic {
+namespace dotio {
 class Vertex {
   public:
-    gmath::GridEntry cell;
+    dotio::math::GridEntry cell;
     float G, H, F;
-    gmath::GridEntry prev;
+    dotio::math::GridEntry prev;
     int steps;
 
     int straightIndex{};
     int diagonalIndex{};
-    gmath::GridEntry straight[4]{};
-    gmath::GridEntry diagonal[4]{};
+    dotio::math::GridEntry straight[4]{};
+    dotio::math::GridEntry diagonal[4]{};
 
     Vertex();
-    Vertex(const gmath::GridEntry &cell);
+    Vertex(const dotio::math::GridEntry &cell);
     Vertex(const Vertex &other);
     Vertex &operator=(const Vertex &other);
 
     void Reset();
-    void AddAdjacent(logic::Vertex &source, const gmath::GridEntry &dest);
-    float Calculate(const gmath::GridEntry &goal);
+    void AddAdjacent(dotio::Vertex &source, const dotio::math::GridEntry &dest);
+    float Calculate(const dotio::math::GridEntry &goal);
     static Vertex NullVertex;
 };
-} // namespace logic
+} // namespace dotio
 #endif

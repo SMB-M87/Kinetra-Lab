@@ -1,7 +1,7 @@
 #ifndef FUZZY_H
 #define FUZZY_H
 
-namespace logic {
+namespace dotio {
 enum class Variable { Distance, Fear, Ammo };
 
 enum class Distance { Close, Average, Far };
@@ -23,5 +23,5 @@ class Fuzzy {
     static float Fear(float fear, Fear &result);
     static float Ammo(int ammo, Ammo &result);
 };
-} // namespace logic
+} // namespace dotio
 #endif
