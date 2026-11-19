@@ -3,6 +3,7 @@
 #include "event_log.h"
 #include "fleet.h"
 #include "floor_plan.h"
+#include "goals.h"
 #include "predictive_passing.h"
 #include "simulation.h"
 #include "traffic.h"
@@ -108,6 +109,8 @@ class SimulationCore {
     void dump(const std::filesystem::path &directory) const;
 
   private:
+    /// The goal view over this simulation's components at the current tick.
+    Goals goals() { return {floor_, fleet_, traffic_, passing_, log_, motion_, ticks_}; }
     RouteProgress &progress(const Mover &mover) { return fleet_.progress[fleet_.index(mover)]; }
     const RouteProgress &progress(const Mover &mover) const { return fleet_.progress[fleet_.index(mover)]; }
     RunState state_{RunState::paused};
@@ -133,10 +136,6 @@ class SimulationCore {
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
     std::uint64_t ticks_{}, completed_{}, collisions_{}, next_product_{1};
-    void set_goal(Mover &mover, Vec2 destination);
-    Vec2 holding_position(const Mover &mover, Vec2 destination) const;
-    bool parking_conflict(const Mover &mover, Vec2 position) const;
-    void coordinate_parking();
     bool prepare_route(Mover &mover);
     void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
     void schedule(Product &product);

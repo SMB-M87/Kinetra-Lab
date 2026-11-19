@@ -1,6 +1,7 @@
 #include "simulation_core.h"
 #include "floor_plan.h"
 #include "geometry.h"
+#include "goals.h"
 #include "routing.h"
 #include "simulation_constants.h"
 #include "traffic.h"
@@ -64,11 +65,11 @@ void SimulationCore::configure_motion(MotionSettings settings) {
     for (auto &m : fleet_.movers) {
         m.body.velocity = limited(m.body.velocity, settings.speed);
         if (!settings.parking_traffic && m.goal == GoalKind::parking_staging)
-            set_goal(m, m.parking);
+            goals().set(m, m.parking);
         else if (m.moving()) {
             // Setting the same goal again replans the route but keeps its origin.
             const auto goal = m.goal;
-            set_goal(m, m.destination);
+            goals().set(m, m.destination);
             m.goal = goal;
         }
     }
@@ -136,21 +137,6 @@ void SimulationCore::toggle_producer(std::size_t index) {
     auto &p = producers_.at(index);
     p.blocked = !p.blocked;
 }
-void SimulationCore::set_goal(Mover &m, Vec2 target) {
-    traffic_.cancel_recovery(fleet_, fleet_.index(m), ticks_);
-    passing_.cancel(floor_, fleet_, fleet_.index(m), ticks_, log_);
-    // A manual goal stays manual until arrival; a parking staging goal is replaced.
-    if (m.goal == GoalKind::parking_staging)
-        m.goal = GoalKind::automatic;
-    m.destination = target;
-    m.route = plan_route(floor_, fleet_, fleet_.index(m), target);
-    m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
-    auto &tracking = progress(m);
-    tracking.replan = tracking.no_progress = 0;
-    tracking.best_remaining = route_remaining(m.body.position, m.route);
-    m.detour = false;
-    tracking.recovery_attempts = 0;
-}
 bool SimulationCore::move_to(std::size_t index, Vec2 target) {
     auto &m = fleet_.movers.at(index);
     if (m.held || m.product || floor_.grid().blocked(floor_.grid().cell(target)))
@@ -158,88 +144,13 @@ bool SimulationCore::move_to(std::size_t index, Vec2 target) {
     auto route = floor_.grid().path(m.body.position, target, m.body.half_extents);
     if (route.empty())
         return false;
-    set_goal(m, target);
+    goals().set(m, target);
     m.goal = GoalKind::manual;
     return true;
-}
-Vec2 SimulationCore::holding_position(const Mover &m, Vec2 target) const {
-    // Each mover retains its own blueprint parking reservation. Prefer that
-    // known safe waiting area over filling a narrow factory aisle with queues.
-    if (floor_.grid().cell(m.parking) != floor_.grid().cell(target) &&
-        distance(m.parking, target) > length(m.body.half_extents) * 2 &&
-        (!motion_.parking_traffic || !parking_conflict(m, m.parking)) &&
-        !floor_.grid().path(m.body.position, m.parking, m.body.half_extents).empty())
-        return m.parking;
-    float best = std::numeric_limits<float>::infinity();
-    Vec2 result = m.parking;
-    for (int id = 0; id < floor_.grid().width() * floor_.grid().height(); ++id) {
-        if (floor_.grid().blocked(id))
-            continue;
-        const auto candidate = floor_.grid().center(id);
-        bool available = !floor_.processing_cell(id);
-        for (const auto &other : fleet_.movers)
-            if (&other != &m &&
-                (distance(candidate, other.body.position) <
-                     length(m.body.half_extents + other.body.half_extents) + 10 ||
-                 (other.moving() && distance(candidate, other.destination) <
-                                        length(m.body.half_extents + other.body.half_extents) + 10)))
-                available = false;
-        if (!available || (motion_.parking_traffic && parking_conflict(m, candidate)))
-            continue;
-        const float score =
-            distance(candidate, target) +
-            floor_.grid().weight(id) * std::max(blueprint_.cell_size.x, blueprint_.cell_size.y);
-        if (score < best && !floor_.grid().path(m.body.position, candidate, m.body.half_extents).empty()) {
-            best = score;
-            result = candidate;
-        }
-    }
-    return result;
 }
 std::size_t SimulationCore::parking_waiting() const {
     return std::count_if(fleet_.movers.begin(), fleet_.movers.end(),
                          [](const Mover &m) { return m.goal == GoalKind::parking_staging; });
-}
-bool SimulationCore::parking_conflict(const Mover &m, Vec2 position) const {
-    Body parked = m.body;
-    parked.position = position;
-    for (const auto &other : fleet_.movers) {
-        if (&other == &m || other.held || !other.moving() || other.goal == GoalKind::parking_staging ||
-            (other.goal != GoalKind::manual && distance(other.destination, other.parking) < same_point_mm))
-            continue;
-        Vec2 from = other.body.position;
-        for (const auto to : other.route) {
-            if (crosses_mover(from, to, other.body.half_extents + clearance, parked))
-                return true;
-            from = to;
-        }
-    }
-    return false;
-}
-void SimulationCore::coordinate_parking() {
-    if (!motion_.parking_traffic)
-        return;
-    for (auto &m : fleet_.movers) {
-        const bool staging = m.goal == GoalKind::parking_staging;
-        if (m.held || m.goal == GoalKind::manual ||
-            (!staging && (!m.moving() || distance(m.destination, m.parking) >= same_point_mm)))
-            continue;
-        if (!parking_conflict(m, m.parking)) {
-            if (staging)
-                set_goal(m, m.parking);
-            continue;
-        }
-        if (staging)
-            continue;
-        // Reuse footprint-aware staging selection, excluding protected routes.
-        // If no staging place is reachable, retain the existing goal and let
-        // local avoidance stop safely; retry the interlock on the next tick.
-        const auto staging_place = holding_position(m, m.parking);
-        if (distance(staging_place, m.parking) > same_point_mm) {
-            set_goal(m, staging_place);
-            m.goal = GoalKind::parking_staging;
-        }
-    }
 }
 void SimulationCore::schedule(Product &product) {
     const auto interaction = recipe(product.kind).at(product.step);
@@ -290,7 +201,7 @@ void SimulationCore::schedule(Product &product) {
     auto &m = fleet_.movers[*product.mover];
     if (m.held)
         return;
-    set_goal(m, goal);
+    goals().set(m, goal);
     if (!departure.empty()) {
         m.route = std::move(departure);
         progress(m).best_remaining = route_remaining(m.body.position, m.route);
@@ -311,7 +222,7 @@ bool SimulationCore::prepare_route(Mover &m) {
         progress(m).replan = 0;
     }
     if (m.route.empty()) {
-        set_goal(m, m.destination);
+        goals().set(m, m.destination);
         if (m.lifecycle == MoverLifecycle::unreachable)
             return false;
     }
@@ -603,7 +514,7 @@ void SimulationCore::update_product(Product &p) {
         std::erase(producer.queue, p.id);
         p.producer.reset();
         p.state = ProductState::waiting;
-        set_goal(m, m.parking);
+        goals().set(m, m.parking);
         return;
     }
     if (p.state == ProductState::transporting || p.state == ProductState::queued) {
@@ -613,11 +524,11 @@ void SimulationCore::update_product(Product &p) {
             // Reserve a queue slot without allowing two movers to occupy the
             // same processor. Waiting agents stage outside processing cells.
             if (distance(m.destination, goal) < same_point_mm)
-                set_goal(m, holding_position(m, goal));
+                goals().set(m, goals().holding_position(m, goal));
             return;
         }
         if (distance(m.destination, goal) > same_point_mm) {
-            set_goal(m, goal);
+            goals().set(m, goal);
             p.state = ProductState::transporting;
         }
     }
@@ -655,12 +566,12 @@ void SimulationCore::update_product(Product &p) {
                     p.finished = ticks_;
                     completed_products_.push_back(p);
                     m.product.reset();
-                    set_goal(m, m.parking);
+                    goals().set(m, m.parking);
                 } else {
                     p.state = ProductState::waiting;
                     schedule(p);
                     if (!p.producer)
-                        set_goal(m, holding_position(m, m.destination));
+                        goals().set(m, goals().holding_position(m, m.destination));
                 }
             }
         }
@@ -680,7 +591,7 @@ void SimulationCore::tick() {
         add_product((random_() % 2) ? ProductKind::trimmer : ProductKind::personalized);
     if (ticks_ % heatmap_period_ticks == 1)
         floor_.update_heatmap(fleet_.movers, motion_.heatmap);
-    coordinate_parking();
+    goals().coordinate_parking();
     move_agents();
     for (auto &p : producers_)
         if (p.queue.empty())
