@@ -91,7 +91,7 @@ The debug menu has four sections. A click on a heading (`+ LAYERS`) opens its ro
 | --- | --- |
 | SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second), WORKLOAD |
 | LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. A color swatch beside a row is the color it is drawn in |
-| MOTION | PROFILE, PLANNER (HEAT A* or plain A*), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
+| MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
 | TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing) |
 
 Motion settings can change while the factory runs: assignments and positions stay, routes are rebuilt. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds and changes nothing.
@@ -231,7 +231,7 @@ Two design choices explain most of the code:
 
 ### Steering profiles
 
-A route comes from A* on the weighted grid. With the heatmap, cells where movers stand cost more, so routes avoid crowds. A mover that makes no progress along its route for 100 ticks plans again.
+A route comes from A* on the weighted grid. With the heatmap, cells where movers stand cost more, so routes avoid crowds. A mover that makes no progress along its route for 100 ticks plans again. With path planning off (PLANNER → OFF, or `pathPlanning` in a scenario), the route is the destination alone: the mover steers straight at its goal, slides along walls that stand in the way, and passes their convex corners. A goal still needs a grid route to be accepted. Steering alone cannot leave a concave pocket, so OFF suits open floors such as the H.
 
 | Profile | How a mover avoids others |
 | --- | --- |
