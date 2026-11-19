@@ -1493,10 +1493,15 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
          [](MotionSettings &m) { m.corridor_traffic = true; },
          {{1900, 700}, {300, 700}}},
         {"predictive-passing", SteeringProfile::reciprocal, passing, {{1900, 800}, {500, 800}}},
-        // The four corners of the H swap diagonally.
+        // The four corners of the H swap diagonally, steering straight at their goals.
         {"h-crossing",
          SteeringProfile::improved,
-         passing,
+         [](MotionSettings &m) {
+             m.path_planning = false;
+             m.heatmap = false;
+             m.force = .5f;
+             m.horizon = 16;
+         },
          {{1323.75f, 843.75f}, {1323.75f, 116.25f}, {116.25f, 843.75f}, {116.25f, 116.25f}}},
     };
     // Long enough for the shuttling scenes to turn at least once.
@@ -1635,7 +1640,11 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
         apply_scenario(*scenario, s);
         s.run();
         // A leg runs from one turn to the next; count the legs in which traffic coordination
-        // stepped in, which is the situation the scene exists to show.
+        // stepped in, which is the situation a scene with a coordination feature exists to
+        // show. A scene without one (the H) shows steering alone.
+        const auto &motion = scenario->motion;
+        const bool coordinates =
+            motion.junction_traffic || motion.corridor_traffic || motion.predictive_passing;
         constexpr int wanted_legs = 4;
         int legs = 0, coordinated_legs = 0;
         bool coordinated = false, under_way = true;
@@ -1656,11 +1665,47 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
             under_way = !idle;
         }
         CHECK_MESSAGE(legs == wanted_legs, "The scene did not complete its legs");
-        CHECK_MESSAGE(coordinated_legs == wanted_legs, "A leg did not show the traffic situation again");
+        CHECK_MESSAGE(coordinated_legs == (coordinates ? wanted_legs : 0),
+                      "A leg did not show the traffic situation again");
         CHECK(s.collisions() == 0);
         for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
             CHECK(s.shuttling(mover));
     }
+}
+
+TEST_CASE("the h-crossing scene completes its legs without contacts when a mover starts late") {
+    // The scene runs without path planning; a mover that starts late meets the others at
+    // other places and other moments than the scene does. None of them may lock or touch.
+    const auto file = i4sim::test::showcase_blueprint("h-crossing");
+    const auto scenario = load_scenario(file);
+    REQUIRE(scenario);
+    REQUIRE_FALSE(scenario->motion.path_planning);
+    for (std::size_t late = 0; late < 4; ++late)
+        for (const std::uint64_t delay : {0, 50, 150, 300}) {
+            CAPTURE(late);
+            CAPTURE(delay);
+            Simulation s(load_blueprint(file));
+            apply_scenario(*scenario, s);
+            if (delay > 0)
+                s.toggle_mover(late);
+            s.run();
+            // Out and back: the second leg starts from the state the first one left.
+            constexpr int wanted_legs = 2;
+            int legs = 0;
+            bool under_way = true;
+            while (legs < wanted_legs && s.ticks() < 8000) {
+                s.tick();
+                if (s.ticks() == delay)
+                    s.toggle_mover(late);
+                const bool idle = std::all_of(s.movers().begin(), s.movers().end(), [](const Mover &m) {
+                    return m.lifecycle == MoverLifecycle::idle;
+                });
+                legs += under_way && idle;
+                under_way = !idle;
+            }
+            CHECK_MESSAGE(legs == wanted_legs, "The movers locked");
+            CHECK(s.collisions() == 0);
+        }
 }
 
 TEST_CASE("a restarting scene is due once its movers have stood still for the pause") {

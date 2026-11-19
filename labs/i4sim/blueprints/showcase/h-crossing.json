@@ -121,8 +121,8 @@
     }
   ],
   "scenario": {
-    "description": "H crossing: four movers swap diagonal corners through the middle bar; oncoming movers agree on sides.",
-    "motion": {"profile": "improved", "heatmap": false, "predictivePassing": true},
+    "description": "H crossing: four movers swap diagonal corners without path planning, by steering alone.",
+    "motion": {"profile": "improved", "pathPlanning": false, "heatmap": false, "force": 0.5, "horizon": 16},
     "workload": false,
     "repeat": "shuttle",
     "goals": [
