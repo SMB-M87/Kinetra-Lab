@@ -9,14 +9,19 @@ target_compile_features(kinetra_i4sim_application PUBLIC cxx_std_20)
 # All executables share CMAKE_RUNTIME_OUTPUT_DIRECTORY, so one target copies the catalog
 # once per build. A copy per executable raced: concurrent `cmake -E copy_directory` runs
 # into one directory fail with "No such file or directory" when executables link in parallel.
+if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    message(FATAL_ERROR "The i4sim blueprint copy needs CMAKE_RUNTIME_OUTPUT_DIRECTORY, "
+        "which the root CMakeLists.txt sets for all executables")
+endif()
 get_property(kinetra_i4sim_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 set(kinetra_i4sim_blueprint_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 if(kinetra_i4sim_multi_config)
     # Multi-config generators append the configuration to the output directory.
     string(APPEND kinetra_i4sim_blueprint_directory "/$<CONFIG>")
 endif()
-# Always out of date, like the former per-link copy: picks up edited, added or renamed
-# blueprints without a file list. Dependents wait for it but do not relink because of it.
+# Always out of date, so every build refreshes the catalog: edited, added or renamed
+# blueprints arrive without a file list or a relink (the former copy ran only after a
+# relink). Dependents wait for it but do not relink because of it.
 add_custom_target(kinetra_i4sim_blueprints ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/blueprints"

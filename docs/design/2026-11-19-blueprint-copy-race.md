@@ -29,7 +29,7 @@ The i4sim blueprint catalog is copied into the build output once per build by on
 ## Goals and non-goals
 
 - Goal: exactly one writer of `i4sim-blueprints/` per build, so a parallel build cannot fail on the copy.
-- Goal: the same result as today: the catalog, including its `README.md`, beside every executable that opens it, refreshed on every build.
+- Goal: the same result as today: the catalog, including its `README.md`, beside every executable that opens it.
 - Non-goal: removing stale files from the build directory when a blueprint is deleted. `copy_directory` never did that.
 - Non-goal: install rules or packaging.
 
@@ -38,8 +38,8 @@ The i4sim blueprint catalog is copied into the build output once per build by on
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Copy once | One `add_custom_target(kinetra_i4sim_blueprints ALL …)`; `kinetra_i4sim_bundle_blueprints` becomes `add_dependencies` | A single writer removes the race; the function keeps its name and call sites |
-| Always run | The target has no stamp file or file list, so it runs on every build | Matches today's refresh behavior, picks up added or renamed blueprints without a reconfigure, and costs one copy of fifteen small files. Dependents wait for it but do not relink because of it |
-| Destination | `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, plus `/$<CONFIG>` for multi-config generators; the function fails at configure time for a target with another output directory | `$<TARGET_FILE_DIR:…>` would make the copy depend on one executable that itself depends on the copy, a cycle. The check keeps the old guarantee ("beside every executable") explicit instead of silently breaking it |
+| Always run | The target has no stamp file or file list, so it runs on every build | Picks up edited, added or renamed blueprints without a reconfigure or a relink (the old copy ran only after a relink), and costs one copy of fifteen small files. Dependents wait for it but do not relink because of it. A build therefore never reports "no work to do" |
+| Destination | `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, plus `/$<CONFIG>` for multi-config generators. Configure fails when that variable is unset, and the function fails for a target with another output directory | `$<TARGET_FILE_DIR:…>` would make the copy depend on one executable that itself depends on the copy, a cycle. The check keeps the old guarantee ("beside every executable") explicit instead of silently breaking it |
 | Configure-time copy | Removed | The build copy runs before every executable that reads the catalog, so the directory is never read before it exists. One writer is easier to reason about |
 
 All four are local build mechanics with one obvious option; none needed the user.
@@ -77,7 +77,14 @@ A race in the build graph has no deterministic unit test, so the proof is struct
 
 ## Review
 
-To be filled.
+`/code-review` at high effort on `main...HEAD`:
+
+| Finding | Resolution |
+| --- | --- |
+| With `CMAKE_RUNTIME_OUTPUT_DIRECTORY` unset, the destination would be `/i4sim-blueprints` and every call would fail with a `NOTFOUND` message | Fixed: configure stops with a message that names the missing variable |
+| The comment and this document called the always-run copy equal to the old behavior, but the old copy ran only after a relink | Fixed: both now say every build refreshes the catalog |
+| The output-directory check ignores `RUNTIME_OUTPUT_DIRECTORY_<CONFIG>` | Skipped: no target sets it; checking every configuration adds code for a case that does not exist |
+| `copy_directory` rewrites all files on every build; `copy_directory_if_different` would not | Skipped: it needs CMake 3.26, the project's minimum is 3.16, and the cost is fifteen small files |
 
 ## Verification
 
