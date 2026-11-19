@@ -1,11 +1,18 @@
-// Window-free tests for the input policy shared by the Lab applications
-// (labs/common/include/lab/input.h).
+// Window-free tests for the policy shared by the Lab applications
+// (labs/common/include/lab/): input mapping and modal pause (input.h), the debug-menu rows
+// every application shows (debug.h) and the settings rows (settings.h).
+#include <lab/debug.h>
 #include <lab/input.h>
+#include <lab/settings.h>
 
 #include <doctest/doctest.h>
 
 #include <cstddef>
 #include <initializer_list>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
 namespace {
 kinetra::Input holding(std::initializer_list<kinetra::Key> keys) {
@@ -57,4 +64,67 @@ TEST_CASE("without a panel the pause state passes through") {
     lab::ModalPause pause;
     CHECK(pause.update(false, true));
     CHECK_FALSE(pause.update(false, false));
+}
+
+TEST_CASE("the settings rows come in Lab's order without a zoom row") {
+    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    const auto rows = lab::settings_rows(statistics, debug, frame_times, frame_limit, {"MOVE"}, {"TELEPORT"});
+    REQUIRE(rows.size() == 6);
+    const std::pair<const char *, bool *> toggles[]{{"STATISTICS", &statistics},
+                                                    {"DEBUG MODE", &debug},
+                                                    {"FRAME TIMES", &frame_times},
+                                                    {"FRAME LIMIT", &frame_limit}};
+    for (std::size_t i = 0; i < 4; ++i) {
+        const auto *toggle = std::get_if<kinetra::ToggleRow>(&rows[i]);
+        REQUIRE(toggle);
+        CHECK(toggle->label == toggles[i].first);
+        CHECK(toggle->value == toggles[i].second);
+    }
+    const auto &sim = std::get<kinetra::HelpSection>(rows[4]);
+    CHECK(sim.label == "SIM CONTROLS");
+    CHECK(sim.lines == std::vector<std::string>{"MOVE"});
+    const auto &controls = std::get<kinetra::HelpSection>(rows[5]);
+    CHECK(controls.label == "DEBUG CONTROLS");
+    const std::vector<std::string> expected{lab::debug_menu_help, lab::wheel_zoom_help, "TELEPORT"};
+    CHECK_MESSAGE(controls.lines == expected, "the shared lines come before the application's");
+}
+
+TEST_CASE("the zoom row collects the steps of its buttons and shows the observed zoom") {
+    lab::ZoomControl zoom;
+    auto row = zoom.entry();
+    CHECK(row.label == "ZOOM");
+    CHECK(row.depth == 0);
+    CHECK(row.rule_above);
+    CHECK_MESSAGE(!row.action, "the row itself is not a command");
+    CHECK(zoom.take_steps() == 0);
+    row.increase();
+    row.increase();
+    row.decrease();
+    CHECK(zoom.take_steps() == 1);
+    CHECK_MESSAGE(zoom.take_steps() == 0, "steps are handed out once");
+    kinetra::Camera2D camera;
+    camera.pixels_per_unit = 17;
+    zoom.observe(camera);
+    CHECK(row.value() == "17");
+    camera.pixels_per_unit = 0.25f;
+    zoom.observe(camera);
+    CHECK(row.value() == "0.25");
+}
+
+TEST_CASE("the speed row halves and doubles the time scale within its limits") {
+    float scale = 1;
+    auto row = lab::time_scale_entry(scale);
+    CHECK(row.label == "SPEED");
+    CHECK(row.depth == 1);
+    CHECK(row.value() == "1X");
+    row.decrease();
+    CHECK(scale == 0.5f);
+    CHECK(row.value() == "0.5X");
+    for (int i = 0; i < 10; ++i)
+        row.decrease();
+    CHECK(scale == lab::slowest_time_scale);
+    for (int i = 0; i < 20; ++i)
+        row.increase();
+    CHECK(scale == lab::fastest_time_scale);
+    CHECK(row.value() == "4X");
 }

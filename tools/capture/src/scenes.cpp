@@ -17,6 +17,17 @@
 #include <string>
 
 namespace capture {
+void apply_menu_click(std::span<const kinetra::DebugEntry> menu, const MenuClick &click,
+                      std::string_view application) {
+    const bool found = click.row < menu.size() && menu[click.row].label == click.label;
+    if (!found || !menu[click.row].action)
+        throw std::runtime_error(
+            "The " + std::string(application) + " debug menu changed: row " + std::to_string(click.row) +
+            " is " + (click.row < menu.size() ? "'" + menu[click.row].label + "'" : "missing") +
+            (found ? ", which has no action" : ", not '" + std::string(click.label) + "'"));
+    menu[click.row].action();
+}
+
 namespace {
 using kinetra::Input;
 using kinetra::Key;
@@ -99,7 +110,7 @@ void launcher_loadscreen(Stage &stage) {
     stage.shot();
 }
 
-// Demo: starts in Debug Mode with every visual layer on; the normal view turns it off.
+// Demo: starts in Debug Mode with its default layers on; the normal view turns it off.
 
 /// The player walks to a point on the right, then to one on the lower left.
 Input demo_walk(Stage &stage, int frame) {
@@ -115,8 +126,6 @@ void demo_start(Stage &stage, bool debug) {
     stage.start(Variant::demo);
     if (!debug)
         stage.toggle_setting(SettingsRow::debug_mode);
-    else
-        stage.press(Key::backquote);
     stage.wait(warm_up_seconds);
 }
 
@@ -127,6 +136,10 @@ void demo(Stage &stage) {
 
 void demo_debug(Stage &stage) {
     demo_start(stage, true);
+    // The debug menu with its MOTION section: the values that can be tuned while it runs.
+    stage.toggle_debug_menu();
+    stage.click_debug_row(demo_motion_click.row);
+    stage.point_at(stage.viewport() - Vec2{2, 2});
     stage.shot();
 }
 
@@ -171,13 +184,13 @@ Input dotio_sidestep(int frame) {
     return frame % period < step ? held({dotio_route[(frame / period) % 4]}) : Input{};
 }
 
-/// Turns on Debug Mode and every visual row of the debug menu, and zooms `notches` wheel
-/// notches (negative zooms out). Leaves the menu open and the pointer in the field.
+/// Turns on Debug Mode with Shift+Ctrl and clicks dotio_debug_clicks: INVULNERABLE and every
+/// layer of the debug menu. Then zooms `notches` wheel notches (negative zooms out). Leaves
+/// the menu open on its LAYERS section and the pointer in the field.
 void dotio_debug_view(Stage &stage, float notches) {
-    stage.toggle_setting(SettingsRow::debug_mode);
-    stage.press(Key::backquote);
-    for (std::size_t row = dotio_first_debug_row; row <= dotio_last_debug_row; ++row)
-        stage.click_debug_row(row);
+    stage.toggle_debug_menu();
+    for (const auto &click : dotio_debug_clicks)
+        stage.click_debug_row(click.row);
     Input zoom;
     zoom.wheel = notches;
     stage.point_at(at(stage, .7f, .5f));
@@ -248,7 +261,7 @@ void dotio_clip(Stage &stage) {
 void dotio_debug_clip(Stage &stage) {
     stage.start_dotio();
     dotio_debug_view(stage, dotio_debug_clip_zoom_out);
-    stage.press(Key::backquote);
+    stage.toggle_debug_menu();
     const int limit = dotio_recovery_wait_seconds * clip_fps;
     const float margin = stage.viewport().y * dotio_recovery_margin;
     const auto recovering = [&] {
@@ -290,13 +303,13 @@ int i4sim_busy_start() {
 /// shows, so the normal view turns Debug Mode off after them.
 void i4sim_start(Stage &stage, I4simView view, int into) {
     stage.start_i4sim(i4sim_capture_blueprint);
-    stage.press(Key::backquote);
+    stage.toggle_debug_menu();
     for (const auto &click : i4sim_motion_clicks)
         stage.click_debug_row(click.row);
     if (view == I4simView::debug_with_layers)
         stage.click_debug_row(i4sim_layers_click.row);
     else
-        stage.press(Key::backquote);
+        stage.toggle_debug_menu();
     stage.point_at(stage.viewport() - Vec2{2, 2});
     if (view == I4simView::normal)
         stage.toggle_setting(SettingsRow::debug_mode);

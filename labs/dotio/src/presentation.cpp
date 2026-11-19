@@ -1,5 +1,6 @@
 #include "../include/presentation.h"
 #include "../include/physics_adapter.h"
+#include "wander.h"
 #include <kinetra/help_view.h>
 #include <lab/camera.h>
 #include <lab/input.h>
@@ -56,12 +57,12 @@ class Renderer final : public gamef::Renderer {
             runtime_.line(start, end, 0.06f, {color.R, color.G, color.B, color.A});
     }
 };
-Color state_color(logic::Enemy &enemy) {
-    return enemy.IsKamikazing()   ? Color{1, 0.3f, 0.3f}
-           : enemy.IsRecovering() ? Color{0, 1, 0}
-           : enemy.IsPursueing()  ? Color{1, 0.65f, 0}
-           : enemy.IsAttacking()  ? Color{1, 0, 0}
-                                  : Color{0, 0.5f, 1};
+Color color_of_state(logic::Enemy &enemy) {
+    return enemy.IsKamikazing()   ? state_color::kamikaze
+           : enemy.IsRecovering() ? state_color::recover
+           : enemy.IsPursueing()  ? state_color::pursue
+           : enemy.IsAttacking()  ? state_color::attack
+                                  : state_color::wander;
 }
 void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
     runtime.box(runtime.camera.screen_to_world(center), half / runtime.camera.pixels_per_unit, 0, color);
@@ -138,9 +139,9 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (application.active_agents && !enemy.Frozen)
                 runtime.circle(position, 0.18f, {1, 1, 0});
             if (application.vectors)
-                draw_debug_vector(runtime, position, to_world(enemy.Velocity) * 0.3f, {0.8f, 1, 0.3f});
+                draw_debug_vector(runtime, position, to_world(enemy.Velocity) * 0.3f, layer_color::vectors);
             if (application.collisions)
-                draw_debug_circle(runtime, position, enemy.Radius / 25, {0.6f, 0.8f, 1});
+                draw_debug_circle(runtime, position, enemy.Radius / 25, layer_color::collisions);
             if (application.ai) {
                 const std::string_view label = enemy.IsKamikazing()   ? "KAMIKAZE"
                                                : enemy.IsRecovering() ? "RECOVER"
@@ -154,17 +155,17 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                     const float radius = enemy.Radius / 25 * runtime.camera.pixels_per_unit;
                     const float width = float(label.size() * 6 - 1);
                     const Vec2 origin = screen + Vec2{-width / 2, -radius - 6 - 7};
-                    draw_text(runtime, label, origin, 1, state_color(enemy));
+                    draw_text(runtime, label, origin, 1, color_of_state(enemy));
                 }
             }
         }
         if (application.vectors)
             draw_debug_vector(runtime, to_world(world.GetPlayer().Position),
-                              to_world(world.GetPlayer().Velocity) * 0.3f, {0.8f, 1, 0.3f});
+                              to_world(world.GetPlayer().Velocity) * 0.3f, layer_color::vectors);
     }
     if (application.debug && application.collisions) {
         draw_debug_circle(runtime, to_world(world.GetPlayer().Position), world.GetPlayer().Radius / 25,
-                          {0.6f, 0.8f, 1});
+                          layer_color::collisions);
         for (const auto &bolt : world.GetBolts())
             if (bolt.IsActive)
                 draw_debug_circle(runtime, to_world(bolt.Position), logic::Bolt::Radius / 25, {1, 1, 0});
@@ -181,27 +182,37 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 for (int i = enemy.Path.size() - 1; i >= 0; --i) {
                     const auto cell = enemy.Path.get(i);
                     const auto end = to_world({cell.Column * 100.f + 50, cell.Row * 100.f + 50});
-                    runtime.line(start, end, 0.05f, state_color(enemy));
+                    runtime.line(start, end, 0.05f, color_of_state(enemy));
                     start = end;
                 }
             }
-            // Original debug probes: forward and two rear feelers, including wall intersections.
             const Vec2 position = to_world(enemy.Position);
             const Vec2 heading = normalized(to_world(enemy.Velocity));
-            if (application.probes)
-                for (const float angle : {0.f, 2.35619449f, -2.35619449f}) {
-                    const Vec2 end = position + rotated(heading, angle) * (angle == 0 ? 4.f : 1.2f);
-                    runtime.line(position, end, 0.04f, state_color(enemy));
-                    gmath::Point2 hit{};
-                    if (logic::Grid::IsIntersectingAnyCell({enemy.Position, from_world(end)},
-                                                           &logic::Grid::Array[0][0], hit))
-                        runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
-                }
+            // A feeler and, where it meets a wall, the point of contact.
+            const auto draw_probe = [&](gmath::Segment probe) {
+                runtime.line(to_world(probe.Start), to_world(probe.End), 0.04f, color_of_state(enemy));
+                gmath::Point2 hit{};
+                if (logic::Grid::IsIntersectingAnyCell(probe, &logic::Grid::Array[0][0], hit))
+                    runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
+            };
+            if (application.probes) {
+                // An enemy that wanders by steering shows the three feelers its steering
+                // tests; every other one the original probes: forward and two to the rear.
+                if (!enemy.Frozen && enemy.IsWandering() &&
+                    world.enemy_tuning().wander == logic::WanderMode::steering)
+                    for (const auto &feeler : logic::WanderFeelers(enemy))
+                        draw_probe(feeler);
+                else
+                    for (const float angle : {0.f, 2.35619449f, -2.35619449f})
+                        draw_probe({enemy.Position, from_world(position + rotated(heading, angle) *
+                                                                              (angle == 0 ? 4.f : 1.2f))});
+            }
             if (p[5] && enemy.IsRecovering()) {
                 gmath::Point2 hit{};
                 if (logic::Grid::IsIntersectingAnyCell({enemy.Position, enemy.Target},
                                                        &logic::Grid::Array[0][0], hit)) {
-                    runtime.line(to_world(enemy.Position), to_world(enemy.Target), 0.04f, {0, 1, 0});
+                    runtime.line(to_world(enemy.Position), to_world(enemy.Target), 0.04f,
+                                 layer_color::hiding_hits);
                     runtime.circle(to_world(hit), 0.2f, {1, 1, 0});
                 }
             }
@@ -245,8 +256,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             draw_row(population, baseline - 12 * statistics_scale);
         draw_row(rates, baseline);
     }
-    const auto options = application.debug_options();
-    application.menu.draw(runtime, options);
+    if (application.menu.visible)
+        application.menu.draw(runtime, application.debug_entries());
     if (application.frame_times)
         draw_frame_times(runtime, runtime.frame_times());
     settings.draw(runtime);

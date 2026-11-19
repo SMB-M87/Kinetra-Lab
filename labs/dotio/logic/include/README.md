@@ -43,7 +43,8 @@ classDiagram
 | [bolt.h](bolt.h) | Player projectile contract |
 | [graph.h](graph.h) | Local pathfinding and shelter search |
 | [grid.h](grid.h) | Static occupancy raster and seeded terrain |
-| [difficulty.h](difficulty.h) | Immutable difficulty presets |
+| [difficulty.h](difficulty.h) | Difficulty presets, the enemy tuning a world can change while it runs, and their validation |
+| [wander.h](wander.h) | Steering wander: heading drift, wall feelers and their constants |
 | [fuzzy.h](fuzzy.h) | Fuzzy combat and density decisions |
 | [tracker.h](tracker.h) | Reusable population storage |
 | [renderer.h](renderer.h) | Legacy drawing abstraction |

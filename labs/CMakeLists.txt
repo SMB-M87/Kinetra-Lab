@@ -5,10 +5,10 @@ if(BUILD_TESTING)
     target_link_libraries(kinetra_lab_test_support INTERFACE Kinetra::Simulation)
     target_compile_features(kinetra_lab_test_support INTERFACE cxx_std_20)
 endif()
-# Lab policy shared by the applications: input mapping, modal pause, the settings rows
-# every application shows, and the session base. Header-only. lab/input.h is headless;
-# lab/settings.h and lab/session.h use Runtime types, so only presentation targets,
-# which link Kinetra::Runtime, may include them.
+# Lab policy shared by the applications: input mapping, modal pause, the debug-menu and
+# settings rows every application shows, and the session base. Header-only. lab/input.h and
+# lab/debug.h are headless; lab/settings.h and lab/session.h use Runtime types, so only
+# presentation targets, which link Kinetra::Runtime, may include them.
 add_library(kinetra_lab_common INTERFACE)
 target_include_directories(kinetra_lab_common INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/common/include)
 target_link_libraries(kinetra_lab_common INTERFACE Kinetra::Simulation)

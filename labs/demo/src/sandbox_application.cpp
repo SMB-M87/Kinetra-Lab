@@ -1,6 +1,7 @@
 #include "../include/sandbox_application.h"
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace sandbox {
 namespace {
@@ -64,7 +65,17 @@ void SandboxApplication::apply_pointer(const PointerCommand &command, const kine
     }
 }
 
+void SandboxApplication::tick(const FrameCommands &commands, bool snapshot) {
+    if (snapshot)
+        before_tick_ = poses(scene_.world);
+    scene_.update(float(clock_.step()), commands.debug && commands.ghost ? PlayerControl{} : commands.player);
+    if (snapshot)
+        after_tick_ = poses(scene_.world);
+}
+
 void SandboxApplication::advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
+    if (!std::isfinite(commands.time_scale) || commands.time_scale < 0)
+        throw std::invalid_argument("Time scale must be finite and not negative");
     scene_.reciprocal_avoidance = commands.reciprocal_avoidance;
     apply_actions(commands);
     scene_.following = !(commands.debug && commands.ghost);
@@ -79,22 +90,20 @@ void SandboxApplication::advance(double elapsed, const FrameCommands &commands, 
         scene_.follow(camera);
         scene_.stream(camera);
     }
-    // Consume clock time even when paused, so resuming cannot replay paused time.
-    const int steps = clock_.advance(elapsed);
+    // Consume clock time even when paused, so resuming cannot replay paused time. Only
+    // the simulation runs on scaled time; the camera above keeps real time.
+    const int steps = clock_.advance(elapsed * double(commands.time_scale));
     // Snapshots from before a pause would draw the first running frames behind the state
     // shown while paused; start from the current state instead.
     if (!paused_ && was_paused_)
         before_tick_ = after_tick_ = poses(scene_.world);
     was_paused_ = paused_;
     if (!paused_)
-        for (int i = 0; i < steps; ++i) {
-            if (i == steps - 1)
-                before_tick_ = poses(scene_.world);
-            scene_.update(float(clock_.step()),
-                          commands.debug && commands.ghost ? PlayerControl{} : commands.player);
-            if (i == steps - 1)
-                after_tick_ = poses(scene_.world);
-        }
+        // Only the last tick is drawn between, so only it needs snapshots.
+        for (int i = 0; i < steps; ++i)
+            tick(commands, i == steps - 1);
+    else if (commands.single_step)
+        tick(commands, true);
     scene_.follow(camera);
 }
 

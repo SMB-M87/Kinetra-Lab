@@ -2,6 +2,7 @@ add_library(kinetra_dotio_logic
     gmath/src/gmath.cpp
     logic/src/arrow.cpp
     logic/src/bolt.cpp
+    logic/src/difficulty.cpp
     logic/src/enemy.cpp
     logic/src/fuzzy.cpp
     logic/src/graph.cpp
@@ -14,12 +15,14 @@ add_library(kinetra_dotio_logic
     logic/src/state.cpp
     logic/src/static_object.cpp
     logic/src/vertex.cpp
+    logic/src/wander.cpp
     logic/src/world.cpp
 )
 target_compile_features(kinetra_dotio_logic PUBLIC cxx_std_20)
 target_include_directories(kinetra_dotio_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include logic/include
     gmath/include)
-target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation)
+# lab/debug.h is headless: the menu rows that every Lab application shares.
+target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation kinetra_lab_common)
 if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_dotio_tests PREFIX kinetra_dotio
         SOURCES tests/dotio_tests.cpp LIBRARIES kinetra_dotio_logic)

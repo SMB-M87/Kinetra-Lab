@@ -34,7 +34,7 @@ flowchart TD
     Launcher --> Runtime[Kinetra::Runtime]
     Demo --> Runtime
     Dotio --> Runtime
-    Demo --> Common[kinetra_lab_common: input, pause, settings rows, session base]
+    Demo --> Common[kinetra_lab_common: input, pause, settings and debug rows, session base]
     Dotio --> Common
     Factory --> Common
     FactoryLogic -->|lab/input.h| Common

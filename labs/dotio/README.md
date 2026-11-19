@@ -43,17 +43,34 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels di
 | Hold left click | Aim and shoot |
 | Click in Ghost | Teleport real player, when settings is closed; suppress shooting |
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
-| Settings zoom buttons | Adjust camera scale: 25–50 px/unit normally; 2.5–50 in debug |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
-| DEBUG button (next to Settings) | Toggle the upper-left debug menu in Debug Mode |
-| Wheel | Zoom during gameplay only in Debug Mode |
+| Settings Frame Times / Frame Limit | Show the frame-time graph / pace frames where the platform has no VSync |
+| Shift+Ctrl | Open/close the upper-left debug menu; switches Debug Mode on when it was off |
+| DEBUG button (next to Settings) | Toggle the debug menu in Debug Mode |
+| Wheel / ZOOM row of the debug menu | Zoom in Debug Mode: 2.5–50 px/unit; leaving Debug Mode clamps to 25–50 |
 | Settings Launcher / Exit | Return to bundled launcher / exit the application |
 
-Settings reveals centered help controls only after clicking SHOW SIM CONTROLS or SHOW DEBUG CONTROLS, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. Statistics and Debug Mode are configured exclusively in settings.
+Settings shows the help lines of SIM CONTROLS and DEBUG CONTROLS only after a click on their heading, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action.
 
-No reset or click-navigation binding exists. F/P/R/G/Tab/C and V/Shift+V have no gameplay effects. Debug Mode gates vectors, shapes, AI labels, steering probes, active markers and paths. Ghost Camera is the first debug row; leaving either restores player following. Ghost has no purple player marker. Teleport checks walls, props and live enemies, then clears velocity.
+No reset or click-navigation binding exists. F/P/R/G/Tab/C and V/Shift+V have no gameplay effects. Debug Mode gates vectors, shapes, AI labels, steering probes, active markers and paths; leaving it restores player following. Ghost has no purple player marker. Teleport checks walls, props and live enemies, then clears velocity.
 
-Paths expands into wander, pursue, kamikaze, recovery and hiding-intersection filters. Independent Invulnerability starts off, prevents damage and removes mana cost. Statistics remains visible whenever enabled, even without Debug Mode. It shows FPS/UPS/TPS; Debug Mode adds AGENTS (resident live enemies) and ACTIVE (simulated subset) on a row above. Narrow windows scale/reposition statistics above the health/mana/bullet-speed HUD. Debug pointer capture suppresses all gameplay pointer actions.
+### Debug menu
+
+The menu is a tree with one section open at a time; SIMULATION is open at the start. `Application::debug_entries()` builds it, so its rows are tested without a window ([launcher and overlays](../../docs/launcher-overlays.md#debug-menu)).
+
+| Section | Rows |
+| --- | --- |
+| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 60 Hz update per click), SPEED (time scale 0.125× to 4×), INVULNERABLE (no damage, no mana cost; starts off) |
+| LAYERS | VECTORS, STEERING PROBES, PATHS with its parts WANDER, PURSUE, KAMIKAZE and RECOVERY while it is on, COLLISION SHAPES, ACTIVE AGENTS, AI STATES, HIDING HITS. A row drawn in one color shows that color; the PATHS parts show the color of their AI state. All start off |
+| ENEMIES | WANDER (STEERING or PATH), MOVE SPEED, FIRE INTERVAL, ARROW SPEED, PREDICTION, PURSUIT CYCLES, HITS, and the force of each state: WANDER, ATTACK, PURSUE, RECOVER and KAMIKAZE FORCE |
+| SPAWNING | ACTIVE LIMIT, SPAWN RATE, CROWD LOAD, SPACING |
+| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the difficulty's preset, the default forces and wander mode, speed 1×) |
+
+The ENEMIES and SPAWNING rows change the running world: its copy of the [difficulty preset](#difficulty) and its `EnemyTuning`. Movement, firing, pursuit and spawning follow at once; HITS applies to enemies that spawn afterwards. The rows stop at limits the world can run with (`tuning_step` in [application.h](include/application.h), within `logic::validate`). A new session, and RESET PARAMETERS, start from the preset again; the player's death keeps the tuned values.
+
+STEERING PROBES draws, for an enemy that wanders by steering, the three feelers its steering tests, and for every other enemy the original forward and rear probes. PATHS > WANDER draws nothing while enemies wander by steering, because they plan no path.
+
+Statistics remains visible whenever enabled, even without Debug Mode. It shows FPS/UPS/TPS; Debug Mode adds AGENTS (resident live enemies) and ACTIVE (simulated subset) on a row above. Narrow windows scale/reposition statistics above the health/mana/bullet-speed HUD. Debug pointer capture suppresses all gameplay pointer actions.
 
 ## Application boundary
 
@@ -105,11 +122,13 @@ The diagram highlights principal transitions, not every fuzzy-rule combination. 
 
 | State | Behavior |
 | --- | --- |
-| Wander | Random nearby A* routes until player visibility |
+| Wander | Until the player is visible: by steering (default), following a heading that drifts at random and turning away from walls with three feelers; or, as the original game did, along A* routes to random nearby cells |
 | Attack | Fear/ammo-dependent distance and predictive shots |
 | Pursue | A* routes after lost visibility, bounded pursuit cycles |
 | Recover | Fear-biased HideStar shelter search and reload outside player sight |
 | Kamikaze | Chase, fire remaining ammo, explode on contact |
+
+**Steering wander** ([wander.h](logic/include/wander.h)). Every decision tick (20 Hz) an enemy's wander heading drifts by up to 0.35 rad, drawn from a generator seeded with the world's seed. Every update a forward feeler of 0.9 cells and two side feelers of 0.6 cells at 0.6 rad are tested against the grid. A blocked forward feeler turns the heading to the first free direction of a fan (0.8, 1.6, 2.4 rad, to the enemy's preferred side first, then a half turn); a single blocked side feeler turns it away by 0.15 rad per update. The enemy accelerates along its heading with the WANDER force. No path is planned, so a wanderer needs no route to exist; it leaves a dead end by turning around in it.
 
 Both fuzzy close/warrior/midway combat and failed recovery can enter kamikaze only at exactly one remaining health. Enemy ammunition capacity is ten. Player health/mana regenerate; shooting costs mana; kills increase bullet speed up to the original 100-kill cap. Contact kills restore mana, with state-specific additional rewards. Resource rewards clamp to maxima. Player death starts fresh population progression.
 
@@ -117,7 +136,7 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 ## Difficulty
 
-[Immutable presets](logic/include/difficulty.h) vary population and enemy behavior; player abilities, maze and spawn exclusion remain shared.
+[Presets](logic/include/difficulty.h) vary population and enemy behavior; player abilities, maze and spawn exclusion remain shared. A world starts with a copy of its preset, which the debug menu's ENEMIES and SPAWNING sections change while it runs ([debug menu](#debug-menu)).
 
 | Setting | Easy | Medium (default) | Hard |
 | --- | --- | --- | --- |

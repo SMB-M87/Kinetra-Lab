@@ -8,11 +8,11 @@ namespace dotio {
 namespace {
 class DotioSession final : public Session {
     dotio::Application application_;
-    // Declared after the application whose flags it borrows.
+    lab::FrameLimitSwitch frame_limit_;
+    // Declared after the application and the switch whose flags it borrows.
     kinetra::SettingsOverlay settings_{
-        lab::settings_rows([this] { return application_.debug ? debug_zoom_limits : zoom_limits; },
-                           application_.statistics, application_.debug, application_.frame_times,
-                           {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
+        lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
+                           frame_limit_.enabled, {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
                            {"GHOST CLICK  TELEPORT"}),
         &application_.debug};
     lab::ModalPause pause_;
@@ -23,18 +23,19 @@ class DotioSession final : public Session {
     DotioSession &operator=(const DotioSession &) = delete;
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
         const bool was_ghost = application_.ghost;
-        auto options = application_.debug_options();
+        // The panels come first: an open settings panel takes the whole frame, and the debug
+        // menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
-        if (!application_.debug || modal)
-            application_.menu.visible = false;
-        const bool captured = application_.debug && !modal &&
-                              settings_.update_debug(input, camera.viewport, application_.menu, options);
+        // A hidden menu takes no click, so it needs no rows.
+        const auto entries =
+            application_.menu.visible ? application_.debug_entries() : std::vector<kinetra::DebugEntry>{};
+        const bool captured = settings_.update_debug(input, camera.viewport, application_.menu, entries);
         if (!was_ghost && application_.ghost) {
             application_.world().GetGhost().Position = application_.world().GetPlayer().Position;
             application_.world().GetGhost().Velocity = {};
         }
         auto commands = dotio::read_commands(modal ? kinetra::Input{} : input, camera);
-        commands.zoom_steps = application_.debug && !modal ? input.wheel : 0;
+        commands.zoom_steps = application_.debug && !modal && !captured ? input.wheel : 0;
         application_.paused = pause_.update(settings_.visible(), application_.paused);
         if (captured) {
             commands.shoot = false;
@@ -42,7 +43,10 @@ class DotioSession final : public Session {
         }
         application_.advance(elapsed, commands, camera);
     }
-    void render(kinetra::Runtime &runtime) override { dotio::render(runtime, application_, settings_); }
+    void render(kinetra::Runtime &runtime) override {
+        frame_limit_.apply(runtime);
+        dotio::render(runtime, application_, settings_);
+    }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Dotio"; }
     std::string status() override { return dotio::status_text(application_); }

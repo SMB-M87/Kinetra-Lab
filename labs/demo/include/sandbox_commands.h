@@ -20,6 +20,12 @@ struct FrameCommands {
     bool toggle_pause{}, toggle_vectors{}, toggle_gravity{}, toggle_paths{}, toggle_help{};
     bool debug{}, ghost{}, probes{};
     bool reciprocal_avoidance{true};
+    /// Simulated seconds per elapsed second: 1 is real time, 0.5 half speed, 0 stands
+    /// still. It must be finite and not negative. The camera is not slowed down.
+    float time_scale{1};
+    /// While the scene is paused, run exactly one fixed tick in this frame. Ignored while
+    /// the scene runs.
+    bool single_step{};
     std::optional<PointerCommand> pointer;
 };
 

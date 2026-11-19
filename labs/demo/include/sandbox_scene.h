@@ -3,6 +3,9 @@
 #include "agent.h"
 #include "player_control.h"
 #include "terrain.h"
+#include "tuning.h"
+#include <algorithm>
+#include <cmath>
 #include <kinetra/avoidance.h>
 #include <kinetra/camera.h>
 #include <kinetra/steering.h>
@@ -11,6 +14,40 @@
 
 namespace sandbox {
 using namespace kinetra;
+
+/// Largest number of circles that stand in for one terrain box in reciprocal avoidance.
+inline constexpr std::size_t max_box_circles = 6;
+
+/// Appends to `circles` the circles that cover terrain body `obstacle`, for reciprocal
+/// avoidance, which knows moving circles but no rotated boxes. A circle stands for itself.
+/// A box becomes a row of equal circles along its long side: as many as the short side fits
+/// into the long one, at most max_box_circles, each just large enough to cover its part of
+/// the box. One bounding circle would also block the free space beside a long wall. Any
+/// other shape gets its bounding circle.
+inline void append_avoidance_circles(const Body &obstacle, std::vector<Circle> &circles) {
+    if (obstacle.shape == Shape::circle) {
+        circles.push_back({obstacle.position, obstacle.radius});
+        return;
+    }
+    if (obstacle.shape != Shape::box) {
+        circles.push_back({obstacle.position, bounding_radius(obstacle)});
+        return;
+    }
+    const Vec2 half = obstacle.half_extents;
+    const float long_half = std::max(half.x, half.y), short_half = std::min(half.x, half.y);
+    const Vec2 long_axis = rotated(half.x >= half.y ? Vec2{1, 0} : Vec2{0, 1}, obstacle.angle);
+    // The float clamp also keeps a degenerate ratio (infinite for a zero short side) in range.
+    const auto count = static_cast<std::size_t>(
+        std::clamp(std::ceil(long_half / short_half), 1.f, static_cast<float>(max_box_circles)));
+    // Each circle covers a part of the box that is `part_half` long and `short_half` wide,
+    // both measured from the circle's center, so it reaches the corners of that part.
+    const float part_half = long_half / static_cast<float>(count);
+    const float radius = length(Vec2{short_half, part_half});
+    for (std::size_t i = 0; i < count; ++i)
+        circles.push_back(
+            {obstacle.position + long_axis * (part_half * static_cast<float>(2 * i + 1) - long_half),
+             radius});
+}
 
 /// Application-owned population, routes and terrain. Eviction remaps body indices.
 class Sandbox {
@@ -21,6 +58,9 @@ class Sandbox {
     kinetra::Navigation navigation;
     std::size_t moving_body_count{};
     std::size_t player{};
+    /// Motion and wander values that update() reads on every tick; a debug menu may change
+    /// them between ticks. update() throws for values that validate() rejects.
+    Tuning tuning;
     bool reciprocal_avoidance{true};
     std::size_t avoidance_limited{};
     std::vector<Vec2> player_path;
@@ -62,9 +102,9 @@ class Sandbox {
                 ball = regular_polygon(i == 2 ? 3 : i == 3 ? 5 : 6, 0.5f);
             else
                 ball.shape = i % 2 ? Shape::circle : Shape::box;
-            ball.position = {-22.f + i * 8, 16};
+            ball.position = {-22.f + float(i) * 8, 16};
             ball.velocity = {i % 2 ? -4.f : 4.f, -1};
-            ball.angle = 0.35f * i;
+            ball.angle = 0.35f * float(i);
             ball.angular_velocity = 0.7f;
             ball.restitution = 0.9f;
             world.add(ball);
@@ -120,7 +160,7 @@ class Sandbox {
         }
         // Remember only resident chunks, allowing bounded state and fresh populations on return.
         std::erase_if(populated_, [&](const auto &coordinate) {
-            const Vec2 corner{coordinate.first * 32.f, coordinate.second * 32.f};
+            const Vec2 corner{float(coordinate.first) * 32.f, float(coordinate.second) * 32.f};
             return !retained.overlaps({corner, corner + Vec2{32, 32}});
         });
         const bool changed = terrain.update(retained, 0) || removed;
@@ -132,8 +172,8 @@ class Sandbox {
         }
         bool added = false;
         for (const auto &[coordinate, obstacles] : terrain.chunks()) {
-            const Vec2 corner{coordinate.first * Terrain::chunk_size,
-                              coordinate.second * Terrain::chunk_size};
+            const Vec2 corner{float(coordinate.first) * Terrain::chunk_size,
+                              float(coordinate.second) * Terrain::chunk_size};
             if (!active_view.overlaps({corner, corner + Vec2{32, 32}}) || agents_.size() >= maximum_agents ||
                 !populated_.insert(coordinate).second)
                 continue;
@@ -156,18 +196,23 @@ class Sandbox {
         }
         if (changed || added) {
             moving_body_count = world.bodies().size();
-            std::vector<Body> obstacles;
+            loaded_terrain_.clear();
+            std::vector<Aabb> terrain_bounds;
             for (const auto &[coordinate, bodies] : terrain.chunks())
                 for (const auto &body : bodies) {
                     if (!retained.overlaps(bounds(body)))
                         continue;
                     world.add(body);
-                    obstacles.push_back(body);
+                    loaded_terrain_.push_back(body);
+                    terrain_bounds.push_back(bounds(body));
                 }
+            // Terrain changes only here, so its index is rebuilt here and not every tick.
+            terrain_index_.rebuild(terrain_bounds);
             // Plan only around simulated actors, rather than allocating navigation
             // for the much larger debug residency area. Margin covers wander goals.
             const Vec2 route_margin{24, 24};
-            navigation.rebuild({active_view.min - route_margin, active_view.max + route_margin}, obstacles);
+            navigation.rebuild({active_view.min - route_margin, active_view.max + route_margin},
+                               loaded_terrain_);
             for (auto &agent : agents_)
                 agent.invalidate_route();
             player_replan = 0;
@@ -236,14 +281,21 @@ class Sandbox {
 
     /// Apply player intent and active-agent steering for one fixed tick; sleeping
     /// agents remain collision obstacles and regain their exact state after physics.
+    ///
+    /// Reads `tuning` and throws std::invalid_argument, before anything moves, when
+    /// validate() rejects it.
     void update(float dt, const PlayerControl &control) {
+        validate(tuning);
         avoidance_limited = 0;
+        const MotionTuning &motion = tuning.motion;
         Steering steering;
-        steering.max_speed = 4;
-        steering.lookahead = 0.8f;
-        steering.slow_radius = 1;
-        steering.stop_radius = 0.08f;
-        steering.clearance = 0.05f;
+        steering.max_speed = motion.max_speed;
+        steering.max_acceleration = motion.max_acceleration;
+        steering.response_time = motion.response_time;
+        steering.lookahead = motion.lookahead;
+        steering.slow_radius = slow_radius;
+        steering.stop_radius = stop_radius;
+        steering.clearance = motion.clearance;
         std::vector<Body> snapshot(world.bodies().begin(), world.bodies().begin() + moving_body_count);
         std::vector<bool> cooperative(moving_body_count, false);
         for (const auto &agent : agents_) {
@@ -269,18 +321,23 @@ class Sandbox {
         avoidance.max_speed = steering.max_speed;
         avoidance.max_acceleration = steering.max_acceleration;
         avoidance.clearance = steering.clearance;
-        const auto acceleration = [&](std::size_t id, Vec2 target) {
+        avoidance.horizon = motion.horizon;
+        avoidance.passing_bias = motion.passing_bias;
+        // Scratch space for the circles of one terrain body.
+        std::vector<Circle> terrain_circles;
+        const auto acceleration = [&](std::size_t id, Vec2 target, AvoidTerrain terrain_avoidance) {
             const auto &body = snapshot[id];
             std::vector<Body> obstacles;
             std::vector<AvoidanceAgent> agents;
             const bool reciprocal = reciprocal_avoidance && id != player;
             const float range = reciprocal ? bounding_radius(body) + largest_radius +
                                                  (avoidance.max_speed + largest_speed) * avoidance.horizon
-                                           : 6.f;
+                                           : legacy_neighbor_range;
             const Vec2 reach{range, range};
             for (auto other : neighbors.query({body.position - reach, body.position + reach}))
                 // Terrain clearance is handled by the swept route. Local avoidance
-                // handles movers without fighting planned static-obstacle corners.
+                // handles movers without fighting planned static-obstacle corners. Only
+                // an agent without a route adds terrain below.
                 if (other != id && other < moving_body_count) {
                     if (reciprocal) {
                         const auto &neighbor = snapshot[other];
@@ -290,6 +347,29 @@ class Sandbox {
                         obstacles.push_back(snapshot[other]);
                     }
                 }
+            if (terrain_avoidance == AvoidTerrain::yes) {
+                // Terrain stands still, so only the body's own travel within the time that
+                // its avoidance model looks ahead decides which terrain can matter.
+                const float travel = std::max(steering.max_speed, length(body.velocity)) *
+                                     (reciprocal ? avoidance.horizon : steering.lookahead);
+                const float terrain_range = bounding_radius(body) + steering.clearance + travel;
+                const Vec2 terrain_reach{terrain_range, terrain_range};
+                for (auto index :
+                     terrain_index_.query({body.position - terrain_reach, body.position + terrain_reach})) {
+                    if (!reciprocal) {
+                        obstacles.push_back(loaded_terrain_[index]);
+                        continue;
+                    }
+                    terrain_circles.clear();
+                    append_avoidance_circles(loaded_terrain_[index], terrain_circles);
+                    const std::uint64_t first_id =
+                        terrain_avoidance_ids + static_cast<std::uint64_t>(index) * max_box_circles;
+                    for (std::size_t part = 0; part < terrain_circles.size(); ++part)
+                        // Not cooperative: terrain never yields, the agent avoids it alone.
+                        agents.push_back({first_id + part, terrain_circles[part].center, Vec2{},
+                                          terrain_circles[part].radius, false});
+                }
+            }
             if (reciprocal) {
                 const auto preferred =
                     body.velocity + steer(body, target, {}, steering) * steering.response_time;
@@ -302,8 +382,8 @@ class Sandbox {
             }
             auto settings = steering;
             if (id != player) {
-                settings.separation_radius = 1.6f;
-                settings.separation_weight = 0.65f;
+                settings.separation_radius = motion.separation_radius;
+                settings.separation_weight = motion.separation_weight;
             }
             return steer(body, target, obstacles, settings);
         };
@@ -319,7 +399,11 @@ class Sandbox {
                 body.angular_velocity = 0;
                 continue;
             }
-            body.acceleration = acceleration(agent.body_id(), agent.advance_navigation(dt, body, navigation));
+            const Vec2 target = agent.advance_navigation(dt, body, navigation, tuning);
+            // A route keeps its own clearance from terrain; an agent without one relies on
+            // local avoidance to stay clear of it.
+            body.acceleration = acceleration(
+                agent.body_id(), target, agent.steers_without_route() ? AvoidTerrain::yes : AvoidTerrain::no);
             body.angular_velocity = 0;
             if (length(body.velocity) > 0.1f)
                 body.angular_velocity = std::clamp(
@@ -339,7 +423,8 @@ class Sandbox {
                 player_path = navigation.path(p.position, *player_goal);
                 player_replan = 2;
             }
-            p.acceleration = acceleration(player, route_target(p.position, player_path, navigation));
+            p.acceleration =
+                acceleration(player, route_target(p.position, player_path, navigation), AvoidTerrain::no);
             if (length(*player_goal - p.position) < 0.4f) {
                 player_goal.reset();
                 player_path.clear();
@@ -358,8 +443,20 @@ class Sandbox {
     }
 
   private:
+    /// Whether local avoidance of one mover also looks at the terrain near it.
+    enum class AvoidTerrain { no, yes };
+    /// Distance in world units within which legacy steering looks for other movers.
+    static constexpr float legacy_neighbor_range = 6;
+    /// First avoidance id of terrain circles. Movers use their body index as id, and the
+    /// world never holds this many bodies, so the two kinds cannot collide.
+    static constexpr std::uint64_t terrain_avoidance_ids = std::uint64_t{1} << 32;
+
     std::vector<Agent> agents_;
     std::set<Terrain::Coordinate> populated_;
+    /// The terrain bodies that stream() last put into the world, and an index of their
+    /// bounds for the agents that avoid terrain without a route. Index i is loaded_terrain_[i].
+    std::vector<Body> loaded_terrain_;
+    SpatialGrid terrain_index_{4};
 
     /// Reject overlapping spawn candidates, including the reserved player/passive area.
     bool spawn(Vec2 position, const Terrain::Chunks &chunks) {

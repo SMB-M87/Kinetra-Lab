@@ -70,7 +70,7 @@ The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=O
 
 ## Controls
 
-Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. LAUNCHER and EXIT are in that panel. Debug Mode, the statistics and every debug layer start on. The DEBUG button next to SETTINGS, or Backquote, opens the debug menu.
+Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. LAUNCHER and EXIT are in that panel. Debug Mode, the statistics and every debug layer start on. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
 
 | Input | Action |
 | --- | --- |
@@ -85,7 +85,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | Left click / right click | Inspect a mover or producer / also hold the mover or block the producer |
 | Shift + left click | Send the selected mover there as a manual goal |
 
-The debug menu has four sections. A click on a heading (`+ LAYERS`) opens its rows below it and closes the open section; a second click closes it. SIMULATION is open at the start. On/off settings are `[X]` check boxes, a number shows its value with `[-]` and `[+]` buttons, and PROFILE and PLANNER open a list of `[*]` choices below them that closes on a choice. FRAME SCENE and BLUEPRINTS (back to the blueprint screen) stay below the sections.
+The debug menu has four sections. A click on a heading opens its rows below it and closes the open section; a second click closes it. SIMULATION is open at the start. On/off settings are check boxes, a number shows its value with `[-]` and `[+]` buttons, and PROFILE and PLANNER open a list of choices below them that closes on a choice. Below a rule follow ZOOM, with buttons of one zoom step each, FRAME SCENE and BLUEPRINTS (back to the blueprint screen).
 
 | Section | Rows |
 | --- | --- |
@@ -216,7 +216,7 @@ sequenceDiagram
 *Takeaway:* the panels see the input first. An open settings panel takes the whole frame; the debug menu takes the pointer while it is over the menu. Only then does the controller map what is left to commands and advance the simulation.
 
 - **Why the controller is separate.** Which key does what, when a click selects, how long a message stays and how the camera fits are rules, and rules need tests. In the controller they are tested from plain `kinetra::Input` values, without a window ([controller tests](tests/controller_tests.cpp)).
-- **Menu entries.** The controller describes each debug-menu row as a `MenuEntry`: a label, a kind (button, check box, list choice or heading), a nesting depth, and optionally an action, a state, a value text, `[-]` / `[+]` functions and the layer it selects. It also keeps which section and which list are open. The session only decorates the entries into `kinetra::DebugOption` rows: two spaces per level, then `[X]`, `[*]` or `+` / `-`, and a swatch from `layer_color` for a layer drawn in one color. Every action changes the state where it lives, so no flag has to be mirrored between the menu and the simulation.
+- **Menu entries.** The controller describes each debug-menu row as a `kinetra::DebugEntry`: a label, a kind (button, check box, list choice or heading), a nesting depth, and optionally an action, a state, a value text, `[-]` / `[+]` functions and a swatch. A `kinetra::DebugFolds` keeps which section and which list are open, and a `lab::ZoomControl` collects the steps of the ZOOM row for the next camera update. The engine's menu draws marks, indentation and values, so the session passes the entries on unchanged. The colors stay with the drawing code: the session hands `layer_color` to `menu()`, which asks it for the swatch of every layer row. Every action changes the state where it lives, so no flag has to be mirrored between the menu and the simulation.
 - **Deferred close.** BLUEPRINTS only sets a request. The frame that clicked it still finishes with its simulation; the next `begin_frame` closes it.
 - **Drawing between ticks.** Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 

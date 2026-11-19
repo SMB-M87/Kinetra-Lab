@@ -118,12 +118,12 @@ The five application executables (`kinetra`, `kinetra_sandbox`, `kinetra_demo`, 
 
 `cmake --workflow --preset windows` (or `ctest --preset windows` after a build) runs every test through WSL interop on Windows, the graphics tests included: they open their windows on the Windows desktop with the real GPU driver.
 
-Two characterization cases are excluded on Windows by the `windows` and `windows-native` test presets:
+Five characterization cases are excluded on Windows by the `windows` and `windows-native` test presets:
 
-- `kinetra_demo_crowd_characterization:a dense idle crowd reproduces its recorded summary`
+- the four cases of `kinetra_demo_crowd_characterization`
 - `kinetra_i4sim_golden:the experimental RVO profile reproduces its recorded summary`
 
-Their recorded summaries hash exact floating-point trajectories. They were recorded on Linux, and the Windows C runtime rounds transcendental functions differently in the last bit: the i4sim profile ends at 17582.889 mm instead of 17582.890 mm. The other golden and characterization cases match on both platforms. Linux CI still runs both cases.
+Their recorded summaries hash exact floating-point trajectories. They were recorded on Linux, and the Windows C runtime rounds transcendental functions differently in the last bit: the i4sim profile ends at 17582.889 mm instead of 17582.890 mm. Demo's agents wander by steering, which turns headings into directions with those functions on every tick, so three of its four crowd lines differ on Windows; the suite is excluded as a whole, because which lines survive is chance. The other golden cases match on both platforms. Linux CI still runs all five cases.
 
 ## Continuous integration
 

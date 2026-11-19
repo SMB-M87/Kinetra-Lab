@@ -9,13 +9,22 @@ float World::GetTickRate() const {
     return _tickRate;
 }
 
+namespace {
+/// Second word of the seed sequence of World::wander_random(), so that stream differs from
+/// the population stream that the same world seed starts.
+constexpr std::uint32_t wander_stream = 0x57414E44; // "WAND"
+} // namespace
+
 void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
-    settings_for(difficulty); // Validate before mutating the world.
+    settings_ = settings_for(difficulty); // Throws before anything else in the world changes.
+    enemy_tuning_ = {};
     difficulty_ = difficulty;
     seed_ = seed;
     spawn_credit_ = 0;
     survival_seconds_ = 0;
     population_random_.seed(seed);
+    std::seed_seq wander_seed{seed, wander_stream};
+    wander_random_.seed(wander_seed);
     offset_row_ = offset_column_ = 0;
     resident_cells_ = {-1, -1, -1, -1};
     Grid::Generate(seed);
@@ -274,6 +283,11 @@ void World::UpdateObjects(float delta) {
         }
         Grid::HandleGridCollision(_player, 0, &Grid::Array[0][0]);
     }
+}
+
+void World::reset_tuning() {
+    settings_ = settings_for(difficulty_);
+    enemy_tuning_ = {};
 }
 
 void World::Reset() {

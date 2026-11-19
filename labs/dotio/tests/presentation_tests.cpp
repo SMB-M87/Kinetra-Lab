@@ -19,9 +19,10 @@
 namespace {
 /// The settings toolbar a Dotio session draws over the world, over `application`'s flags.
 kinetra::SettingsOverlay settings_for(dotio::Application &application) {
-    return kinetra::SettingsOverlay(lab::settings_rows([] { return dotio::zoom_limits; },
-                                                       application.statistics, application.debug,
-                                                       application.frame_times, {}, {}),
+    // The overlay keeps a pointer to the FRAME LIMIT flag, which these checks never read.
+    static bool frame_limit = true;
+    return kinetra::SettingsOverlay(lab::settings_rows(application.statistics, application.debug,
+                                                       application.frame_times, frame_limit, {}, {}),
                                     &application.debug);
 }
 } // namespace

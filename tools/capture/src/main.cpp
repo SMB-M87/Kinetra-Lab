@@ -35,6 +35,8 @@ int main(int argc, char **argv) {
         for (const auto *scene : selected) {
             // One Runtime per scene, at the scene's size; only one may exist at a time.
             kinetra::Runtime runtime("Kinetra capture", scene->width, scene->height);
+            // Frames go to files, not to a viewer: nothing has to wait for a display.
+            runtime.limit_frames(false);
             runtime.poll(false);
             capture::Stage stage(runtime, output, std::string(scene->name));
             scene->script(stage);

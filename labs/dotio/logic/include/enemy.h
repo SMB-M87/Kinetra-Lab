@@ -33,6 +33,14 @@ class Enemy final : public PhysicsObject {
     float Fear{};
     int HitsRemaining{1};
     bool LineOfSight{false}, Debug{false}, Frozen{};
+    /// Direction this enemy wanders in under WanderMode::steering, in radians in legacy
+    /// coordinates: it points along (cos, sin), and +Y is down the screen. Kept in
+    /// [-pi, pi]; Initialize() and Reset() draw a new one from World::wander_random().
+    float WanderHeading{};
+    /// Side this enemy turns to first when a wall blocks its wander heading: +1 adds to
+    /// WanderHeading, -1 subtracts. It changes only when the other side is the free one, so
+    /// the enemy does not turn back and forth in front of a wall.
+    float WanderSide{1.f};
 
     Enemy();
 

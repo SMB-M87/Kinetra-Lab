@@ -19,6 +19,8 @@ struct AttackState : State {
     void Update() override;
 };
 
+/// Roams until the player comes into sight, then attacks. EnemyTuning::wander chooses how:
+/// by steering along Enemy::WanderHeading (wander.h) or along an A* path to a random cell.
 struct WanderState : State {
     void Execute(const float delta) override;
     void Update() override;

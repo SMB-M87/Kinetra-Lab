@@ -30,8 +30,13 @@ class World {
     double survival_seconds_{};
     std::uint64_t resets_{};
     Difficulty difficulty_{Difficulty::medium};
+    /// The balance in use: the preset of difficulty_ until settings() changes it.
+    DifficultySettings settings_;
+    EnemyTuning enemy_tuning_{};
     std::uint32_t seed_{};
     std::mt19937 population_random_{0};
+    /// Wander headings and their drift; its own stream, so spawning does not shift it.
+    std::mt19937 wander_random_{0};
     int offset_row_{}, offset_column_{};
     void RefreshGraphCell(int row, int column);
     std::array<int, 4> resident_cells_{-1, -1, -1, -1};
@@ -44,16 +49,42 @@ class World {
     std::optional<std::pair<std::size_t, float>> FirstObjectHit(gmath::Segment segment, float radius) const;
 
   public:
-    explicit World(Difficulty difficulty = Difficulty::medium) : difficulty_(difficulty) {
-        settings_for(difficulty);
-    }
+    /// Throws std::invalid_argument for a difficulty without a preset.
+    explicit World(Difficulty difficulty = Difficulty::medium)
+        : difficulty_(difficulty), settings_(settings_for(difficulty)) {}
     World(const World &) = delete;
     World &operator=(const World &) = delete;
     std::unordered_map<gmath::GridEntry, std::unordered_set<logic::PhysicsObject *>> EnemyPartitionMap;
 
+    /// Starts a new world for `seed` at `difficulty`: terrain, player, a dormant enemy pool,
+    /// the preset of the difficulty as settings() and a default enemy_tuning(). The seed also
+    /// seeds wander_random(). Throws std::invalid_argument for a difficulty without a preset,
+    /// before anything changes.
     void Initialize(std::uint32_t seed = std::random_device{}(), Difficulty difficulty = Difficulty::medium);
-    const DifficultySettings &difficulty_settings() const { return settings_for(difficulty_); }
+    /// The balance this world runs with. It starts as the preset of the difficulty and
+    /// follows every change made through settings().
+    const DifficultySettings &difficulty_settings() const { return settings_; }
+    /// The balance of this world, for changing it while the world runs.
+    ///
+    /// The world reads the values where it uses them: movement, firing, pursuit and spawning
+    /// follow at once, `enemy_hits` when an enemy next spawns. Values are not checked here;
+    /// keep them within what validate(const DifficultySettings &) accepts. Reset() keeps
+    /// them, reset_tuning() and Initialize() restore the preset.
+    DifficultySettings &settings() { return settings_; }
+    /// The wander mode and state forces of this world's enemies, read on every update.
+    /// Values are not checked here; keep them within what validate(const EnemyTuning &)
+    /// accepts. Reset() keeps them, reset_tuning() and Initialize() restore the defaults.
+    EnemyTuning &enemy_tuning() { return enemy_tuning_; }
+    const EnemyTuning &enemy_tuning() const { return enemy_tuning_; }
+    /// Restores settings() to the preset of the difficulty and enemy_tuning() to its defaults.
+    void reset_tuning();
+    /// Generator behind steering wander: the headings enemies start with and their drift.
+    /// Seeded from the world's seed in Initialize(), so the same seed and the same calls
+    /// give the same wander. Only the wander code draws from it.
+    std::mt19937 &wander_random() { return wander_random_; }
 
+    /// Starts a new life after the player's death: respawns the player and retires every
+    /// enemy and projectile. Difficulty, settings() and enemy_tuning() stay as they are.
     void Reset();
     /// Number of Reset() calls so far. A reset moves the player to a new spawn point, so
     /// drawing must not blend across one.

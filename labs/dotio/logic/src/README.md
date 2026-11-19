@@ -33,6 +33,8 @@ flowchart TD
 | [world.cpp](world.cpp) | Streaming, population, progression and projectile ordering |
 | [enemy.cpp](enemy.cpp) | Enemy updates and AI integration |
 | [state.cpp](state.cpp) | Wander, attack, pursue, recover and kamikaze behavior |
+| [wander.cpp](wander.cpp) | Steering wander: heading drift and turning away from walls |
+| [difficulty.cpp](difficulty.cpp) | Validation of difficulty settings and enemy tuning |
 | [player.cpp](player.cpp) | Player movement, shooting and resources |
 | [arrow.cpp](arrow.cpp) | Enemy projectiles |
 | [bolt.cpp](bolt.cpp) | Player projectiles |

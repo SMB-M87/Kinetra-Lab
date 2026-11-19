@@ -1,5 +1,6 @@
 // Headless tests for the Demo scene: seeded terrain streaming, obstacles, agent
-// population and lifecycle, wandering, navigation, the path follower and Ghost isolation.
+// population and lifecycle, wandering by steering and by route, navigation, the path
+// follower and Ghost isolation.
 #include "../include/sandbox_scene.h"
 
 #include <doctest/doctest.h>
@@ -62,6 +63,40 @@ Body wall_box(float angle) {
     obstacle.half_extents = {1, 7};
     obstacle.angle = angle;
     return obstacle;
+}
+
+/// The default tuning, but with wander by planned routes; the home range stays 12 world units.
+sandbox::Tuning route_wander() {
+    sandbox::Tuning tuning;
+    tuning.wander.mode = sandbox::WanderMode::route;
+    return tuning;
+}
+
+/// Route wander that never turns back toward home. The cases that pin the legs of a freely
+/// roaming agent use it: they were written before agents had a home range.
+sandbox::Tuning free_route_wander() {
+    sandbox::Tuning tuning = route_wander();
+    tuning.wander.range = 1e6f;
+    return tuning;
+}
+
+/// Fixed step of the Demo's clock in seconds.
+constexpr float tick_seconds = 1.f / 120;
+
+/// A view that keeps an agent anywhere in these tests active.
+constexpr Aabb everywhere{{-1000, -1000}, {1000, 1000}};
+
+/// Moves `body` one tick toward `target` the way the scene moves an agent that has open
+/// space around it.
+void follow(Body &body, Vec2 target, const sandbox::Tuning &tuning) {
+    Steering settings;
+    settings.max_speed = tuning.motion.max_speed;
+    settings.max_acceleration = tuning.motion.max_acceleration;
+    settings.response_time = tuning.motion.response_time;
+    settings.slow_radius = sandbox::slow_radius;
+    settings.stop_radius = sandbox::stop_radius;
+    body.acceleration = steer(body, target, {}, settings);
+    integrate(body, tick_seconds);
 }
 
 /// The player's controlled box body without friction, at `position`.
@@ -204,6 +239,8 @@ TEST_CASE("scene streaming keeps the player and gravity and loads physics only n
 // Wander resumes at the destination, while dormant navigation remains frozen.
 TEST_CASE("agents wander on from reached goals and distant patrols are evicted") {
     sandbox::Sandbox scene(12, 42);
+    // The assertions below are about wander routes; steering wander plans none.
+    scene.tuning = route_wander();
     const auto id = scene.agents().front().body_id();
     const Vec2 home = scene.agents().front().home();
     CHECK_MESSAGE((length(scene.agents().front().goal() - home) == 0 && scene.agents().front().wandering() &&
@@ -242,12 +279,13 @@ TEST_CASE("agent navigation stays frozen while dormant and holds position for un
     Body body;
     sandbox::Agent agent(7, body.position);
     CHECK_MESSAGE((agent.body_id() == 7 && !agent.active()), "Agent identity or initial visibility changed");
-    CHECK_MESSAGE((length(agent.advance_navigation(0.1f, body, navigation) - body.position) == 0 &&
+    const auto tuning = route_wander();
+    CHECK_MESSAGE((length(agent.advance_navigation(0.1f, body, navigation, tuning) - body.position) == 0 &&
                    agent.replan_in() == 0 && agent.route().empty()),
                   "Dormant navigation changed initial state");
     agent.update_visibility({{-20, -20}, {20, 20}}, body);
     agent.retarget({12, 0});
-    const Vec2 target = agent.advance_navigation(1.f / 120, body, navigation);
+    const Vec2 target = agent.advance_navigation(1.f / 120, body, navigation, tuning);
     CHECK_MESSAGE((target.x > 0 && target.y == 0 && !agent.route().empty() &&
                    length(agent.route().back() - Vec2{12, 0}) == 0),
                   "Active navigation did not consume the reached start waypoint");
@@ -255,11 +293,12 @@ TEST_CASE("agent navigation stays frozen while dormant and holds position for un
     agent.retarget({100, 100});
     CHECK_MESSAGE((agent.replan_in() == 0 && agent.route().size() == previous_path_size),
                   "Retarget consumed the previous displayed route before replanning");
-    CHECK_MESSAGE((length(agent.advance_navigation(1.f / 120, body, navigation) - body.position) == 0 &&
-                   agent.route().empty() && agent.replan_in() == 2),
-                  "An unreachable goal must hold position and retain the retry interval");
+    CHECK_MESSAGE(
+        (length(agent.advance_navigation(1.f / 120, body, navigation, tuning) - body.position) == 0 &&
+         agent.route().empty() && agent.replan_in() == 2),
+        "An unreachable goal must hold position and retain the retry interval");
     agent.update_visibility({{100, 100}, {120, 120}}, body);
-    agent.advance_navigation(0.1f, body, navigation);
+    agent.advance_navigation(0.1f, body, navigation, tuning);
     CHECK_MESSAGE((agent.replan_in() == 2 && length(agent.goal() - Vec2{100, 100}) == 0 &&
                    length(agent.home() - body.position) == 0),
                   "Dormant navigation advanced a timer or changed goal/home");
@@ -272,34 +311,36 @@ TEST_CASE("seeded wandering picks new reachable destinations and yields to expli
     sandbox::Agent a(0, {}, 123), repeat(0, {}, 123), other(0, {}, 456);
     for (auto *agent : {&a, &repeat, &other})
         agent->update_visibility({{-100, -100}, {100, 100}}, body);
-    a.advance_navigation(1.f / 120, body, nav);
-    repeat.advance_navigation(1.f / 120, body, nav);
-    other.advance_navigation(1.f / 120, body, nav);
+    // The twelve legs below leave the default home range, so the agent roams freely.
+    const auto tuning = free_route_wander();
+    a.advance_navigation(1.f / 120, body, nav, tuning);
+    repeat.advance_navigation(1.f / 120, body, nav, tuning);
+    other.advance_navigation(1.f / 120, body, nav, tuning);
     CHECK_MESSAGE((length(a.goal() - repeat.goal()) == 0 && length(a.goal() - other.goal()) > 0.1f),
                   "Wander must be seeded and vary across seeds");
     Vec2 previous{};
     for (int leg = 0; leg < 12; ++leg) {
         body.position = a.goal();
         const auto arrived = body.position;
-        a.advance_navigation(1.f / 120, body, nav);
+        a.advance_navigation(1.f / 120, body, nav, tuning);
         CHECK_MESSAGE((a.wandering() && !a.route().empty() && length(a.goal() - arrived) >= 2 &&
                        length(a.goal() - previous) > 0.1f),
                       "Wander stopped or ping-ponged instead of selecting a new reachable destination");
         previous = arrived;
     }
     a.retarget({50, 50});
-    a.advance_navigation(1.f / 120, body, nav);
+    a.advance_navigation(1.f / 120, body, nav, tuning);
     CHECK_MESSAGE((!a.wandering() && length(a.goal() - Vec2{50, 50}) == 0),
                   "Explicit travel must take priority over wandering");
     body.position = {50, 50};
-    a.advance_navigation(1.f / 120, body, nav);
+    a.advance_navigation(1.f / 120, body, nav, tuning);
     CHECK_MESSAGE((a.wandering() && length(a.goal() - body.position) >= 2),
                   "Arrival must resume wandering around the new location");
     nav.rebuild({{-1, -1}, {1, 1}}, {});
     body.position = {};
     sandbox::Agent enclosed(1, {});
     enclosed.update_visibility({{-1, -1}, {1, 1}}, body);
-    enclosed.advance_navigation(1.f / 120, body, nav);
+    enclosed.advance_navigation(1.f / 120, body, nav, tuning);
     CHECK_MESSAGE((enclosed.route().empty() && enclosed.replan_in() == 2),
                   "Enclosed wander must wait between bounded planning attempts");
 }
@@ -311,6 +352,8 @@ TEST_CASE("wandering curves before arrival and short timers do not interrupt com
     Body body;
     body.motion = Motion::controlled;
     agent.update_visibility({{-100, -100}, {100, 100}}, body);
+    // Eight seconds of legs lead out of the default home range, so the agent roams freely.
+    const auto tuning = free_route_wander();
     Vec2 previous_direction{}, previous_goal{};
     float total_turn = 0;
     int early_goal_changes = 0;
@@ -318,7 +361,7 @@ TEST_CASE("wandering curves before arrival and short timers do not interrupt com
     settings.max_speed = 4;
     for (int tick = 0; tick < 960; ++tick) {
         const float previous_distance = length(agent.goal() - body.position);
-        const auto target = agent.advance_navigation(1.f / 120, body, navigation);
+        const auto target = agent.advance_navigation(1.f / 120, body, navigation, tuning);
         if (tick > 0 && length(agent.goal() - previous_goal) > 0.1f && previous_distance > 2)
             ++early_goal_changes;
         previous_goal = agent.goal();
@@ -334,9 +377,135 @@ TEST_CASE("wandering curves before arrival and short timers do not interrupt com
                   "Wander stayed on long straight legs instead of curving before arrival");
     agent.retarget({80, 80});
     for (int tick = 0; tick < 360; ++tick)
-        agent.advance_navigation(1.f / 120, body, navigation);
+        agent.advance_navigation(1.f / 120, body, navigation, tuning);
     CHECK_MESSAGE((!agent.wandering() && length(agent.goal() - Vec2{80, 80}) < 0.001f),
                   "Short wander timers interrupted commanded travel");
+}
+
+TEST_CASE("steering wander moves an agent on a curved course without planning a route") {
+    // Never rebuilt, so every route query fails: steering wander must not need one.
+    const Navigation navigation;
+    const sandbox::Tuning tuning;
+    REQUIRE_MESSAGE(tuning.wander.mode == sandbox::WanderMode::steering, "Steering is not the default");
+    sandbox::Agent agent(0, {}, 123);
+    Body body;
+    body.motion = Motion::controlled;
+    agent.update_visibility(everywhere, body);
+    Vec2 previous_direction{};
+    float travelled = 0, total_turn = 0;
+    for (int tick = 0; tick < 600; ++tick) {
+        const Vec2 before = body.position;
+        const Vec2 target = agent.advance_navigation(tick_seconds, body, navigation, tuning);
+        REQUIRE_MESSAGE((agent.wandering() && agent.steers_without_route() && agent.route().empty()),
+                        "Steering wander planned a route");
+        REQUIRE_MESSAGE(length(target - agent.goal()) == 0, "The steering target is not reported as goal");
+        // The target lies on a circle of half the reach, a full reach ahead.
+        const float ahead = length(target - body.position);
+        REQUIRE_MESSAGE((ahead >= tuning.wander.reach * 0.499f && ahead <= tuning.wander.reach * 1.501f),
+                        "The steering target left the wander circle");
+        follow(body, target, tuning);
+        travelled += length(body.position - before);
+        const Vec2 direction = normalized(body.velocity);
+        if (length(body.velocity) > 1 && length(previous_direction) > 0)
+            total_turn += std::abs(signed_angle(previous_direction, direction));
+        previous_direction = direction;
+    }
+    // Five seconds at up to 4 units per second.
+    CHECK_MESSAGE(travelled > 15, "A steering wanderer did not keep moving");
+    CHECK_MESSAGE(total_turn > 0.5f, "A steering wanderer walked a straight line");
+}
+
+TEST_CASE("steering wander is repeatable for a seed and differs between seeds") {
+    const Navigation navigation;
+    const sandbox::Tuning tuning;
+    sandbox::Agent agent(0, {}, 123), repeat(0, {}, 123), other(0, {}, 456);
+    Body body;
+    body.motion = Motion::controlled;
+    for (auto *each : {&agent, &repeat, &other})
+        each->update_visibility(everywhere, body);
+    bool differs = false;
+    for (int tick = 0; tick < 600; ++tick) {
+        const Vec2 target = agent.advance_navigation(tick_seconds, body, navigation, tuning);
+        REQUIRE_MESSAGE(length(target - repeat.advance_navigation(tick_seconds, body, navigation, tuning)) ==
+                            0,
+                        "Two agents with one seed chose different steering targets");
+        differs = differs ||
+                  length(target - other.advance_navigation(tick_seconds, body, navigation, tuning)) > 0.01f;
+        follow(body, target, tuning);
+    }
+    CHECK_MESSAGE(differs, "Steering wander ignores its seed");
+}
+
+TEST_CASE("steering wander returns an agent to its home range and keeps it there") {
+    const Navigation navigation;
+    const sandbox::Tuning tuning;
+    const Vec2 home{3, -2};
+    sandbox::Agent agent(0, home, 123);
+    Body body;
+    body.motion = Motion::controlled;
+    // Well beyond the home range of 12 units.
+    body.position = home + Vec2{30, 0};
+    agent.update_visibility(everywhere, body);
+    // The 18 units back to the range take 4.5 seconds at top speed; allow 10.
+    for (int tick = 0; tick < 1200; ++tick)
+        follow(body, agent.advance_navigation(tick_seconds, body, navigation, tuning), tuning);
+    CHECK_MESSAGE(distance(body.position, home) < tuning.wander.range,
+                  "A steering wanderer did not return to its home range");
+    float farthest = 0;
+    for (int tick = 0; tick < 7200; ++tick) {
+        follow(body, agent.advance_navigation(tick_seconds, body, navigation, tuning), tuning);
+        farthest = std::max(farthest, distance(body.position, home));
+    }
+    INFO("farthest from home in 60 seconds: " << farthest);
+    CHECK_MESSAGE(farthest <= tuning.wander.range, "A steering wanderer left its home range in open space");
+    CHECK_MESSAGE(farthest > tuning.wander.range / 2, "A steering wanderer stayed at home");
+}
+
+TEST_CASE("commanded travel plans a route for a steering wanderer and steering resumes on arrival") {
+    Navigation navigation;
+    navigation.rebuild({{-20, -20}, {20, 20}}, {});
+    const sandbox::Tuning tuning;
+    sandbox::Agent agent(0, {}, 123);
+    Body body;
+    agent.update_visibility(everywhere, body);
+    agent.advance_navigation(tick_seconds, body, navigation, tuning);
+    REQUIRE_MESSAGE(agent.steers_without_route(), "A new agent does not wander by steering");
+    agent.retarget({10, 0});
+    agent.advance_navigation(tick_seconds, body, navigation, tuning);
+    CHECK_MESSAGE((!agent.wandering() && !agent.steers_without_route() && !agent.route().empty() &&
+                   length(agent.goal() - Vec2{10, 0}) == 0),
+                  "A commanded steering wanderer did not plan a route to its goal");
+    body.position = {10, 0};
+    agent.advance_navigation(tick_seconds, body, navigation, tuning);
+    CHECK_MESSAGE((agent.wandering() && agent.steers_without_route() && agent.route().empty()),
+                  "Arrival did not resume steering wander without a route");
+    agent.update_visibility({{100, 100}, {120, 120}}, body);
+    CHECK_MESSAGE(!agent.steers_without_route(), "A dormant agent still reports steering");
+}
+
+TEST_CASE("route wander starts its legs toward home beyond the home range") {
+    Navigation navigation;
+    navigation.rebuild({{-100, -100}, {100, 100}}, {});
+    const auto tuning = route_wander();
+    const Vec2 home{};
+    sandbox::Agent agent(0, home, 123);
+    Body body;
+    body.position = {40, 0};
+    agent.update_visibility(everywhere, body);
+    // A leg covers at least 2 units toward home, so 28 units take at most 14 legs.
+    int legs = 0;
+    while (distance(body.position, home) > tuning.wander.range && legs < 14) {
+        const float before = distance(body.position, home);
+        agent.advance_navigation(tick_seconds, body, navigation, tuning);
+        REQUIRE_MESSAGE((agent.wandering() && !agent.route().empty() && !agent.steers_without_route()),
+                        "Route wander did not plan a leg");
+        REQUIRE_MESSAGE(distance(agent.goal(), home) < before - 2,
+                        "A leg beyond the home range did not lead toward home");
+        body.position = agent.goal();
+        ++legs;
+    }
+    CHECK_MESSAGE(distance(body.position, home) <= tuning.wander.range,
+                  "Route wander did not return to its home range");
 }
 
 TEST_CASE("a crowded population spawns visible near the initial camera without overlapping the player") {
@@ -476,7 +645,7 @@ TEST_CASE("the player and agents depart from static geometry they touch") {
             walker.position = rotated({-1.34f, 0}, angle);
             agent.update_visibility({{-20, -20}, {20, 20}}, walker);
             agent.retarget(goal);
-            agent.advance_navigation(1.f / 120, walker, scene.navigation);
+            agent.advance_navigation(1.f / 120, walker, scene.navigation, route_wander());
             CHECK_MESSAGE(!agent.route().empty(), "Agent beside static geometry cannot plan departure");
             CHECK_MESSAGE(scene.navigation.path(obstacle.position, goal).empty(),
                           "Recovery allowed departure from inside solid geometry");
@@ -490,7 +659,8 @@ TEST_CASE("the player and agents depart from static geometry they touch") {
             settings.stop_radius = 0.08f;
             for (int tick = 0; tick < 2000 && !arrived; ++tick) {
                 auto &body = simulation.body(walker_id);
-                const auto target = agent.advance_navigation(1.f / 120, body, scene.navigation);
+                const auto target =
+                    agent.advance_navigation(1.f / 120, body, scene.navigation, route_wander());
                 body.acceleration = steer(body, target, {}, settings);
                 simulation.step(1.f / 120);
                 arrived = length(body.position - goal) < 0.6f;
@@ -544,6 +714,9 @@ TEST_CASE("the player follower detours around a wall and keeps a projected click
 TEST_CASE("an agent follower arrives around a wall and physically resumes wandering") {
     const Body obstacle = wall_box(0);
     sandbox::Sandbox crowd(1, 42);
+    // The wall is added by hand below, so only a planned route knows about it: the scene
+    // indexes the terrain it streamed in itself for agents that steer without a route.
+    crowd.tuning = route_wander();
     Camera2D camera;
     camera.viewport = {8, 8};
     camera.position = crowd.agents().front().home();
@@ -600,7 +773,7 @@ TEST_CASE("circle obstacles keep swept route clearance and occupied goals resolv
     body.position = {-8, 0};
     agent.update_visibility({{-20, -20}, {20, 20}}, body);
     agent.retarget({0, 0});
-    agent.advance_navigation(1.f / 120, body, nav);
+    agent.advance_navigation(1.f / 120, body, nav, route_wander());
     CHECK_MESSAGE(
         (!agent.route().empty() && nav.clear(agent.goal(), agent.goal()) && length(agent.goal()) <= 3.01f),
         "Agent did not adopt reachable endpoint for occupied goal");
@@ -695,6 +868,6 @@ TEST_CASE("orders reach only their agents and stalled commands resume wandering"
     agent.update_visibility({{-30, -30}, {30, 30}}, body);
     agent.retarget({500, 500});
     for (int elapsed = 0; elapsed < 21; ++elapsed)
-        agent.advance_navigation(1, body, navigation);
+        agent.advance_navigation(1, body, navigation, route_wander());
     CHECK_MESSAGE((agent.wandering() && !agent.route().empty()), "Stalled command never resumed wandering");
 }

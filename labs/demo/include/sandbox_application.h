@@ -2,6 +2,7 @@
 
 #include "sandbox_commands.h"
 #include "sandbox_scene.h"
+#include "tuning.h"
 #include "zoom.h"
 #include <kinetra/timing.h>
 
@@ -12,8 +13,17 @@ namespace sandbox {
 class SandboxApplication {
   public:
     SandboxApplication(int agent_count, std::uint32_t seed);
+    /// Applies one frame of intent, then runs the fixed ticks that `elapsed` seconds times
+    /// `commands.time_scale` are worth; none while paused, except one for
+    /// `commands.single_step`. Throws std::invalid_argument, before anything changes, for
+    /// a negative or non-finite time scale.
     void advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);
     const Sandbox &scene() const { return scene_; }
+    /// The scene's motion and wander values, for a debug menu to change between frames.
+    /// The next tick throws std::invalid_argument for values that validate() rejects.
+    Tuning &tuning() { return scene_.tuning; }
+    /// Read-only access to the scene's motion and wander values.
+    const Tuning &tuning() const { return scene_.tuning; }
     const PresentationOptions &presentation() const { return presentation_; }
     bool paused() const { return paused_; }
     ActionResult last_action() const { return last_action_; }
@@ -41,6 +51,9 @@ class SandboxApplication {
     bool was_paused_{};
 
     void apply_actions(const FrameCommands &commands);
+    /// Runs one fixed tick. `snapshot` records every body's pose before and after it, for
+    /// presented_pose().
+    void tick(const FrameCommands &commands, bool snapshot);
     void update_camera(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);
     void apply_pointer(const PointerCommand &command, const kinetra::Camera2D &camera);
 };

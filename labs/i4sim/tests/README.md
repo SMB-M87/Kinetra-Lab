@@ -116,7 +116,7 @@ Each case then compares one recorded line: contacts, contacts during passing, pl
 | Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
 | Keys | Space and P, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart is paused, keeps the motion settings in use and replays a scene's goals |
 | Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
-| Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, within the zoom limits |
+| Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, and the ZOOM row's buttons, both within the zoom limits |
 | Modal pause | An open panel pauses a running blueprint and restores it; a paused one stays paused |
 | Debug menu | The menu opens with SIMULATION open; a heading opens its section and closes the other; each section lists its rows in order; layers, WORKLOAD, RUNNING, RECOVERY and the traffic policies are check boxes on the real state; a layer lists its parts only while it is on, and a part draws only while its layer is on; PROFILE and PLANNER open a list that chooses and closes, and a list closes with its section; the number rows show their value and step it while running; a rejected setting shows its reason; BLUEPRINTS closes the blueprint at the next frame |
 

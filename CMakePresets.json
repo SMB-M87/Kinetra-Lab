@@ -219,7 +219,7 @@
       "inherits": "base",
       "filter": {
         "exclude": {
-          "name": "^kinetra_(demo_crowd_characterization:a dense idle crowd reproduces its recorded summary|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
         }
       }
     },
@@ -230,7 +230,7 @@
       "filter": {
         "exclude": {
           "label": "graphics",
-          "name": "^kinetra_(demo_crowd_characterization:a dense idle crowd reproduces its recorded summary|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
         }
       }
     }
