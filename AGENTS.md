@@ -88,6 +88,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - Lab records one exact Kinetra commit. A change to `external/Kinetra` is committed **in Kinetra** on its own branch, then the pointer is committed in Lab (`git add external/Kinetra`).
 - Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. Push the Kinetra branch and open its pull request before pushing Lab.
 - The Lab pull request links the Kinetra pull request. It states that Kinetra merges first, with a merge commit rather than a squash, so the pointer stays reachable.
+- Lab `main` records a commit on Kinetra `main`. Once the Kinetra pull request is merged, move the pointer on the Lab branch to the Kinetra merge commit and push it before the Lab pull request is merged. When the trees are identical (`git -C external/Kinetra diff --stat <old> <new>` is empty) the earlier verification stands; otherwise verify again. If the Lab pull request was merged first, record Kinetra `main` in a small pointer pull request right away. *Why:* a pointer to the branch commit is reachable but not on `main`, so the submodule on `main` shows as modified in Lab.
 - The manual steps and commands are in [External dependencies](external/README.md).
 
 ## Documentation in Lab
