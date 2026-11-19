@@ -1,6 +1,6 @@
 # Media capture tool
 
-Status: accepted · Branch: `feat/media-capture` · Related: [media guide](../media/README.md), [i4sim debug menu](2026-11-19-i4sim-debug-menu.md)
+Status: implemented · Branch: `feat/media-capture` · Related: [media guide](../media/README.md), [i4sim debug menu](2026-11-19-i4sim-debug-menu.md)
 
 The screenshots in the README gallery are hand-made window captures from different days, and only the i4sim debug capture is current. The user wants a recent screenshot of every application and short demo clips. This change adds `kinetra_capture`, a graphics tool that runs each application offscreen with a fixed seed and scripted input and writes every screenshot plus the frames of six short clips. A script assembles the clips into looping GIFs with ffmpeg and puts everything into `docs/media`, so a refresh is one command.
 
@@ -110,11 +110,58 @@ flowchart LR
 
 ## Verification
 
-Filled in after verification.
+Full level with graphics, in WSL2, after the system update that installed ffmpeg 9.0.2 and moved Mesa to 26.3.1 and nlohmann-json to 3.12.0-3 (gcc unchanged), with fresh configurations:
+
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci --fresh` | 199/199 passed, including the five `kinetra_capture` cases and the i4sim golden lines; no warnings in `tools/capture` (built with `-Werror`) |
+| `cmake --workflow --preset headless --fresh` | 187/187 passed; the tool is not built without the runtime |
+| `cmake --workflow --preset graphics --fresh` | 213/213 passed, including `kinetra_capture_smoke` |
+| `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build-graphics/kinetra --variant <demo, dotio, i4sim> --frames 120` | All exit 0 |
+| `tools/capture/capture_media.sh` | All 16 files in about 9 s; GIFs 960 × 540, 15 fps, 60 frames, 4 s each (ffprobe), about 2 MB together |
+| A second run compared with the first | Identical PNGs, except `dotio.png` and `dotio-debug.png` (Dotio's unseeded AI) |
+| Visual check of every PNG and of frames from each clip | As described in the [media guide](../media/README.md#files) |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+
+Not run: the Windows cross build (the tool is skipped where zlib is not found, and no Windows file changed).
 
 ## Pull request
 
-Filled in when the branch is complete.
+Title: `feat(tools): media capture tool, fresh screenshots and GIF clips`
+
+```markdown
+## Summary
+Most screenshots in the gallery were hand-made window captures from 2026-11-15, with seeds and options not recorded, and there were no short clips. `kinetra_capture` renders every screenshot and the frames of six clips offscreen from the current code, with seed 42 and scripted input; `capture_media.sh` makes looping GIFs with ffmpeg and puts everything into `docs/media`. The gallery now plays a four-second GIF of the normal and the debug view of Demo, Dotio and i4sim.
+
+## Changes
+- **Tool** (`tools/capture/`): `kinetra_capture <output-dir> [scene...]` with 10 screenshots and 6 clips. It starts sessions through `launcher::applications`, steps at 60 Hz, clicks settings and debug rows through the overlays' public layout, reads frames with `glReadPixels` and writes PNGs with zlib. Built where zlib is found; offscreen software rendering by default.
+- **Script**: `tools/capture/capture_media.sh [build-dir] [scene...]`: renders, encodes the GIFs (one palette, no dithering, changed rectangles only) and copies into `docs/media`.
+- **Tests**: `kinetra_capture` (PNG writer round trip and errors; every scene's file committed and linked from the media guide and the gallery; scene selection) and the graphics smoke test `kinetra_capture_smoke`.
+- **Media**: every PNG regenerated at 1920 × 1080; six GIFs added (about 2 MB together).
+- **Docs**: tool README, media guide, README gallery, AGENTS (composition roots, verification row, media rule, functionality index), architecture and launcher pages.
+
+## Design
+[docs/design/2026-11-19-media-capture.md](https://github.com/SMB-M87/Kinetra-Lab/blob/feat/media-capture/docs/design/2026-11-19-media-capture.md)
+
+## Verification
+- After a system update (ffmpeg 9.0.2, Mesa 26.3.1, nlohmann-json 3.12.0-3), fresh configurations: `ci` 199/199, `headless` 187/187, `graphics` 213/213 (with the smoke test); no warnings in `tools/capture` (`-Werror`).
+- Offscreen smoke runs of `kinetra --variant demo|dotio|i4sim` (120 frames): exit 0.
+- `capture_media.sh`: 16 files in about 9 s; a second run gives identical PNGs except Dotio's.
+- Every PNG and frames of each clip inspected.
+- Not run: Windows cross build.
+
+## Review notes
+- Dotio's captures differ per run: its AI still uses `std::random_device` and `std::rand` (quality roadmap, Dotio phase).
+- The scripts click menu rows by number; a menu change needs the constants at the top of `scenes.cpp` updated, and only the picture shows it.
+- New dependency for the tool only: zlib, via `find_package(ZLIB)`; without it the tool is skipped.
+
+## Dependencies and merge order
+None. Independent of SMB-M87/Kinetra-Lab#22 (the submodule pointer); either can merge first.
+
+## Follow-up
+- A frame read-back helper on Kinetra's `Runtime`, shared with the graphics tests.
+- Seeded randomness in Dotio, after which its captures are reproducible too.
+```
 
 ## Open points
 
