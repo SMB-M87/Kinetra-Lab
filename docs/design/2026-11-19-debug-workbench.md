@@ -1,6 +1,6 @@
 # Debug workbench: tunable Demo and Dotio, tree menus everywhere, steering wander
 
-Status: accepted · Branch: `feat/debug-workbench` · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-19-debug-workbench.md), [launcher and overlays](../launcher-overlays.md), [i4sim debug menu](2026-11-19-i4sim-debug-menu.md), [smooth rendering](2026-11-19-smooth-rendering.md), [media capture](2026-11-19-media-capture.md)
+Status: implemented · Branch: `feat/debug-workbench` · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-19-debug-workbench.md), [launcher and overlays](../launcher-overlays.md), [i4sim debug menu](2026-11-19-i4sim-debug-menu.md), [smooth rendering](2026-11-19-smooth-rendering.md), [media capture](2026-11-19-media-capture.md)
 
 i4sim lets the operator change motion settings while a scene runs; Demo and Dotio only switch drawing layers on and off. The user wants all three to be workbenches: the same tree menu, live parameters, a shortcut that works on every keyboard, zoom as a debug tool, and agents that stay around. This is phase 1 of two; phase 2 regenerates the tour video on top of it.
 
@@ -176,11 +176,52 @@ Checked separately: the i4sim golden lines and tick counts are unchanged (the i4
 
 ## Verification
 
-Filled in after verification.
+| Command | Result |
+| --- | --- |
+| `git ls-files -- '*.h' '*.cpp' \| xargs clang-format --dry-run --Werror` | Clean |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| `cmake --workflow --preset headless` | 240/240 passed |
+| `cmake --workflow --preset ci` | 267/267 passed |
+| `cmake --workflow --preset graphics` | 282/282 passed |
+| `cmake --build --preset ci --clean-first`, its warnings matched against the lines this branch adds or changes in Lab and in the engine | 41 warnings, all on old lines of `labs/dotio`; none on a changed line. Demo's headers no longer warn |
+| `cmake --workflow --preset windows` (MinGW cross build, tests through WSL interop, graphics tests in real windows on the Windows desktop) | First run: 255/260. Four failures were the renamed crowd fingerprints, which differ on Windows in floating point as their predecessor did and are excluded again ([Windows](../windows.md#tests)). The fifth was the new toolbar case reading a window's first frame before both buffers held it; it now draws twice. Rerun of `^kinetra_(graphics\|demo_crowd\|sandbox_application)` on Windows: 41/41 |
+| Kinetra `ci` and `graphics` workflows | 251/251; 263/264 with the known injected-mouse failure ([Kinetra design](../../external/Kinetra/docs/design/2026-11-19-debug-workbench.md#verification)) |
+| `build-graphics/kinetra_dotio`, `kinetra_demo` and `kinetra --variant i4sim`, 300 frames each in a WSLg window | Exit 0; 18.5 to 18.7 ms per frame including start-up, where the unpaced loop ran at 5.7 to 8.3 ms |
+| `tools/capture/capture_media.sh build-graphics` | Every screenshot and clip rendered in 33 s; each file looked at before it was committed |
+
+Not verified: whether motion in WSLg looks smooth to the eye with the frame limit; the user has to judge that on their screen. The first `windows` workflow was not repeated in full after the two fixes, only the three suites they touch.
 
 ## Pull request
 
-Filled in when the branch is complete.
+Title: `feat(labs): debug workbench with live tuning, steering wander and Shift+Ctrl`
+
+**Summary.** Demo, Dotio and i4sim now share one tree debug menu, opened with Shift+Ctrl: pause, single tick and speed, layers with a color legend, and the values each simulation runs with, changeable while it runs. Agents wander by steering; Demo's stay around their homes instead of walking away from the player. The settings panel is restyled, loses ZOOM (now a row of the debug menu) and gains FRAME LIMIT, which paces frames in WSLg. Every screenshot and clip is rendered again. Phase 2, the generated tour video, follows on its own branch.
+
+**Changes.**
+- Shared: `lab::settings_rows` without ZOOM and with FRAME LIMIT, `lab::FrameLimitSwitch`; new headless `lab/debug.h` with the ZOOM and SPEED rows.
+- Demo: `Tuning` for motion, avoidance and wander; agents turn back beyond a home range; wander by steering (default) or by route; steering wanderers avoid terrain through local avoidance; time scale and single tick; `DebugPanel` builds the menu in the logic layer.
+- Dotio: the world keeps a tunable copy of its difficulty preset and an `EnemyTuning` with one force per state; WANDER steers with three wall feelers (default) or follows an A* path; time scale and single tick; PATHS lists its parts with their state colors.
+- i4sim: the controller's menu uses the engine's entries and folds; ZOOM row; the session no longer formats rows.
+- Tests: Demo panel, tuning, wander and standing-player cases; Dotio tuning, wander and menu cases; rewritten launcher session cases; capture click cases.
+- Capture tool: Shift+Ctrl and Ctrl taps, clicks on the new menus, frame limit off while rendering.
+- Windows presets: the four crowd fingerprint cases are excluded, as their predecessor was.
+- Docs: AGENTS.md, README, launcher and overlays, the three module READMEs, media guide.
+- `external/Kinetra` pointer.
+
+**Design.** [docs/design/2026-11-19-debug-workbench.md](2026-11-19-debug-workbench.md); Kinetra: [debug workbench](../../external/Kinetra/docs/design/2026-11-19-debug-workbench.md).
+
+**Verification.** `headless` 240/240, `ci` 267/267, `graphics` 282/282; format and docs checks clean; no compiler warning on a changed line. Windows cross build with tests: the four renamed crowd fingerprints differ in floating point and are excluded again, one new test was made robust, and the three suites concerned then pass 41/41. In WSLg all three applications run paced at 60 frames per second.
+
+**Review notes.**
+- Behavior changes by design: Demo's agents and Dotio's wanderers move differently, so Demo's four crowd fingerprints were recorded anew. In route mode with an unlimited home range the old lines repeat.
+- Dotio plays differently: wanderers roam without a path and may find the player later. PATH in the ENEMIES section restores the old wander.
+- Not verified by me: whether WSLg looks smooth with the frame limit. Please compare with FRAME LIMIT off and on, and FRAME TIMES on.
+- The icon missing from the WSLg title bar is WSLg's own doing (its compositor never passes an application icon to its title bar); the taskbar shows ours.
+- The Demo and Dotio logic was written by two sub-agents from this design and read before it was committed.
+
+**Dependencies and merge order.** The Kinetra pull request first, with a merge commit. Then this branch's pointer moves to that merge commit before this pull request is merged.
+
+**Follow-up.** Phase 2: the tour video, generated by the capture tool. Open points in the design document.
 
 ## Open points
 
