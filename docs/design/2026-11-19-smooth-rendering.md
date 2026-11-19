@@ -1,6 +1,6 @@
 # Smooth rendering and frame times
 
-Status: accepted · Branch: `feat/smooth-rendering` · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-19-frame-times.md), [system architecture](../architecture.md#session-ownership-and-frame-flow), [launcher and overlays](../launcher-overlays.md#settings-policy)
+Status: implemented · Branch: `feat/smooth-rendering` · Related: [Kinetra design](../../external/Kinetra/docs/design/2026-11-19-frame-times.md), [system architecture](../architecture.md#session-ownership-and-frame-flow), [launcher and overlays](../launcher-overlays.md#settings-policy)
 
 The user sees short freezes and uneven motion in WSL and on a Linux desktop that do not occur in the native Windows build. This change draws all three applications between their last two fixed ticks, and adds a FRAME TIMES row to every settings panel that shows Kinetra's new frame-time graph. With the graph, a stall in the application can be told apart from uneven presentation by the compositor.
 
@@ -109,7 +109,17 @@ Not changed: the FRAME TIMES row order has no direct test. The launcher panel ca
 
 ## Verification
 
-To be filled after verification.
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | 142/142 passed |
+| `cmake --workflow --preset headless` | 135/135 passed |
+| `cmake --workflow --preset graphics` | 155/155 passed |
+| Golden and characterization suites (`kinetra_i4sim_golden`, `kinetra_demo_crowd_characterization`) | Unchanged lines, inside the runs above |
+| Kinetra `cmake --workflow --preset ci` / `graphics` | 219/219; 228/229, with the known WSLg input failure that also occurs on `main` |
+| `KINETRA_LAB_WARNINGS` output of the `ci` build, matched against the lines this branch adds | No warnings on added lines |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+
+Not run: the Windows test suite (no platform code changed) and a measurement on the user's Linux desktop, which is the follow-up the graph exists for.
 
 ## Pull request
 
@@ -128,7 +138,7 @@ Title: `feat(labs): draw between fixed ticks and show frame times`
 
 **Design.** [docs/design/2026-11-19-smooth-rendering.md](2026-11-19-smooth-rendering.md), Kinetra: [frame times](../../external/Kinetra/docs/design/2026-11-19-frame-times.md).
 
-**Verification.** See the design document.
+**Verification.** `ci` 142/142, `headless` 135/135, `graphics` 155/155; golden and characterization lines unchanged; no warnings on added lines; Kinetra `ci` 219/219 and `graphics` 228/229 (known WSLg input failure, also on `main`). An independent review's findings are fixed in the second commit.
 
 **Review notes.** Snapshots are presentation state only; golden and characterization lines are unchanged. Dotio's position swap is the least elegant part, chosen over rewriting the ported drawing code.
 
