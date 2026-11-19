@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-19 | [Credible media clips](2026-11-19-credible-media-clips.md): a scripted Dotio player that aims at enemies, and i4sim captures of a larger floor with the Reciprocal profile | accepted |
 | 2026-11-19 | [i4sim showcase clips](2026-11-19-i4sim-showcase-clips.md): one looping GIF per showcase scene, each one full cycle | implemented |
 | 2026-11-19 | [Media capture tool](2026-11-19-media-capture.md): `kinetra_capture` renders every screenshot and six GIF clips offscreen | implemented |
 | 2026-11-19 | [Record Kinetra main after the debug menu steppers](2026-11-19-kinetra-main-pointer.md): `4af2d97` instead of its branch commit | implemented |
