@@ -1,4 +1,5 @@
 #include "session.h"
+#include "hud.h"
 #include "scenario.h"
 #include "simulation.h"
 #include "view.h"
@@ -9,29 +10,10 @@
 #include <kinetra/settings_view.h>
 #include <lab/input.h>
 #include <lab/settings.h>
-#include <sstream>
 
 namespace i4sim {
 namespace {
 using namespace kinetra;
-/// HUD text for a selected mover's status.
-const char *status_text(MoverStatus status) {
-    switch (status) {
-    case MoverStatus::held:
-        return "BLOCKED";
-    case MoverStatus::corridor_retreat:
-        return "CORRIDOR RETREAT";
-    case MoverStatus::passing_detour:
-        return "PASSING DETOUR";
-    case MoverStatus::unreachable:
-        return "UNREACHABLE";
-    case MoverStatus::allocated:
-        return "ALLOCATED";
-    case MoverStatus::available:
-        return "IDLE - SHIFT CLICK GOAL";
-    }
-    return "";
-}
 /// Subdirectory of the catalog with the showcase scenes, listed under one SHOWCASE row.
 constexpr const char *showcase_directory = "showcase";
 /// No debug layer at all: what the world view draws outside debug mode.
@@ -426,59 +408,9 @@ class FactorySession final : public lab::Session {
         runtime.begin(world_background);
         // Outside debug mode the layers keep their selection but are not drawn.
         draw_world(runtime, *simulation_, debug_ ? layers_ : hidden_layers, selected_mover_);
-        if (statistics_) {
-            const auto &c = simulation_->motion_settings();
-            std::ostringstream stats;
-            stats << "TICK " << simulation_->ticks() << " UPS " << simulation_->updates_per_second()
-                  << " CONTACTS " << simulation_->collisions() << " DURATION "
-                  << simulation_->contact_ticks();
-            if (c.predictive_passing &&
-                (c.profile == SteeringProfile::improved || c.profile == SteeringProfile::reciprocal))
-                stats << " PASS " << simulation_->predictive_pairs();
-            if (c.corridor_traffic)
-                stats << " RETREAT " << simulation_->corridor_recovering();
-            draw_text(runtime, stats.str(), {10, runtime.camera.viewport.y - 40}, 1.5f, {1, 1, 0});
-            std::ostringstream motion;
-            motion << (simulation_->running() ? "RUNNING" : "PAUSED") << " SPEED " << c.speed << " FORCE "
-                   << c.force << " HORIZON " << c.horizon;
-            if (c.profile == SteeringProfile::reciprocal)
-                motion << " AVOID LIMIT " << simulation_->avoidance_limited();
-            if (c.parking_traffic)
-                motion << " PARK WAIT " << simulation_->parking_waiting();
-            if (c.junction_traffic)
-                motion << " CROSS WAIT " << simulation_->junction_waiting() << "/"
-                       << simulation_->junction_count();
-            if (c.corridor_traffic)
-                motion << " LANE WAIT " << simulation_->corridor_waiting() << "/"
-                       << simulation_->corridor_count();
-            if (c.junction_traffic || c.corridor_traffic)
-                motion << " EXIT " << simulation_->junction_exit_waiting();
-            draw_text(runtime, motion.str(), {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
-        }
-        if (selected_mover_) {
-            const auto &m = simulation_->movers()[*selected_mover_];
-            std::ostringstream text;
-            text << m.definition.id << " | DISTANCE " << int(m.distance) << " MM | CONTACT TICKS "
-                 << m.collision_ticks << " | " << status_text(mover_status(m));
-            draw_text(runtime, text.str(), {10, runtime.camera.viewport.y - 80}, 1.5f, {1, 1, 0});
-            std::ostringstream details;
-            details << "SPEED " << length(m.body.velocity) << " FORCE " << length(m.body.acceleration)
-                    << " GOAL " << int(m.destination.x) << "," << int(m.destination.y)
-                    << (simulation_->stalled(*selected_mover_) ? " STALLED" : "");
-            draw_text(runtime, details.str(), {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
-        }
-        if (selected_producer_) {
-            const auto &p = simulation_->producers()[*selected_producer_];
-            const auto text = p.definition.id + " | QUEUE " + std::to_string(p.queue.size()) +
-                              " | REMAINING " + std::to_string(p.remaining) + " | TASKS " +
-                              std::to_string(p.interactions) + (p.blocked ? " | BLOCKED" : "");
-            draw_text(runtime, text, {10, runtime.camera.viewport.y - 60}, 1.5f, {1, 1, 0});
-        }
-        if (scenario_ && !scenario_->description.empty())
-            draw_text(runtime, scenario_->description, {10, runtime.camera.viewport.y - 100}, 1.5f,
-                      {0.75f, 0.85f, 1});
-        if (!error_.empty())
-            draw_text(runtime, error_, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
+        draw_hud(runtime, *simulation_,
+                 {statistics_, selected_mover_, selected_producer_,
+                  scenario_ ? std::string_view(scenario_->description) : std::string_view(), error_});
         auto rows = options();
         menu_.draw(runtime, rows);
         if (frame_times_)
