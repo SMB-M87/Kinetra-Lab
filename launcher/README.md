@@ -26,7 +26,7 @@ The launcher lets a user try every Lab application without restarting, and gives
 | [src/applications.cpp](src/applications.cpp) | The three registrations: menu names, Dotio difficulties, camera reset and session factories |
 | [src/main.cpp](src/main.cpp) | Arguments, the world seed and the call to `kinetra::run_launcher` |
 
-`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. Two executables use it: `kinetra` and the compatibility name `kinetra_sandbox`.
+`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. Two executables use it: `kinetra` and the compatibility name `kinetra_sandbox`. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
 
 ## How it works
 
@@ -64,7 +64,7 @@ Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README
 
 ## Changing this module
 
-- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `lab::Session`, returns its settings overlay's request, titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name.
+- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `lab::Session`, returns its settings overlay's request, titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name, and add its scenes to the [capture tool](../tools/capture/README.md#changing-this-module).
 - **Add an application option:** add it to `Options`, parse it in `main.cpp`, and capture it in the factory. Configurations shown in the menu come from the application (as Dotio's difficulties do), not from the launcher.
 
 ## Tests

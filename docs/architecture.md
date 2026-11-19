@@ -15,6 +15,7 @@ Kinetra-Lab owns runnable applications and their composition. The Kinetra source
 ```mermaid
 flowchart TD
     Bundled[kinetra / kinetra_sandbox] --> Sessions[kinetra_sessions: registrations and camera setup]
+    Capture[kinetra_capture: media tool] --> Sessions
     Sessions --> Launcher[Kinetra::Launcher: run_launcher, SessionHost, LaunchMenu]
     Sessions --> Demo[kinetra_demo_presentation]
     Sessions --> Dotio[kinetra_dotio_presentation]
@@ -40,7 +41,7 @@ flowchart TD
     Common --> Sim
 ```
 
-Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define application targets. Kinetra defines `Kinetra::Launcher` and `Kinetra::Runtime`. `kinetra_lab_common` ([labs/common](../labs/common/include/lab/)) is header-only Lab policy shared by the three presentations. Its `lab/input.h` is headless, and i4sim's logic library uses it for the session's controller, which is tested without a window. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure. The i4sim presentation does link `Kinetra::Launcher` itself, for the `LaunchMenu` of its blueprint screen, which the [layer rule](../AGENTS.md#lab-boundaries) allows.
+Arrows show target consumption; transitive dependencies are omitted. [Root CMake](../CMakeLists.txt), [labs](../labs/CMakeLists.txt) and [launcher CMake](../launcher/CMakeLists.txt) define application targets; [tools/capture](../tools/capture/README.md) defines the media tool, which starts sessions through the launcher's registrations and is built only where zlib is found. Kinetra defines `Kinetra::Launcher` and `Kinetra::Runtime`. `kinetra_lab_common` ([labs/common](../labs/common/include/lab/)) is header-only Lab policy shared by the three presentations. Its `lab/input.h` is headless, and i4sim's logic library uses it for the session's controller, which is tested without a window. Presentation libraries do not depend on the bundled launcher, so direct executables reuse the same sessions without menu infrastructure. The i4sim presentation does link `Kinetra::Launcher` itself, for the `LaunchMenu` of its blueprint screen, which the [layer rule](../AGENTS.md#lab-boundaries) allows.
 
 With `KINETRA_LAB_BUILD_RUNTIME=OFF`, application logic, its headless tests and the i4sim batch executable are built. Core tests are disabled in the embedded engine build and run independently in Kinetra. `KINETRA_SOURCE_DIR` selects the recorded `external/Kinetra` submodule by default or an explicit development checkout; no installed package is required. [External dependencies](../external/README.md) explains the submodule and how its pointer moves.
 

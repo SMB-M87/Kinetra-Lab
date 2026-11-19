@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-19 | [Media capture tool](2026-11-19-media-capture.md): `kinetra_capture` renders every screenshot and six GIF clips offscreen | implemented |
 | 2026-11-19 | [Record Kinetra main after the debug menu steppers](2026-11-19-kinetra-main-pointer.md): `4af2d97` instead of its branch commit | implemented |
 | 2026-11-19 | [i4sim debug menu](2026-11-19-i4sim-debug-menu.md): sections, lists, `[-] [+]` buttons and layer parts | implemented |
 | 2026-11-19 | [i4sim showcase shuttle](2026-11-19-i4sim-showcase-shuttle.md): showcase scenes repeat by shuttling or restarting; seven city blueprints removed | implemented |

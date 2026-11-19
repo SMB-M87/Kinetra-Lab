@@ -49,5 +49,5 @@ flowchart TD
 - [Labs](../labs/README.md), [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md).
 - [Launcher](../launcher/README.md).
 - [Build and verification](../README.md#tests-and-resources).
-- [Screenshots and demo video](media/README.md) used by the project overview.
+- [Screenshots, clips and demo video](media/README.md) used by the project overview, and the [capture tool](../tools/capture/README.md) that generates them.
 - [Core architecture](../external/Kinetra/docs/architecture.md) for reusable engine contracts.
