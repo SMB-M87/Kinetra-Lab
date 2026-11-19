@@ -1,3 +1,4 @@
+#include "geometry.h"
 #include "simulation.h"
 #include "simulation_constants.h"
 #include <algorithm>
@@ -7,15 +8,6 @@
 namespace i4sim {
 using namespace kinetra;
 using namespace detail;
-namespace {
-float support(const Body &body, Vec2 direction) {
-    return std::abs(direction.x) * body.half_extents.x + std::abs(direction.y) * body.half_extents.y;
-}
-Aabb travel_bounds(Vec2 from, Vec2 to, Vec2 extent) {
-    return {{std::min(from.x, to.x) - extent.x, std::min(from.y, to.y) - extent.y},
-            {std::max(from.x, to.x) + extent.x, std::max(from.y, to.y) + extent.y}};
-}
-} // namespace
 bool Simulation::predictive_enabled() const {
     return motion_.predictive_passing &&
            (motion_.profile == SteeringProfile::improved || motion_.profile == SteeringProfile::reciprocal);
