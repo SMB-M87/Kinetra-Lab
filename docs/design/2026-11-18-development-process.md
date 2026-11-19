@@ -21,7 +21,7 @@ Lab adopts the development cycle, verification levels and skills that are define
 ## Problem
 
 - **Weak agent rules.** Lab's `AGENTS.md` (25 lines) contained only a build requirement and a copied documentation section. It required a full rebuild after every change, documentation included.
-- **Docs that contradict the code.** The architecture page and both launcher READMEs claimed that `kinetra::SessionHost` owns sessions. In reality, `launcher::run` ([launcher/src/session.cpp](../../launcher/src/session.cpp)) runs its own loop with a `std::unique_ptr<lab::Session>`.
+- **Docs that contradict the code.** The architecture page and both launcher READMEs claimed that `kinetra::SessionHost` owns sessions. In reality, `launcher::run` (`launcher/src/session.cpp`, replaced by `run_launcher` in phase 3) runs its own loop with a `std::unique_ptr<lab::Session>`.
 - **Unprotected private material.** The local reference folders `files/` and `bms_files/` sat untracked in a public repository, one `git add -A` away from being published.
 
 ## Goals and non-goals

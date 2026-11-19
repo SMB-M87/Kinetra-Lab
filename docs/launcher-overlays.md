@@ -1,95 +1,74 @@
 # Launcher and overlays
 
-Optional public infrastructure owns shared menu behavior, session transitions and overlay layout. Applications register content and callbacks.
+How Lab composes Kinetra's launcher, session requests and settings overlay into one program, and which overlay policy every Lab application shares. The mechanisms themselves (menu, `SessionHost`, `run_launcher`, `SettingsOverlay`, `DebugMenu`) are Kinetra's; their contracts are in [launcher, sessions and overlays](../external/Kinetra/docs/engine/launcher-overlays.md).
 
 ## Table of contents
 
-- [Registration](#registration)
-- [Launcher transitions](#launcher-transitions)
-- [Debug and help interaction](#debug-and-help-interaction)
-- [Contracts and verification](#contracts-and-verification)
+- [Composition](#composition)
+- [Navigation](#navigation)
+- [Settings policy](#settings-policy)
+- [Debug menu](#debug-menu)
+- [Tests](#tests)
 
 [Directory guide](README.md) · [Project overview](../README.md) · [Documentation index](README.md)
 
-## Registration
+## Composition
 
-| API | Supplied by application | Owned by Kinetra Launcher or overlays |
+```mermaid
+flowchart LR
+    Main["launcher/src/main.cpp<br/>arguments, seed"] --> Apps["launcher::applications()<br/>registrations in menu order"]
+    Apps --> Demo["sandbox::create_session"]
+    Apps --> Dotio["dotio::create_session<br/>difficulty index"]
+    Apps --> I4sim["i4sim::create_session"]
+    Main --> Run["kinetra::run_launcher<br/>launcher::bindings"]
+    Run --> Apps
+```
+
+*Takeaway:* the launcher only decides which applications exist, in which order and with which camera; each application owns its session.
+
+- [applications.cpp](../launcher/src/applications.cpp) registers Demo, Dotio and i4sim in `launcher::Variant` order. Each factory resets the camera to the origin at the application's initial zoom (`sandbox::initial_zoom`, `dotio::initial_zoom`, `i4sim::initial_zoom`) and creates a fresh session.
+- Dotio's configurations are its difficulty names from `dotio::difficulty_names()`; the launcher passes the chosen index back to `dotio::create_session`. The launcher never sees Dotio's difficulty type.
+- `--variant` starts an application directly through `launcher::selection()`, with the `--difficulty` from the command line.
+- Dotio's world is a singleton. `SessionHost` destroys the old session before the factory creates the next one, so two Dotio worlds never coexist.
+
+## Navigation
+
+Lab runs `kinetra::run_launcher` with `launcher::bindings` = `{std::nullopt, false}`: no menu key, and Escape never closes the window. Every Lab session derives from `lab::Session`, whose `close_on_escape()` is false, because Escape belongs to the applications (i4sim's blueprint screen uses it).
+
+| Action | In the launcher | In a direct executable (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) |
 | --- | --- | --- |
-| `LaunchChoice` | Name, description, optional configuration names/default | Value copies and validation |
-| `ApplicationRegistration` | Factory accepting camera/configuration index; captures optional launch arguments | Registry and factory dispatch |
-| `LaunchMenu` | Choice values | Selection, optional configuration screen, picking and drawing |
-| `SessionHost` / `run_launcher` | Registrations, selected application/configuration | Unique session ownership, first-update isolation and optional standard event loop |
-| `DebugOption` | Label, borrowed bool, action, text/number getter or visualization | Common row layout, capture and drawing |
-| `HelpOverlay` / `draw_help` | Control/category/section text, style and optional toggle key | Shared panel rendering and optional visibility controller |
+| Settings LAUNCHER (`SessionRequest::menu`) | Back to the menu | Ends the program (`run_session` has no menu) |
+| Settings EXIT (`SessionRequest::exit`) | Ends the program | Ends the program |
+| i4sim blueprint screen: Escape or M (`menu`) | Back to the menu | Ends the program |
+| Window close button | Ends the program | Ends the program |
 
-```cpp
-#include <kinetra/launcher.h>
+## Settings policy
 
-// create_application is an application-provided factory returning unique_ptr<Session>.
-kinetra::SessionHost host({{
-    {"MY APP", "SIMULATION", {"SMALL", "LARGE"}, 0},
-    create_application
-}});
-kinetra::LaunchMenu menu(host.choices());
-```
+Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/common](../labs/common/include/lab/settings.h)), so every Lab panel has the same rows in the same order: ZOOM, STATISTICS, DEBUG MODE, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their zoom limits and their help lines; DEBUG CONTROLS always starts with `WHEEL  ZOOM`.
 
-The bundled [composition root](../launcher/src/main.cpp) supplies CLI arguments and factories. Its [menu adapter](../launcher/include/menu.h) supplies Dotio difficulty names; the engine contains no Demo/Dotio enums, headers or rules.
+| Application | Zoom limits (pixels per unit) | Sim controls lines |
+| --- | --- | --- |
+| Demo | 17–100, 5–100 in Debug Mode | 4 |
+| Dotio | 25–50, 2.5–50 in Debug Mode | 3 |
+| i4sim | 0.005–10 (pixels per millimeter) | 4 |
 
-## Launcher transitions
+While the panel is open:
+- the application is paused by `lab::ModalPause`, which restores the earlier pause state on close (i4sim may have been paused before);
+- every gameplay input is suppressed, including the click that closes the panel;
+- the debug menu is hidden.
 
-The title is KINETRA LAUNCHER, without a Select Application subtitle. Moving the pointer over an application or configuration preselects it without confirming; a resting pointer preserves keyboard selection. Exit and page actions turn blue on hover, matching Settings.
+Wheel zoom uses `kinetra::zoom` with the same limits, and works only in Debug Mode while the panel is closed. Movement keys come from `lab::direction` (WASD or arrows).
 
-The menu is centered and shows at most six entries per page. Previous and Next buttons wrap between pages; keyboard selection keeps the selected entry visible. The footer contains Exit and, for longer lists, these page buttons.
+## Debug menu
 
-```mermaid
-stateDiagram-v2
-    direction TB
-    [*] --> Menu
-    Menu --> Configuration: app with options
-    Configuration --> Menu: cancel
-    Menu --> Creating: app without options
-    Configuration --> Creating: confirm
-    Creating --> Running: factory succeeds
-    Creating --> Shutdown: factory throws
-    Running --> Menu: return_to_menu
-    Menu --> Shutdown: close
-    Running --> Shutdown: close / Settings Exit
-    Shutdown --> [*]
-```
+With Debug Mode on, the toolbar shows a DEBUG button next to SETTINGS. The button, or Backquote, opens the application's `kinetra::DebugMenu` at screen pixels (8, 32). The menu captures pointer input inside its panel, including held shooting; the session drops captured pointer commands before they reach the application. Demo and i4sim start with Debug Mode and every debug layer on; Dotio starts with them off.
 
-The bundled launcher uses its own [Lab event loop](../launcher/src/session.cpp) so the application-owned settings action controls return navigation; M has no action during a run. The diagram shows its navigation lifecycle. The selected application factory initializes the camera and creates a fresh session. While running, each frame updates and then renders the session. Returning to the menu destroys the session; shutdown destroys the session before the Runtime.
+## Tests
 
-Custom callers can request a replacement while a session is running. If the factory throws, the old session and camera remain active and the exception propagates to the caller. A caller can catch the exception and continue; this recovery path is separate from the standard loop shown above.
-
-The first update receives empty input and zero elapsed time. The Lab loop discards loading time with its first-update isolation. Factory exceptions propagate; the bundled executable reports them and exits, while custom launchers can recover. The host preserves its old camera/session on failure, but cannot roll back arbitrary side effects inside application factories. Dotio's static raster forbids overlapping Dotio worlds; return to the menu before constructing another.
-
-## Debug and help interaction
-
-```mermaid
-sequenceDiagram
-    participant S as Application session
-    participant D as DebugMenu
-    participant G as Game commands
-    participant R as Runtime
-    S->>D: update(input, viewport, registered rows)
-    D->>D: toggle visibility and hit-test shared layout
-    D-->>S: pointer captured?
-    S->>G: map bindings and suppress captured pointer actions
-    S->>G: update application state
-    S->>R: draw scene
-    S->>R: draw_help(content, visibility, style)
-    S->>D: draw(rows)
-    D->>R: labels, values and custom visualizations
-```
-
-Rows with no control/getter act as section labels. Numeric getters supply statistics; text getters supply formatted values. Actions execute once per captured click. A custom visualization draws at its row origin. Applications own referenced values and callback captures for the duration of update/draw. Keep getters observational and update/draw row collections consistent for that frame.
-
-Demo and Dotio use the centered modal [Settings](../labs/settings.h) panel instead of an always-visible help legend. Ctrl or the compact SETTINGS button opens it; Resume or Ctrl closes it. While visible, the application is paused and every gameplay input is suppressed, including the click that closes the panel. The SETTINGS button, settings actions and actionable debug rows turn blue on hover, using their click regions. Zoom In and Zoom Out highlight independently. Launcher, Resume and Exit share a centered bottom row, followed by an always-visible CTRL Settings hint. The panel fits the text with a small margin and shrinks when controls are hidden. Zoom In and Zoom Out are centered together on a row with a tab-sized gap, followed by Statistics and Debug Mode. Show/Hide Sim Controls and Show/Hide Debug Controls independently expand their respective sections. Both start hidden. Expanded help starts one 14-pixel layout row below its toggle; the last simulation help row sits one row above the debug toggle. The launcher actions retain their 28-pixel spacing after the last debug help row. Escape has no exit action. Space no longer pauses and M no longer returns to the menu. Backquote opens debug tools only when Debug Mode is enabled and settings is closed. Wheel zoom is enabled only during debug gameplay. The reusable engine HelpOverlay remains available to other consumers. DebugMenu consumes pointer input inside its visible panel, including held shooting; the session applies that capture before commands. Backquote is the default debug toggle; update accepts an alternate key.
-
-## Contracts and verification
-
-Public headers: [launcher.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/launcher.h), [session.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/session.h), [debug_view.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/debug_view.h), [help_view.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/help_view.h), [bitmap_text.h](https://github.com/SMB-M87/Kinetra/blob/main/include/kinetra/bitmap_text.h).
-
-[Generic launcher tests](https://github.com/SMB-M87/Kinetra/blob/main/tests/launcher_tests.cpp) cover registration, configuration, factory failure, cleanup, input/time isolation and debug actions. [Bundled menu tests](../launcher/tests/menu_tests.cpp) cover difficulty and resized picking. [Integration tests](../launcher/tests/runtime_tests.cpp) and all application presentation suites cover actual rendering and pointer capture.
-
-i4sim uses factory-specific modal settings with the same Ctrl/Resume/Launcher interaction and the engine DebugMenu with View/Motion pages. It retains Space to pause its research simulation and uses LaunchMenu for blueprint selection; see [i4sim controls](../labs/i4sim/README.md#controls). Demo/Dotio settings policy is unchanged.
+| Behavior | Test |
+| --- | --- |
+| Overlay layout, rows, capture and actions | Kinetra `kinetra_settings_view`, with Demo- and Dotio-shaped row sets |
+| `run_launcher` requests, menu key and Escape policy | Kinetra `kinetra_engine_graphics` |
+| Movement mapping and modal pause | `kinetra_lab_common` |
+| The registrations: names, order, Dotio difficulties and default | `kinetra_menu` |
+| Real sessions: settings, zoom, debug gating and navigation with an OpenGL context | `kinetra_graphics` and the application `*_graphics` suites |
