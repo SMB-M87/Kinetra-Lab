@@ -1,6 +1,6 @@
 find_package(nlohmann_json 3.11 REQUIRED)
 add_library(kinetra_i4sim_application src/blueprint.cpp src/flow_metrics.cpp src/simulation.cpp
-    src/predictive_passing.cpp)
+    src/predictive_passing.cpp src/scenario.cpp)
 target_include_directories(kinetra_i4sim_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation PRIVATE nlohmann_json::nlohmann_json)
 target_compile_features(kinetra_i4sim_application PUBLIC cxx_std_20)
@@ -41,6 +41,7 @@ endfunction()
 add_executable(kinetra_i4sim src/main.cpp)
 target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_application)
 kinetra_i4sim_bundle_blueprints(kinetra_i4sim)
+kinetra_executable_icon(kinetra_i4sim)
 if(KINETRA_BUILD_RUNTIME)
     add_library(kinetra_i4sim_presentation src/session.cpp)
     # Launcher: the blueprint screen reuses LaunchMenu's pagination.
@@ -54,7 +55,7 @@ if(BUILD_TESTING)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_application)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
     kinetra_add_doctest(kinetra_i4sim_tests PREFIX kinetra_i4sim
-        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_application)
+        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_application kinetra_lab_test_support)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)
     kinetra_add_doctest(kinetra_i4sim_golden_tests PREFIX kinetra_i4sim_golden
         SOURCES tests/golden_tests.cpp LIBRARIES kinetra_i4sim_application kinetra_lab_test_support)

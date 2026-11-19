@@ -5,6 +5,7 @@
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "session.h"
+#include "showcase.h"
 
 #include <kinetra/debug_view.h>
 #include <kinetra/launcher.h>
@@ -20,10 +21,30 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace kinetra;
+
+namespace {
+/// Writes the showcase blueprint `name` without its scenario section into `directory`, so
+/// the test builds the scene through the debug menu and mouse goals instead. The section is
+/// the last property of every showcase file.
+std::filesystem::path without_scenario(std::string_view name, const std::filesystem::path &directory) {
+    std::ifstream in(i4sim::test::showcase_blueprint(name));
+    const std::string json{std::istreambuf_iterator<char>(in), {}};
+    // Cut at the comma before the key, so the result is valid JSON with any line endings.
+    const auto key = json.find("\"scenario\"");
+    REQUIRE_MESSAGE(key != std::string::npos, "Showcase blueprint lacks its scenario section");
+    const auto section = json.rfind(',', key);
+    std::filesystem::create_directories(directory);
+    const auto file = directory / (std::string(name) + ".json");
+    std::ofstream(file) << json.substr(0, section) << "\n}\n";
+    return file;
+}
+} // namespace
 
 TEST_CASE("the session renders its overlays and handles input and catalog recovery") {
     Runtime runtime("i4sim presentation", 640, 480);
@@ -184,7 +205,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
                   "Repaired catalog did not load its blueprint");
     session->render(runtime);
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Catalog recovery rendering produced an OpenGL error");
-    const auto crossing_file = std::filesystem::path(__FILE__).parent_path() / "junction-crossing.json";
+    const auto crossing_file = without_scenario("junction-crossing", repaired_catalog / "manual");
     session = i4sim::create_session(42, repaired_catalog, crossing_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -225,7 +246,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     CHECK_MESSAGE((lime > 30 && cyan > 100 && session->status().find("RUNNING") != std::string::npos &&
                    glGetError() == GL_NO_ERROR),
                   "Actual crossing/zone rendering failed");
-    const auto corridor_file = std::filesystem::path(__FILE__).parent_path() / "corridor-passing.json";
+    const auto corridor_file = without_scenario("corridor-passing", repaired_catalog / "manual");
     session = i4sim::create_session(42, repaired_catalog, corridor_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -264,7 +285,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     }
     CHECK_MESSAGE((blue > 50 && lime > 30 && glGetError() == GL_NO_ERROR),
                   "Actual corridor admission/exit rendering failed");
-    const auto recovery_file = std::filesystem::path(__FILE__).parent_path() / "corridor-recovery.json";
+    const auto recovery_file = without_scenario("corridor-recovery", repaired_catalog / "manual");
     session = i4sim::create_session(42, repaired_catalog, recovery_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -298,7 +319,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
             ++retreat_pixels;
     CHECK_MESSAGE((retreat_pixels > 20 && glGetError() == GL_NO_ERROR),
                   "Actual corridor retreat rendering failed");
-    const auto passing_file = std::filesystem::path(__FILE__).parent_path() / "predictive-passing.json";
+    const auto passing_file = without_scenario("predictive-passing", repaired_catalog / "manual");
     session = i4sim::create_session(42, repaired_catalog, passing_file);
     session->render(runtime);
     session->advance(0, debug_menu, runtime.camera);
@@ -334,4 +355,60 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     }
     CHECK_MESSAGE((passing_pixels > 20 && glGetError() == GL_NO_ERROR),
                   "Actual predictive passing rendering failed");
+    // Showcase: the last loadscreen row opens a page of scenes that load with their setup.
+    session = i4sim::create_session();
+    Input up;
+    up.pressed[std::size_t(Key::up)] = true;
+    session->advance(0, up, runtime.camera); // wraps to the SHOWCASE row
+    session->advance(0, choose, runtime.camera);
+    CHECK_MESSAGE(session->status() == "Loadscreen", "SHOWCASE loaded a blueprint instead of its scenes");
+    Input escape;
+    escape.pressed[std::size_t(Key::escape)] = true;
+    session->advance(0, escape, runtime.camera);
+    CHECK_MESSAGE((session->status() == "Loadscreen" && session->request() == SessionRequest::none),
+                  "Escape on the SHOWCASE page left i4sim instead of returning to the list");
+    session->advance(0, choose, runtime.camera); // SHOWCASE is still highlighted
+    session->render(runtime);
+    session->advance(0, choose, runtime.camera); // first scene, alphabetically corridor-passing
+    CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "Showcase scene did not load paused");
+    // The world area between the toolbar and the statistics lines; without a workload, only
+    // the scenario's goals can move anything there.
+    auto world_pixels = [&] {
+        session->render(runtime);
+        glFinish();
+        std::vector<unsigned char> pixels(640 * 280 * 3);
+        glReadBuffer(GL_FRONT);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 120, 640, 280, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        return pixels;
+    };
+    auto run_frames = [&](int frames) {
+        for (int frame = 0; frame < frames; ++frame) {
+            session->advance(0.02, {}, runtime.camera);
+            session->render(runtime);
+        }
+    };
+    session->advance(0, run, runtime.camera);
+    auto before = world_pixels();
+    run_frames(30);
+    CHECK_MESSAGE(world_pixels() != before, "Showcase scene movers did not move to their goals");
+    run_frames(30);
+    glFinish();
+    glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+    blue = 0;
+    for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
+        if (crossing_pixels[i] > 30 && crossing_pixels[i] < 80 && crossing_pixels[i + 1] > 90 &&
+            crossing_pixels[i + 1] < 160 && crossing_pixels[i + 2] > 240)
+            ++blue;
+    // The scene's corridor traffic draws the same admission overlay as the clicked setup above.
+    CHECK_MESSAGE((blue > 50 && session->status() == "Single-lane corridor | RUNNING"),
+                  "Showcase scene did not run with its corridor traffic");
+    Input reset;
+    reset.pressed[std::size_t(Key::r)] = true;
+    session->advance(0, reset, runtime.camera);
+    CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "R did not restart the scene");
+    session->advance(0, run, runtime.camera);
+    before = world_pixels();
+    run_frames(30);
+    CHECK_MESSAGE(world_pixels() != before, "R did not re-send the scene's goals");
 }

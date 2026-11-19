@@ -1,4 +1,5 @@
 #include "blueprint.h"
+#include "json_fields.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -20,44 +21,13 @@
 
 namespace i4sim {
 namespace {
+using json_fields::lower;
+using json_fields::normalize;
+using json_fields::number;
+using json_fields::vector;
 using Json = nlohmann::json;
 const std::array<std::string, 11> names{"APM4220", "APM4221", "APM4230", "APM4330", "APM4331", "APM4350",
                                         "APM4550", "Kuka",    "Staubli", "Viper",   "Manuel"};
-std::string lower(std::string s) {
-    for (char &c : s)
-        c = char(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-Json normalize(const Json &value) {
-    if (value.is_object()) {
-        Json out = Json::object();
-        for (auto it = value.begin(); it != value.end(); ++it) {
-            const auto key = lower(it.key());
-            if (out.contains(key))
-                throw std::runtime_error("Duplicate case-insensitive property: " + key);
-            out[key] = normalize(it.value());
-        }
-        return out;
-    }
-    if (value.is_array()) {
-        Json out = Json::array();
-        for (const auto &v : value)
-            out.push_back(normalize(v));
-        return out;
-    }
-    return value;
-}
-float number(const Json &v) {
-    if (!v.is_number())
-        throw std::runtime_error("Expected a number");
-    const float result = v.get<float>();
-    if (!std::isfinite(result))
-        throw std::runtime_error("Number is not finite");
-    return result;
-}
-Vec2 vector(const Json &v) {
-    return {number(v.at("x")), number(v.at("y"))};
-}
 std::uint64_t integer(const Json &v) {
     if (!v.is_number_unsigned() && !(v.is_number_integer() && v.get<std::int64_t>() >= 0))
         throw std::runtime_error("Expected a nonnegative integer");

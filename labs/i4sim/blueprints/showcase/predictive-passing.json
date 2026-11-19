@@ -1,0 +1,23 @@
+{
+  "name": "Predictive passing",
+  "tickCap": 100000,
+  "dimension": {"x": 2400, "y": 1600},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 155,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "west", "model": "APM4220", "position": {"x": 443.5, "y": 743.5}},
+    {"id": "east", "model": "APM4220", "position": {"x": 1843.5, "y": 743.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": [],
+  "scenario": {
+    "description": "Predictive passing: two movers on a head-on course agree on sides and pass.",
+    "motion": {"profile": "reciprocal", "heatmap": false, "predictivePassing": true},
+    "workload": false,
+    "goals": [
+      {"mover": "west", "position": {"x": 1900, "y": 800}},
+      {"mover": "east", "position": {"x": 500, "y": 800}}
+    ]
+  }
+}

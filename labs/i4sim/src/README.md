@@ -18,6 +18,9 @@ flowchart TD
     Mode -->|batch| Batch["Bounded tick loop"]
     Session --> Loader["blueprint.cpp: load and expand JSON"]
     Batch --> Loader
+    Session --> Scenario["scenario.cpp: showcase setup"]
+    Batch --> Scenario
+    Scenario --> Sim
     Loader --> Sim["simulation.cpp: transport and production"]
     Session --> Sim
     Batch --> Sim
@@ -26,7 +29,7 @@ flowchart TD
 
 ## Contents and use
 
-`blueprint.cpp` loads and expands original JSON. `simulation.cpp` owns deterministic product/transport/production policy, footprint-aware route requests, parking approach refinement, optional parking/staging interlocks, isolated-junction/straight-corridor admission, exit-pocket protection and bounded retreat recovery and arrival checks. See the [simulation contract](../../../docs/factory-simulation-architecture.md) for wall constraints and stalled-route handling. `session.cpp` provides the Loadscreen, interaction and rendering. Debug Mode and all visual layers start enabled; disabling Debug Mode hides the layers while preserving their individual selections. `main.cpp` provides graphical and batch entry points.
+`blueprint.cpp` loads and expands original JSON; `json_fields.h` holds the field readers it shares with `scenario.cpp`, which reads a blueprint's optional `scenario` section and applies it to a new simulation ([format](../blueprints/README.md#scenario-section-format)). `simulation.cpp` owns deterministic product/transport/production policy, footprint-aware route requests, parking approach refinement, optional parking/staging interlocks, isolated-junction/straight-corridor admission, exit-pocket protection and bounded retreat recovery and arrival checks. See the [simulation contract](../../../docs/factory-simulation-architecture.md) for wall constraints and stalled-route handling. `session.cpp` provides the Loadscreen, interaction and rendering. Debug Mode and all visual layers start enabled; disabling Debug Mode hides the layers while preserving their individual selections. `main.cpp` provides graphical and batch entry points.
 
 The optional Reciprocal profile adapts shared avoidance to tick units; the Motion
 profile selector and statistics expose it without changing the Improved default.

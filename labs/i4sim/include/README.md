@@ -27,7 +27,7 @@ classDiagram
 
 ## Contents and use
 
-`blueprint.h` defines the validated scene/model data. `simulation.h` exposes headless factory state and operations. `session.h` is the runtime-only session factory. Engine algorithms are consumed through public Kinetra headers.
+`blueprint.h` defines the validated scene/model data. `scenario.h` reads and applies the optional showcase setup of a blueprint. `simulation.h` exposes headless factory state and operations. `session.h` is the runtime-only session factory. Engine algorithms are consumed through public Kinetra headers.
 
 `factory_settings.h` owns the factory-specific modal controls and input layout; shared Lab settings remain unchanged. `simulation.h` exposes motion profiles, bounded parameter configuration, manual reservations, optional parking/junction/corridor traffic coordination with observable exit reservations and temporary retreat targets and contact/wait statistics.
 
