@@ -1,11 +1,12 @@
 # Windows
 
-How Kinetra-Lab builds and runs as native Windows executables, cross-compiled from Linux (WSL) with MinGW-w64. Graphics in WSL pass through WSLg: Mesa's `d3d12` driver renders, and the frame then goes through the WSLg compositor (RDP) to the Windows desktop. A native executable skips both.
+How Kinetra-Lab builds and runs as native Windows executables: cross-compiled from Linux (WSL) with MinGW-w64, or built on Windows itself in an MSYS2 shell. Graphics in WSL pass through WSLg: Mesa's `d3d12` driver renders, and the frame then goes through the WSLg compositor (RDP) to the Windows desktop. A native executable skips both.
 
 ## Table of contents
 
 - [Overview](#overview)
 - [Quick start from WSL](#quick-start-from-wsl)
+- [Building on Windows](#building-on-windows)
 - [How it works](#how-it-works)
 - [Tests](#tests)
 - [Continuous integration](#continuous-integration)
@@ -48,6 +49,50 @@ Run from WSL; interop starts the `.exe` as a Windows process:
 ```
 
 From Windows, open `\\wsl.localhost\<distribution>\<path to Kinetra-Lab>\build-windows\kinetra.exe` in Explorer. To run without WSL, copy the executable together with `SDL2.dll` and `i4sim-blueprints/`; nothing else is needed.
+
+## Building on Windows
+
+There are two ways to build from a Windows desktop. Both produce the same kind of executables.
+
+| Way | Needs | Output |
+| --- | --- | --- |
+| Start the WSL cross build from PowerShell | A WSL distribution set up as in [Quick start from WSL](#quick-start-from-wsl) | `build-windows/` inside WSL |
+| Build natively in MSYS2 | MSYS2 only, no WSL | `build-windows-native/` in the Windows clone |
+
+**From PowerShell through WSL.** Run the cross build without opening a WSL shell, then start the result through the `\\wsl.localhost` share:
+
+```powershell
+wsl --cd <path to Kinetra-Lab in WSL> cmake --workflow --preset windows
+```
+
+**Natively in MSYS2.** This is what the [Windows CI job](#continuous-integration) does. Install [MSYS2](https://www.msys2.org), open the **MSYS2 UCRT64** shell (the other MSYS2 shells use different compilers), and install the same packages as CI:
+
+```sh
+pacman -S --needed git mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-nlohmann-json
+```
+
+Keep the committed line endings, then clone with the engine submodule. The submodule URL uses SSH; without an SSH key for GitHub, the `insteadOf` line makes Git use HTTPS instead:
+
+```sh
+git config --global core.autocrlf false
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+git clone --recurse-submodules https://github.com/SMB-M87/Kinetra-Lab.git
+cd Kinetra-Lab
+```
+
+Build and test with the `windows-native` workflow. It uses the `ci` settings: Release, engine warnings as errors, Lab warnings reported.
+
+```sh
+cmake --workflow --preset windows-native
+```
+
+The `windows-native` test preset skips the graphics tests, because the CI runner has no GPU. On a desktop with an OpenGL 3.3 driver, run them afterwards:
+
+```sh
+ctest --test-dir build-windows-native --output-on-failure -L graphics
+```
+
+Start the launcher with `./build-windows-native/kinetra.exe`. MSYS2's SDL2 is a shared library and the GCC runtime is not linked statically in this build, so an executable started outside the UCRT64 shell needs `C:\msys64\ucrt64\bin` on `PATH`. For an executable that runs anywhere with only `SDL2.dll` beside it, use the cross build.
 
 ## How it works
 
