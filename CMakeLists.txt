@@ -27,6 +27,9 @@ if(KINETRA_LAB_BUILD_RUNTIME AND NOT TARGET Kinetra::Launcher)
     message(FATAL_ERROR "Kinetra checkout must supply Kinetra::Launcher; update external/Kinetra or set KINETRA_SOURCE_DIR to an updated checkout")
 endif()
 add_subdirectory(launcher)
+if(KINETRA_LAB_BUILD_RUNTIME)
+    add_subdirectory(tools/capture)
+endif()
 
 # Lab warnings use Kinetra's warning set (cmake/KinetraWarnings.cmake). They are
 # reported, not errors, until each module's roadmap phase makes it warning-free.
@@ -39,4 +42,7 @@ if(KINETRA_LAB_WARNINGS)
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/launcher RECURSE ${lab_warning_mode})
     # Modules that a roadmap phase made warning-free keep it that way.
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/i4sim RECURSE AS_ERRORS)
+    if(KINETRA_LAB_BUILD_RUNTIME)
+        kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/tools/capture AS_ERRORS)
+    endif()
 endif()

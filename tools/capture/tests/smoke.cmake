@@ -1,0 +1,16 @@
+# Runs kinetra_capture for one screenshot and one clip and checks the files it writes.
+# Called by CTest as: cmake -DTOOL=<kinetra_capture> -DOUTPUT=<directory> -P smoke.cmake
+file(REMOVE_RECURSE "${OUTPUT}")
+execute_process(COMMAND "${TOOL}" "${OUTPUT}" launcher i4sim-debug-clip RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "kinetra_capture failed with ${result}")
+endif()
+foreach(file launcher.png i4sim-debug-clip/frame-0001.png i4sim-debug-clip/frame-0060.png)
+    if(NOT EXISTS "${OUTPUT}/${file}")
+        message(FATAL_ERROR "kinetra_capture did not write ${file}")
+    endif()
+endforeach()
+file(READ "${OUTPUT}/launcher.png" signature LIMIT 8 HEX)
+if(NOT signature STREQUAL "89504e470d0a1a0a")
+    message(FATAL_ERROR "launcher.png is not a PNG file")
+endif()

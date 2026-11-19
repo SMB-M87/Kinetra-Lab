@@ -42,7 +42,7 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 | --- | --- | --- |
 | Logic: headless rules, state and window-free input mapping | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation`, and the headless Lab input policy in `lab/input.h` |
 | Presentation: session, panels, drawing | `kinetra_demo_presentation`, `kinetra_dotio_presentation`, `kinetra_i4sim_presentation` | Its own logic, `Kinetra::Runtime`, shared Lab helpers, and `Kinetra::Launcher` for its menu widgets |
-| Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions` | Presentation libraries, `Kinetra::Launcher` |
+| Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions`, and the developer tool `kinetra_capture` | Presentation libraries, `Kinetra::Launcher`; `kinetra_capture` also `kinetra_sessions` and zlib |
 
 - Input mapping that needs no window belongs in the logic layer, where it is tested headless: Demo's `sandbox_input.h` and i4sim's `FactoryController`. From `kinetra_lab_common`, logic may include only `lab/input.h`, which uses Kinetra's plain input types; `lab/settings.h` and `lab/session.h` need the runtime.
 - A presentation may link `Kinetra::Launcher` to reuse its menu widgets, as i4sim does with `LaunchMenu` for its blueprint screen. It never depends on the bundled launcher in `launcher/`.
@@ -69,6 +69,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/common/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |
 | `launcher/include/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
+| `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`) | `^kinetra_capture` |
 | Any `session.cpp`, presentation (in i4sim also `world_view`, `hud` and `blueprint_screen`), launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level, plus `cmake --workflow --preset windows` from WSL ([Windows](docs/windows.md)) | |
@@ -96,7 +97,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - **Architecture pages:** the cross-application pages live in [docs/](docs/README.md).
 - **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md).
 - **ADRs:** Lab ADRs go in `docs/decisions/`, created with its README when the first Lab ADR is written.
-- **Media:** screenshots and the tour video in [docs/media](docs/media/README.md) are refreshed when visible behavior changes.
+- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is recorded by hand.
 
 ## Functionality index
 
@@ -108,3 +109,4 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 | i4sim | [labs/i4sim](labs/i4sim/) | [labs/i4sim/tests](labs/i4sim/tests/) | [i4sim](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md) |
 | Shared Lab policy (settings rows, input, pause, session base) | [labs/common](labs/common/include/lab/) | [common tests](labs/common/tests/common_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
 | Build | [CMakeLists.txt](CMakeLists.txt), [build.sh](build.sh) | `ctest --test-dir build` | [README](README.md#quick-start) |
+| Media capture (screenshots and GIF clips) | [tools/capture](tools/capture/) | [capture tests](tools/capture/tests/) | [capture tool](tools/capture/README.md), [media guide](docs/media/README.md) |
