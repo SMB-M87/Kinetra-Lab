@@ -161,7 +161,18 @@ The engine pointer, sessions and presentations change: Full level with graphics,
 
 ## Review
 
-Filled in after the review.
+`/code-review` at high effort over both branches (`git diff origin/main...HEAD` in Lab and in the engine), by the session that wrote the engine and presentation code; the Demo and Dotio logic was written by two sub-agents and read before it was committed. Findings and their resolution:
+
+| Finding | Resolution |
+| --- | --- |
+| The SPEED row went up to 8×, which the fixed clocks (at most eight frames' worth of ticks per frame) only run at a full 60 frames per second | The row stops at 4× |
+| Demo and Dotio built their menu rows twice per frame while the menu was hidden | Sessions build rows only while the menu shows |
+| The two minute-long standing-player cases ran in the unlabelled Demo application suite | Moved to `kinetra_demo_crowd`, which carries the `soak` label |
+| Ctrl released by a focus loss opened the settings panel; a number row's step up and down did not return to the same value | Fixed in the engine ([Kinetra design](../../external/Kinetra/docs/design/2026-11-19-debug-workbench.md#review)) |
+| Shift held for gameplay (Demo's Shift+arrows, i4sim's Shift-click) turns a Ctrl press into the debug shortcut | Not changed: that is the shortcut the user chose. Releasing Shift first opens the settings panel |
+| FRAME LIMIT has no effect where VSync paces frames, and the panel does not say so | Not changed. The frame-time graph names the pacing, and [launcher and overlays](../launcher-overlays.md#settings-policy) states it; an [open point](#open-points) |
+
+Checked separately: the i4sim golden lines and tick counts are unchanged (the i4sim debug screenshot shows the same tick as before); logic targets build without the runtime (`headless` preset); no new compiler warnings, and eight old conversions in Demo's scene headers were made explicit so the warning-free capture tests can include them.
 
 ## Verification
 
@@ -174,3 +185,7 @@ Filled in when the branch is complete.
 ## Open points
 
 - Dotio's other randomness is still unseeded ([quality roadmap](2026-11-18-quality-roadmap.md)).
+- Whether the frame limit removes the uneven motion in WSLg has to be judged on the user's screen; here only the frame times could be measured.
+- The FRAME LIMIT row shows no sign that it has no effect where VSync paces frames.
+- A Demo agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there.
+- In Dotio, PATHS > WANDER draws nothing while enemies wander by steering.
