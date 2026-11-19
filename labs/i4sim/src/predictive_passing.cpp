@@ -1,10 +1,12 @@
 #include "simulation.h"
+#include "simulation_constants.h"
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
 
 namespace i4sim {
 using namespace kinetra;
+using namespace detail;
 namespace {
 float support(const Body &body, Vec2 direction) {
     return std::abs(direction.x) * body.half_extents.x + std::abs(direction.y) * body.half_extents.y;
@@ -44,7 +46,7 @@ void Simulation::restore_passing_routes(std::array<std::size_t, 2> ids) {
         if (id < traffic_controls_.size())
             traffic_controls_[id].reset();
         if (id < passing_retry_.size())
-            passing_retry_[id] = ticks_ + 120;
+            passing_retry_[id] = ticks_ + passing_retry_ticks;
     }
 }
 void Simulation::record_passing(EventKind kind, const PassingPlan &plan, std::optional<PassingEnd> end) {
@@ -92,7 +94,7 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
             const auto target = plan.crossing ? plan.exit[side] : plan.entry[side];
             const float d = distance(m.body.position, target);
             remaining += d;
-            arrived = arrived && d < 0.1f && length(m.body.velocity) < 0.05f;
+            arrived = arrived && d < arrival_distance_mm && length(m.body.velocity) < stop_speed;
             if (end)
                 continue;
             if (!m.moving)
@@ -106,7 +108,7 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
             plan.best_remaining = remaining;
             plan.progress_at = ticks_;
         }
-        if (!end && ticks_ - plan.progress_at >= 240)
+        if (!end && ticks_ - plan.progress_at >= passing_timeout_ticks)
             end = PassingEnd::no_progress;
         if (!end && arrived && plan.crossing)
             end = PassingEnd::completed;
@@ -201,7 +203,7 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
                     for (std::size_t side = 0; side < 2 && clear; ++side) {
                         const auto id = plan.movers[side];
                         auto moving = movers_[id].body;
-                        moving.half_extents += Vec2{2, 2};
+                        moving.half_extents += clearance;
                         Vec2 from = moving.position;
                         for (auto to : {plan.entry[side], plan.exit[side]}) {
                             if (!grid_.clear(from, to, moving.half_extents)) {
@@ -219,7 +221,7 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
                                 obstacle.shape = Shape::box;
                                 obstacle.motion = Motion::fixed;
                                 obstacle.position = zone.center;
-                                obstacle.half_extents = zone.half_extents + Vec2{2, 2};
+                                obstacle.half_extents = zone.half_extents + clearance;
                                 if (sweep_translation(moving, to - from, obstacle))
                                     clear = false;
                             }

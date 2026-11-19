@@ -1,4 +1,5 @@
 #include "simulation.h"
+#include "simulation_constants.h"
 #include <fstream>
 #include <kinetra/avoidance.h>
 #include <kinetra/navigation.h>
@@ -8,6 +9,7 @@
 
 namespace i4sim {
 using namespace kinetra;
+using namespace detail;
 namespace {
 float route_remaining(Vec2 position, const std::vector<Vec2> &route) {
     float remaining = 0;
@@ -155,7 +157,7 @@ Simulation::Simulation(Blueprint b, std::uint32_t seed)
     }
     std::vector<Aabb> junction_boxes;
     for (const auto &junction : traffic_zones_) {
-        const auto extent = junction.half_extents + Vec2{2, 2};
+        const auto extent = junction.half_extents + clearance;
         junction_boxes.push_back({junction.center - extent, junction.center + extent});
     }
     traffic_index_.rebuild(junction_boxes);
@@ -267,17 +269,18 @@ void Simulation::toggle_producer(std::size_t index) {
 }
 std::vector<Vec2> Simulation::plan_route(const Mover &m, Vec2 target, bool require_departure) const {
     auto route = grid_.path(m.body.position, target, m.body.half_extents);
-    if (route.empty() || (!require_departure && distance(target, m.parking) > .05f && m.no_progress < 100))
+    if (route.empty() || (!require_departure && distance(target, m.parking) > same_point_mm &&
+                          m.no_progress < obstruction_ticks))
         return route;
     std::vector<const Body *> obstacles;
     for (const auto &other : movers_)
-        if (&other != &m && (!other.moving || other.blocked || other.no_progress >= 100))
+        if (&other != &m && (!other.moving || other.blocked || other.no_progress >= obstruction_ticks))
             obstacles.push_back(&other.body);
     auto clear = [&](Vec2 from, Vec2 to) {
         if (!grid_.clear(from, to, m.body.half_extents))
             return false;
         for (const auto *other : obstacles)
-            if (crosses_mover(from, to, m.body.half_extents + Vec2{2, 2}, *other))
+            if (crosses_mover(from, to, m.body.half_extents + clearance, *other))
                 return false;
         return true;
     };
@@ -419,11 +422,11 @@ bool Simulation::parking_conflict(const Mover &m, Vec2 position) const {
     parked.position = position;
     for (const auto &other : movers_) {
         if (&other == &m || other.blocked || !other.moving || other.parking_deferred ||
-            (!other.manual && distance(other.destination, other.parking) < 0.05f))
+            (!other.manual && distance(other.destination, other.parking) < same_point_mm))
             continue;
         Vec2 from = other.body.position;
         for (const auto to : other.route) {
-            if (crosses_mover(from, to, other.body.half_extents + Vec2{2, 2}, parked))
+            if (crosses_mover(from, to, other.body.half_extents + clearance, parked))
                 return true;
             from = to;
         }
@@ -435,7 +438,7 @@ void Simulation::coordinate_parking() {
         return;
     for (auto &m : movers_) {
         if (m.blocked || m.manual ||
-            (!m.parking_deferred && (!m.moving || distance(m.destination, m.parking) >= 0.05f)))
+            (!m.parking_deferred && (!m.moving || distance(m.destination, m.parking) >= same_point_mm)))
             continue;
         if (!parking_conflict(m, m.parking)) {
             if (m.parking_deferred)
@@ -448,7 +451,7 @@ void Simulation::coordinate_parking() {
         // If no staging place is reachable, retain the existing goal and let
         // local avoidance stop safely; retry the interlock on the next tick.
         const auto staging = holding_position(m, m.parking);
-        if (distance(staging, m.parking) > 0.05f) {
+        if (distance(staging, m.parking) > same_point_mm) {
             set_goal(m, staging);
             m.parking_deferred = true;
         }
@@ -561,7 +564,7 @@ void Simulation::recover_route(Mover &m) {
     auto route = navigation.path(m.body.position / scale, m.destination / scale);
     for (auto &point : route)
         point = point * scale;
-    if (!route.empty() && distance(route.back(), m.destination) < 0.05f) {
+    if (!route.empty() && distance(route.back(), m.destination) < same_point_mm) {
         m.route = std::move(route);
         m.detour = true;
     }
@@ -573,7 +576,7 @@ bool Simulation::prepare_route(Mover &m) {
         return false;
     // Congestion includes this mover's footprint; it is not evidence that
     // its route is obstructed. Replan only after sustained lack of progress.
-    if (!m.detour && ++m.replan >= 100 && m.no_progress >= 100) {
+    if (!m.detour && ++m.replan >= replan_ticks && m.no_progress >= obstruction_ticks) {
         auto route = plan_route(m, m.destination);
         if (!route.empty()) {
             m.route = std::move(route);
@@ -586,11 +589,13 @@ bool Simulation::prepare_route(Mover &m) {
         if (m.unreachable)
             return false;
     }
-    if (++m.no_progress >= 120 + std::min(10u, m.recovery_attempts) * 30 && motion_.recovery) {
+    if (++m.no_progress >=
+            stall_ticks + std::min(recovery_backoff_limit, m.recovery_attempts) * recovery_backoff_ticks &&
+        motion_.recovery) {
         recover_route(m);
         ++m.recovery_attempts;
     }
-    while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < 3 &&
+    while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < waypoint_reach_mm &&
            grid_.clear(m.body.position, m.route[1], m.body.half_extents))
         m.route.erase(m.route.begin());
     return true;
@@ -631,7 +636,7 @@ std::optional<Aabb> Simulation::junction_exit_reservation(std::size_t index) con
 std::optional<Aabb> Simulation::traffic_exit(const Mover &m, const TrafficZone &junction) const {
     Body zone;
     zone.position = junction.center;
-    zone.half_extents = junction.half_extents + Vec2{2, 2};
+    zone.half_extents = junction.half_extents + clearance;
     const Vec2 extent = zone.half_extents + m.body.half_extents;
     const Vec2 low = zone.position - extent, high = zone.position + extent;
     bool entered = false;
@@ -653,9 +658,9 @@ std::optional<Aabb> Simulation::traffic_exit(const Mover &m, const TrafficZone &
             if (travel.y < 0)
                 leave = std::min(leave, (low.y - from.y) / travel.y);
             const auto cleared = from + travel * std::clamp(leave, 0.f, 1.f);
-            const float braking_space = motion_.speed * motion_.speed / motion_.force + 2;
+            const float braking_space = braking_distance(motion_.speed, motion_.force) + clearance_mm;
             const auto end = cleared + limited(to - cleared, braking_space);
-            const auto footprint = m.body.half_extents + Vec2{2, 2};
+            const auto footprint = m.body.half_extents + clearance;
             if (!grid_.clear(cleared, end, footprint))
                 return std::nullopt;
             return Aabb{{std::min(cleared.x, end.x) - footprint.x, std::min(cleared.y, end.y) - footprint.y},
@@ -691,7 +696,7 @@ void Simulation::cancel_corridor_recovery(Mover &m) {
                 traffic_controls_[id].reset();
         }
         zone.recovery.reset();
-        zone.retry_at = ticks_ + 120;
+        zone.retry_at = ticks_ + corridor_retry_ticks;
     }
 }
 void Simulation::recover_corridors(const SpatialGrid &index) {
@@ -699,7 +704,7 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
         auto &zone = traffic_zones_[j];
         Body corridor;
         corridor.position = zone.center;
-        corridor.half_extents = zone.half_extents + Vec2{2, 2};
+        corridor.half_extents = zone.half_extents + clearance;
         auto inside = [&](const Mover &m) {
             return crosses_mover(m.body.position, m.body.position, m.body.half_extents, corridor);
         };
@@ -713,7 +718,7 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
                         route_remaining(movers_[id].body.position, movers_[id].route);
                 }
                 zone.recovery.reset();
-                zone.retry_at = ticks_ + 120;
+                zone.retry_at = ticks_ + corridor_retry_ticks;
             }
         }
         if (!zone.recovery && ticks_ >= zone.retry_at) {
@@ -726,11 +731,12 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
                 continue;
             auto axis = [&](Vec2 value) { return zone.vertical ? value.y : value.x; };
             const auto &a = movers_[occupants[0]], &b = movers_[occupants[1]];
-            if (a.blocked || b.blocked || !a.moving || !b.moving || a.no_progress < 120 ||
-                b.no_progress < 120 || length(a.body.velocity) > 0.05f || length(b.body.velocity) > 0.05f ||
+            if (a.blocked || b.blocked || !a.moving || !b.moving || a.no_progress < stall_ticks ||
+                b.no_progress < stall_ticks || length(a.body.velocity) > stop_speed ||
+                length(b.body.velocity) > stop_speed ||
                 axis(a.destination - a.body.position) * axis(b.destination - b.body.position) >= 0)
                 continue;
-            zone.retry_at = ticks_ + 120;
+            zone.retry_at = ticks_ + corridor_retry_ticks;
             float best = std::numeric_limits<float>::infinity();
             for (auto id : occupants) {
                 bool claimed = false;
@@ -753,13 +759,13 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
                                                                                 m.body.half_extents.x + 4));
                         refuge.y += side * blueprint_.cell_size.y;
                     }
-                    auto route = grid_.path(m.body.position, refuge, m.body.half_extents + Vec2{2, 2});
+                    auto route = grid_.path(m.body.position, refuge, m.body.half_extents + clearance);
                     if (route.empty())
                         continue;
                     bool clear = true;
                     Vec2 from = m.body.position;
                     for (auto to : route) {
-                        const auto extent = m.body.half_extents + Vec2{2, 2};
+                        const auto extent = m.body.half_extents + clearance;
                         const Aabb area{
                             {std::min(from.x, to.x) - extent.x, std::min(from.y, to.y) - extent.y},
                             {std::max(from.x, to.x) + extent.x, std::max(from.y, to.y) + extent.y}};
@@ -797,11 +803,13 @@ void Simulation::recover_corridors(const SpatialGrid &index) {
             continue;
         auto &recovery = *zone.recovery;
         auto &yielding = movers_[recovery.yielding];
-        while (recovery.route.size() > 1 && distance(yielding.body.position, recovery.route.front()) < 3 &&
+        while (recovery.route.size() > 1 &&
+               distance(yielding.body.position, recovery.route.front()) < waypoint_reach_mm &&
                grid_.clear(yielding.body.position, recovery.route[1], yielding.body.half_extents))
             recovery.route.erase(recovery.route.begin());
-        recovery.yielded = recovery.yielded || (distance(yielding.body.position, recovery.refuge) < 0.1f &&
-                                                length(yielding.body.velocity) < 0.05f);
+        recovery.yielded =
+            recovery.yielded || (distance(yielding.body.position, recovery.refuge) < arrival_distance_mm &&
+                                 length(yielding.body.velocity) < stop_speed);
         traffic_controls_[recovery.yielding] =
             TrafficControl{j, recovery.route.front(), recovery.route.size() == 1};
         yielding.corridor_retreating = true;
@@ -828,7 +836,7 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
     std::vector<std::vector<std::uint64_t>> requests(traffic_zones_.size()), occupants(traffic_zones_.size());
     std::vector<std::optional<std::size_t>> next(movers_.size());
     const float reach = 2 * std::max(blueprint_.cell_size.x, blueprint_.cell_size.y) +
-                        motion_.speed * motion_.speed / motion_.force;
+                        braking_distance(motion_.speed, motion_.force);
     for (std::size_t i = 0; i < movers_.size(); ++i) {
         const auto &m = movers_[i];
         float nearest = std::numeric_limits<float>::infinity();
@@ -837,7 +845,7 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
             const auto &junction = traffic_zones_[j];
             if (!(junction.corridor ? motion_.corridor_traffic : motion_.junction_traffic))
                 continue;
-            const Vec2 half = junction.half_extents + Vec2{2, 2};
+            const Vec2 half = junction.half_extents + clearance;
             const auto offset = m.body.position - traffic_zones_[j].center;
             const auto extent = m.body.half_extents + half;
             if (std::abs(offset.x) < extent.x && std::abs(offset.y) < extent.y)
@@ -939,11 +947,11 @@ void Simulation::coordinate_traffic(const SpatialGrid &index, std::span<const Aa
             if (admission.agent == id || occupied[id] ||
                 (traffic_controls_[id] && traffic_controls_[id]->zone == j))
                 continue;
-            auto half = junction.half_extents + Vec2{2, 2};
+            auto half = junction.half_extents + clearance;
             if (junction.corridor) {
                 // Leave a body-length exit pocket free at either mouth, even
                 // when a parked occupant has no route indicating its exit yet.
-                const float braking = motion_.speed * motion_.speed / motion_.force + 6;
+                const float braking = braking_distance(motion_.speed, motion_.force) + 6;
                 if (!junction.vertical)
                     half.x += 2 * mover_max_half_.x + braking;
                 else
@@ -1060,7 +1068,7 @@ void Simulation::move_agents() {
             recovery.slow_radius = arrival ? settings.arrival_radius : 3;
             recovery.stop_radius = 0.01f;
             recovery.lookahead = motion_.horizon;
-            recovery.clearance = 2;
+            recovery.clearance = clearance_mm;
             recovery.rectangular_clearance = true;
             bool avoidance_limited = false;
             if (motion_.profile == SteeringProfile::reciprocal) {
@@ -1109,7 +1117,7 @@ void Simulation::move_agents() {
         const float remaining = route_remaining(m.body.position, m.route);
         // Arrival slows continuously; a fixed 2 mm threshold would classify
         // the final approach as stalled even while it is still converging.
-        const float progress_step = std::clamp(remaining * 0.05f, 0.001f, 2.f);
+        const float progress_step = std::clamp(remaining * progress_step_fraction, 0.001f, 2.f);
         if (remaining + progress_step < m.best_remaining) {
             m.best_remaining = remaining;
             m.no_progress = 0;
@@ -1117,8 +1125,9 @@ void Simulation::move_agents() {
         m.stalled = moved < 0.1f ? m.stalled + 1 : 0;
         if (m.product)
             ++m.transport_ticks;
-        if (!control && m.route.size() == 1 && distance(m.body.position, m.destination) < 0.1f &&
-            length(m.body.velocity) < 0.05f &&
+        if (!control && m.route.size() == 1 &&
+            distance(m.body.position, m.destination) < arrival_distance_mm &&
+            length(m.body.velocity) < stop_speed &&
             grid_.clear(m.body.position, m.destination, m.body.half_extents) &&
             std::none_of(neighbors.begin(), neighbors.end(), [&](const Body &other) {
                 Body parked = m.body;
@@ -1220,11 +1229,11 @@ void Simulation::update_product(Product &p) {
         if (!first) {
             // Reserve a queue slot without allowing two movers to occupy the
             // same processor. Waiting agents stage outside processing cells.
-            if (distance(m.destination, goal) < 0.05f)
+            if (distance(m.destination, goal) < same_point_mm)
                 set_goal(m, holding_position(m, goal));
             return;
         }
-        if (distance(m.destination, goal) > 0.05f) {
+        if (distance(m.destination, goal) > same_point_mm) {
             set_goal(m, goal);
             p.state = ProductState::transporting;
         }
@@ -1237,7 +1246,7 @@ void Simulation::update_product(Product &p) {
     if (p.state == ProductState::queued && !producer.blocked && !producer.product &&
         !producer.queue.empty() && producer.queue.front() == p.id) {
         producer.product = p.id;
-        producer.remaining = 1000;
+        producer.remaining = processing_ticks;
         p.state = ProductState::processing;
     }
     if (p.state == ProductState::processing && !producer.blocked) {
@@ -1252,7 +1261,7 @@ void Simulation::update_product(Product &p) {
             if (p.step < steps.size() && supports(producer.definition.model, steps[p.step])) {
                 // Consecutive operations at the same station retain the
                 // reservation instead of clearing and re-entering its approach.
-                producer.remaining = 1000;
+                producer.remaining = processing_ticks;
             } else {
                 producer.product.reset();
                 std::erase(producer.queue, p.id);
@@ -1286,7 +1295,7 @@ void Simulation::tick() {
         m.previous_position = m.body.position;
     if (workload && products_.size() < movers_.size())
         add_product((random_() % 2) ? ProductKind::trimmer : ProductKind::personalized);
-    if (ticks_ % 10 == 1)
+    if (ticks_ % heatmap_period_ticks == 1)
         update_heatmap();
     coordinate_parking();
     move_agents();
