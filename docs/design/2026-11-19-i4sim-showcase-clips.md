@@ -1,6 +1,6 @@
 # i4sim showcase clips
 
-Status: accepted · Branch: `feat/i4sim-showcase-clips` · Related: [media capture tool](2026-11-19-media-capture.md), [i4sim showcase shuttle](2026-11-19-i4sim-showcase-shuttle.md), [media guide](../media/README.md), [capture tool](../../tools/capture/README.md)
+Status: implemented · Branch: `feat/i4sim-showcase-clips` · Related: [media capture tool](2026-11-19-media-capture.md), [i4sim showcase shuttle](2026-11-19-i4sim-showcase-shuttle.md), [media guide](../media/README.md), [capture tool](../../tools/capture/README.md)
 
 The gallery shows i4sim only on the MAS demonstrator. The five showcase scenes on the loadscreen's SHOWCASE page (junction crossing, corridor passing, corridor recovery, predictive passing, H crossing) are what make the traffic policies visible, and they have no clip. The user wants a video of them. This change adds five `kinetra_capture` clips, one per scene, each one full cycle of the scene, and shows them in the README gallery.
 
@@ -85,16 +85,72 @@ flowchart LR
 
 ## Review
 
-To be filled in after the review.
+`/code-review` (high) on `main...feat/i4sim-showcase-clips`, seven findings:
+
+| Finding | Resolution |
+| --- | --- |
+| The media guide listed the five clip lengths in seconds, which go stale when a scene changes | Fixed: the guide says each clip lasts its scene's cycle |
+| `handle_input` got the panel state as a positional `{false, true}` | Fixed: designated initializers name `pointer_captured` and `debug_mode` |
+| The measurement repeats the session's frame order (`begin_frame`, `suspend`, `handle_input`) by hand | Kept: the order is the controller's documented contract (`controller.h`), and the frames show the result. A shared frame helper is an open point |
+| The cycle test has only a lower bound, and the smoke test only checks that frames exist | Kept: an upper bound would need a second cycle detector. The first and last frames of every clip were checked by eye (see Verification), and the clips are identical over two runs |
+| `i4sim_updates_per_second` repeats the 200 that `create_session` uses as its default | Kept: 200 also appears in the simulation core and `main.cpp`. Gathering it in one i4sim constant is a refactor of its own (open point) |
+| Each scene names its file stem twice, in the scene name and in the lambda | Kept: five visible lines; deriving the file from the scene name would hide the link |
 
 ## Verification
 
-To be filled in after verification.
+Full level with graphics, in WSL2, on the final code (`019ece9`); the same three workflows also passed before the review fixes:
+
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | 201/201 passed, including the seven `kinetra_capture` cases; no warnings |
+| `cmake --workflow --preset headless` | 187/187 passed; the tool is not built without the runtime |
+| `cmake --workflow --preset graphics` | 215/215 passed, including `kinetra_capture_smoke` with the junction-crossing clip |
+| `ctest --preset dev -R '^kinetra_capture'` | 7/7 passed; no warnings in `tools/capture` (`KINETRA_LAB_WARNINGS`) |
+| `tools/capture/capture_media.sh build-graphics <five showcase scenes>` | Five GIFs, 960 × 540 at 15 fps (ffprobe): junction crossing 174 frames (11.6 s), corridor passing 397 (26.5 s), corridor recovery 192 (12.8 s), predictive passing 204 (13.6 s), H crossing 359 (23.9 s); 2.7 MB together |
+| A second render compared with the first, before and after the review fixes | Identical GIFs and frames |
+| Visual check of the first, middle and last frames of every clip | Each starts with the movers just setting off and ends with them standing at their start (shuttle) or at their goals before the restart (corridor recovery) |
+| `clang-format --dry-run` on `tools/capture` | Clean |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+
+Not run: the Windows cross build (no Windows file changed, and the tool is not built there without zlib).
 
 ## Pull request
 
-To be filled in at the end.
+Title: `feat(tools): GIF clips of the five i4sim showcase scenes`
+
+```markdown
+## Summary
+The gallery showed i4sim only on the MAS demonstrator. `kinetra_capture` now also records the five showcase scenes from the loadscreen's SHOWCASE page, each one full cycle in Debug Mode at 200 ticks per second, and the README gallery shows them. A headless `FactoryController` replays each scene before recording to find where its cycle ends, so every GIF loops as the application repeats the scene and follows changes to the scenes.
+
+## Changes
+- **Capture tool** (`tools/capture/`): `showcase_cycle_steps` (new `showcase.h/.cpp`) measures one cycle: two departures after a standstill for a shuttle, one for a restarting scene. Five clip scenes `i4sim-showcase-<scene>-clip`. The i4sim rate is a named `i4sim_updates_per_second` passed to `create_session` (refactor commit).
+- **Tests**: `kinetra_capture` checks the five names and their files, that each cycle holds its pauses and is the same on every run, and that a blueprint without a repeating scenario or a missing file is rejected. `kinetra_capture_smoke` also renders `i4sim-showcase-junction-crossing-clip`.
+- **Media**: five GIFs, 960 × 540 at 15 fps, 12 to 26 s, about 2.7 MB together.
+- **Docs**: README gallery table, media guide, capture tool README, blueprint guide link, design document.
+
+## Design
+[docs/design/2026-11-19-i4sim-showcase-clips.md](https://github.com/SMB-M87/Kinetra-Lab/blob/feat/i4sim-showcase-clips/docs/design/2026-11-19-i4sim-showcase-clips.md)
+
+## Verification
+- `cmake --workflow --preset ci` 201/201, `headless` 187/187, `graphics` 215/215 (with the smoke test); no warnings.
+- `ctest --preset dev -R '^kinetra_capture'`: 7/7.
+- `capture_media.sh` for the five scenes: two runs give identical GIFs; the first, middle and last frames of every clip checked by eye.
+- `python3 external/Kinetra/tools/check_docs.py`: all links resolve.
+
+## Review notes
+- The measurement replays the session's frame order through `FactoryController`; if that order changes in `session.cpp`, the clips need a look.
+- At 960 × 540 the HUD lines overlap the lower edge of the fitted floor; that is the session's layout, not the capture's (open point).
+
+## Dependencies and merge order
+None; no Kinetra change.
+
+## Follow-up
+- One named i4sim default update rate instead of the 200 in the simulation core, `main.cpp`, the session and the capture.
+- A camera fit that leaves room for the HUD.
+```
 
 ## Open points
 
+- The default update rate of 200 ticks per second is written in the simulation core, `main.cpp`, `create_session` and now the capture's `i4sim_updates_per_second`. One named i4sim constant would keep them together.
+- The measurement repeats the session's frame order. A helper in the i4sim logic that runs one session frame would serve both.
 - At 960 × 540 the HUD's description and statistics lines overlap the lower edge of the fitted floor, and in the H crossing the producers below it. This is the session's layout at that window size, not the capture's; the camera fit does not leave room for the HUD.
