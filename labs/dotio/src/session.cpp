@@ -50,6 +50,9 @@ class DotioSession final : public Session {
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Dotio"; }
     std::string status() override { return dotio::status_text(application_); }
+    std::vector<lab::DebugRow> debug_rows() override {
+        return lab::debug_rows_of(application_.debug_entries());
+    }
     Application &application() override { return application_; }
 };
 } // namespace
