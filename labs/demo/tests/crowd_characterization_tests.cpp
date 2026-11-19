@@ -7,6 +7,9 @@
 // behavior-preserving refactor leaves every expected line unchanged; a deliberate
 // change updates the line and says why in the commit message.
 //
+// Every scenario runs in both wander modes: agents that steer without a route, which is
+// the default, and agents that plan wander routes. The invariants hold for both.
+//
 // Set KINETRA_PRINT_GOLDEN=1 to print the current line of every scenario, for a
 // deliberate update. The run still compares, so a changed line also fails its case
 // and shows expected and actual.
@@ -71,12 +74,15 @@ struct Scenario {
     int frames;
     /// Intent for one frame; the default is an idle player with a following camera.
     std::function<sandbox::FrameCommands(int frame)> commands;
+    /// How the agents wander for the whole run.
+    sandbox::WanderMode wander;
 };
 
 /// Runs `scenario` with the invariant checks after every frame and returns its summary:
 /// final population and body counts, the summed avoidance limits and the fingerprint.
 std::string run(const Scenario &scenario) {
     sandbox::SandboxApplication application(scenario.agent_count, scenario.seed);
+    application.tuning().wander.mode = scenario.wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
     camera.pixels_per_unit = 17;
@@ -134,14 +140,28 @@ void check_scenario(std::string_view name, const Scenario &scenario, const std::
 }
 } // namespace
 
-TEST_CASE("a dense idle crowd reproduces its recorded summary") {
+TEST_CASE("a dense idle crowd that wanders by steering reproduces its recorded summary") {
     check_scenario(
-        "dense idle crowd", {240, 123, 480, idle},
-        "agents=312 moving_bodies=319 bodies=681 avoidance_limited=712 trajectory=8c5d12a5aad93398");
+        "dense idle crowd, steering wander", {240, 123, 480, idle, sandbox::WanderMode::steering},
+        "agents=312 moving_bodies=319 bodies=681 avoidance_limited=3047 trajectory=25eff655f7a75f9e");
 }
 
-TEST_CASE("a player walking through streamed chunks reproduces its recorded summary") {
+TEST_CASE("a dense idle crowd that wanders by route reproduces its recorded summary") {
     check_scenario(
-        "player walks through streamed chunks", {40, 456, 1200, walk_through_chunks},
-        "agents=208 moving_bodies=215 bodies=591 avoidance_limited=3520 trajectory=cdaaac0c9bcdef5b");
+        "dense idle crowd, route wander", {240, 123, 480, idle, sandbox::WanderMode::route},
+        "agents=312 moving_bodies=319 bodies=681 avoidance_limited=722 trajectory=17080ac73d99bce9");
+}
+
+TEST_CASE("a player walking through streamed chunks of steering wanderers reproduces its recorded summary") {
+    check_scenario(
+        "player walks through streamed chunks, steering wander",
+        {40, 456, 1200, walk_through_chunks, sandbox::WanderMode::steering},
+        "agents=208 moving_bodies=215 bodies=591 avoidance_limited=2623 trajectory=377eeb3999727f88");
+}
+
+TEST_CASE("a player walking through streamed chunks of route wanderers reproduces its recorded summary") {
+    check_scenario(
+        "player walks through streamed chunks, route wander",
+        {40, 456, 1200, walk_through_chunks, sandbox::WanderMode::route},
+        "agents=208 moving_bodies=215 bodies=591 avoidance_limited=2756 trajectory=37e262315f729cfb");
 }

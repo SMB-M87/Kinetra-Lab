@@ -1,6 +1,9 @@
 // Soak tests for dense Demo crowds: 60 simulated seconds per seed. These seeds stalled
 // only after sustained crowd motion, beyond the old five-frame smoke checks, so the
 // tests step simulated time rather than rendering speed. CTest labels them `soak`.
+//
+// Both seeds run with the default steering wander. One of them also runs with route
+// wander, so the mode that the debug menu offers for comparison stays covered.
 #include "../include/sandbox_application.h"
 
 #include <doctest/doctest.h>
@@ -11,10 +14,12 @@ namespace {
 /// Fixed steps per simulated run: 60 seconds at the Demo's 120 Hz clock.
 constexpr int soak_ticks = 7200;
 
-/// Runs a 240-agent crowd for `soak_ticks` frames and checks every tick that contact
-/// never exhausts the swept-event budget and that all motion stays finite.
-void soak(unsigned seed) {
+/// Runs a 240-agent crowd that wanders by `wander` for `soak_ticks` frames and checks
+/// every tick that contact never exhausts the swept-event budget and that all motion
+/// stays finite.
+void soak(unsigned seed, sandbox::WanderMode wander) {
     sandbox::SandboxApplication application(240, seed);
+    application.tuning().wander.mode = wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
     camera.pixels_per_unit = 17;
@@ -35,9 +40,13 @@ void soak(unsigned seed) {
 } // namespace
 
 TEST_CASE("a dense crowd with seed 123 keeps finite motion and its sweep budget for 60 seconds") {
-    soak(123);
+    soak(123, sandbox::WanderMode::steering);
 }
 
 TEST_CASE("a dense crowd with seed 456 keeps finite motion and its sweep budget for 60 seconds") {
-    soak(456);
+    soak(456, sandbox::WanderMode::steering);
+}
+
+TEST_CASE("a dense crowd of route wanderers keeps finite motion and its sweep budget for 60 seconds") {
+    soak(123, sandbox::WanderMode::route);
 }
