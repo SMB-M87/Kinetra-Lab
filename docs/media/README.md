@@ -23,14 +23,15 @@ Real application captures used by the project's README gallery, what each one sh
 | [dotio-clip.gif](dotio-clip.gif), [dotio-debug-clip.gif](dotio-debug-clip.gif) | Dotio: the player runs a square through the corridors and fires in bursts, in both views |
 | [i4sim.png](i4sim.png), [i4sim-debug.png](i4sim-debug.png) | i4sim `MAS-demonstrator` running, with Debug Mode off, and on with the LAYERS section, every part and its swatch |
 | [i4sim-clip.gif](i4sim-clip.gif), [i4sim-debug-clip.gif](i4sim-debug-clip.gif) | i4sim at 800 ticks per second, in both views; the debug clip shows the SIMULATION section |
+| [i4sim-showcase-junction-crossing-clip.gif](i4sim-showcase-junction-crossing-clip.gif), [i4sim-showcase-corridor-passing-clip.gif](i4sim-showcase-corridor-passing-clip.gif), [i4sim-showcase-corridor-recovery-clip.gif](i4sim-showcase-corridor-recovery-clip.gif), [i4sim-showcase-predictive-passing-clip.gif](i4sim-showcase-predictive-passing-clip.gif), [i4sim-showcase-h-crossing-clip.gif](i4sim-showcase-h-crossing-clip.gif) | The five i4sim [showcase scenes](../../labs/i4sim/blueprints/README.md#showcase-scenes), each one full cycle in Debug Mode at 200 ticks per second, so each lasts as long as its scene's cycle |
 | [kinetra-lab-tour.mp4](kinetra-lab-tour.mp4) | Tour video: 2 min 14 s, H.264 at 1920 × 1080 and 60 fps, with an AAC audio track; recorded by hand |
 
 ## Capture details
 
 - **Rendering.** SDL's offscreen driver with software Mesa, read back with `glReadPixels`; no window decoration.
-- **Sizes.** Screenshots 1920 × 1080. Clips are rendered at 960 × 540, so the bitmap font stays sharp, and play at 15 frames per second for four seconds.
-- **Sessions.** Created as the bundled launcher creates them, with seed 42, 48 Demo agents and Dotio on Medium. Every step advances 1/60 s, so the statistics show 60 frames per second. Demo and Dotio run 2 s before a capture (Dotio 8 s, for its enemies to arrive), i4sim 20 s.
-- **GIFs.** One palette per clip without dithering, and only the changed rectangle per frame; about 2 MB for all six.
+- **Sizes.** Screenshots 1920 × 1080. Clips are rendered at 960 × 540, so the bitmap font stays sharp, and play at 15 frames per second for four seconds. A showcase clip lasts one cycle of its scene instead, which the tool measures before recording, so the GIF loops as the application repeats the scene.
+- **Sessions.** Created as the bundled launcher creates them, with seed 42, 48 Demo agents and Dotio on Medium. Every step advances 1/60 s, so the statistics show 60 frames per second. Demo and Dotio run 2 s before a capture (Dotio 8 s, for its enemies to arrive), i4sim 20 s. The showcase scenes start at once, as after Space on the SHOWCASE page.
+- **GIFs.** One palette per clip without dithering, and only the changed rectangle per frame; about 2 MB for the six application clips and 2.7 MB for the five showcase clips.
 - **Reproducibility.** A refresh gives the same files, except Dotio's: its AI still uses unseeded randomness ([quality roadmap](../design/2026-11-18-quality-roadmap.md)).
 - **What each script does** is in the [capture tool](../../tools/capture/README.md#how-it-works).
 

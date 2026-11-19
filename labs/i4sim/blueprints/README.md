@@ -44,6 +44,8 @@ The files in [showcase/](showcase/) are small traffic scenes that double as test
 | [predictive-passing.json](showcase/predictive-passing.json) | Predictive passing: movers on a head-on course agree on sides | Reciprocal, no heatmap costs, predictive passing | Shuttle |
 | [h-crossing.json](showcase/h-crossing.json) | H crossing: the four corner movers of the original `H` layout swap diagonal corners through its two-cell middle bar; oncoming movers agree on sides on every leg | Improved, no heatmap costs, predictive passing | Shuttle |
 
+The [README gallery](../../../README.md#screenshots-and-demo) shows one cycle of each scene as a looping clip.
+
 Every scene disables the workload, gives every mover a goal and repeats, so the traffic situation shows again and again:
 
 - **Shuttle:** the movers drive back and forth between their start and their goal. A mover that arrives waits until the others have arrived too; after `shuttle_pause_ticks` (400 ticks, two seconds at the default 200 ticks per second) all turn at once, so every leg meets the same way. The simulation turns them inside its tick, so a replay and the batch mode `--ticks` shuttle identically.

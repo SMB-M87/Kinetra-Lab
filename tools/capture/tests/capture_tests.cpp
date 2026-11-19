@@ -1,7 +1,12 @@
-// Window-free tests for kinetra_capture: the PNG writer (tools/capture/src/png.h) and the
-// scene list (tools/capture/src/scenes.h). No Runtime or session is created.
+// Window-free tests for kinetra_capture: the PNG writer (tools/capture/src/png.h), the
+// scene list (tools/capture/src/scenes.h) and the showcase cycle measurement
+// (tools/capture/src/showcase.h). No Runtime or session is created.
 #include "png.h"
 #include "scenes.h"
+#include "showcase.h"
+#include "stage.h"
+
+#include "../../../labs/i4sim/include/simulation.h"
 
 #include <zlib.h>
 
@@ -15,6 +20,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -140,10 +146,27 @@ TEST_CASE("the scenes are the expected list, each once") {
         CHECK((scene.width > 0 && scene.height > 0));
         CHECK((scene.kind == capture::SceneKind::clip) == scene.name.ends_with("-clip"));
     }
-    CHECK(names == std::set<std::string>{"launcher", "launcher-difficulty", "launcher-loadscreen", "demo",
-                                         "demo-debug", "demo-clip", "demo-debug-clip", "dotio", "dotio-debug",
-                                         "dotio-settings", "dotio-clip", "dotio-debug-clip", "i4sim",
-                                         "i4sim-debug", "i4sim-clip", "i4sim-debug-clip"});
+    CHECK(names == std::set<std::string>{"launcher",
+                                         "launcher-difficulty",
+                                         "launcher-loadscreen",
+                                         "demo",
+                                         "demo-debug",
+                                         "demo-clip",
+                                         "demo-debug-clip",
+                                         "dotio",
+                                         "dotio-debug",
+                                         "dotio-settings",
+                                         "dotio-clip",
+                                         "dotio-debug-clip",
+                                         "i4sim",
+                                         "i4sim-debug",
+                                         "i4sim-clip",
+                                         "i4sim-debug-clip",
+                                         "i4sim-showcase-junction-crossing-clip",
+                                         "i4sim-showcase-corridor-passing-clip",
+                                         "i4sim-showcase-corridor-recovery-clip",
+                                         "i4sim-showcase-predictive-passing-clip",
+                                         "i4sim-showcase-h-crossing-clip"});
 }
 
 TEST_CASE("select_scenes picks named scenes in order, all without names, and rejects unknown names") {
@@ -155,4 +178,36 @@ TEST_CASE("select_scenes picks named scenes in order, all without names, and rej
     CHECK(selected[1]->name == "launcher");
     const std::vector<std::string> unknown{"demo", "screenshot"};
     CHECK_THROWS_AS(capture::select_scenes(unknown), std::invalid_argument);
+}
+
+/// A showcase blueprint in the Lab source tree.
+static std::filesystem::path showcase_file(const std::string &name) {
+    return std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "labs/i4sim/blueprints/showcase" /
+           (name + ".json");
+}
+
+TEST_CASE("a showcase cycle holds the scene's pauses and is the same on every run") {
+    // The pause in which the movers stand before they turn or the scene restarts, in steps.
+    const auto pause = static_cast<int>(double(i4sim::shuttle_pause_ticks) /
+                                        capture::i4sim_updates_per_second / capture::Stage::step_seconds);
+    // Shuttles stand twice per cycle, at the goal and back at the start; corridor recovery
+    // stands once, before it restarts.
+    const std::pair<const char *, int> scenes[]{{"junction-crossing", 2},
+                                                {"corridor-passing", 2},
+                                                {"corridor-recovery", 1},
+                                                {"predictive-passing", 2},
+                                                {"h-crossing", 2}};
+    for (const auto &[name, pauses] : scenes) {
+        CAPTURE(name);
+        const int steps = capture::showcase_cycle_steps(showcase_file(name));
+        CHECK(steps > pauses * pause);
+        CHECK(capture::showcase_cycle_steps(showcase_file(name)) == steps);
+    }
+}
+
+TEST_CASE("showcase_cycle_steps rejects a blueprint without a repeating scenario and a missing file") {
+    CHECK_THROWS_AS(capture::showcase_cycle_steps(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) /
+                                                  "labs/i4sim/blueprints/MAS-demonstrator.json"),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(capture::showcase_cycle_steps(showcase_file("no-such-scene")), std::runtime_error);
 }

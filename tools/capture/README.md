@@ -36,7 +36,8 @@ It does not record from a running application, and it adds nothing to the applic
 | Screenshot | A scene that writes `<scene>.png`, at 1920 × 1080 |
 | Clip | A scene that writes `<scene>/frame-0001.png` onwards, at 960 × 540; the script makes `<scene>.gif` of it |
 | Step | One `advance` of the session by 1/60 s, as one frame of a 60 Hz display, so the statistics show real rates |
-| Clip frame | Four steps; clips play at 15 frames per second and last four seconds (60 frames) |
+| Clip frame | Four steps; clips play at 15 frames per second and last four seconds (60 frames), except showcase clips |
+| Showcase cycle | One round of an i4sim showcase scene: out, pause, back and pause for a shuttle; run, pause and restart for corridor recovery. A showcase clip lasts exactly one |
 | Stage | The driver of one session: steps, key presses, clicks on overlay rows, and writing frames |
 
 ## Structure
@@ -45,17 +46,20 @@ It does not record from a running application, and it adds nothing to the applic
 flowchart LR
     Main[main.cpp: CLI] --> Scenes[scenes.cpp: scene list and scripts]
     Scenes --> Stage[stage.cpp: Stage]
+    Scenes --> Showcase[showcase.cpp: cycle length]
+    Showcase -->|headless| Controller[i4sim FactoryController]
     Stage -->|launcher::applications| Sessions[kinetra_sessions: Demo, Dotio, i4sim]
     Stage -->|glReadPixels| Png[png.cpp: write_png]
     Png --> Zlib[zlib]
 ```
 
-*Takeaway:* the scripts know the applications' controls; the stage knows how to drive a session and save a frame; only `png.cpp` touches zlib.
+*Takeaway:* the scripts know the applications' controls; the stage knows how to drive a session and save a frame; the showcase measurement replays a scene without a window; only `png.cpp` touches zlib.
 
 | File | Responsibility |
 | --- | --- |
 | [src/main.cpp](src/main.cpp) | `kinetra_capture <output-directory> [scene...]`: one `Runtime` per scene, at the scene's size |
 | [src/scenes.h](src/scenes.h), [src/scenes.cpp](src/scenes.cpp) | `Scene`, `scenes()`, `select_scenes()`, and the script of every scene |
+| [src/showcase.h](src/showcase.h), [src/showcase.cpp](src/showcase.cpp) | `showcase_cycle_steps`: the steps of one showcase cycle, measured in a headless `FactoryController` |
 | [src/stage.h](src/stage.h), [src/stage.cpp](src/stage.cpp) | `Stage`: starting sessions as the launcher does, steps, clicks on settings and debug rows, `shot()`, `record()` |
 | [src/png.h](src/png.h), [src/png.cpp](src/png.cpp) | `write_png`: eight-bit RGB, rows filtered "none" or "up", one zlib stream |
 | [capture_media.sh](capture_media.sh) | Runs the tool offscreen into a temporary directory, makes the GIFs, copies into `docs/media` |
@@ -84,9 +88,10 @@ sequenceDiagram
 *Takeaway:* every pixel comes from the applications' own drawing; the tool only chooses the input and the moment.
 
 - **Scripts.** Demo and i4sim start in Debug Mode, so their normal scenes turn DEBUG MODE off in the settings panel first. Dotio's debug scenes turn it on, open the debug menu and click every visual row; PATHS opens four filters right below it, so the rows after it are clicked in their new places. The i4sim scenes load `MAS-demonstrator.json`, run it for 20 s first, and the clips run at 800 ticks per second, because at 200 its movers barely move in four seconds.
+- **Showcase scenes.** Each loads its file from the catalog's `showcase/` directory and keeps Debug Mode and every layer on, with the debug menu closed. Before recording, `showcase_cycle_steps` runs the same scene in a `FactoryController`, the headless half of the i4sim session, with the stage's seed, rate (`i4sim_updates_per_second`) and step, Space first, and counts the steps until a mover sets off again after the last standstill of the cycle. The clip records that many steps, rounded down to whole clip frames, so its last frame is in the final pause and the GIF loops like the application.
 - **Clicks.** A settings row is found through a mirror `SettingsOverlay` with the same Lab rows (`row_y`, `half_extent`), and a debug-menu row through `DebugMenu::row_top`, the same public layout the graphics tests use. Presses, clicks and the wheel apply to the first step of a clip frame; held keys and buttons to all four.
 - **Frames.** `Runtime::end()` presents the frame, so the stage reads the front buffer, as the graphics tests do, flips the rows and writes the PNG.
-- **GIFs.** One palette per clip (`palettegen`), no dithering, because the applications draw flat colors, and only the changed rectangle per frame (`diff_mode=rectangle`). The six GIFs are about 2 MB together.
+- **GIFs.** One palette per clip (`palettegen`), no dithering, because the applications draw flat colors, and only the changed rectangle per frame (`diff_mode=rectangle`). The six application GIFs are about 2 MB together, the five showcase GIFs about 2.7 MB.
 
 ## Invariants and contracts
 
@@ -99,6 +104,7 @@ sequenceDiagram
 | To | Change | Test with |
 | --- | --- | --- |
 | Add a capture | A script function and an entry in `scenes()`; the gallery in the root README and the [media guide](../../docs/media/README.md) | Add the name to the scene-list case in `capture_tests.cpp`; run `capture_media.sh <build> <name>` and look at the result |
+| Add a showcase clip | An entry in `scenes()` that calls `i4sim_showcase` with the file name, the gallery and the media guide | The scene-list case and the scene list of the cycle case in `capture_tests.cpp`; look at the first and last frames |
 | Change what a capture shows | Its script in `scenes.cpp` | Run the scene and inspect the PNG or the frames |
 | Follow a changed menu or settings layout | The row constants at the top of `scenes.cpp`, or `SettingsRow` in `stage.h` | The smoke test, then a full refresh |
 
@@ -108,8 +114,8 @@ Pitfalls: a script that clicks a row by number breaks silently when the menu cha
 
 | Suite | Covers | Needs |
 | --- | --- | --- |
-| `kinetra_capture` (`kinetra_capture_tests`) | `write_png`: signature, header, CRCs and decoded pixels; invalid input; the scene list matches the files in `docs/media`; `select_scenes` | Nothing |
-| `kinetra_capture_smoke` | Runs `launcher` and `i4sim-debug-clip` end to end and checks the files | Graphics (`KINETRA_TEST_GRAPHICS`) |
+| `kinetra_capture` (`kinetra_capture_tests`) | `write_png`: signature, header, CRCs and decoded pixels; invalid input; the scene list matches the files in `docs/media`; `select_scenes`; `showcase_cycle_steps` holds each scene's pauses, repeats exactly and rejects a blueprint without a repeating scenario | Nothing |
+| `kinetra_capture_smoke` | Runs `launcher`, `i4sim-debug-clip` and `i4sim-showcase-junction-crossing-clip` end to end and checks the files | Graphics (`KINETRA_TEST_GRAPHICS`) |
 
 ```sh
 cmake --build --preset dev --target kinetra_capture_tests && ctest --preset dev -R '^kinetra_capture'

@@ -66,7 +66,8 @@ void Stage::start_i4sim(std::string_view blueprint) {
     runtime_.camera.position = {};
     runtime_.camera.pixels_per_unit = i4sim::initial_zoom;
     const auto directory = i4sim::default_blueprint_directory();
-    session_ = i4sim::create_session(capture_seed, directory, directory / std::string(blueprint));
+    session_ = i4sim::create_session(capture_seed, directory, directory / std::string(blueprint), false,
+                                     i4sim_updates_per_second);
 }
 
 kinetra::Session &Stage::session() {

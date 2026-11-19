@@ -16,6 +16,9 @@
 namespace capture {
 /// Seed of every captured session, so a refresh shows the same worlds.
 inline constexpr std::uint32_t capture_seed = 42;
+/// Tick rate of a captured i4sim blueprint: the session's default, which the showcase
+/// measurement (showcase.h) shares.
+inline constexpr unsigned i4sim_updates_per_second = 200;
 
 /// Rows of the Lab settings panel, in the order of lab::settings_rows.
 enum class SettingsRow : std::size_t {
@@ -55,7 +58,8 @@ class Stage {
     /// Starts `variant` exactly as the bundled launcher does, with capture_seed, the default
     /// Demo agent count and the default Dotio difficulty. i4sim starts on its blueprint screen.
     void start(launcher::Variant variant);
-    /// Starts i4sim with the blueprint file `blueprint` from the bundled catalog, paused.
+    /// Starts i4sim with the blueprint file `blueprint` from the bundled catalog, paused, at
+    /// i4sim_updates_per_second. `blueprint` is relative to the catalog directory.
     void start_i4sim(std::string_view blueprint);
 
     /// Advances the session one step with `input`; its pointer is replaced by the stage's.

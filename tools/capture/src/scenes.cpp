@@ -1,12 +1,17 @@
 #include "scenes.h"
 
+#include "showcase.h"
 #include "stage.h"
+
+#include "../../../labs/i4sim/include/blueprint.h"
 
 #include <kinetra/launcher.h>
 
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
 #include <stdexcept>
+#include <string>
 
 namespace capture {
 namespace {
@@ -229,6 +234,21 @@ void i4sim_debug_clip(Stage &stage) {
     stage.record(clip_frames, no_input);
 }
 
+// i4sim showcase scenes: Debug Mode and every visual layer on, as the session starts, the
+// debug menu closed, at the session's own rate.
+
+/// Records one cycle of the showcase scene in `showcase/<scene>.json`. The clip ends in the
+/// last standstill before the movers set off again (showcase_cycle_steps), so the GIF loops
+/// as the application repeats the scene.
+void i4sim_showcase(Stage &stage, std::string_view scene) {
+    const auto file = std::filesystem::path("showcase") / (std::string(scene) + ".json");
+    stage.start_i4sim(file.string());
+    const int frames =
+        showcase_cycle_steps(i4sim::default_blueprint_directory() / file) / Stage::steps_per_frame;
+    stage.press(Key::space);
+    stage.record(frames, no_input);
+}
+
 Scene shot(std::string_view name, void (*script)(Stage &)) {
     return {name, SceneKind::screenshot, shot_width, shot_height, script};
 }
@@ -256,6 +276,15 @@ const std::vector<Scene> &scenes() {
         shot("i4sim-debug", i4sim_debug),
         clip("i4sim-clip", i4sim_clip),
         clip("i4sim-debug-clip", i4sim_debug_clip),
+        clip("i4sim-showcase-junction-crossing-clip",
+             [](Stage &stage) { i4sim_showcase(stage, "junction-crossing"); }),
+        clip("i4sim-showcase-corridor-passing-clip",
+             [](Stage &stage) { i4sim_showcase(stage, "corridor-passing"); }),
+        clip("i4sim-showcase-corridor-recovery-clip",
+             [](Stage &stage) { i4sim_showcase(stage, "corridor-recovery"); }),
+        clip("i4sim-showcase-predictive-passing-clip",
+             [](Stage &stage) { i4sim_showcase(stage, "predictive-passing"); }),
+        clip("i4sim-showcase-h-crossing-clip", [](Stage &stage) { i4sim_showcase(stage, "h-crossing"); }),
     };
     return all;
 }
