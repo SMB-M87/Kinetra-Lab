@@ -18,7 +18,8 @@ target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_application)
 kinetra_i4sim_bundle_blueprints(kinetra_i4sim)
 if(KINETRA_BUILD_RUNTIME)
     add_library(kinetra_i4sim_presentation src/session.cpp)
-    target_link_libraries(kinetra_i4sim_presentation PUBLIC kinetra_i4sim_application Kinetra::Launcher)
+    # Launcher: the blueprint screen reuses LaunchMenu's pagination.
+    target_link_libraries(kinetra_i4sim_presentation PUBLIC kinetra_i4sim_application kinetra_lab_common Kinetra::Launcher)
     target_compile_definitions(kinetra_i4sim PRIVATE I4SIM_RUNTIME)
     target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_presentation)
 endif()
@@ -27,14 +28,13 @@ if(BUILD_TESTING)
     add_executable(kinetra_i4sim_motion_benchmark tests/motion_benchmark.cpp)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_application)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
-    add_executable(kinetra_i4sim_tests tests/simulation_tests.cpp)
-    target_link_libraries(kinetra_i4sim_tests PRIVATE kinetra_i4sim_application)
+    kinetra_add_doctest(kinetra_i4sim_tests PREFIX kinetra_i4sim
+        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_application)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)
-    add_test(NAME kinetra_i4sim COMMAND kinetra_i4sim_tests)
-    add_executable(kinetra_i4sim_golden_tests tests/golden_tests.cpp)
-    target_link_libraries(kinetra_i4sim_golden_tests PRIVATE kinetra_i4sim_application kinetra_lab_test_support)
+    kinetra_add_doctest(kinetra_i4sim_golden_tests PREFIX kinetra_i4sim_golden
+        SOURCES tests/golden_tests.cpp LIBRARIES kinetra_i4sim_application kinetra_lab_test_support)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_golden_tests)
-    add_test(NAME kinetra_i4sim_golden COMMAND kinetra_i4sim_golden_tests)
+    # Runs the catalog case of kinetra_i4sim_tests from a relocated copy of the executable.
     add_test(NAME kinetra_i4sim_relocation COMMAND ${CMAKE_COMMAND}
         "-DPROBE=$<TARGET_FILE:kinetra_i4sim_tests>"
         "-DRESOURCES=${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
@@ -43,10 +43,10 @@ if(BUILD_TESTING)
     if(KINETRA_BUILD_RUNTIME AND KINETRA_TEST_GRAPHICS)
         find_package(SDL2 REQUIRED)
         find_package(OpenGL REQUIRED)
-        add_executable(kinetra_i4sim_presentation_tests tests/presentation_tests.cpp)
-        target_link_libraries(kinetra_i4sim_presentation_tests PRIVATE kinetra_i4sim_presentation SDL2::SDL2 OpenGL::GL)
+        kinetra_add_doctest(kinetra_i4sim_presentation_tests PREFIX kinetra_i4sim_graphics
+            SOURCES tests/presentation_tests.cpp
+            LIBRARIES kinetra_i4sim_presentation SDL2::SDL2 OpenGL::GL
+            LABELS graphics)
         kinetra_i4sim_bundle_blueprints(kinetra_i4sim_presentation_tests)
-        add_test(NAME kinetra_i4sim_graphics COMMAND kinetra_i4sim_presentation_tests)
-        set_tests_properties(kinetra_i4sim_graphics PROPERTIES LABELS graphics)
     endif()
 endif()

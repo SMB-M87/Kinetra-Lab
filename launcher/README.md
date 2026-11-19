@@ -1,54 +1,84 @@
-# Bundled application launcher
+# Bundled launcher
 
-Composition root for Demo, Dotio and i4sim; generic menu/session infrastructure and tests belong to Kinetra.
+The `kinetra` executable: one window with a menu from which Demo, Dotio and i4sim are started. It is a composition root. It decides which applications exist and how they start, and contains no menu, session or overlay mechanics of its own; those come from Kinetra.
 
 ## Table of contents
 
-- [Visual overview](#visual-overview)
-- [Composition](#composition)
+- [Purpose and scope](#purpose-and-scope)
+- [Structure](#structure)
+- [How it works](#how-it-works)
 - [Arguments](#arguments)
-- [Verification](#verification)
+- [Changing this module](#changing-this-module)
+- [Tests](#tests)
+- [Open points](#open-points)
 
-[Parent guide](../README.md) · [Documentation index](../docs/README.md)
+[Parent guide](../README.md) · [Project overview](../README.md) · [Documentation index](../docs/README.md)
 
-Directory guides: [include](include/README.md), [src](src/README.md), [tests](tests/README.md).
+## Purpose and scope
 
-## Visual overview
+The launcher lets a user try every Lab application without restarting, and gives the Lab one place that composes all three. Not here: application behavior (each application's session), the menu and the loop (`kinetra::LaunchMenu`, `kinetra::run_launcher`), and the shared Lab settings policy (`labs/common`, described in [launcher and overlays](../docs/launcher-overlays.md)).
 
-Selection creates a fresh application session; returning to the menu releases it.
+## Structure
+
+| File | Responsibility |
+| --- | --- |
+| [include/applications.h](include/applications.h) | `Variant`, `Options`, Lab's `LauncherBindings`, and the `applications()` and `selection()` declarations |
+| [src/applications.cpp](src/applications.cpp) | The three registrations: menu names, Dotio difficulties, camera reset and session factories |
+| [src/main.cpp](src/main.cpp) | Arguments, the world seed and the call to `kinetra::run_launcher` |
+
+`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. Two executables use it: `kinetra` and the compatibility name `kinetra_sandbox`.
+
+## How it works
 
 ```mermaid
 stateDiagram-v2
+    direction LR
     [*] --> Menu
-    Menu --> Configuration: application with options
-    Configuration --> Menu: cancel
-    Menu --> Creating: application without options
-    Configuration --> Creating: confirm
-    Creating --> Running: factory succeeds
-    Creating --> Shutdown: factory throws
-    Running --> Menu: Settings Launcher
-    Running --> Shutdown: close or Settings Exit
-    Menu --> Shutdown: exit
-    Shutdown --> [*]
+    Menu --> Difficulty: DOTIO
+    Difficulty --> Menu: cancel
+    Menu --> Running: DEMO or I4SIM
+    Difficulty --> Running: confirm
+    Running --> Menu: Settings LAUNCHER, or Escape/M on the i4sim blueprint screen
+    Running --> [*]: Settings EXIT or window closed
+    Menu --> [*]: EXIT or window closed
 ```
 
-## Composition
+*Takeaway:* sessions leave through their own requests; the launcher binds no keys.
 
-[main.cpp](src/main.cpp) parses arguments and starts the Lab event loop. [session.cpp](src/session.cpp) chooses application-owned factories, initializes cameras and handles settings-driven navigation. The loop consumes `lab::Session::return_to_menu()` instead of binding M during a run. [menu.h](include/menu.h) adapts application identities and Dotio difficulty to public LaunchMenu. Engine lifecycle/ownership is documented once in [launcher and overlays](../docs/launcher-overlays.md).
+1. `main` reads the arguments and draws one random world seed, printed for reproduction.
+2. `launcher::applications(options)` builds the registrations. Each factory resets the camera and creates a fresh session from the options.
+3. `kinetra::run_launcher` shows the menu, or starts `--variant` directly, and hosts one session at a time with `launcher::bindings` (no menu key, no Escape shutdown).
+
+Selecting an application always creates a new session, so returning to the menu discards the old run. A factory that throws reports the error and ends the program.
 
 ## Arguments
 
 | Argument | Accepted values |
 | --- | --- |
-| `--variant` | `demo`, `dotio`; omit for menu |
-| `--difficulty` | `easy`, `medium`, `hard`; default medium |
-| `--agents` | 0–300 initial Demo agents; default 48 |
+| `--variant` | `demo`, `dotio`, `i4sim`; omit for the menu |
+| `--difficulty` | `easy`, `medium`, `hard` for Dotio; default `medium` |
+| `--agents` | 0–300 Demo agents; default 48 |
 | `--frames` | 1–100000 rendered frames; omit for unlimited |
 
-Both `kinetra` and compatibility `kinetra_sandbox` use this composition root. A process selects and prints one random world seed. Selecting an application creates a fresh session. Detailed controls live in the [Demo](../labs/demo/README.md) [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md) guides. Build commands live in [Quick start](../README.md#quick-start).
+Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md) guides.
 
-## Verification
+## Changing this module
 
-[Menu tests](tests/menu_tests.cpp) run without a window in a launcher-enabled build. [Integration tests](tests/runtime_tests.cpp) require an OpenGL context and cover rendering, settings pause/resume, zoom, debug gating and settings-driven navigation. See [development](../README.md#tests-and-resources).
+- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `lab::Session` and returns its settings overlay's request. Extend `kinetra_menu` with the new name.
+- **Add an application option:** add it to `Options`, parse it in `main.cpp`, and capture it in the factory. Configurations shown in the menu come from the application (as Dotio's difficulties do), not from the launcher.
 
-Select `--variant i4sim` to open the factory blueprint Loadscreen. Its application-owned controls and metrics export are described in the i4sim guide.
+## Tests
+
+| CTest | Covers | Needs |
+| --- | --- | --- |
+| `kinetra_menu` | Registration names and order, Dotio's difficulties and default, hover and keyboard selection, picking at resized viewports | Runtime build, no window |
+| `kinetra_graphics` | Every application through the real launcher sessions: settings zoom and toggles, pause and resume, debug gating, LAUNCHER and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
+
+```sh
+ctest --preset dev -R '^kinetra_menu'
+cmake --workflow --preset graphics
+```
+
+## Open points
+
+- The bundled launcher has no `--seed` option, so a launcher run cannot be replayed exactly; of the direct executables only `kinetra_i4sim` takes one.

@@ -25,16 +25,16 @@ flowchart TD
     Demo --> Engine["Public Kinetra APIs"]
     Dotio --> Engine
     Factory --> Engine
-    Demo -.-> Settings["labs/settings.h"]
-    Dotio -.-> Settings
-    Factory -.-> FactorySettings["i4sim factory_settings.h"]
+    Demo -.-> Common["labs/common: Lab policy"]
+    Dotio -.-> Common
+    Factory -.-> Common
 ```
 
 ## Shared Lab code
 
 Code shared between applications stays application-neutral ([Lab boundaries](../AGENTS.md#lab-boundaries)):
 
-- [settings.h](settings.h) owns the shared modal settings layout, input capture and Lab session navigation request; see [launcher and overlays](../docs/launcher-overlays.md#debug-and-help-interaction). i4sim uses its own near-copy, `FactorySettings` in [factory_settings.h](i4sim/include/factory_settings.h).
+- [common/include/lab](common/include/lab/) (target `kinetra_lab_common`, header-only) holds the policy every application shares: `lab::Session` (Escape never closes a Lab window), `lab::settings_rows` (the settings panel's rows), `lab::direction` (WASD and arrows) and `lab::ModalPause` (pause while the panel is open). The mechanisms behind them are Kinetra's; see [launcher and overlays](../docs/launcher-overlays.md#settings-policy).
 - [test_support/test_support.h](test_support/test_support.h) holds header-only helpers for the test programs (target `kinetra_lab_test_support`, built only with `BUILD_TESTING`).
 
 ## Build and run

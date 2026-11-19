@@ -1,15 +1,16 @@
 #include "session.h"
+#include "zoom.h"
 #include <iostream>
 #include <random>
 
 int main(int argc, char **argv) {
     try {
         int frames = 0;
-        auto difficulty = logic::Difficulty::medium;
+        auto difficulty = dotio::default_difficulty;
         for (int i = 1; i < argc; ++i) {
             const std::string option = argv[i];
             if (option == "--difficulty" && i + 1 < argc)
-                difficulty = logic::parse_difficulty(argv[++i]);
+                difficulty = dotio::difficulty_index(argv[++i]);
             else if (option == "--frames" && i + 1 < argc) {
                 const std::string value = argv[++i];
                 std::size_t used{};
@@ -21,7 +22,7 @@ int main(int argc, char **argv) {
                     "Usage: kinetra_dotio [--difficulty easy|medium|hard] [--frames N]");
         }
         kinetra::Runtime runtime("Dotio on Kinetra");
-        runtime.camera.pixels_per_unit = 25;
+        runtime.camera.pixels_per_unit = dotio::initial_zoom;
         auto session = dotio::create_session(std::random_device{}(), difficulty);
         kinetra::run_session(runtime, *session, frames);
     } catch (const std::exception &error) {

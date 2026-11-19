@@ -2,6 +2,7 @@
 
 #include "sandbox_commands.h"
 #include "sandbox_scene.h"
+#include "zoom.h"
 #include <kinetra/timing.h>
 
 namespace sandbox {

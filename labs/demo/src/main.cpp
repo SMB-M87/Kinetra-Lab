@@ -1,4 +1,5 @@
 #include "session.h"
+#include "zoom.h"
 #include <cstdlib>
 #include <iostream>
 #include <kinetra/engine.h>
@@ -18,7 +19,7 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Invalid frame limit");
         }
         kinetra::Runtime runtime;
-        runtime.camera.pixels_per_unit = 17;
+        runtime.camera.pixels_per_unit = sandbox::initial_zoom;
         const std::uint32_t seed = std::random_device{}();
         std::cout << "World seed: " << seed << '\n';
         auto session = sandbox::create_session(sandbox::default_agent_count, seed);

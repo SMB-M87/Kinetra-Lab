@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../settings.h"
 #include "physics_adapter.h"
 #include "world.h"
+#include "zoom.h"
 #include <array>
 #include <kinetra/camera.h>
 #include <kinetra/debug_view.h>
@@ -33,14 +33,14 @@ class Application {
     std::unique_ptr<logic::World> world_ = std::make_unique<logic::World>();
     kinetra::FixedClock clock_{1.0 / 60, 8};
     int tick_{};
-    double statistics_elapsed_{};
-    int frames_{}, updates_{}, decisions_{};
 
   public:
     bool paused{}, help{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
+    bool statistics{}, active_agents{};
     kinetra::DebugMenu menu;
-    lab::Settings settings{.sim_controls_height = 28};
+    /// Frames, fixed updates and AI decisions per second, for the statistics line.
+    kinetra::RateCounter frame_rate, update_rate, decision_rate;
     auto debug_options() {
         std::vector<kinetra::DebugOption> options{{"GHOST CAMERA", &ghost},
                                                   {"VECTORS", &vectors},
@@ -59,13 +59,12 @@ class Application {
                                        {"INVULNERABLE", &invulnerable}});
         return options;
     }
-    bool statistics{}, active_agents{};
-    double fps{}, ups{}, tps{};
     std::array<bool, 6> paths{};
     explicit Application(std::uint32_t seed = std::random_device{}(),
                          logic::Difficulty difficulty = logic::Difficulty::medium) {
         world_->Initialize(seed, difficulty);
     }
+
     struct AgentCounts {
         int loaded{}, active{};
     };
@@ -141,9 +140,7 @@ class Application {
                     paths[i] = !paths[i];
         if (!debug)
             ghost = false;
-        const float zoom = commands.zoom_steps;
-        camera.pixels_per_unit =
-            std::clamp(camera.pixels_per_unit * std::pow(1.1f, zoom), debug ? 2.5f : 25.f, 50.f);
+        kinetra::zoom(camera, commands.zoom_steps, debug ? debug_zoom_limits : zoom_limits);
         if (ghost) {
             const auto pan = kinetra::normalized(commands.camera_pan + commands.direction);
             world_->GetGhost().Position +=
@@ -159,8 +156,7 @@ class Application {
                               {camera.viewport.x * 6.25f, camera.viewport.y * 6.25f},
                               paused ? 0.f : float(steps * clock_.step()));
         auto aim = from_world(commands.aim) - initial_shift;
-        statistics_elapsed_ += elapsed;
-        ++frames_;
+        frame_rate.count();
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->GetPlayer();
             player.Heading = ghost ? gmath::Vec2{} : gmath::Vec2{commands.direction.x, -commands.direction.y};
@@ -168,14 +164,14 @@ class Application {
                 continue;
             player.Speed = 1;
             player.Update(1);
-            ++updates_;
+            update_rate.count();
             aim -= world_->StreamAroundPlayer();
             logic::Grid::HandleGridCollision(player, 1, &logic::Grid::Array[0][0]);
             if (commands.shoot && !ghost)
                 player.Shoot(aim, debug && invulnerable);
             if (++tick_ == 3) {
                 tick_ = 0;
-                ++decisions_;
+                decision_rate.count();
                 for (auto &enemy : world_->GetEnemies())
                     if (enemy.IsActive && !enemy.Frozen) {
                         enemy.Debug = debug && invulnerable;
@@ -190,13 +186,9 @@ class Application {
             player.Health = std::clamp(player.Health, 0.f, player.MaxHealth);
             player.Mana = std::clamp(player.Mana, 0.f, player.MaxMana);
         }
-        if (statistics_elapsed_ >= 0.5) {
-            fps = frames_ / statistics_elapsed_;
-            ups = updates_ / statistics_elapsed_;
-            tps = decisions_ / statistics_elapsed_;
-            statistics_elapsed_ = 0;
-            frames_ = updates_ = decisions_ = 0;
-        }
+        frame_rate.advance(elapsed);
+        update_rate.advance(elapsed);
+        decision_rate.advance(elapsed);
         camera.position = to_world(ghost ? world_->GetGhost().Position : world_->GetPlayer().Position);
     }
 };

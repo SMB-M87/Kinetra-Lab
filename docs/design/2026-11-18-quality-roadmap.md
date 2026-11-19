@@ -94,13 +94,13 @@ flowchart LR
 
 ## Status
 
-Updated on 2026-11-18.
+Updated on 2026-11-19.
 
 | Phase | State | Where |
 | --- | --- | --- |
 | 1 Process and rules | Implemented | [Development process](2026-11-18-development-process.md) |
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
-| 3 Safety net and shared presentation | Step 1 implemented; the Kinetra design for steps 3, 4 and 6 is accepted ([Kinetra design](../../external/Kinetra/docs/design/README.md#index), ADRs 0013 and 0014); steps 2–7 open | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md) |
+| 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
 | 4–8 | Not started | This page |
 
 ## Phase 2: tooling and CI
@@ -126,6 +126,8 @@ Repositories: Kinetra and Lab.
 ## Phase 3: safety net and shared presentation
 
 Repositories: Kinetra (overlay, glyphs, ADR) and Lab.
+
+**Status: implemented.** See [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md#27-implemented).
 
 1. **Characterization.** A golden summary test for i4sim (fixed seed and blueprint, observable totals) and invariant tests for Demo crowds.
 2. **One test helper.** Move the remaining tests to doctest and remove the 11 `require()` copies.

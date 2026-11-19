@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../settings.h"
 #include "sandbox_application.h"
 #include <kinetra/debug_view.h>
+#include <kinetra/settings_view.h>
 #include <string>
 
 namespace sandbox {
@@ -11,7 +11,7 @@ namespace sandbox {
 void render(kinetra::Runtime &runtime, const SandboxApplication &application,
             const kinetra::DebugMenu *menu = nullptr, std::span<const kinetra::DebugOption> options = {},
             bool collisions = false, bool agents = false, bool statistics = false, double fps = 0,
-            const lab::Settings *settings = nullptr, bool debug = false);
+            const kinetra::SettingsOverlay *settings = nullptr);
 std::string window_title(const SandboxApplication &application);
 
 } // namespace sandbox

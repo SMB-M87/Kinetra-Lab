@@ -4,19 +4,12 @@
 
 #include <bit>
 #include <cstdint>
-#include <stdexcept>
 
-/// Helpers shared by Lab test programs. Application-neutral: no application header is
+/// Helpers shared by Lab doctest suites. Application-neutral: no application header is
 /// included here, so every application's tests can link the `kinetra_lab_test_support`
-/// target. The plain `require` helper is replaced when the tests move to doctest.
+/// target. Assertions come from doctest (`CHECK`, `REQUIRE`); this header only adds what
+/// doctest lacks.
 namespace lab::test {
-
-/// Throws `std::runtime_error(message)` when `condition` is false. Test programs catch it
-/// in `main`, report the message and return a nonzero exit code.
-inline void require(bool condition, const char *message) {
-    if (!condition)
-        throw std::runtime_error(message);
-}
 
 /// 64-bit FNV-1a hash over the exact bits of the values added, in order.
 ///

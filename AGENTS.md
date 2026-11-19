@@ -45,7 +45,7 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 | Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions` | Presentation libraries, `Kinetra::Launcher` |
 
 - Open point: `kinetra_i4sim_presentation` also links `Kinetra::Launcher`, for the `LaunchMenu` of its blueprint screen. The table does not allow that edge; phase 4 either makes it the rule or removes it ([roadmap open points](docs/design/2026-11-18-quality-roadmap.md#open-points)).
-- Applications never include each other's headers. Shared Lab code is application-neutral: today the settings overlay [labs/settings.h](labs/settings.h) and the test helpers in [labs/test_support/test_support.h](labs/test_support/test_support.h) (target `kinetra_lab_test_support`).
+- Applications never include each other's headers. Shared Lab code is application-neutral: today the Lab policy in [labs/common](labs/common/include/lab/) (target `kinetra_lab_common`) and the test helpers in [labs/test_support/test_support.h](labs/test_support/test_support.h) (target `kinetra_lab_test_support`).
 - Logic must build and test with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`.
 - i4sim needs the header-only nlohmann JSON package (3.11+). Its blueprints live in `labs/i4sim/blueprints/`; CMake copies them to `i4sim-blueprints/` next to every executable that opens them, and the application reads them from there. Treat blueprint files as a data format: changing their fields is a contract change.
 
@@ -65,12 +65,15 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | --- | --- | --- |
 | `labs/i4sim/` logic (`simulation`, `predictive_passing`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim` | `^kinetra_i4sim` |
 | `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
-| `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio$` |
-| `labs/settings.h`, `launcher/include/menu.h` | `kinetra_settings_tests kinetra_menu_tests` | `^kinetra_(settings\|menu)` |
+| `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
+| `labs/common/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |
+| `launcher/include/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
 | Any `session.cpp`, presentation, launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 
-The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), `kinetra_i4sim` and the Demo crowd soak tests take minutes. For a quick targeted run, use the `release` preset.
+The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the two 60-second Demo crowd cases.
+
+The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 
 **Warnings.** `KINETRA_LAB_WARNINGS` (on in `dev` and `ci`) reports the shared warning set for `labs/` and `launcher/`. Engine warnings are errors in CI.
 - Lab code had 119 warnings when this was introduced. New or changed Lab code must not add any.
@@ -96,9 +99,9 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 
 | Application | Implementation | Tests | Documentation |
 | --- | --- | --- | --- |
-| Bundled launcher | [launcher/src](launcher/src/), [menu adapter](launcher/include/menu.h) | [launcher/tests](launcher/tests/) | [launcher](launcher/README.md), [launcher and overlays](docs/launcher-overlays.md) |
+| Bundled launcher | [launcher/src](launcher/src/), [registrations](launcher/include/applications.h) | [launcher/tests](launcher/tests/) | [launcher](launcher/README.md), [launcher and overlays](docs/launcher-overlays.md) |
 | Demo | [labs/demo](labs/demo/) | [labs/demo/tests](labs/demo/tests/) | [Demo](labs/demo/README.md), [architecture](docs/demo-architecture.md) |
 | Dotio | [labs/dotio](labs/dotio/) | [labs/dotio/tests](labs/dotio/tests/) | [Dotio](labs/dotio/README.md), [architecture](docs/dotio-architecture.md) |
 | i4sim | [labs/i4sim](labs/i4sim/) | [labs/i4sim/tests](labs/i4sim/tests/) | [i4sim](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md) |
-| Shared settings overlay | [labs/settings.h](labs/settings.h) | [settings tests](launcher/tests/settings_tests.cpp) | [launcher and overlays](docs/launcher-overlays.md) |
+| Shared Lab policy (settings rows, input, pause, session base) | [labs/common](labs/common/include/lab/) | [common tests](labs/common/tests/common_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
 | Build | [CMakeLists.txt](CMakeLists.txt), [build.sh](build.sh) | `ctest --test-dir build` | [README](README.md#quick-start) |
