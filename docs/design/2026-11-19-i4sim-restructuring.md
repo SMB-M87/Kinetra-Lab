@@ -167,7 +167,7 @@ The HUD keeps its text: anything that is not `running` reads `PAUSED`, as today.
 
 **Named constants.** An internal header `src/simulation_constants.h` names the repeated literals, with a comment on what each value means and why it has that value: the 2 mm clearance, the 0.05 mm/tick stop speed, the 0.05 mm same-point tolerance, the 100-tick obstruction threshold, the 120-tick stall threshold and retry delays, the 240-tick passing timeout and the 1000-tick processing time. `braking_distance(speed, force)` computes `speed * speed / force`. Each name replaces the literal with the same floating-point operations, so the results stay bit-identical.
 
-**Components.** `Simulation` keeps the public API as a facade, keeps the tick order and owns one instance of each component. The component headers are private, in `labs/i4sim/src/`.
+**Components.** `Simulation` keeps the public API as a facade. Because the component headers are private, in `labs/i4sim/src/`, the facade holds a pointer to a private `detail::SimulationCore` (found during implementation: by-value members would pull the private headers into the public one). The core owns one instance of each component and keeps the tick order; copies of a simulation stay deep.
 
 | Component | Owns | Responsibility | Today |
 | --- | --- | --- | --- |
@@ -183,13 +183,11 @@ The HUD keeps its text: anything that is not `running` reads `PAUSED`, as today.
 
 ```mermaid
 flowchart TD
-    S[Simulation: facade and tick order] --> P[Production]
+    S[SimulationCore: tick order] --> P[Production]
     S --> M[MotionStep]
     S --> G[Goals]
     P --> G
     M --> G
-    M --> T[Traffic]
-    M --> PP[PredictivePassing]
     G --> T
     G --> PP
     G --> R[Routing]
@@ -201,9 +199,9 @@ flowchart TD
     M --> E
 ```
 
-*Takeaway:* the dependencies point down to the floor and the fleet. There is no cycle, so no interface is needed: `Goals` depends on `Traffic` and `PredictivePassing` (a new goal cancels a recovery and a passing plan), and `Production` and `MotionStep` reach both only through `Goals`.
+*Takeaway:* the dependencies point down to the floor and the fleet. There is no cycle, so no interface is needed: `Goals` depends on `Traffic` and `PredictivePassing` (a new goal cancels a recovery and a passing plan), and `Production` and `MotionStep` reach both only through `Goals`. `MotionStep` also runs the traffic and passing coordination of a tick through that view.
 
-Components store no references to each other. Tests copy simulations (`auto replay = trial;`), and a stored reference would keep pointing into the original. `Simulation` passes what a call needs as parameters, and builds `Goals` as a short-lived view for each call.
+Components store no references to each other. Tests copy simulations (`auto replay = trial;`), and a stored reference would keep pointing into the original. `SimulationCore` passes what a call needs as parameters, and builds `Goals` as a short-lived view for each call.
 
 **Tests.** The cases that read internal counters change to observable behavior: `no_progress < 120` becomes `!stalled(i)`, `no_progress < 100` on the detour becomes `!stalled(0)` (a weaker bound, recorded under Review), and `replan == 80` on the solo trip becomes "never stalls and arrives without contact". The new state values get their own cases: run-state transitions including the tick cap, goal-kind transitions (manual, staging, arrival), and `mover_status` priority.
 
@@ -277,6 +275,21 @@ Step 1, `/code-review` at high effort on `main...HEAD`:
 | Event counting is written twice, in the benchmark and the pressure suite | Skipped: two small lambdas in test code; a shared helper fits the API work of step 2 |
 
 Found while implementing: the confirmed stuck definition missed movers that shuffle back and forth (see [decisions](#decisions)); and the warning check caught a missing default initializer for `SimulationEvent::end`, fixed before commit.
+
+Step 2, `/code-review` at high effort on `main...HEAD`; no correctness finding, the golden and pressure lines were identical after every commit:
+
+| Finding | Resolution |
+| --- | --- |
+| The WORKLOAD debug row now goes through a mirror flag that no test clicks | Skipped: the presentation tests cannot observe the workload. Step 3's headless controller gets a case for it |
+| Two counter asserts became weaker (detour: no progress below 100 ticks became "never stalled", 120; solo trip: replan counter) | Accepted: the counters are private now. `stalled()` is the observable the HUD uses |
+| The run-state commit also changes behavior: `configure_motion` no longer throws while running, and the tick cap ends in `finished` | Accepted: both are the decided run-state design; the pull request names them. The commit is not rewritten |
+| Public declarations without `///` summaries | Fixed: summaries on the remaining facade, `Mover`, `MotionSettings`, `FloorPlan` and `Fleet` members |
+| Passing and traffic tuning literals still unnamed | Fixed: named where they are used, with what they mean |
+| `restore_routes` reimplements `route_remaining` | Fixed: it calls `route_remaining`; same operations, golden lines unchanged |
+| The public API is declared three times (facade, core, forwarders) | Skipped: the cost of keeping component headers private; the core states that its members carry the facade's contracts |
+| This design described `Simulation` as the owner of the components | Fixed: it names `SimulationCore` and the facade |
+
+Found while implementing: by-value components in `Simulation` would have pulled the private component headers into the public one, so a facade commit came first; the -Wshadow, missing-initializer and maybe-uninitialized warnings of step 1 disappeared with the split, and the three new ones were fixed before warnings became errors.
 
 ## Verification
 

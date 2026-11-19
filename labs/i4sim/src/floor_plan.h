@@ -32,16 +32,22 @@ class FloorPlan {
     /// junctions and corridors (see docs/factory-simulation-architecture.md).
     explicit FloorPlan(const Blueprint &blueprint);
 
+    /// The route grid: blocked cells and heatmap weights.
     const kinetra::WeightedGrid &grid() const { return grid_; }
     /// Segments between free and blocked cells and along the outer edge.
     std::span<const kinetra::Segment> borders() const { return borders_; }
+    /// All traffic zones: junctions first, then corridors.
     std::span<const ZoneGeometry> zones() const { return zones_; }
+    /// Number of junctions, which are the first zones.
     std::size_t junction_count() const { return junction_count_; }
+    /// Number of corridors, which follow the junctions.
     std::size_t corridor_count() const { return zones_.size() - junction_count_; }
     /// Spatial index over the zones, each grown by the clearance; ids are zone indices.
     const kinetra::SpatialGrid &zone_index() const { return zone_index_; }
 
+    /// Size of one grid cell, in millimeters.
     Vec2 cell_size() const { return cell_size_; }
+    /// Size of the whole floor, in millimeters.
     Vec2 dimension() const { return dimension_; }
     /// The blueprint's largest mover extent, in millimeters.
     float mover_max_extent() const { return mover_max_extent_; }

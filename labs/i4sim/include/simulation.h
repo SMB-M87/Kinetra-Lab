@@ -32,6 +32,7 @@ enum class SteeringProfile {
 };
 /// Motion and traffic settings of a simulation; see `Simulation::configure_motion`.
 struct MotionSettings {
+    /// How movers steer; Improved by default.
     SteeringProfile profile{SteeringProfile::improved};
     /// Route costs grow where movers stand, so A* routes around crowds.
     bool heatmap{true};
@@ -113,13 +114,16 @@ struct Coordination {
 /// One transport mover: its definition, physical state, goal and statistics. Positions are
 /// in millimeters, velocities in millimeters per tick. Only Simulation changes a mover.
 struct Mover {
+    /// The blueprint entry: id, model and start corner.
     MoverDefinition definition;
+    /// The physical box: center, half extents, velocity and acceleration.
     kinetra::Body body;
     /// Center at the start of the last tick, in millimeters; drawing blends it with
     /// `body.position` by Simulation::interpolation(). Never read by the simulation.
     Vec2 previous_position;
     /// Center of the mover's own parking place, from the blueprint, and of its current goal.
     Vec2 parking, destination;
+    /// Where the mover is in reaching `destination`.
     MoverLifecycle lifecycle{MoverLifecycle::idle};
     /// Who chose `destination`.
     GoalKind goal{GoalKind::automatic};
@@ -152,6 +156,7 @@ enum class MoverStatus { held, corridor_retreat, passing_detour, unreachable, al
 MoverStatus mover_status(const Mover &mover);
 /// One producer (robot or manual station) and its queue.
 struct Producer {
+    /// The blueprint entry: id, model, position and processing corner.
     ProducerDefinition definition;
     /// Blocked by the operator (`Simulation::toggle_producer`): it accepts no product and
     /// pauses its processing.
@@ -195,8 +200,11 @@ class Simulation {
     /// Starts `paused` with default motion settings and the workload on. Throws
     /// std::runtime_error when a mover starts in a forbidden cell.
     explicit Simulation(Blueprint blueprint, std::uint32_t seed = 42);
+    /// The blueprint the simulation was built from.
     const Blueprint &blueprint() const;
+    /// All movers, in blueprint order.
     const std::vector<Mover> &movers() const;
+    /// All producers, in blueprint order.
     const std::vector<Producer> &producers() const;
     /// Open products; completed ones leave this list.
     const std::vector<Product> &products() const;
@@ -249,6 +257,7 @@ class Simulation {
     /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
     /// std::out_of_range for an unknown mover.
     bool stalled(std::size_t mover) const;
+    /// The motion settings in use.
     const MotionSettings &motion_settings() const;
     /// Replaces the motion settings, in any run state. Clears the coordination state of the
     /// features it turns off and sets every moving mover's goal again, which ends passing
@@ -265,6 +274,7 @@ class Simulation {
     /// observes: it never changes a decision. Turning it off keeps the events so far,
     /// and copying the simulation copies its log.
     void record_events(bool enabled);
+    /// Whether events are being recorded.
     bool recording_events() const;
     /// Passing and contact events recorded while recording was on, oldest first. The
     /// log grows without bound while recording is on. The span is valid until the next
@@ -277,6 +287,7 @@ class Simulation {
     /// should blend from each mover's `previous_position` to its `body.position`. One unless
     /// `running`, so a paused, finished or single-stepped scene shows its exact state.
     double interpolation() const;
+    /// The current run state.
     RunState state() const;
     /// True in `RunState::running`.
     bool running() const;
@@ -286,6 +297,7 @@ class Simulation {
     void pause();
     /// Whether `tick` adds a random product while fewer products than movers are open.
     bool workload() const;
+    /// Turns the random workload on or off; open products stay.
     void set_workload(bool enabled);
     /// Runs as many ticks as `elapsed` seconds hold at the current update rate, while
     /// `running`; the remainder carries over. Throws std::invalid_argument for a negative or
@@ -297,6 +309,7 @@ class Simulation {
     /// Sets how many ticks one simulated second holds, in 1..10000 (default 200), and
     /// drops the time accumulated so far. Throws std::invalid_argument outside that range.
     void updates_per_second(unsigned rate);
+    /// Ticks per simulated second.
     unsigned updates_per_second() const;
     /// Opens a product of `kind` and returns its id. Throws std::runtime_error when as
     /// many products are open as there are movers.
@@ -319,8 +332,11 @@ class Simulation {
     /// Copies the whole simulation state, including the event log; the copy runs on
     /// independently. A moved-from simulation may only be assigned to or destroyed.
     Simulation(const Simulation &other);
+    /// Replaces this simulation with a deep copy of `other`.
     Simulation &operator=(const Simulation &other);
+    /// Takes over `other`'s state; `other` is left moved-from.
     Simulation(Simulation &&other) noexcept;
+    /// Takes over `other`'s state; `other` is left moved-from.
     Simulation &operator=(Simulation &&other) noexcept;
     ~Simulation();
 

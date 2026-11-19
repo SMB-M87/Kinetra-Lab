@@ -37,6 +37,7 @@ struct RouteProgress {
 /// mover. `controls` and `stops` are rebuilt by traffic coordination in each tick and are
 /// empty before the first one.
 struct Fleet {
+    /// All movers, in blueprint order.
     std::vector<Mover> movers;
     /// Same size and order as `movers`.
     std::vector<RouteProgress> progress;
