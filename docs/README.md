@@ -41,7 +41,7 @@ flowchart TD
 | How do I build and run the applications on Windows? | [Windows](windows.md): MinGW-w64 cross build from WSL, tests through interop, CI job |
 | Why are the boundaries the way they are? | [Kinetra architecture decisions](../external/Kinetra/docs/decisions/README.md): 0002 to 0007 record the Demo and Dotio decisions from before the applications moved to Lab, and [0009](../external/Kinetra/docs/decisions/0009-core-and-lab.md) sets the boundary between Kinetra and Lab. Lab has no ADRs yet: a decision that only concerns Lab gets one in `docs/decisions/`, created with the first ([rule](../AGENTS.md#documentation-in-lab)) |
 | What is changing now, and what is planned? | [Design documents](design/README.md), [quality roadmap](design/2026-11-18-quality-roadmap.md) |
-| How do I change Kinetra from Lab and update the submodule pointer? | [External dependencies](../external/README.md) |
+| How do I change Kinetra from Lab, update the submodule pointer, or get the submodule off its detached HEAD? | [External dependencies](../external/README.md) |
 | How do we work (cycle, conventions, tests, docs)? | [Agent rules](../AGENTS.md), and in Kinetra: [workflow](../external/Kinetra/docs/workflow.md), [conventions](../external/Kinetra/docs/conventions.md), [testing](../external/Kinetra/docs/testing.md), [documentation guide](../external/Kinetra/docs/documentation.md) |
 
 ## Source and usage guides
