@@ -9,6 +9,8 @@
 
 #include <kinetra/debug_view.h>
 #include <kinetra/launcher.h>
+#include <kinetra/settings_view.h>
+#include <lab/settings.h>
 
 #include <SDL2/SDL.h>
 #include <doctest/doctest.h>
@@ -170,9 +172,13 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->advance(0, back, runtime.camera);
     session->render(runtime);
     back = {};
-    // Centered modal settings, default collapsed help: launcher action.
-    const float scale = std::min({2.f, runtime.camera.viewport.x / 204.f, runtime.camera.viewport.y / 418.f});
-    back.mouse = runtime.camera.viewport / 2 + Vec2{-41, 67} * scale;
+    // Centered modal settings, default collapsed help: the LAUNCHER action, located through a
+    // panel with the same Lab rows so the test follows the shared layout.
+    bool mirror_statistics{}, mirror_debug{}, mirror_frame_times{};
+    const SettingsOverlay mirror(lab::settings_rows([] { return ZoomLimits{1, 2}; }, mirror_statistics,
+                                                    mirror_debug, mirror_frame_times, {"LINE"}, {"LINE"}));
+    back.mouse = runtime.camera.viewport / 2 + (Vec2{50, mirror.actions_y()} - mirror.half_extent()) *
+                                                   SettingsOverlay::scale(runtime.camera.viewport);
     back.clicked = true;
     session->advance(0, back, runtime.camera);
     CHECK_MESSAGE(session->request() == SessionRequest::menu, "Cannot return to launcher");

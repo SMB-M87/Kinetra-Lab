@@ -1,6 +1,7 @@
 #include "../include/presentation.h"
 #include "../include/physics_adapter.h"
 #include <kinetra/help_view.h>
+#include <lab/camera.h>
 #include <lab/input.h>
 
 namespace dotio {
@@ -67,8 +68,38 @@ void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
 }
 } // namespace
 
+PresentedPositions::PresentedPositions(Application &application) {
+    const auto &before = application.before_tick();
+    const auto &after = application.after_tick();
+    const auto objects = application.moving_objects();
+    const auto offset = application.world().WorldOffset();
+    const auto blend = float(application.interpolation());
+    for (std::size_t i = 0; i < objects.size() && i < before.size() && i < after.size(); ++i) {
+        auto *object = objects[i];
+        if (!object->IsActive || !before[i] || !after[i])
+            continue;
+        // Anything but the last tick moved it (teleport, respawn into the slot): exact.
+        const auto absolute = object->Position + offset;
+        if (absolute.X != after[i]->X || absolute.Y != after[i]->Y)
+            continue;
+        simulated_.emplace_back(object, object->Position);
+        object->Position = {before[i]->X + (after[i]->X - before[i]->X) * blend - offset.X,
+                            before[i]->Y + (after[i]->Y - before[i]->Y) * blend - offset.Y};
+    }
+}
+PresentedPositions::~PresentedPositions() {
+    for (auto &[object, position] : simulated_)
+        object->Position = position;
+}
+
 void render(Runtime &runtime, Application &application, const SettingsOverlay &settings) {
     auto &world = application.world();
+    // The camera follows the drawn player, not the simulated one, or the player would jitter
+    // on screen; Ghost moves per frame and needs no correction. Restored after the frame.
+    const auto simulated_player = to_world(world.GetPlayer().Position);
+    const PresentedPositions presented(application);
+    const lab::ScopedCameraShift follow_drawn_player(
+        runtime.camera, application.ghost ? Vec2{} : to_world(world.GetPlayer().Position) - simulated_player);
     runtime.begin({0, 0, 0});
     Renderer renderer(runtime);
     // Cull generated arena geometry against the active camera.
@@ -216,6 +247,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     }
     const auto options = application.debug_options();
     application.menu.draw(runtime, options);
+    if (application.frame_times)
+        draw_frame_times(runtime, runtime.frame_times());
     settings.draw(runtime);
     runtime.end();
 }

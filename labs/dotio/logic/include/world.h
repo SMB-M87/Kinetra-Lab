@@ -28,6 +28,7 @@ class World {
     bool enemies_moved_{};
     float spawn_credit_{};
     double survival_seconds_{};
+    std::uint64_t resets_{};
     Difficulty difficulty_{Difficulty::medium};
     std::uint32_t seed_{};
     std::mt19937 population_random_{0};
@@ -54,6 +55,9 @@ class World {
     const DifficultySettings &difficulty_settings() const { return settings_for(difficulty_); }
 
     void Reset();
+    /// Number of Reset() calls so far. A reset moves the player to a new spawn point, so
+    /// drawing must not blend across one.
+    std::uint64_t ResetCount() const { return resets_; }
     double survival_seconds() const { return survival_seconds_; }
     /// Reach the activity rectangle after five unpaused simulated minutes.
     gmath::Vec2 SpawnHalf(gmath::Vec2 normal_half, gmath::Vec2 active_half) const {

@@ -8,6 +8,8 @@
 #include <kinetra/debug_view.h>
 #include <kinetra/timing.h>
 #include <memory>
+#include <optional>
+#include <vector>
 
 namespace dotio {
 
@@ -33,11 +35,15 @@ class Application {
     std::unique_ptr<logic::World> world_ = std::make_unique<logic::World>();
     kinetra::FixedClock clock_{1.0 / 60, 8};
     int tick_{};
+    /// moving_positions() before and after the last tick; presentation only.
+    std::vector<std::optional<gmath::Vec2>> before_tick_, after_tick_;
+    /// Whether the previous frame was paused; the first running frame drops the old snapshots.
+    bool was_paused_{};
 
   public:
     bool paused{}, help{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
-    bool statistics{}, active_agents{};
+    bool statistics{}, active_agents{}, frame_times{};
     kinetra::DebugMenu menu;
     /// Frames, fixed updates and AI decisions per second, for the statistics line.
     kinetra::RateCounter frame_rate, update_rate, decision_rate;
@@ -60,6 +66,33 @@ class Application {
         return options;
     }
     std::array<bool, 6> paths{};
+    /// The player and every enemy, arrow and bolt slot, in a fixed order: the objects that
+    /// move each tick and that drawing interpolates. Pointers stay valid as long as the world.
+    std::vector<logic::StaticObject *> moving_objects() {
+        std::vector<logic::StaticObject *> result{&world_->GetPlayer()};
+        for (auto &enemy : world_->GetEnemies())
+            result.push_back(&enemy);
+        for (auto &arrow : world_->GetArrows())
+            result.push_back(&arrow);
+        for (auto &bolt : world_->GetBolts())
+            result.push_back(&bolt);
+        return result;
+    }
+    /// Positions of moving_objects() including the world offset, so a streaming shift between
+    /// two snapshots cancels out; empty for an inactive slot.
+    std::vector<std::optional<gmath::Vec2>> moving_positions() {
+        const auto offset = world_->WorldOffset();
+        std::vector<std::optional<gmath::Vec2>> result;
+        for (const auto *object : moving_objects())
+            result.push_back(object->IsActive ? std::optional{object->Position + offset} : std::nullopt);
+        return result;
+    }
+    /// moving_positions() before and after the last tick, for drawing between them.
+    const std::vector<std::optional<gmath::Vec2>> &before_tick() const { return before_tick_; }
+    const std::vector<std::optional<gmath::Vec2>> &after_tick() const { return after_tick_; }
+    /// Fraction of the next tick already accumulated, in [0, 1); one while paused, so a
+    /// paused frame shows the exact state.
+    double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
     explicit Application(std::uint32_t seed = std::random_device{}(),
                          logic::Difficulty difficulty = logic::Difficulty::medium) {
         world_->Initialize(seed, difficulty);
@@ -157,11 +190,21 @@ class Application {
                               paused ? 0.f : float(steps * clock_.step()));
         auto aim = from_world(commands.aim) - initial_shift;
         frame_rate.count();
+        // Snapshots from before a pause would draw the first running frames behind the state
+        // shown while paused; start from the current state instead.
+        if (!paused && was_paused_)
+            before_tick_ = after_tick_ = moving_positions();
+        was_paused_ = paused;
+        std::uint64_t resets_before_tick = 0;
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->GetPlayer();
             player.Heading = ghost ? gmath::Vec2{} : gmath::Vec2{commands.direction.x, -commands.direction.y};
             if (paused)
                 continue;
+            if (step == steps - 1) {
+                before_tick_ = moving_positions();
+                resets_before_tick = world_->ResetCount();
+            }
             player.Speed = 1;
             player.Update(1);
             update_rate.count();
@@ -185,6 +228,12 @@ class Application {
             // Clamp rewards from contact kills as well as projectile kills.
             player.Health = std::clamp(player.Health, 0.f, player.MaxHealth);
             player.Mana = std::clamp(player.Mana, 0.f, player.MaxMana);
+            if (step == steps - 1) {
+                after_tick_ = moving_positions();
+                // A death respawned the player and cleared the projectiles: nothing to blend.
+                if (world_->ResetCount() != resets_before_tick)
+                    before_tick_ = after_tick_;
+            }
         }
         frame_rate.advance(elapsed);
         update_rate.advance(elapsed);

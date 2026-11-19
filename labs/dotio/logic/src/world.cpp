@@ -277,6 +277,7 @@ void World::UpdateObjects(float delta) {
 }
 
 void World::Reset() {
+    ++resets_;
     spawn_credit_ = 0;
     survival_seconds_ = 0;
     enemies_moved_ = false;

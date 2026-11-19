@@ -1,5 +1,6 @@
 #include "../include/sandbox_renderer.h"
 #include "../include/help_overlay.h"
+#include <lab/camera.h>
 #include <string_view>
 
 namespace sandbox {
@@ -61,9 +62,25 @@ std::string_view action_text(ActionResult result) {
 
 void render(Runtime &runtime, const SandboxApplication &application, const DebugMenu *menu,
             std::span<const DebugOption> debug_options, bool collisions, bool agents, bool statistics,
-            double fps, const kinetra::SettingsOverlay *settings) {
+            double fps, const kinetra::SettingsOverlay *settings, const kinetra::FrameTimes *frame_times) {
     const auto &scene = application.scene();
     const auto &options = application.presentation();
+    // A moving body as drawn: its interpolated pose; fixed terrain never moves.
+    const auto presented = [&](std::size_t id, const Body &body) {
+        if (body.motion == Motion::fixed)
+            return body;
+        Body shown = body;
+        const auto pose = application.presented_pose(id);
+        shown.position = pose.position;
+        shown.angle = pose.angle;
+        return shown;
+    };
+    const auto position = [&](std::size_t id) { return application.presented_pose(id).position; };
+    // The camera follows the drawn player, not the simulated one, or the player would
+    // jitter on screen. Only for this frame's drawing: the session keeps its camera.
+    const lab::ScopedCameraShift follow_drawn_player(
+        runtime.camera,
+        scene.following ? position(scene.player) - scene.world.body(scene.player).position : Vec2{});
     runtime.begin();
     // Distant Ghost terrain is sampled for presentation only; it owns no physics or agents.
     if (!scene.following) {
@@ -79,11 +96,12 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
         }
     }
     std::size_t id = 0;
-    for (const auto &body : scene.world.bodies()) {
-        if (!scene.view.overlaps(bounds(body))) {
+    for (const auto &simulated : scene.world.bodies()) {
+        if (!scene.view.overlaps(bounds(simulated))) {
             ++id;
             continue;
         }
+        const Body body = presented(id, simulated);
         draw_body(runtime, body, id == scene.player, options);
         if (collisions) {
             if (body.shape == Shape::circle)
@@ -101,9 +119,11 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     }
     // Draw probes after every body so later terrain cannot overwrite the debug strokes.
     if (options.probes)
-        for (const auto &body : scene.world.bodies()) {
-            if (body.motion == Motion::fixed || !scene.view.overlaps(bounds(body)))
+        for (std::size_t probe = 0; probe < scene.world.bodies().size(); ++probe) {
+            const auto &simulated = scene.world.body(probe);
+            if (simulated.motion == Motion::fixed || !scene.view.overlaps(bounds(simulated)))
                 continue;
+            const Body body = presented(probe, simulated);
             const auto direction =
                 length(body.velocity) > 0.01f ? normalized(body.velocity) : rotated(Vec2{1, 0}, body.angle);
             for (float angle : {0.f, 2.35619449f, -2.35619449f})
@@ -112,20 +132,19 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
                              3.f / runtime.camera.pixels_per_unit, {1, 0.65f, 0.2f});
         }
     if (options.paths) {
-        draw_route(runtime, scene.world.body(scene.player).position, scene.player_path, {0.6f, 1, 0.3f});
+        draw_route(runtime, position(scene.player), scene.player_path, {0.6f, 1, 0.3f});
         for (const auto &agent : scene.agents())
             if (agent.active())
-                draw_route(runtime, scene.world.body(agent.body_id()).position, agent.route(),
-                           {0.3f, 0.7f, 1});
+                draw_route(runtime, position(agent.body_id()), agent.route(), {0.3f, 0.7f, 1});
     }
     if (scene.selected_agent)
         for (const auto &agent : scene.agents())
             if (length(agent.home() - *scene.selected_agent) < 0.001f)
-                draw_debug_circle(runtime, scene.world.body(agent.body_id()).position, 0.8f, {1, 1, 0});
+                draw_debug_circle(runtime, position(agent.body_id()), 0.8f, {1, 1, 0});
     if (agents)
         for (const auto &agent : scene.agents())
             if (agent.active())
-                runtime.circle(scene.world.body(agent.body_id()).position, 0.18f, {1, 1, 0});
+                runtime.circle(position(agent.body_id()), 0.18f, {1, 1, 0});
 
     if (statistics) {
         const auto active = std::count_if(scene.agents().begin(), scene.agents().end(),
@@ -143,6 +162,8 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     }
     if (menu)
         menu->draw(runtime, debug_options);
+    if (frame_times)
+        draw_frame_times(runtime, *frame_times);
     if (settings)
         settings->draw(runtime);
     runtime.end();

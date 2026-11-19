@@ -46,7 +46,7 @@ The window title is "Launcher" in the menu and the application's name in a sessi
 
 ## Settings policy
 
-Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/common](../labs/common/include/lab/settings.h)), so every Lab panel has the same rows in the same order: ZOOM, STATISTICS, DEBUG MODE, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their zoom limits and their help lines; DEBUG CONTROLS always starts with `WHEEL  ZOOM`.
+Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/common](../labs/common/include/lab/settings.h)), so every Lab panel has the same rows in the same order: ZOOM, STATISTICS, DEBUG MODE, FRAME TIMES, SIM CONTROLS and DEBUG CONTROLS. FRAME TIMES (off by default) draws Kinetra's frame-time graph in the top-right corner of the window: the time between the last 240 presented frames, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)). Applications supply only their zoom limits and their help lines; DEBUG CONTROLS always starts with `WHEEL  ZOOM`.
 
 | Application | Zoom limits (pixels per unit) | Sim controls lines |
 | --- | --- | --- |

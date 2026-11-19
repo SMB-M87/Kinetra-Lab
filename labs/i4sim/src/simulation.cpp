@@ -168,7 +168,7 @@ Simulation::Simulation(Blueprint b, std::uint32_t seed)
         mover_max_half_.x = std::max(mover_max_half_.x, m.body.half_extents.x);
         mover_max_half_.y = std::max(mover_max_half_.y, m.body.half_extents.y);
         m.body.position = definition.position + m.body.half_extents;
-        m.parking = m.destination = m.body.position;
+        m.parking = m.destination = m.previous_position = m.body.position;
         if (grid_.blocked(grid_.cell(m.parking)))
             throw std::runtime_error("Mover starts in a forbidden cell: " + definition.id);
         movers_.push_back(m);
@@ -223,12 +223,25 @@ void Simulation::updates_per_second(unsigned rate) {
         throw std::invalid_argument("UPS must be in 1..10000");
     ups_ = rate;
     clock_ = FixedClock(1.0 / rate, 256);
+    // The new clock starts with no accumulated time; blending from the last tick's start
+    // would draw the movers a tick back.
+    settle_previous_positions();
+}
+void Simulation::settle_previous_positions() {
+    for (auto &m : movers_)
+        m.previous_position = m.body.position;
 }
 void Simulation::advance(double elapsed) {
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Invalid elapsed time");
-    if (paused)
+    if (paused) {
+        resume_pending_ = true;
         return;
+    }
+    if (resume_pending_) {
+        settle_previous_positions();
+        resume_pending_ = false;
+    }
     const int count = clock_.advance(elapsed);
     for (int i = 0; i < count && !paused; ++i)
         tick();
@@ -1269,6 +1282,8 @@ void Simulation::tick() {
         return;
     }
     ++ticks_;
+    for (auto &m : movers_)
+        m.previous_position = m.body.position;
     if (workload && products_.size() < movers_.size())
         add_product((random_() % 2) ? ProductKind::trimmer : ProductKind::personalized);
     if (ticks_ % 10 == 1)

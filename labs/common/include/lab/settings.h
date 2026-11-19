@@ -13,18 +13,21 @@ namespace lab {
 inline const std::string wheel_zoom_help = "WHEEL  ZOOM";
 
 /// The settings rows every Lab application shows, in Lab's order: ZOOM, STATISTICS,
-/// DEBUG MODE, SIM CONTROLS and DEBUG CONTROLS.
+/// DEBUG MODE, FRAME TIMES, SIM CONTROLS and DEBUG CONTROLS.
 ///
-/// `statistics` and `debug` are borrowed by the rows and must outlive the overlay built
-/// from them. `zoom` is read on each click, so it may depend on `debug`. The help lines are
-/// the application's own controls; DEBUG CONTROLS starts with wheel_zoom_help.
+/// `statistics`, `debug` and `frame_times` are borrowed by the rows and must outlive the
+/// overlay built from them. While `frame_times` is set, the session draws
+/// kinetra::draw_frame_times over its frame. `zoom` is read on each click, so it may depend on `debug`. The
+/// help lines are the application's own controls; DEBUG CONTROLS starts with wheel_zoom_help.
 inline std::vector<kinetra::SettingsRow> settings_rows(std::function<kinetra::ZoomLimits()> zoom,
-                                                       bool &statistics, bool &debug,
+                                                       bool &statistics, bool &debug, bool &frame_times,
                                                        std::vector<std::string> sim_controls,
                                                        std::vector<std::string> debug_controls) {
     debug_controls.insert(debug_controls.begin(), wheel_zoom_help);
-    return {kinetra::ZoomRow{std::move(zoom)}, kinetra::ToggleRow{"STATISTICS", &statistics},
+    return {kinetra::ZoomRow{std::move(zoom)},
+            kinetra::ToggleRow{"STATISTICS", &statistics},
             kinetra::ToggleRow{"DEBUG MODE", &debug},
+            kinetra::ToggleRow{"FRAME TIMES", &frame_times},
             kinetra::HelpSection{"SIM CONTROLS", std::move(sim_controls)},
             kinetra::HelpSection{"DEBUG CONTROLS", std::move(debug_controls)}};
 }

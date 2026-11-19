@@ -29,9 +29,10 @@ class FactorySession final : public lab::Session {
     std::unique_ptr<Simulation> simulation_;
     bool back_{}, exit_{}, fitted_{}, running_{};
     DebugMenu menu_;
-    bool statistics_{true}, debug_{true}, contacts_{true};
+    bool statistics_{true}, debug_{true}, contacts_{true}, frame_times_{};
     // Declared after the flags it borrows.
     SettingsOverlay settings_{lab::settings_rows([] { return zoom_limits; }, statistics_, debug_,
+                                                 frame_times_,
                                                  {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK",
                                                   "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
                                                  {"DEBUG PAGES: VIEW / MOTION"}),
@@ -429,9 +430,16 @@ class FactorySession final : public lab::Session {
             if (p.product)
                 runtime.circle(world(p.definition.processing_position + extent / 2), radius / 4, color);
         }
+        // Movers are drawn between their last two ticks, so motion stays even when a frame
+        // runs three ticks and the next one four.
+        const float blend = float(simulation_->interpolation());
+        const auto shown = [blend](const Mover &m) {
+            return lerp(m.previous_position, m.body.position, blend);
+        };
         for (std::size_t i = 0; i < simulation_->movers().size(); ++i) {
             const auto &m = simulation_->movers()[i];
-            const auto center = world(m.body.position);
+            const Vec2 position = shown(m);
+            const auto center = world(position);
             runtime.box(center, m.body.half_extents, 0,
                         (m.blocked || m.contacting) ? Color{1, 0, 0} : Color{.7f, .7f, .7f});
             if (selected_mover_ == i)
@@ -444,7 +452,7 @@ class FactorySession final : public lab::Session {
                                                                     simulation_->motion_settings().horizon,
                                   {0.25f, 0.4f, 0.6f});
             if (debug_ && paths_) {
-                Vec2 from = m.body.position;
+                Vec2 from = position;
                 for (auto target : m.route) {
                     runtime.line(world(from), world(target), 2 / runtime.camera.pixels_per_unit,
                                  {0.7f, 0.4f, 1});
@@ -453,18 +461,18 @@ class FactorySession final : public lab::Session {
             }
             if (debug_ && paths_)
                 if (const auto target = simulation_->corridor_retreat_target(i))
-                    draw_debug_vector(runtime, center, world(*target - m.body.position), {1, 0.3f, 0.7f});
+                    draw_debug_vector(runtime, center, world(*target - position), {1, 0.3f, 0.7f});
             if (debug_ && paths_)
                 if (const auto target = simulation_->passing_target(i))
-                    draw_debug_vector(runtime, center, world(*target - m.body.position), {0.3f, 1, 0.7f});
+                    draw_debug_vector(runtime, center, world(*target - position), {0.3f, 1, 0.7f});
             if (debug_ && vectors_) {
                 draw_debug_vector(runtime, center, world(m.forces.border * 50), {1, .5f, 0});
                 draw_debug_vector(runtime, center, world(m.forces.collision * 50), {1, 0, 0});
                 draw_debug_vector(runtime, center, world(m.forces.predictive * 50), {1, 0, 1});
                 draw_debug_vector(runtime, center, world(m.forces.seek * 50), {0, 1, 0});
-                runtime.line(center, world(m.body.position + m.body.velocity * 40),
+                runtime.line(center, world(position + m.body.velocity * 40),
                              3 / runtime.camera.pixels_per_unit, {0, 1, 1});
-                runtime.line(center, world(m.body.position + m.forces.acceleration * 100),
+                runtime.line(center, world(position + m.forces.acceleration * 100),
                              2 / runtime.camera.pixels_per_unit, {1, 1, 0});
             }
         }
@@ -515,7 +523,7 @@ class FactorySession final : public lab::Session {
             draw_text(runtime, id, label, 1, {1, 1, 1});
         };
         for (const auto &m : simulation_->movers())
-            name(m.definition.id, m.body.position);
+            name(m.definition.id, shown(m));
         for (const auto &p : simulation_->producers())
             name(p.definition.id, p.definition.position);
         if (statistics_) {
@@ -582,6 +590,8 @@ class FactorySession final : public lab::Session {
             draw_text(runtime, error_, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
         auto rows = options();
         menu_.draw(runtime, rows);
+        if (frame_times_)
+            draw_frame_times(runtime, runtime.frame_times());
         settings_.draw(runtime);
         runtime.end();
     }
