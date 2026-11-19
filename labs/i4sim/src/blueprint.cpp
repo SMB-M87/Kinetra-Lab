@@ -94,100 +94,143 @@ bool supports(Model m, Interaction i) {
         return false;
     }
 }
+namespace {
+/// Upper bounds of a blueprint: file size in bytes, and movers or producers per kind.
+constexpr std::uintmax_t largest_blueprint_file = 8 * 1024 * 1024;
+constexpr std::size_t most_units = 10000;
+
+/// Reads the scalar properties and checks that the floor makes a valid grid.
+Blueprint read_floor(const Json &root) {
+    Blueprint b;
+    b.name = root.at("name").get<std::string>();
+    if (b.name.empty())
+        throw std::runtime_error("Blueprint name is empty");
+    b.dimension = vector(root.at("dimension"));
+    b.cell_size = vector(root.at("cellsize"));
+    positive(b.dimension, "dimension");
+    positive(b.cell_size, "cellSize");
+    // Constructed for its validation only: it rejects a floor the route grid cannot hold.
+    kinetra::WeightedGrid validate_grid(b.dimension, b.cell_size);
+    if (root.contains("tickcap"))
+        b.tick_cap = integer(root.at("tickcap"));
+    b.mover_max_extent = number(root.at("movermaxextent"));
+    if (b.mover_max_extent <= 0)
+        throw std::runtime_error("moverMaxExtent must be positive");
+    const auto queue = integer(root.at("producermaxqueue"));
+    if (queue == 0 || queue > 100000)
+        throw std::runtime_error("producerMaxQueue must be in 1..100000");
+    b.producer_max_queue = unsigned(queue);
+    return b;
+}
+
+/// Adds movers and producers to a blueprint, each under its model-qualified ID
+/// ("APM4220_1"), which must be unique across both kinds.
+class UnitReader {
+  public:
+    explicit UnitReader(Blueprint &blueprint) : blueprint_(blueprint) {}
+
+    /// `position` is the mover's top-left corner; its footprint must lie on the floor.
+    void add_mover(const std::string &id, Model model, Vec2 position) {
+        if (blueprint_.movers.size() >= most_units)
+            throw std::runtime_error("Too many movers");
+        inside(position, mover_spec(model).dimension, blueprint_.dimension);
+        blueprint_.movers.push_back({qualified(id, model), model, position});
+    }
+    /// `position` is the producer's center and `processing` the top-left corner of its
+    /// processing place.
+    void add_producer(const std::string &id, Model model, Vec2 position, Vec2 processing, bool rectangular) {
+        if (model < Model::Kuka || blueprint_.producers.size() >= most_units)
+            throw std::runtime_error("Invalid producer model or count");
+        // H/Madrid deliberately draw stations outside the navigable envelope;
+        // only their processing areas must be accessible inside the factory.
+        if (std::abs(position.x) > blueprint_.dimension.x * 2 ||
+            std::abs(position.y) > blueprint_.dimension.y * 2)
+            throw std::runtime_error("Producer position exceeds supported envelope");
+        inside(processing, {blueprint_.mover_max_extent, blueprint_.mover_max_extent}, blueprint_.dimension);
+        blueprint_.producers.push_back({qualified(id, model), model, position, processing, rectangular});
+    }
+    /// Expands a `moverGroups` entry: movers of one model in rows and columns that fill
+    /// the group's rectangle, numbered from the group's `id`.
+    void add_mover_group(const Json &group) {
+        const auto m = model(group.at("model"));
+        const auto size = mover_spec(m).dimension, p = vector(group.at("position")),
+                   extent = vector(group.at("dimension"));
+        const float spacing = group_spacing(group);
+        positive(extent, "group dimension");
+        auto id = integer(group.at("id"));
+        // C# initializes size on its first insertion: the first row/column is
+        // entered even if the group is narrower than one mover.
+        bool first = true;
+        for (float y = p.y; y + (first ? 0 : size.y) < p.y + extent.y; y += size.y + spacing)
+            for (float x = p.x; x + (first ? 0 : size.x) < p.x + extent.x; x += size.x + spacing) {
+                add_mover(std::to_string(id++), m, {x, y});
+                first = false;
+            }
+    }
+    /// Expands a `producerGroups` entry: producers of one model on a grid of the larger
+    /// cell side, each with the group's processing offset.
+    void add_producer_group(const Json &group) {
+        const auto m = model(group.at("model"));
+        const auto p = vector(group.at("position")), extent = vector(group.at("dimension")),
+                   processing = vector(group.at("processingpos"));
+        const float spacing = group_spacing(group);
+        positive(extent, "group dimension");
+        const auto cell = blueprint_.cell_size;
+        const float size = std::max(cell.x, cell.y);
+        auto id = integer(group.at("id"));
+        for (float y = p.y; y + size + spacing <= p.y + extent.y; y += size + spacing)
+            for (float x = p.x; x + size + spacing <= p.x + extent.x; x += size + spacing)
+                add_producer(std::to_string(id++), m, {x, y},
+                             processing + Vec2{x - cell.x / 2, y - cell.y / 2}, false);
+    }
+
+  private:
+    static float group_spacing(const Json &group) {
+        const float spacing = group.contains("spacing") ? number(group.at("spacing")) : 0;
+        if (spacing < 0)
+            throw std::runtime_error("Negative group spacing");
+        return spacing;
+    }
+    std::string qualified(const std::string &id, Model model) {
+        auto name = model_name(model) + "_" + id;
+        if (!ids_.insert(name).second)
+            throw std::runtime_error("Duplicate unit ID: " + name);
+        return name;
+    }
+
+    Blueprint &blueprint_;
+    std::set<std::string> ids_;
+};
+
+void read_zones(const Json &root, Blueprint &b) {
+    for (const auto &v : list(root, "forbiddenzones")) {
+        const auto p = vector(v.at("position")), size = vector(v.at("dimension"));
+        positive(size, "zone dimension");
+        inside(p, size, b.dimension);
+        b.zones.push_back({identifier(v.at("id")), p, size});
+    }
+}
+} // namespace
 Blueprint load_blueprint(const std::filesystem::path &path) {
     try {
-        if (std::filesystem::file_size(path) > 8 * 1024 * 1024)
+        if (std::filesystem::file_size(path) > largest_blueprint_file)
             throw std::runtime_error("Blueprint exceeds 8 MiB");
         std::ifstream stream(path);
         if (!stream)
             throw std::runtime_error("Cannot open file");
         const auto root = normalize(Json::parse(stream));
-        Blueprint b;
-        b.name = root.at("name").get<std::string>();
-        if (b.name.empty())
-            throw std::runtime_error("Blueprint name is empty");
-        b.dimension = vector(root.at("dimension"));
-        b.cell_size = vector(root.at("cellsize"));
-        positive(b.dimension, "dimension");
-        positive(b.cell_size, "cellSize");
-        kinetra::WeightedGrid validate_grid(b.dimension, b.cell_size);
-        if (root.contains("tickcap"))
-            b.tick_cap = integer(root.at("tickcap"));
-        b.mover_max_extent = number(root.at("movermaxextent"));
-        if (b.mover_max_extent <= 0)
-            throw std::runtime_error("moverMaxExtent must be positive");
-        const auto queue = integer(root.at("producermaxqueue"));
-        if (queue == 0 || queue > 100000)
-            throw std::runtime_error("producerMaxQueue must be in 1..100000");
-        b.producer_max_queue = unsigned(queue);
-        std::set<std::string> ids;
-        auto add_mover = [&](std::string id, Model m, Vec2 p) {
-            if (b.movers.size() >= 10000)
-                throw std::runtime_error("Too many movers");
-            const auto spec = mover_spec(m);
-            inside(p, spec.dimension, b.dimension);
-            id = model_name(m) + "_" + id;
-            if (!ids.insert(id).second)
-                throw std::runtime_error("Duplicate unit ID: " + id);
-            b.movers.push_back({id, m, p});
-        };
-        auto add_producer = [&](std::string id, Model m, Vec2 p, Vec2 processing, bool rect) {
-            if (m < Model::Kuka || b.producers.size() >= 10000)
-                throw std::runtime_error("Invalid producer model or count");
-            // H/Madrid deliberately draw stations outside the navigable envelope;
-            // only their processing areas must be accessible inside the factory.
-            if (std::abs(p.x) > b.dimension.x * 2 || std::abs(p.y) > b.dimension.y * 2)
-                throw std::runtime_error("Producer position exceeds supported envelope");
-            inside(processing, {b.mover_max_extent, b.mover_max_extent}, b.dimension);
-            id = model_name(m) + "_" + id;
-            if (!ids.insert(id).second)
-                throw std::runtime_error("Duplicate unit ID: " + id);
-            b.producers.push_back({id, m, p, processing, rect});
-        };
+        Blueprint b = read_floor(root);
+        UnitReader units(b);
         for (const auto &v : list(root, "movers"))
-            add_mover(identifier(v.at("id")), model(v.at("model")), vector(v.at("position")));
+            units.add_mover(identifier(v.at("id")), model(v.at("model")), vector(v.at("position")));
         for (const auto &v : list(root, "producers"))
-            add_producer(identifier(v.at("id")), model(v.at("model")), vector(v.at("position")),
-                         vector(v.at("processingpos")), v.value("rect", false));
-        for (const auto &v : list(root, "movergroups")) {
-            const auto m = model(v.at("model"));
-            const auto size = mover_spec(m).dimension, p = vector(v.at("position")),
-                       extent = vector(v.at("dimension"));
-            const float spacing = v.contains("spacing") ? number(v.at("spacing")) : 0;
-            if (spacing < 0)
-                throw std::runtime_error("Negative group spacing");
-            positive(extent, "group dimension");
-            auto id = integer(v.at("id"));
-            // C# initializes size on its first insertion: the first row/column is
-            // entered even if the group is narrower than one mover.
-            bool first = true;
-            for (float y = p.y; y + (first ? 0 : size.y) < p.y + extent.y; y += size.y + spacing)
-                for (float x = p.x; x + (first ? 0 : size.x) < p.x + extent.x; x += size.x + spacing) {
-                    add_mover(std::to_string(id++), m, {x, y});
-                    first = false;
-                }
-        }
-        for (const auto &v : list(root, "producergroups")) {
-            const auto m = model(v.at("model"));
-            const auto p = vector(v.at("position")), extent = vector(v.at("dimension")),
-                       processing = vector(v.at("processingpos"));
-            const float spacing = v.contains("spacing") ? number(v.at("spacing")) : 0;
-            if (spacing < 0)
-                throw std::runtime_error("Negative group spacing");
-            positive(extent, "group dimension");
-            const float size = std::max(b.cell_size.x, b.cell_size.y);
-            auto id = integer(v.at("id"));
-            for (float y = p.y; y + size + spacing <= p.y + extent.y; y += size + spacing)
-                for (float x = p.x; x + size + spacing <= p.x + extent.x; x += size + spacing)
-                    add_producer(std::to_string(id++), m, {x, y},
-                                 processing + Vec2{x - b.cell_size.x / 2, y - b.cell_size.y / 2}, false);
-        }
-        for (const auto &v : list(root, "forbiddenzones")) {
-            const auto p = vector(v.at("position")), size = vector(v.at("dimension"));
-            positive(size, "zone dimension");
-            inside(p, size, b.dimension);
-            b.zones.push_back({identifier(v.at("id")), p, size});
-        }
+            units.add_producer(identifier(v.at("id")), model(v.at("model")), vector(v.at("position")),
+                               vector(v.at("processingpos")), v.value("rect", false));
+        for (const auto &group : list(root, "movergroups"))
+            units.add_mover_group(group);
+        for (const auto &group : list(root, "producergroups"))
+            units.add_producer_group(group);
+        read_zones(root, b);
         return b;
     } catch (const std::exception &e) {
         throw std::runtime_error(path.string() + ": " + e.what());
