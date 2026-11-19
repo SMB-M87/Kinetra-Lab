@@ -1,5 +1,6 @@
 #pragma once
 #include "blueprint.h"
+#include "events.h"
 #include <array>
 #include <deque>
 #include <kinetra/steering.h>
@@ -9,6 +10,8 @@
 #include <optional>
 #include <random>
 #include <set>
+#include <span>
+#include <vector>
 
 namespace i4sim {
 enum class SteeringProfile { improved, original, experimental_rvo, reciprocal };
@@ -89,6 +92,17 @@ class Simulation {
     const MotionSettings &motion_settings() const { return motion_; }
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return contact_ticks_; }
+    /// Seed of the workload generator. With the blueprint, the motion settings and the
+    /// commands given, it reproduces a run tick for tick.
+    std::uint32_t seed() const { return seed_; }
+    /// Turns the event log on or off; it is off for a new simulation. Recording only
+    /// observes: it never changes a decision. Turning it off keeps the events so far,
+    /// and copying the simulation copies its log.
+    void record_events(bool enabled) { recording_ = enabled; }
+    bool recording_events() const { return recording_; }
+    /// Passing and contact events recorded while recording was on, oldest first. The
+    /// log grows without bound while recording is on.
+    std::span<const SimulationEvent> events() const { return events_; }
     void single_step();
     bool paused{true}, workload{true};
     void advance(double elapsed);
@@ -104,6 +118,7 @@ class Simulation {
 
   private:
     struct PassingPlan {
+        std::uint64_t id{};
         std::array<std::size_t, 2> movers;
         std::array<Vec2, 2> entry, exit;
         std::vector<kinetra::Aabb> space;
@@ -113,6 +128,12 @@ class Simulation {
     };
     std::vector<PassingPlan> passing_plans_;
     std::vector<std::uint64_t> passing_retry_;
+    // Advances whether or not recording is on, so plan ids never depend on it.
+    std::uint64_t next_plan_{1};
+    bool recording_{};
+    std::vector<SimulationEvent> events_;
+    void record_passing(EventKind kind, const PassingPlan &plan, std::optional<PassingEnd> end = {});
+    void end_passing(std::size_t index, PassingEnd end);
     bool predictive_enabled() const;
     void restore_passing_routes(std::array<std::size_t, 2> movers);
     void cancel_predictive_passing(Mover &mover);
@@ -157,6 +178,7 @@ class Simulation {
     std::vector<Producer> producers_;
     std::vector<Product> products_, completed_products_;
     std::mt19937 random_;
+    std::uint32_t seed_;
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
     std::uint64_t ticks_{}, completed_{}, collisions_{}, next_product_{1};
