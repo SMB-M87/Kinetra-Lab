@@ -85,6 +85,11 @@ class FactorySession final : public lab::Session {
 
     std::string title() override { return "i4sim"; }
 
+    std::vector<lab::DebugRow> debug_rows() override {
+        // The menu belongs to a loaded blueprint; the blueprint screen has none.
+        return controller_.loaded() ? lab::debug_rows_of(controller_.menu()) : std::vector<lab::DebugRow>{};
+    }
+
     std::string status() override {
         if (!controller_.loaded())
             return controller_.message().empty() ? "Loadscreen" : "Loadscreen | " + controller_.message();
