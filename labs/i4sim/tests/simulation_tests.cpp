@@ -1476,6 +1476,86 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
     }
 }
 
+TEST_CASE("shuttling movers turn together after the pause") {
+    Simulation s(crossing_fixture());
+    s.set_workload(false);
+    auto config = s.motion_settings();
+    config.profile = SteeringProfile::reciprocal;
+    config.junction_traffic = true;
+    s.configure_motion(config);
+    const auto west_start = s.movers()[0].body.position;
+    const auto north_start = s.movers()[1].body.position;
+    REQUIRE((s.shuttle(0, {1100, 700}) && s.shuttle(1, {700, 1100})));
+    CHECK((s.shuttling(0) && s.shuttling(1)));
+    s.run();
+    const auto both_idle = [&] {
+        return s.movers()[0].lifecycle == MoverLifecycle::idle && s.movers()[1].lifecycle == MoverLifecycle::idle;
+    };
+    // Runs until both movers have arrived; returns whether a junction wait happened on the way.
+    const auto drive_leg = [&] {
+        bool waited = false;
+        for (int tick = 0; tick < 5000 && !both_idle(); ++tick) {
+            s.tick();
+            waited = waited || s.junction_waiting() > 0;
+        }
+        REQUIRE_MESSAGE(both_idle(), "Shuttling movers did not complete their leg");
+        return waited;
+    };
+    std::uint64_t first_arrival = 0;
+    while (!both_idle() && s.ticks() < 5000) {
+        s.tick();
+        if (!first_arrival && (s.movers()[0].lifecycle == MoverLifecycle::idle ||
+                               s.movers()[1].lifecycle == MoverLifecycle::idle))
+            first_arrival = s.ticks();
+    }
+    REQUIRE(both_idle());
+    const auto last_arrival = s.ticks();
+    CHECK_MESSAGE(first_arrival < last_arrival, "The junction should make one mover arrive later");
+    for (std::uint64_t tick = 1; tick < shuttle_pause_ticks; ++tick) {
+        s.tick();
+        REQUIRE_MESSAGE(both_idle(), "A shuttling mover turned before the pause after the last arrival ended");
+    }
+    s.tick();
+    CHECK_MESSAGE(s.ticks() == last_arrival + shuttle_pause_ticks, "Pause counted from the wrong tick");
+    REQUIRE_MESSAGE((s.movers()[0].moving() && s.movers()[1].moving()), "Shuttling movers did not turn together");
+    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    CHECK((s.movers()[1].destination.x == north_start.x && s.movers()[1].destination.y == north_start.y));
+    CHECK_MESSAGE(drive_leg(), "The return leg did not meet at the junction again");
+    CHECK((s.movers()[0].body.position.x == west_start.x && s.movers()[0].body.position.y == west_start.y));
+    CHECK((s.movers()[1].body.position.x == north_start.x && s.movers()[1].body.position.y == north_start.y));
+    CHECK((s.shuttling(0) && s.shuttling(1)));
+    CHECK(s.collisions() == 0);
+}
+
+TEST_CASE("a manual goal ends shuttling for that mover only") {
+    Simulation s(crossing_fixture());
+    s.set_workload(false);
+    const auto west_start = s.movers()[0].body.position;
+    // (300, 300) lies in the northwest forbidden zone.
+    CHECK_FALSE(s.shuttle(0, {300, 300}));
+    CHECK_FALSE(s.shuttling(0));
+    CHECK(s.movers()[0].lifecycle == MoverLifecycle::idle);
+    CHECK_THROWS_AS(s.shuttle(2, {1100, 700}), std::out_of_range);
+    CHECK_THROWS_AS((void)s.shuttling(2), std::out_of_range);
+
+    REQUIRE((s.shuttle(0, {1100, 700}) && s.shuttle(1, {700, 1100})));
+    CHECK_FALSE(s.move_to(1, {300, 300})); // A rejected goal changes nothing.
+    CHECK(s.shuttling(1));
+    REQUIRE(s.move_to(1, {700, 1100}));
+    CHECK_FALSE(s.shuttling(1));
+    CHECK(s.shuttling(0));
+    s.run();
+    for (int tick = 0; tick < 5000 && !(s.movers()[0].lifecycle == MoverLifecycle::idle &&
+                                         s.movers()[1].lifecycle == MoverLifecycle::idle);
+         ++tick)
+        s.tick();
+    for (std::uint64_t tick = 0; tick < shuttle_pause_ticks; ++tick)
+        s.tick();
+    CHECK_MESSAGE(s.movers()[0].moving(), "The remaining shuttling mover did not turn on its own");
+    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    CHECK_MESSAGE(s.movers()[1].lifecycle == MoverLifecycle::idle, "A mover with a manual goal kept shuttling");
+}
+
 TEST_CASE("an invalid scenario is rejected with its cause") {
     const auto dir = std::filesystem::temp_directory_path() / "kinetra-i4sim-regression";
     std::filesystem::create_directories(dir);

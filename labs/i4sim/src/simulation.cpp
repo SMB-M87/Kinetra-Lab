@@ -179,6 +179,12 @@ void Simulation::toggle_producer(std::size_t index) {
 bool Simulation::move_to(std::size_t index, Vec2 destination) {
     return core_->move_to(index, destination);
 }
+bool Simulation::shuttle(std::size_t index, Vec2 destination) {
+    return core_->shuttle(index, destination);
+}
+bool Simulation::shuttling(std::size_t index) const {
+    return core_->shuttling(index);
+}
 void Simulation::dump(const std::filesystem::path &directory) const {
     core_->dump(directory);
 }
