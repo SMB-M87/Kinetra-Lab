@@ -2,6 +2,7 @@
 #include "floor_plan.h"
 #include "geometry.h"
 #include "goals.h"
+#include "production.h"
 #include "routing.h"
 #include "simulation_constants.h"
 #include "traffic.h"
@@ -20,12 +21,8 @@ bool SimulationCore::stalled(std::size_t index) const {
            !m.coordination.corridor_waiting && !m.coordination.passing;
 }
 SimulationCore::SimulationCore(Blueprint b, std::uint32_t seed)
-    : blueprint_(std::move(b)), floor_(blueprint_), traffic_(floor_), random_(seed), seed_(seed) {
-    for (const auto &definition : blueprint_.producers) {
-        Producer p;
-        p.definition = definition;
-        producers_.push_back(p);
-    }
+    : blueprint_(std::move(b)), floor_(blueprint_), traffic_(floor_), production_(blueprint_, seed),
+      seed_(seed) {
     for (const auto &definition : blueprint_.movers) {
         Mover m;
         m.definition = definition;
@@ -119,13 +116,7 @@ void SimulationCore::advance(double elapsed) {
         tick();
 }
 std::uint64_t SimulationCore::add_product(ProductKind kind) {
-    if (products_.size() >= std::max<std::size_t>(1, fleet_.movers.size()))
-        throw std::runtime_error("Local workload capacity reached");
-    const auto id = next_product_++;
-    Product p{id, kind};
-    p.created = ticks_;
-    products_.push_back(p);
-    return id;
+    return production_.add_product(kind, fleet_.movers.size(), ticks_);
 }
 void SimulationCore::toggle_mover(std::size_t index) {
     auto &m = fleet_.movers.at(index);
@@ -134,8 +125,7 @@ void SimulationCore::toggle_mover(std::size_t index) {
         m.body.velocity = {};
 }
 void SimulationCore::toggle_producer(std::size_t index) {
-    auto &p = producers_.at(index);
-    p.blocked = !p.blocked;
+    production_.toggle_producer(index);
 }
 bool SimulationCore::move_to(std::size_t index, Vec2 target) {
     auto &m = fleet_.movers.at(index);
@@ -151,62 +141,6 @@ bool SimulationCore::move_to(std::size_t index, Vec2 target) {
 std::size_t SimulationCore::parking_waiting() const {
     return std::count_if(fleet_.movers.begin(), fleet_.movers.end(),
                          [](const Mover &m) { return m.goal == GoalKind::parking_staging; });
-}
-void SimulationCore::schedule(Product &product) {
-    const auto interaction = recipe(product.kind).at(product.step);
-    if (!product.producer) {
-        double best = std::numeric_limits<double>::infinity();
-        for (std::size_t i = 0; i < producers_.size(); ++i) {
-            const auto &p = producers_[i];
-            if (p.blocked || p.queue.size() >= blueprint_.producer_max_queue ||
-                !supports(p.definition.model, interaction))
-                continue;
-            const auto goal = floor_.processing_goal(p.definition.processing_position);
-            if (floor_.grid().blocked(floor_.grid().cell(goal)))
-                continue;
-            const double transport =
-                product.mover ? 1 + distance(fleet_.movers[*product.mover].body.position, goal) : 1;
-            const double cost = (3 + 5 * p.queue.size()) * transport;
-            if (cost < best) {
-                best = cost;
-                product.producer = i;
-            }
-        }
-        if (!product.producer)
-            return;
-        producers_[*product.producer].queue.push_back(product.id);
-    }
-    const auto goal = floor_.processing_goal(producers_[*product.producer].definition.processing_position);
-    std::vector<Vec2> departure;
-    if (!product.mover) {
-        float best = std::numeric_limits<float>::infinity();
-        for (std::size_t i = 0; i < fleet_.movers.size(); ++i) {
-            const auto &m = fleet_.movers[i];
-            if (m.held || m.product || m.goal != GoalKind::automatic)
-                continue;
-            const float cost = distance(m.body.position, goal);
-            if (cost < best) {
-                auto candidate = plan_route(floor_, fleet_, fleet_.index(m), goal, true);
-                if (!candidate.empty()) {
-                    best = cost;
-                    product.mover = i;
-                    departure = std::move(candidate);
-                }
-            }
-        }
-        if (!product.mover)
-            return;
-        fleet_.movers[*product.mover].product = product.id;
-    }
-    auto &m = fleet_.movers[*product.mover];
-    if (m.held)
-        return;
-    goals().set(m, goal);
-    if (!departure.empty()) {
-        m.route = std::move(departure);
-        progress(m).best_remaining = route_remaining(m.body.position, m.route);
-    }
-    product.state = ProductState::transporting;
 }
 bool SimulationCore::prepare_route(Mover &m) {
     if (m.held || !m.moving())
@@ -403,11 +337,7 @@ void SimulationCore::move_agents() {
         const float moved = distance(before, m.body.position);
         m.distance += moved;
         if (m.product)
-            for (auto &product : products_)
-                if (product.id == *m.product) {
-                    product.distance += moved;
-                    break;
-                }
+            production_.add_distance(*m.product, moved);
         const float remaining = route_remaining(m.body.position, m.route);
         // Arrival slows continuously; a fixed 2 mm threshold would classify
         // the final approach as stalled even while it is still converging.
@@ -501,82 +431,6 @@ void SimulationCore::move_agents() {
     }
     contacts_ = std::move(current);
 }
-void SimulationCore::update_product(Product &p) {
-    if (p.state == ProductState::waiting) {
-        schedule(p);
-        return;
-    }
-    auto &m = fleet_.movers.at(*p.mover);
-    auto &producer = producers_.at(*p.producer);
-    if (m.held)
-        return;
-    if (producer.blocked && p.state != ProductState::processing) {
-        std::erase(producer.queue, p.id);
-        p.producer.reset();
-        p.state = ProductState::waiting;
-        goals().set(m, m.parking);
-        return;
-    }
-    if (p.state == ProductState::transporting || p.state == ProductState::queued) {
-        const Vec2 goal = floor_.processing_goal(producer.definition.processing_position);
-        const bool first = !producer.queue.empty() && producer.queue.front() == p.id;
-        if (!first) {
-            // Reserve a queue slot without allowing two movers to occupy the
-            // same processor. Waiting agents stage outside processing cells.
-            if (distance(m.destination, goal) < same_point_mm)
-                goals().set(m, goals().holding_position(m, goal));
-            return;
-        }
-        if (distance(m.destination, goal) > same_point_mm) {
-            goals().set(m, goal);
-            p.state = ProductState::transporting;
-        }
-    }
-    if (p.state == ProductState::transporting) {
-        ++p.transport_ticks;
-        if (m.lifecycle == MoverLifecycle::idle)
-            p.state = ProductState::queued;
-    }
-    if (p.state == ProductState::queued && !producer.blocked && !producer.product &&
-        !producer.queue.empty() && producer.queue.front() == p.id) {
-        producer.product = p.id;
-        producer.remaining = processing_ticks;
-        p.state = ProductState::processing;
-    }
-    if (p.state == ProductState::processing && !producer.blocked) {
-        --producer.remaining;
-        ++producer.processing_ticks;
-        ++p.processing_ticks;
-        if (producer.remaining == 0) {
-            ++producer.interactions;
-            ++m.interactions;
-            ++p.step;
-            const auto steps = recipe(p.kind);
-            if (p.step < steps.size() && supports(producer.definition.model, steps[p.step])) {
-                // Consecutive operations at the same station retain the
-                // reservation instead of clearing and re-entering its approach.
-                producer.remaining = processing_ticks;
-            } else {
-                producer.product.reset();
-                std::erase(producer.queue, p.id);
-                p.producer.reset();
-                if (p.step == steps.size()) {
-                    ++completed_;
-                    p.state = ProductState::completed;
-                    p.finished = ticks_;
-                    completed_products_.push_back(p);
-                    m.product.reset();
-                    goals().set(m, m.parking);
-                } else {
-                    p.state = ProductState::waiting;
-                    schedule(p);
-                    if (!p.producer)
-                        goals().set(m, goals().holding_position(m, m.destination));
-                }
-            }
-        }
-    }
-}
 void SimulationCore::tick() {
     if (!running())
         return;
@@ -587,27 +441,24 @@ void SimulationCore::tick() {
     ++ticks_;
     for (auto &m : fleet_.movers)
         m.previous_position = m.body.position;
-    if (workload_ && products_.size() < fleet_.movers.size())
-        add_product((random_() % 2) ? ProductKind::trimmer : ProductKind::personalized);
+    if (workload_)
+        production_.generate(fleet_.movers.size(), ticks_);
     if (ticks_ % heatmap_period_ticks == 1)
         floor_.update_heatmap(fleet_.movers, motion_.heatmap);
     goals().coordinate_parking();
     move_agents();
-    for (auto &p : producers_)
-        if (p.queue.empty())
-            ++p.idle_ticks;
-    for (auto &p : products_)
-        update_product(p);
-    std::erase_if(products_, [](const Product &p) { return p.state == ProductState::completed; });
+    auto goals_now = goals();
+    production_.update(goals_now);
     if (ticks_ >= blueprint_.tick_cap)
         state_ = RunState::finished;
 }
 void SimulationCore::dump(const std::filesystem::path &directory) const {
     using Json = nlohmann::json;
     std::filesystem::create_directories(directory);
-    Json data{{"blueprint", blueprint_.name},   {"ticks", ticks_},           {"completed", completed_},
-              {"contactTicks", contact_ticks_}, {"collisions", collisions_}, {"movers", Json::array()},
-              {"producers", Json::array()},     {"products", Json::array()}};
+    Json data{
+        {"blueprint", blueprint_.name},   {"ticks", ticks_},           {"completed", production_.completed()},
+        {"contactTicks", contact_ticks_}, {"collisions", collisions_}, {"movers", Json::array()},
+        {"producers", Json::array()},     {"products", Json::array()}};
     for (const auto &m : fleet_.movers)
         data["movers"].push_back({{"id", m.definition.id},
                                   {"distance", m.distance},
@@ -615,7 +466,7 @@ void SimulationCore::dump(const std::filesystem::path &directory) const {
                                   {"transportTicks", m.transport_ticks},
                                   {"interactions", m.interactions},
                                   {"blocked", m.held}});
-    for (const auto &p : producers_)
+    for (const auto &p : production_.producers())
         data["producers"].push_back({{"id", p.definition.id},
                                      {"interactions", p.interactions},
                                      {"processingTicks", p.processing_ticks},
@@ -634,9 +485,9 @@ void SimulationCore::dump(const std::filesystem::path &directory) const {
              {"processingTicks", p.processing_ticks},
              {"distance", p.distance}});
     };
-    for (const auto &p : completed_products_)
+    for (const auto &p : production_.completed_products())
         record(p);
-    for (const auto &p : products_)
+    for (const auto &p : production_.products())
         record(p);
     std::ofstream out(directory / "summary.json");
     out << data.dump(2) << '\n';

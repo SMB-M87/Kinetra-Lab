@@ -5,6 +5,7 @@
 #include "floor_plan.h"
 #include "goals.h"
 #include "predictive_passing.h"
+#include "production.h"
 #include "simulation.h"
 #include "traffic.h"
 
@@ -28,12 +29,12 @@ class SimulationCore {
     explicit SimulationCore(Blueprint blueprint, std::uint32_t seed = 42);
     const Blueprint &blueprint() const { return blueprint_; }
     const std::vector<Mover> &movers() const { return fleet_.movers; }
-    const std::vector<Producer> &producers() const { return producers_; }
-    const std::vector<Product> &products() const { return products_; }
+    const std::vector<Producer> &producers() const { return production_.producers(); }
+    const std::vector<Product> &products() const { return production_.products(); }
     const kinetra::WeightedGrid &grid() const { return floor_.grid(); }
     std::span<const kinetra::Segment> borders() const { return floor_.borders(); }
     std::uint64_t ticks() const { return ticks_; }
-    std::uint64_t completed() const { return completed_; }
+    std::uint64_t completed() const { return production_.completed(); }
     std::uint64_t collisions() const { return collisions_; }
     /// Movers with infeasible reciprocal constraints or overridden avoidance in the last movement tick.
     std::size_t avoidance_limited() const { return avoidance_limited_; }
@@ -125,9 +126,7 @@ class SimulationCore {
     PredictivePassing passing_;
     EventLog log_;
     Fleet fleet_;
-    std::vector<Producer> producers_;
-    std::vector<Product> products_, completed_products_;
-    std::mt19937 random_;
+    Production production_;
     std::uint32_t seed_;
     /// Set while paused; the first running advance() then aligns previous positions with the
     /// current ones, so drawing does not step back behind the state shown while paused.
@@ -135,11 +134,9 @@ class SimulationCore {
     void settle_previous_positions();
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
-    std::uint64_t ticks_{}, completed_{}, collisions_{}, next_product_{1};
+    std::uint64_t ticks_{}, collisions_{};
     bool prepare_route(Mover &mover);
     void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
-    void schedule(Product &product);
     void move_agents();
-    void update_product(Product &product);
 };
 } // namespace i4sim::detail
