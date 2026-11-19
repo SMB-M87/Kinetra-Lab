@@ -1554,14 +1554,22 @@ TEST_CASE("a manual goal ends shuttling for that mover only") {
     CHECK_FALSE(s.shuttling(1));
     CHECK(s.shuttling(0));
     s.run();
-    for (int tick = 0; tick < 5000 && !(s.movers()[0].lifecycle == MoverLifecycle::idle &&
-                                         s.movers()[1].lifecycle == MoverLifecycle::idle);
-         ++tick)
-        s.tick();
+    // Each mover is checked from its own arrival, so the test does not depend on which one
+    // the junction lets through first.
+    const auto run_until_idle = [&](std::size_t mover) {
+        for (int tick = 0; tick < 5000 && s.movers()[mover].lifecycle != MoverLifecycle::idle; ++tick)
+            s.tick();
+        REQUIRE(s.movers()[mover].lifecycle == MoverLifecycle::idle);
+    };
+    // The west mover now shuttles alone, so it turns one pause after its own arrival.
+    run_until_idle(0);
     for (std::uint64_t tick = 0; tick < shuttle_pause_ticks; ++tick)
         s.tick();
     CHECK_MESSAGE(s.movers()[0].moving(), "The remaining shuttling mover did not turn on its own");
     CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    run_until_idle(1);
+    for (std::uint64_t tick = 0; tick <= shuttle_pause_ticks; ++tick)
+        s.tick();
     CHECK_MESSAGE(s.movers()[1].lifecycle == MoverLifecycle::idle, "A mover with a manual goal kept shuttling");
 }
 

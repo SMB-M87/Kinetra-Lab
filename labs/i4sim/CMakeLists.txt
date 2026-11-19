@@ -24,7 +24,8 @@ endif()
 # relink). Dependents wait for it but do not relink because of it. The old copy is removed
 # first, so a deleted or renamed blueprint does not linger in an existing build directory.
 add_custom_target(kinetra_i4sim_blueprints ALL
-    COMMAND ${CMAKE_COMMAND} -E rm -rf "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"
+    # remove_directory rather than rm: `cmake -E rm` needs CMake 3.17, the minimum is 3.16.
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
         "${kinetra_i4sim_blueprint_directory}/i4sim-blueprints"

@@ -53,12 +53,15 @@ std::optional<Scenario> load_scenario(const std::filesystem::path &path);
 /// so the caller discards it.
 void apply_scenario(const Scenario &scenario, Simulation &simulation);
 /// Decides when a `ScenarioRepeat::restart` scene starts again: once every mover of the
-/// simulation has stood idle for `shuttle_pause_ticks` ticks. Use one timer per simulation.
+/// simulation, not only those with a scenario goal, has stood idle for `shuttle_pause_ticks`
+/// ticks. A scene whose movers keep working (the workload on) therefore never restarts.
+/// Use one timer per simulation.
 class RestartTimer {
   public:
     /// Observes `simulation` after it advanced; true when the scene is due to restart. The
     /// pause counts from the tick of the first call that saw every mover idle, and a call
     /// that sees a mover under way starts it over; calling it after every advance is enough.
+    /// Called once per frame, the pause can last up to one frame of ticks longer.
     bool due(const Simulation &simulation);
 
   private:
