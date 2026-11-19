@@ -25,7 +25,7 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 flowchart TD
     Logic["kinetra_i4sim_application<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (61)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (8)"]
-    Logic --> Controller["kinetra_i4sim_controller (30)<br/>controller_tests.cpp"]
+    Logic --> Controller["kinetra_i4sim_controller (31)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (1)<br/>needs an OpenGL context"]
     Logic --> Presentation

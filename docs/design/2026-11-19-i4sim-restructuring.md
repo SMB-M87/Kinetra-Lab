@@ -1,6 +1,6 @@
 # i4sim restructuring
 
-Status: accepted · Branches: `test/i4sim-passing-safety-net` (step 1, merged), `refactor/i4sim-simulation` (step 2, merged), `refactor/i4sim-session` (step 3) · Related: [quality roadmap, phase 4](2026-11-18-quality-roadmap.md#phase-4-i4sim), [i4sim](../../labs/i4sim/README.md), [factory simulation architecture](../factory-simulation-architecture.md)
+Status: implemented · Branches: `test/i4sim-passing-safety-net` (step 1, merged), `refactor/i4sim-simulation` (step 2, merged), `refactor/i4sim-session` (step 3) · Related: [quality roadmap, phase 4](2026-11-18-quality-roadmap.md#phase-4-i4sim), [i4sim](../../labs/i4sim/README.md), [factory simulation architecture](../factory-simulation-architecture.md)
 
 Roadmap phase 4. i4sim's `Simulation` is the largest hotspot in Lab, and predictive passing, which phase 7 must make safe under pressure, lives inside it. This phase first pins today's passing behavior with diagnostics and pressure scenarios, and then restructures the simulation and its session without changing behavior.
 
@@ -75,6 +75,17 @@ Step 2 refinement, agent choices within the decisions above, reported at hand-ov
 | Progress counters private, with `stalled(mover)` as the observable | Tests must assert observable behavior; the HUD needs only "stalled" |
 | `Goals` as a short-lived view instead of an interface | The dependency graph has no cycle, and stored references would break copying a simulation |
 | Warnings as errors for all of `labs/i4sim`, not only the logic | The session already compiles without warnings |
+
+Step 3 refinement, agent choices within the decisions above, reported at hand-over:
+
+| Choice | Why |
+| --- | --- |
+| The controller lives in the headless library and uses `lab/input.h` | "Headless and tested" needs a target that exists without the runtime; Demo's `sandbox_input.h` already sits in its logic library. The layer table now states that logic may use the headless Lab input policy |
+| Menu entries as controller data (`MenuEntry`), turned into `kinetra::DebugOption` by the session | The rows are most of the session's commands; as data they are tested without a window, and the logic layer stays free of the engine's drawing types |
+| A fourth part, `BlueprintScreen` | Catalog discovery and the `LaunchMenu` are one responsibility; left in the session they were a third of what remained |
+| One message, owned by the controller, also for catalog errors | Two owners would change which error shows when the catalog and the initial blueprint both fail |
+| Frames compared outside the repository | Pixel-exact lines depend on the OpenGL driver, so they would fail on another machine; as a one-off proof on one machine they are exact |
+| `factory-simulation-architecture.md` stays the contract page | The roadmap absorbs the Demo and Dotio pages but not this one; the README explains, the page specifies |
 
 ## Design
 
@@ -361,6 +372,21 @@ Step 2, `/code-review` at high effort on `main...HEAD`; no correctness finding, 
 
 Found while implementing: by-value components in `Simulation` would have pulled the private component headers into the public one, so a facade commit came first; the -Wshadow, missing-initializer and maybe-uninitialized warnings of step 1 disappeared with the split, and the three new ones were fixed before warnings became errors.
 
+Step 3, `/code-review` at high effort on `main...HEAD`. No finding concerned the simulation or the drawing; the golden and pressure lines and all 54 frames were identical after every code commit, also after the fixes:
+
+| Finding | Resolution |
+| --- | --- |
+| `load` kept a close that BLUEPRINTS requested, so a blueprint loaded right after it would close at the next frame | Fixed: a load drops the request; a case covers it. The session could not reach this, the controller's interface could |
+| `handle_input` applied keys, camera and pointer before `Simulation::advance` rejected an invalid frame time | Fixed: it is rejected first; a case covers it |
+| The rule "Improved and Reciprocal pass predictively" was written in the policy, the menu entry and the HUD | Fixed: `supports_predictive_passing` in `simulation.h` |
+| RESET PARAMETERS set unnamed values | Fixed: named, with the horizon's difference from the default stated |
+| The debug rows were built for drawing in every frame | Fixed: only while the menu shows |
+| `std::isfinite` without `<cmath>` in the controller suite; two test helpers repeated the blueprint path | Fixed |
+| A message that expires (rejected goal) stays on the blueprint screen when the blueprint is closed within its four seconds | Skipped: inherited behavior, and this step preserves behavior. Recorded as an open point |
+| The controller's message also carries the blueprint screen's catalog errors | Accepted: see the step 3 choices under Decisions |
+
+Found while implementing: `3 * (1 / zoom)` is not `3 / zoom` in floating point, so the world view divides per use to keep line widths bit-identical; a commit took staged deletions along and was redone before anything was published; and `pkill -f` on the workflow's command line ended the shell that ran it, which only cost a rerun.
+
 ## Verification
 
 Step 1, on the final branch state (Full level, because the Kinetra pointer moved and a test target was added):
@@ -394,6 +420,28 @@ Step 2, on the final branch state (Full level: public API, build configuration a
 | Function length in the simulation sources | longest 68 lines (`MotionStep::resolve_contacts`); `load_blueprint` (99) is outside this step |
 
 Not run: a desktop playtest. The session changed only in how it reads and sets the run state, workload and mover status, and the graphics tests cover those paths.
+
+Step 3, on the final branch state (Full level with graphics: session, presentation, public headers and build configuration changed):
+
+| Command | Result |
+| --- | --- |
+| `ctest --preset release -R '^kinetra_i4sim'` after every code commit | passed; the ten golden and eight pressure lines unchanged throughout (111/111 at the end, 31 of them the controller suite) |
+| Frame comparison after every code commit: a capture program outside the repository, linked against `kinetra_i4sim_presentation`, runs the script of the [test plan](#test-plan) and saves 54 frames of 960 by 600 pixels plus the session status per frame | byte-identical to the frames of `main` (`b7d5f91`) every time. Two baseline runs were identical to each other, and a pan speed of 401 instead of 400 pixels per second was detected in the frame that pans |
+| `cmake --workflow --preset ci` | passed: 181/181 tests; no warning in `labs/i4sim` |
+| `cmake --workflow --preset headless` | passed: 174/174 tests, including the controller suite without SDL2 and OpenGL |
+| `cmake --workflow --preset graphics` | passed: 194/194 tests, including `kinetra_i4sim_graphics`, unchanged |
+| `cmake --workflow --preset windows` | passed: 192/192 tests; i4sim builds with `-Werror` under MinGW |
+| `dev` build of every i4sim target | no warning (`-Werror`) |
+| `kinetra_i4sim_motion_benchmark --predictive-passing --ticks 8000`, before and after the shared event counting | all columns except the run time identical |
+| `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output ...` | 16 completed products, `summary.json` written; a showcase scene also runs in batch mode |
+| `kinetra_i4sim --frames 120`, `kinetra_i4sim --blueprint .../predictive-passing.json --run --frames 240`, `kinetra --variant i4sim --frames 120` | exit 0 |
+| `clang-format --dry-run --Werror` on every changed C++ file | clean |
+| `python3 external/Kinetra/tools/check_docs.py` | all links resolve |
+| Function length in `labs/i4sim/src` | longest 68 lines (`main`); `session.cpp` 173 lines in total, down from 640 |
+
+Graphics backend: SDL offscreen with Mesa under WSL2. Mesa reports that it does not force software rendering there, so the frames come from the WSL graphics device; they are deterministic on this machine, which is all the comparison needs.
+
+Not run: a desktop playtest. The frame comparison covers what the session draws and how it reacts to scripted input, but not how it feels.
 
 ## Pull request
 
@@ -444,10 +492,34 @@ Step 2:
 >
 > **Follow-up.** Step 3 (`refactor/i4sim-session`): headless controller with a test for the WORKLOAD row, HUD, world renderer, the launcher edge in the layer table, and the module README. `load_blueprint` (99 lines) and the shared event counting from step 1's review are carried there.
 
+Step 3:
+
+**Title:** `refactor(i4sim): split the session into a headless controller, world view and HUD`
+
+**Description:**
+
+> **Summary.** Step 3 of roadmap phase 4 ([design](#step-3-session)), which completes the phase. `FactorySession` (640 lines, 29 fields, tested only through pixels) becomes a headless `FactoryController` with its own suite, a world view, a HUD and a blueprint screen; the session only orders a frame. No key, row, text, color or drawing order changes: 54 captured frames are byte-identical to `main`, and the golden and pressure lines are unchanged.
+>
+> **Changes.**
+> - `FactoryController` (`include/controller.h`, in the headless library): owns the loaded simulation, the selection, the debug layers, the message and the camera fit; maps keys and pointer to commands; supplies the debug menu as `MenuEntry` data. `kinetra_i4sim_controller_tests` covers it with 31 cases, also with `KINETRA_LAB_BUILD_RUNTIME=OFF`.
+> - `draw_world`, `draw_hud` and `BlueprintScreen` (private, presentation); `session.cpp` shrinks from 640 to 173 lines.
+> - Carried from step 2: `load_blueprint` is split into section readers; the benchmark and the pressure suite share their event counting.
+> - `AGENTS.md`: logic may use the headless `lab/input.h`, and a presentation may link `Kinetra::Launcher` for its menu widgets (the open point on the launcher edge is closed). The test mapping lists the controller suite.
+> - Docs: the [i4sim README](../../labs/i4sim/README.md) is rewritten on the module template and explains the frame flow and the junction, corridor, recovery and passing algorithms; the `include/` and `src/` READMEs are folded in; the test guide gains coverage tables and loses its measurement history; `blueprint.h` has its contracts. The roadmap marks phase 4 implemented.
+>
+> **Verification.** See the design document's Verification section: the `ci`, `headless`, `graphics` and `windows` workflows, the frame comparison, and smoke runs.
+>
+> **Review notes.** `/code-review` at high effort: nine findings, seven fixed, two recorded with a reason (design document, Review). Three points deserve your judgement, because I chose them within the earlier decisions: the controller sits in the logic library and the layer table says so; menu entries are controller data; and four session oddities are documented as open points instead of fixed (`R` drops `--ups`, RESET PARAMETERS sets horizon 8 against the default 32, `create_session` ignores `output`, and an expiring message stays on the blueprint screen).
+>
+> **Dependencies and merge order.** None; Lab only, no Kinetra change. Merge with a merge commit.
+>
+> **Follow-up.** A decision on the four oddities, each with its own fix. Then phases 5 (Demo) and 6 (Dotio) in either order, and phase 7 (predictive passing under pressure) on this structure.
+
 ## Open points
 
 - Resolved in step 2: the unread `stalled` counter in `Mover` is gone.
 - Resolved in [blueprint copy race](2026-11-19-blueprint-copy-race.md): parallel `POST_BUILD` copies of the blueprints into one `i4sim-blueprints` directory raced, and a `cmake --workflow --preset ci` run failed once with "Error copying directory" while linking `kinetra`. The catalog is now copied once per build.
-- Carried to step 3: `load_blueprint` is 99 lines, over the roadmap's ~80-line guide; the event counting that the benchmark and the pressure suite both write (step 1 review) still waits for a shared helper.
+- Resolved in step 3: `load_blueprint` is split into section readers, and the benchmark and the pressure suite share their event counting in `tests/event_counts.h`.
+- The path where a scene cannot be replayed after `R` has no test; it needs a scenario that applies on load and fails later.
 - The `disabled` end reason is effectively unreachable, because `configure_motion` sets every moving mover's goal again and so ends plans as `goal_changed` first. Phase 7 decides whether disabling should end plans with their own reason.
-- Found in step 3 and left unchanged, because the step preserves behavior: `R` builds a new simulation at the default 200 updates per second, so a session started with `--ups N` loses its rate on a reset. RESET PARAMETERS in the debug menu sets the horizon to 8 ticks, while a new simulation starts at 32. `create_session` takes an `output` directory and ignores it, although the README describes an export for graphical sessions. Each needs a decision on the intended behavior, and then its own fix.
+- Found in step 3 and left unchanged, because the step preserves behavior: `R` builds a new simulation at the default 200 updates per second, so a session started with `--ups N` loses its rate on a reset. RESET PARAMETERS in the debug menu sets the horizon to 8 ticks, while a new simulation starts at 32. `create_session` takes an `output` directory and ignores it, although the README describes an export for graphical sessions. Each needs a decision on the intended behavior, and then its own fix. A fourth, from the review: a message that should expire stays on the blueprint screen when the blueprint is closed within its four seconds, because the message ages only while a blueprint is loaded.

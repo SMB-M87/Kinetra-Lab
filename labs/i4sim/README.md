@@ -375,6 +375,7 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 - `R` builds a new simulation at the default 200 ticks per second, so a session started with `--ups N` loses its rate on a restart.
 - RESET PARAMETERS sets the horizon to 8 ticks, while a new simulation starts at 32.
 - `create_session` accepts an `output` directory and ignores it; a graphical session writes no summary.
+- A message that should expire, such as a rejected goal, stays on the blueprint screen when the blueprint is closed within its four seconds: the message ages only while a blueprint is loaded.
 - The graphics suite is one long case that clicks debug-menu rows by index. Named steps would make a failure easier to place.
 - Predictive passing is not safe under pressure yet: a third mover in a passing lane, and three oncoming movers, are recorded as today's outcomes. Roadmap [phase 7](../../docs/design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure) addresses them, and [phase 8](../../docs/design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism) moves the proven mechanism to Kinetra.
 - Desktop playtests and performance checks stay manual.
