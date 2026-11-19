@@ -24,7 +24,7 @@ One design document per Lab branch, written before the code and kept after mergi
 | 2026-11-19 | [Static window titles](2026-11-19-static-window-titles.md): "Launcher" or the application name, state through `status()` | implemented |
 | 2026-11-19 | [Blueprint copy race](2026-11-19-blueprint-copy-race.md): copy the i4sim catalog once per build | implemented |
 | 2026-11-19 | [Link the architecture decisions](2026-11-19-adr-index-link.md) from the Lab documentation index | implemented |
-| 2026-11-19 | [i4sim restructuring](2026-11-19-i4sim-restructuring.md): roadmap phase 4, passing safety net first | accepted |
+| 2026-11-19 | [i4sim restructuring](2026-11-19-i4sim-restructuring.md): roadmap phase 4, passing safety net first | implemented |
 | 2026-11-18 | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md): roadmap phase 3, characterization tests first | implemented |
 | 2026-11-18 | [Quality roadmap](2026-11-18-quality-roadmap.md): phases for tooling, tests, shared presentation, i4sim, Demo, Dotio, predictive passing and documentation cleanup | accepted |
 | 2026-11-18 | [Tooling and CI](2026-11-18-tooling-and-ci.md): roadmap phase 2 | implemented |

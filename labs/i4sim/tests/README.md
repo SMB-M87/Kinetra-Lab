@@ -1,47 +1,100 @@
-# i4sim verification
+# i4sim tests
+
+The suites that pin i4sim's behavior, the demonstrations that double as fixtures, and the motion benchmark with its baseline. The module itself is explained in the [i4sim guide](../README.md).
 
 ## Table of contents
 
-- [Visual overview](#visual-overview)
-- [Contents and use](#contents-and-use)
+- [Suites](#suites)
+- [Running](#running)
+- [What the simulation suite covers](#what-the-simulation-suite-covers)
+- [Golden and pressure lines](#golden-and-pressure-lines)
+- [Controller suite](#controller-suite)
+- [Graphics suite](#graphics-suite)
 - [Crossing demonstration](#crossing-demonstration)
 - [Corridor demonstration](#corridor-demonstration)
+- [Passing demonstration](#passing-demonstration)
 - [Motion benchmark](#motion-benchmark)
 
 [Parent guide](../README.md) · [Project overview](../../../README.md) · [Documentation index](../../../docs/README.md)
 
-## Visual overview
-
-The two test paths separate checks without a window from checks requiring a graphics context.
-
-```mermaid
-flowchart TD
-    Build["Root runtime build with BUILD_TESTING=ON"] --> Headless["Blueprint, recipe and motion regressions"]
-    Build --> Enabled{"KINETRA_TEST_GRAPHICS=ON"}
-    Enabled --> Context["Actual OpenGL context"]
-    Context --> Graphics["i4sim presentation regressions"]
-    Build --> Relocation["Relocation test: executable and adjacent blueprints"]
-    Headless --> CTest["CTest results"]
-    Graphics --> CTest
-```
-
-## Contents and use
+## Suites
 
 The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named after its expected outcome, and CTest registers it as `<suite>:<case>`. How to write cases is in [Kinetra testing](../../../external/Kinetra/docs/testing.md#writing-a-doctest-suite).
 
-| Source | CTest suite (cases) |
+```mermaid
+flowchart TD
+    Logic["kinetra_i4sim_application<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (61)<br/>simulation_tests.cpp"]
+    Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (8)"]
+    Logic --> Controller["kinetra_i4sim_controller (31)<br/>controller_tests.cpp"]
+    Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
+    Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (1)<br/>needs an OpenGL context"]
+    Logic --> Presentation
+```
+
+*Takeaway:* everything except the session's composition and drawing is tested without a window, also with `KINETRA_LAB_BUILD_RUNTIME=OFF`.
+
+| Source | CTest suite (cases) | Purpose |
+| --- | --- | --- |
+| `simulation_tests.cpp` | `kinetra_i4sim` (61) | Required behavior of the loaders and the simulation |
+| `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
+| `pressure_tests.cpp` | `kinetra_i4sim_pressure` (8: four scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (30) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) | The session with a real window and context |
+| `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
+
+Shared test code: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree). The four `pressure-*.json` files are the fixtures of the pressure suite.
+
+## Running
+
+From the repository root:
+
+```sh
+cmake --preset release
+cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim
+ctest --preset release -R '^kinetra_i4sim' --output-on-failure
+cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics; needs an OpenGL context
+```
+
+One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or the executable (`./build-release/kinetra_i4sim_tests --test-case='a T-junction*'`). The `8640x4800` recovery case takes most of the simulation suite's time; in a Debug build the large-factory cases take minutes.
+
+For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output /tmp/i4sim-check`.
+
+`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds seven blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
+
+## What the simulation suite covers
+
+| Area | The cases require |
 | --- | --- |
-| `simulation_tests.cpp` | `kinetra_i4sim` (56) |
-| `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) |
-| `pressure_tests.cpp` | `kinetra_i4sim_pressure` (8: four scenarios under Reciprocal and Improved) |
-| `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) |
-| `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) |
+| Blueprints | All seven originals load, groups expand as in the reference, and invalid input is rejected with the path and the cause |
+| Production | Both recipes complete; a 50000-tick MAS workload reproduces its totals; queues stay bounded; a blocked producer pauses and resumes; an interaction takes exactly its duration |
+| Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
+| Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
+| Steering | Every profile runs; invalid horizons are rejected; head-on and crossing encounters end without contact under Improved and Reciprocal; a mover does not stall on its own heatmap footprint; a valid detour never reports a stall; a contact cannot displace a parked mover |
+| Reciprocal | Results do not depend on the ticks per second; acceleration stays bounded; a mover leaves through a rectangular gap whose enclosing circles overlap; parked neighbors do not move |
+| Parking | Leaving and returning beside a wall, in a corner and between parked neighbors, under Improved, Original and Reciprocal: no contact, bounded acceleration, the exact parking place and no drift afterwards. Allocation skips a mover trapped behind held neighbors |
+| Parking traffic | MAS with seed 42 completes at least 15 products in 50000 ticks without contact; waiting and release, blocked departures, a manual goal replacing a deferral, and switching the policy off without moving a body |
+| Junction traffic | At a one-cell crossing one uncoordinated mover is still moving after 5000 ticks; with admission both arrive within 1000 ticks without contact, one at a time, with unchanged goals. Also replay, a held occupant, resuming, switching off, all four approach directions, a turning T-junction and cancelled approaches |
+| Exit pockets | With one arm blocked, in all four directions, a mover waits outside while another exit clears; after the blocker leaves all three arrive without contact. Reserved space stays free of an opposing approach, and coasting traffic prevents an unsafe reservation |
+| Corridor traffic | All four directions: one mover in the corridor at a time, bounded acceleration, unchanged manual goals, deterministic replay, both arrive within 5000 ticks without contact. Also a held occupant, a parked occupant without an exit route, junction traffic switched independently, switching off, dead ends excluded and the 256-cell limit |
+| Corridor recovery | All four directions after late activation: reverse movement, deterministic replay, bounded acceleration, no contact. Also cancellation by a manual goal, switching off, holding and releasing a participant, the longer APM4350 body, and all four refuges occupied with a retry after one is freed |
+| Predictive passing | Eight encounter directions with square and long footprints under Improved and Reciprocal: deterministic replay, early commitment, unchanged goals, bounded acceleration, no contact, completion, cancellation, the switch-off and hold life cycle, shifted lanes near a wall, and no plan where no space exists. Original and RVO form no pairs. Heatmap costs are off in these cases, so A* does not resolve the conflict first |
+| Event log | A plan's formation, crossing and completion; the `goal_changed` and `participant_held` reasons; mover and border contacts with tick and pair; recording changes no pose |
+| Flow metrics | A free trip, a corridor standstill, a held mover, invalid limits |
+| Scenarios | The four showcase scenes load and apply; each runs tick for tick like the same setup built by hand, past its first turn; invalid scenario sections are rejected with their cause |
+| Shuttle and restart | Shuttling movers wait for each other, stand `shuttle_pause_ticks` and turn together; a manual goal ends shuttling for that mover only; every shuttling scene shows its traffic situation on four legs in a row without contacts; corridor recovery shows its retreat and its restart is due exactly one pause after its movers settle |
+| Large factories | `3840x2400` and `8640x4800` with seed `915839214` and route recovery on, which guards the spatial query limits |
+| Determinism and export | Equal runs for equal inputs; the summary file |
 
-`simulation_tests.cpp` checks all original blueprints and group expansion, both complete recipes, a 50000-tick original MAS workload regression, queue bounds, producer blocking/resumption, exact production duration, the run states and tick cap, motion changes while running, manual goal origin, the HUD status order, determinism, blocked movers, invalid input and metrics export. Its scenario cases load and apply the four showcase scenes, run each one tick for tick against the same setup built by hand, and reject invalid scenario sections with their cause. Shuttle cases check that shuttling movers wait for each other, stand `shuttle_pause_ticks` and turn together, that a manual goal ends shuttling for that mover only, and that every shuttling scene shows its traffic situation on four legs in a row without contacts; a restart case checks that corridor recovery shows its retreat and is due exactly one pause after its movers settle. `presentation_tests.cpp` exercises an actual OpenGL context, blueprint selection, pause, Motion edits while running and paused (including rendered speed changes), every debug layer, right-button edges, return-to-launcher behavior, rediscovery after repairing a missing catalog, and the SHOWCASE page: a scene loads paused with its setup, runs its corridor traffic and restarts with `R`, and the restarting corridor-recovery scene moves again after its pause. `relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds seven blueprints that all load` case from an unrelated working directory. It verifies both successful discovery and actionable failure without adjacent assets; renaming that case requires the same change in the script.
+## Golden and pressure lines
 
-`golden_tests.cpp` (`kinetra_i4sim_golden`) pins the current behavior for the planned i4sim refactor. Ten seeded scenarios cover the MAS factory with default motion and with every coordination feature, the large `3840x2400` factory, the Original, RVO and recovery steering variants, and the junction, corridor, corridor-recovery and predictive-passing fixtures with manual goals. Each scenario is one case and must reproduce one recorded line: ticks, completed products, contacts, producer interactions, distance travelled and a 64-bit fingerprint of every mover's exact position and velocity after every tick. A mismatch shows the expected and actual line. A refactor must leave every line unchanged. For a deliberate behavior change, run `KINETRA_PRINT_GOLDEN=1 ./build-release/kinetra_i4sim_golden_tests` to print the current lines, update the expected values and explain the change in the commit. The fingerprint needs exact floating-point results; Release and Debug builds without fast-math reproduce it. The scenarios do not reach every path: heatmap refresh timing and the stalled-pair cancellation of predictive passing leave the values unchanged.
+`golden_tests.cpp` pins whole runs, so a restructuring cannot change behavior unnoticed. Ten seeded scenarios cover the MAS factory with default motion and with every coordination feature, the large `3840x2400` factory, the Original, RVO and recovery steering variants, and the junction, corridor, corridor-recovery and predictive-passing fixtures with manual goals. Each scenario is one case and must reproduce one recorded line: ticks, completed products, contacts, producer interactions, distance travelled and a 64-bit fingerprint of every mover's exact position and velocity after every tick. A mismatch shows the expected and the actual line.
 
-`pressure_tests.cpp` (`kinetra_i4sim_pressure`) records how predictive passing behaves under pressure, as the baseline for roadmap phase 7. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved:
+- A refactor must leave every line unchanged.
+- For a deliberate behavior change, run `KINETRA_PRINT_GOLDEN=1 ./build-release/kinetra_i4sim_golden_tests` to print the current lines, update the expected values and explain the change in the commit. The same variable prints the lines of the pressure suite.
+- The fingerprint needs exact floating-point results; Release and Debug builds without fast-math reproduce it.
+- The scenarios do not reach every path: heatmap refresh timing and the stalled-pair cancellation of predictive passing leave the values unchanged.
+
+`pressure_tests.cpp` records how predictive passing behaves under pressure. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved:
 
 | Fixture | Situation | The case first checks |
 | --- | --- | --- |
@@ -50,52 +103,29 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 | `pressure-simultaneous.json` | Two head-on pairs on parallel lines 400 mm apart | both pairs hold plans at the same time |
 | `pressure-narrow-aisle.json` | A 113 mm and a 155 by 235 mm mover meet in a 400 mm aisle | both are in the aisle at the same time |
 
-Each case then compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The lines are today's behavior, not requirements: under Reciprocal, the three-oncoming case leaves two movers shuffling in front of each other without a plan. Phase 7 turns the lines into required outcomes. Both suites share the recorder in `recorder.h`, and `KINETRA_PRINT_GOLDEN=1` prints the lines of either suite.
+Each case then compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The lines are today's behavior, not requirements: under Reciprocal, the three-oncoming case leaves two movers shuffling in front of each other without a plan. Phase 7 turns the lines into required outcomes.
 
-The `simulation_tests.cpp` cases on the event log check a plan's formation, crossing and completion, the `goal_changed` and `participant_held` reasons, mover and border contacts, and that recording changes no pose. The flow-metrics cases check a free trip, a corridor standstill, a held mover and invalid limits.
+## Controller suite
 
-The `3840x2400` and `8640x4800` workloads with seed `915839214` exercise route recovery across large factories and guard against spatial query limit failures.
+`controller_tests.cpp` drives `FactoryController` with plain input values, in the order the session uses: `begin_frame`, `suspend`, `handle_input`. It reads its blueprints from the source tree, so it needs no catalog beside the executable.
 
-Run from the repository root:
+| Area | The cases require |
+| --- | --- |
+| Loading | A blueprint loads paused, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
+| Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
+| Keys | Space and P, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart is paused, keeps the motion settings in use and replays a scene's goals |
+| Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
+| Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, within the zoom limits |
+| Modal pause | An open panel pauses a running blueprint and restores it; a paused one stays paused |
+| Debug menu | Both pages list their entries in order; the layer and WORKLOAD entries are check boxes on the real state; PROFILE cycles and names the four profiles; motion entries apply while running; a rejected setting shows its reason; BLUEPRINTS closes the blueprint at the next frame |
 
-```sh
-cmake --preset release
-cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim
-ctest --preset release -R '^kinetra_i4sim' --output-on-failure
-cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics; needs an OpenGL context
-```
+Not covered: a scene that cannot be replayed after `R`, which needs a scenario that applies on load and fails later.
 
-One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or the executable (`./build-release/kinetra_i4sim_tests --test-case='a T-junction*'`). The `8640x4800` recovery case takes most of the suite's time.
+## Graphics suite
 
-Run `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output /tmp/i4sim-check` for a bounded local workload run. Headless tests and the batch executable also build with `KINETRA_LAB_BUILD_RUNTIME=OFF`.
+`presentation_tests.cpp` runs the whole session with an actual OpenGL context, as one case, because only one `Runtime` may exist at a time. It selects a blueprint on the blueprint screen, pauses and resumes, edits motion settings through the debug menu while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
 
-Motion regressions cover manual reservation against factory allocation, paused single-step, all steering profiles, invalid horizons, and frontal/crossing encounters with goal completion and contact comparison. Regressions also verify that a mover does not stall on its own heatmap footprint,
-that a valid geometric detour never reports a stall, and that contact cannot displace a
-parked mover. Parking regressions depart and return beside a wall, in a corner
-and between parked neighbors under Improved, Original and Reciprocal steering. They require
-zero contacts (including a flush wall reservation), bounded acceleration, exact
-final reservations and no drift after arrival; footprint-invalid manual goals must
-fail. Allocation must skip a mover trapped behind blocked neighbors. Frontal/crossing encounters under Improved
-and Reciprocal require zero contacts. Reciprocal regressions also verify
-tick-unit/UPS independence, bounded acceleration and feasible departure through a
-rectangular gap whose circular envelopes overlap,
-parked-neighbor immobility and visible profile selection/limitation statistics.
-Parking-traffic regressions replay MAS seed 42 for 50000 ticks, require at least
-15 completed products with zero contacts, preserve owned reservations and acceleration
-bounds, and exercise wait/release, blocked departures, manual replacement and
-disabling the interlock without teleportation. Graphics tests toggle the new
-Motion row and verify wait statistics. Junction regressions use a single-cell
-crossing where one uncoordinated mover remains moving after 5000 ticks; with
-admission both arrive within 1000 ticks with zero contacts, exclusive occupancy,
-bounded acceleration and unchanged goals. They also cover replay, blocked occupancy,
-resumption, disabling, all four approach orientations, a turning T-junction and
-early/late cancelled approaches. Graphics tests toggle the appended junction row
-and render an actual crossing with cyan zone outlines, lime exit reservations and
-manually commanded movers. Exit regressions block one arm in all four orientations,
-require waiting outside while another exit clears, then free the blocker and require
-all three goals with zero contacts. They also verify reserved space remains free of
-an opposing approach and that coasting traffic prevents an unsafe new reservation. Large-factory recovery is explicitly enabled
-in its regression.
+Set `I4SIM_CAPTURE=<file.ppm>` to save the frame after the Motion checks. Software rendering verifies drawing and input contracts, not desktop feel or performance.
 
 ## Crossing demonstration
 
@@ -138,14 +168,6 @@ and clears the lime exit pocket. Disabling CORRIDOR TRAFFIC (DEBUG → View) and
 pressing `R` replays the head-on standstill. Enabling corridor traffic after a
 standstill also permits the two-mover retreat recovery described below.
 
-The regression runs all four orientations and requires exclusive full-body
-occupancy, bounded acceleration, unchanged manual goals, deterministic replay,
-arrival of both movers within 5000 ticks and zero contacts. It also checks blocked
-occupancy/resumption, a previously parked occupant with no initial exit route,
-independent junction toggling, disabling without teleportation, dead-end exclusion
-and the 256-cell detection/indexing budget. Graphics tests exercise both the View
-toggle/statistics and the actual blue corridor/lime reservation with moving agents.
-
 [corridor-recovery.json](../blueprints/showcase/corridor-recovery.json), a showcase scene, starts the movers inside the same
 corridor, so recovery can be inspected directly:
 
@@ -159,12 +181,15 @@ sustained standstill one backs
 into the side of an entrance room; its pink arrow and `RETREAT` identify the
 manoeuvre. The other waits, passes, and both resume their unchanged goals.
 
-Recovery regressions cover all four orientations after late activation, reverse
-movement, deterministic replay, bounded acceleration and zero contacts. They also
-exercise manual cancellation, disabling without teleportation, blocked/unblocked
-participants, longer APM4350 rectangular bodies, and all four occupied refuges
-with safe retry after one is freed. The graphics test renders the actual retreat
-and checks its pink steering arrow. The targeted policy/probe also runs under UBSan.
+## Passing demonstration
+
+[predictive-passing.json](../blueprints/showcase/predictive-passing.json), a showcase scene, provides an open floor:
+
+```sh
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/predictive-passing.json
+```
+
+Its scenario disables the workload and the heatmap costs, selects Reciprocal with PREDICTIVE PASS and sends the movers to swapped goals at `(1900, 800)` and `(500, 800)`. Press Space: both move into side lanes, pass, and continue to their goals. Mint arrows show the temporary targets and `PASS` counts the pair. Switch PREDICTIVE PASS off in DEBUG → View and press `R` to compare.
 
 ## Motion benchmark
 
@@ -194,8 +219,7 @@ The CSV has one line per blueprint and seed:
 | `passing_plans`, `passing_cancelled`, `passing_contacts` | Predictive passing plans formed, plans that ended without completing, and contacts that started while a participant was in a plan (from the event log) |
 | `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |
 
-The benchmark is deliberately outside CTest. See the
-[simulation contract](../../../docs/factory-simulation-architecture.md).
+The benchmark is deliberately outside CTest: comparisons are useful, but too slow for every test run. `--predictive-passing` and `--no-predictive-passing` (the default) switch the passing policy; compare runs with the same profile, seeds and policy flags.
 
 **Baseline for roadmap phase 7**, measured on 2026-11-19 (Release, 50000 ticks, recovery and traffic policies off). Each cell shows predictive passing **off / on**; stuck movers show the count at the end in parentheses.
 
@@ -219,87 +243,21 @@ On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s wit
 - Reciprocal on `MAS-demonstrator` ends with one stuck mover for both seeds, with and without passing, so a stuck mover alone does not explain the 10 products of seed 42 against 16. Seed 42 does wait about twice as long.
 - With passing on, Improved waits 11–13 times longer on `8640x4800`, but only 17 and 5 of its 767 and 823 contacts start while a participant is in a plan.
 - On `8640x4800`, about 35–40% of the plans end without completing.
+- Under Reciprocal, passing raises the completed products on `8640x4800` from 95 and 93 to 99 and 103 without a contact; the other four runs complete the same number. Under Improved the results are mixed and contacts increase. That is why the policy stays optional.
 
-Current wall/parking implementation, default Improved profile, recovery disabled,
-50000 ticks per run:
+**Parking traffic**, Reciprocal, the same 50000-tick runs, parking traffic **off / on**:
 
-| Blueprint | Seed | Completed products | Contact episodes | Contact ticks |
-| --- | --- | --- | --- | --- |
-| MAS-demonstrator | 42 | 16 | 53 | 71 |
-| MAS-demonstrator | 915839214 | 16 | 204 | 214 |
-| 3840x2400 | 42 | 59 | 3 | 3 |
-| 3840x2400 | 915839214 | 59 | 0 | 0 |
-| 8640x4800 | 42 | 98 | 384 | 395 |
-| 8640x4800 | 915839214 | 99 | 726 | 773 |
-
-Contact identities now use merged wall segments and exclude their artificial
-0.001 mm collision skin. Counts are therefore not directly comparable to older
-runs that counted raster seams and proxy-only touching. Crowded factories still
-have physical contacts; these runs do not establish general collision freedom or
-verify desktop animation smoothness. The focused parking tests independently
-require zero contacts and exact settled reservations.
-
-Reciprocal with fixed axis-aligned rectangular envelopes, the same 50000-tick
-workloads and recovery disabled. Paired values compare parking traffic **off/on**:
-
-| Blueprint | Seed | Completed products (off/on) | Contact episodes (off/on) | Contact ticks (off/on) |
-| --- | --- | --- | --- | --- |
-| MAS-demonstrator | 42 | 10 / 15 | 0 / 0 | 0 / 0 |
-| MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 | 0 / 0 |
-| 3840x2400 | 42 | 59 / 57 | 0 / 0 | 0 / 0 |
-| 3840x2400 | 915839214 | 61 / 62 | 0 / 0 | 0 / 0 |
-| 8640x4800 | 42 | 95 / 108 | 0 / 0 | 0 / 0 |
-| 8640x4800 | 915839214 | 93 / 112 | 0 / 0 | 0 / 0 |
-
-The interlock prevents an observed MAS return from sealing another mover's
-parking departure. It improves throughput in four runs, preserves one, and reduces
-one; it is not a universal improvement. Reciprocal and parking traffic remain
-explicit options, with Improved still the default. These measurements do not
-establish general collision freedom or starvation prevention. Runtime measurements
-are omitted because other verification jobs ran concurrently.
-
-With junction traffic also enabled, the six 50000-tick benchmark outcomes match
-the parking-traffic-on column above exactly. These three factory layouts contain
-no junctions matching the intentionally narrow detector, so this is a compatibility
-check, not evidence of additional factory throughput. Crossing behavior is verified
-using the dedicated fixture and its rotated/T-junction/cancellation variants.
-
-Enabling corridor traffic as well preserves all six 50000-tick results above.
-MAS-demonstrator, 3840x2400 and 8640x4800 contain no straight corridors matching
-the room-to-room detector, so this verifies compatibility rather than added
-throughput. The dedicated corridor fixture establishes the new passing behavior.
-
-Predictive passing coverage uses eight encounter orientations with mixed square/long
-rectangular footprints under Improved and Reciprocal. Tests check deterministic
-replay, early commitment, preserved goals, bounded acceleration, zero contacts,
-completion, cancellation, disable/block lifecycle, near-wall translated lanes and
-rejection when no passing space exists. Congestion costs are disabled in these
-controlled encounters to prevent A* from resolving the conflict before coordination.
-Original and RVO are checked for absence of pair commitments.
-
-[predictive-passing.json](../blueprints/showcase/predictive-passing.json), a showcase scene, provides an open floor. Its scenario
-disables the workload and heatmap costs, selects Reciprocal with PREDICTIVE PASS
-and sends the movers to swapped center goals (1900, 800) and (500, 800). Mint
-arrows show temporary targets. The benchmark accepts `--predictive-passing` and
-`--no-predictive-passing` (default); compare the same profile, seeds and policy flags.
-The policy remains opt-in pending broader factory throughput evaluation.
-
-Final 50000-tick runs with predictive passing enabled, default heatmap costs,
-recovery/parking/junction/corridor policies disabled:
-
-| Blueprint | Seed | Improved completed / contacts | Reciprocal completed / contacts |
+| Blueprint | Seed | Completed products | Contacts |
 | --- | --- | --- | --- |
-| MAS-demonstrator | 42 | 15 / 42 | 10 / 0 |
-| MAS-demonstrator | 915839214 | 14 / 222 | 16 / 0 |
-| 3840x2400 | 42 | 57 / 3 | 59 / 0 |
-| 3840x2400 | 915839214 | 59 / 6 | 61 / 0 |
-| 8640x4800 | 42 | 96 / 767 | 99 / 0 |
-| 8640x4800 | 915839214 | 101 / 823 | 103 / 0 |
+| MAS-demonstrator | 42 | 10 / 15 | 0 / 0 |
+| MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 |
+| 3840x2400 | 42 | 59 / 57 | 0 / 0 |
+| 3840x2400 | 915839214 | 61 / 62 | 0 / 0 |
+| 8640x4800 | 42 | 95 / 108 | 0 / 0 |
+| 8640x4800 | 915839214 | 93 / 112 | 0 / 0 |
 
-Compared with the earlier reciprocal baseline above, the two large-layout runs
-increase completed products from 95/93 to 99/103 while retaining zero contacts;
-the other four reciprocal results are unchanged. Improved outcomes are mixed,
-including increased contacts. These observations support keeping the policy optional.
-Graphics coverage also exercises the toggle/statistics and actual mint target arrows
-using the passing fixture. Runtime comparisons are omitted because verification ran
-concurrently.
+The interlock keeps a returning mover from sealing in a neighbor that is about to leave. It raises throughput in four runs, keeps one and lowers one, so it is not a universal improvement and stays optional.
+
+Junction and corridor traffic change none of these six results: the three layouts contain no junction or corridor that the detectors accept. Their behavior is established by the [crossing](#crossing-demonstration) and [corridor](#corridor-demonstration) fixtures instead.
+
+These runs do not establish freedom from contacts or starvation in general, and software-rendered runs say nothing about desktop smoothness.

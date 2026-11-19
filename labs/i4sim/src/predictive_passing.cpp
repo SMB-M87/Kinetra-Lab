@@ -24,8 +24,7 @@ constexpr float progress_speed_fraction = 0.05f;
 } // namespace
 
 bool PredictivePassing::enabled(const MotionSettings &motion) {
-    return motion.predictive_passing &&
-           (motion.profile == SteeringProfile::improved || motion.profile == SteeringProfile::reciprocal);
+    return motion.predictive_passing && supports_predictive_passing(motion.profile);
 }
 
 std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {

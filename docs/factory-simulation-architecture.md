@@ -1,6 +1,6 @@
 # Factory simulation architecture
 
-The factory application lives in Lab and consumes reusable simulation capabilities from the editable Kinetra submodule.
+The factory application lives in Lab and consumes reusable simulation capabilities from the editable Kinetra submodule. This page holds the contracts: who owns what against the C# reference and the engine, how the simulation is composed, and the exact rules and limits of every traffic policy. The [application guide](../labs/i4sim/README.md) explains how the module is built, how a frame and a tick run, and how the algorithms work.
 
 ## Table of contents
 
@@ -24,7 +24,7 @@ The factory application lives in Lab and consumes reusable simulation capabiliti
 | Blocked route recovery | Existing Kinetra Navigation with a snapshot of blocked grid cells and neighboring bodies |
 | Dummy product actors, allocation managers, producer queues | [Lab production](../labs/i4sim/src/production.cpp) in the [deterministic simulation](#simulation-structure) |
 | Parking and producer approach policy | Lab reservations, staging and queue ownership |
-| LoadingScreen / rendering / interaction | [Lab session](../labs/i4sim/src/session.cpp), shared Kinetra LaunchMenu, Runtime and bitmap text |
+| LoadingScreen / rendering / interaction | Lab [controller](../labs/i4sim/include/controller.h) (headless: input to commands) and [session](../labs/i4sim/src/session.cpp) with its blueprint screen, world view and HUD ([structure](../labs/i4sim/README.md#structure)); shared Kinetra LaunchMenu, Runtime and bitmap text |
 | Tick / render cycles | Existing Kinetra FixedClock and session loop; Lab chooses UPS |
 | Dumps / metrics | Lab summary export |
 | MQTT / actor framework / Windows platform | Excluded |
@@ -43,7 +43,7 @@ flowchart TD
     Presentation --> Runtime[Kinetra Runtime]
 ```
 
-Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The session uses the engine's right-button input state, and draws its Loadscreen with the optional heading and status text of `LaunchMenu`.
+Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The controller reads the engine's right-button input state, and the blueprint screen draws its list with the optional heading and status text of `LaunchMenu`.
 
 ## Simulation structure
 
@@ -280,7 +280,7 @@ of crossing, and its end with the first reason that applied, in the order the po
 checks them: completed, disabled, participant stopped, participant held, corridor
 recovery took a participant, no progress, or a new goal. Contact starts are recorded
 with tick and participants, flagged when a participant was in a plan. Recording never
-changes a decision. The [pressure scenarios](../labs/i4sim/tests/README.md#contents-and-use)
+changes a decision. The [pressure scenarios](../labs/i4sim/tests/README.md#golden-and-pressure-lines)
 record today's outcomes in situations the snapshot checks do not cover.
 The [regression and benchmark guide](../labs/i4sim/tests/README.md) describes coverage.
 

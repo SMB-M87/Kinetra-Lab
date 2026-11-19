@@ -40,11 +40,12 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 
 | Layer | Targets | May depend on |
 | --- | --- | --- |
-| Logic: headless rules and state | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation` only |
-| Presentation: session, input mapping, drawing | `kinetra_demo_presentation`, `kinetra_dotio_presentation`, `kinetra_i4sim_presentation` | Its own logic, `Kinetra::Runtime`, shared Lab helpers |
+| Logic: headless rules, state and window-free input mapping | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation`, and the headless Lab input policy in `lab/input.h` |
+| Presentation: session, panels, drawing | `kinetra_demo_presentation`, `kinetra_dotio_presentation`, `kinetra_i4sim_presentation` | Its own logic, `Kinetra::Runtime`, shared Lab helpers, and `Kinetra::Launcher` for its menu widgets |
 | Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions` | Presentation libraries, `Kinetra::Launcher` |
 
-- Open point: `kinetra_i4sim_presentation` also links `Kinetra::Launcher`, for the `LaunchMenu` of its blueprint screen. The table does not allow that edge; phase 4 either makes it the rule or removes it ([roadmap open points](docs/design/2026-11-18-quality-roadmap.md#open-points)).
+- Input mapping that needs no window belongs in the logic layer, where it is tested headless: Demo's `sandbox_input.h` and i4sim's `FactoryController`. From `kinetra_lab_common`, logic may include only `lab/input.h`, which uses Kinetra's plain input types; `lab/settings.h` and `lab/session.h` need the runtime.
+- A presentation may link `Kinetra::Launcher` to reuse its menu widgets, as i4sim does with `LaunchMenu` for its blueprint screen. It never depends on the bundled launcher in `launcher/`.
 - Applications never include each other's headers. Shared Lab code is application-neutral: today the Lab policy in [labs/common](labs/common/include/lab/) (target `kinetra_lab_common`) and the test helpers in [labs/test_support/test_support.h](labs/test_support/test_support.h) (target `kinetra_lab_test_support`).
 - Logic must build and test with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`.
 - i4sim needs the header-only nlohmann JSON package (3.11+). Its blueprints live in `labs/i4sim/blueprints/`; CMake copies them to `i4sim-blueprints/` next to every executable that opens them, and the application reads them from there. Treat blueprint files as a data format: changing their fields is a contract change.
@@ -63,12 +64,12 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
-| `labs/i4sim/` logic (`simulation`, its components in `src/`, `flow_metrics`, `blueprint`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim` | `^kinetra_i4sim` |
+| `labs/i4sim/` logic (the simulation and its components, `flow_metrics`, `blueprint`, `scenario`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` | `^kinetra_i4sim` |
 | `labs/demo/` logic (`sandbox_application`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
 | `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/common/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |
 | `launcher/include/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
-| Any `session.cpp`, presentation, launcher loop, `main.cpp` | Full level with graphics | |
+| Any `session.cpp`, presentation (in i4sim also `world_view`, `hud` and `blueprint_screen`), launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level, plus `cmake --workflow --preset windows` from WSL ([Windows](docs/windows.md)) | |
 

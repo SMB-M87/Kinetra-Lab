@@ -2,9 +2,9 @@
 // line per blueprint and seed: throughput, contacts, flow (waiting and stuck movers) and
 // predictive passing outcomes. Outside CTest: comparisons are useful, but too slow for
 // every test run.
+#include "event_counts.h"
 #include "flow_metrics.h"
 #include "simulation.h"
-#include <algorithm>
 #include <chrono>
 #include <iostream>
 
@@ -103,21 +103,12 @@ int main(int argc, char **argv) {
                                          std::chrono::steady_clock::now() - started)
                                          .count();
                 const auto events = simulation.events();
-                const auto count = [&](auto predicate) {
-                    return std::count_if(events.begin(), events.end(), predicate);
-                };
-                const auto plans =
-                    count([](const SimulationEvent &e) { return e.kind == EventKind::passing_formed; });
-                const auto cancelled = count([](const SimulationEvent &e) {
-                    return e.kind == EventKind::passing_ended && e.end != PassingEnd::completed;
-                });
-                const auto passing_contacts =
-                    count([](const SimulationEvent &e) { return e.kind == EventKind::contact && e.passing; });
                 std::cout << name << ',' << seed << ',' << simulation.completed() << ','
                           << simulation.collisions() << ',' << simulation.contact_ticks() << ','
                           << acceleration_change << ',' << flow.waiting_ticks() << ',' << flow.stuck_movers()
-                          << ',' << flow.stuck_now() << ',' << plans << ',' << cancelled << ','
-                          << passing_contacts << ',' << elapsed << std::endl;
+                          << ',' << flow.stuck_now() << ',' << test::count(events, EventKind::passing_formed)
+                          << ',' << test::cancelled_plans(events) << ',' << test::passing_contacts(events)
+                          << ',' << elapsed << std::endl;
             }
         }
     } catch (const std::exception &error) {

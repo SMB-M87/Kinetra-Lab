@@ -30,6 +30,11 @@ enum class SteeringProfile {
     /// Kinetra's reciprocal avoidance with rectangular envelopes.
     reciprocal,
 };
+/// Whether `profile` can run predictive passing. The other profiles ignore
+/// `MotionSettings::predictive_passing`.
+constexpr bool supports_predictive_passing(SteeringProfile profile) {
+    return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
+}
 /// Motion and traffic settings of a simulation; see `Simulation::configure_motion`.
 struct MotionSettings {
     /// How movers steer; Improved by default.
