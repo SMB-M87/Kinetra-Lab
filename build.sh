@@ -25,7 +25,8 @@ missing_windows_tools() {
     for tool in x86_64-w64-mingw32-g++ ninja ccache; do
         command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
     done
-    echo "${missing[*]}"
+    # `:-` keeps an empty array valid under `set -u` in bash before 4.4.
+    echo "${missing[*]:-}"
 }
 
 refresh_moved_cache build-core "$repo_dir/external/Kinetra"
