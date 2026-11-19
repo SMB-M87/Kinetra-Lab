@@ -1,5 +1,6 @@
 #pragma once
 // The simulation behind the public `Simulation` facade. Private to the i4sim library.
+#include "fleet.h"
 #include "floor_plan.h"
 #include "simulation.h"
 
@@ -22,7 +23,7 @@ class SimulationCore {
   public:
     explicit SimulationCore(Blueprint blueprint, std::uint32_t seed = 42);
     const Blueprint &blueprint() const { return blueprint_; }
-    const std::vector<Mover> &movers() const { return movers_; }
+    const std::vector<Mover> &movers() const { return fleet_.movers; }
     const std::vector<Producer> &producers() const { return producers_; }
     const std::vector<Product> &products() const { return products_; }
     const kinetra::WeightedGrid &grid() const { return floor_.grid(); }
@@ -104,22 +105,8 @@ class SimulationCore {
     void dump(const std::filesystem::path &directory) const;
 
   private:
-    /// Route-following counters of one mover, kept beside `movers_` in the same order.
-    struct RouteProgress {
-        /// Ticks since the last replanning attempt.
-        unsigned replan{};
-        /// Ticks since the remaining route last shrank by a progress step.
-        unsigned no_progress{};
-        /// Shortest remaining route length seen since the route changed, in millimeters.
-        float best_remaining{};
-        /// Route recoveries since the last goal; lengthens the wait before the next one.
-        unsigned recovery_attempts{};
-    };
-    std::vector<RouteProgress> progress_;
-    RouteProgress &progress(const Mover &mover) { return progress_[std::size_t(&mover - movers_.data())]; }
-    const RouteProgress &progress(const Mover &mover) const {
-        return progress_[std::size_t(&mover - movers_.data())];
-    }
+    RouteProgress &progress(const Mover &mover) { return fleet_.progress[fleet_.index(mover)]; }
+    const RouteProgress &progress(const Mover &mover) const { return fleet_.progress[fleet_.index(mover)]; }
     RunState state_{RunState::paused};
     bool workload_{true};
     struct PassingPlan {
@@ -153,11 +140,6 @@ class SimulationCore {
         std::vector<Vec2> route;
         bool yielded{};
     };
-    struct TrafficControl {
-        std::size_t zone;
-        Vec2 target;
-        bool arrival;
-    };
     struct TrafficZone {
         Vec2 center, half_extents;
         bool corridor{}, vertical{};
@@ -167,16 +149,13 @@ class SimulationCore {
         std::uint64_t retry_at{};
     };
     std::vector<TrafficZone> traffic_zones_;
-    std::vector<std::vector<kinetra::Segment>> traffic_stops_;
-    std::vector<std::optional<TrafficControl>> traffic_controls_;
     MotionSettings motion_;
     std::size_t avoidance_limited_{};
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{};
     Blueprint blueprint_;
     FloorPlan floor_;
-    std::vector<Mover> movers_;
-    Vec2 mover_max_half_{};
+    Fleet fleet_;
     std::vector<Producer> producers_;
     std::vector<Product> products_, completed_products_;
     std::mt19937 random_;
@@ -188,7 +167,6 @@ class SimulationCore {
     kinetra::FixedClock clock_{1.0 / 200, 256};
     unsigned ups_{200};
     std::uint64_t ticks_{}, completed_{}, collisions_{}, next_product_{1};
-    std::vector<Vec2> plan_route(const Mover &mover, Vec2 destination, bool require_departure = false) const;
     void set_goal(Mover &mover, Vec2 destination);
     Vec2 holding_position(const Mover &mover, Vec2 destination) const;
     bool parking_conflict(const Mover &mover, Vec2 position) const;
@@ -199,7 +177,6 @@ class SimulationCore {
     void recover_corridors(const kinetra::SpatialGrid &index);
     void coordinate_traffic(const kinetra::SpatialGrid &index, std::span<const kinetra::Aabb> bodies);
     void schedule(Product &product);
-    void recover_route(Mover &mover);
     void move_agents();
     void update_product(Product &product);
 };
