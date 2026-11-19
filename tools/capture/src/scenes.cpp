@@ -1,5 +1,6 @@
 #include "scenes.h"
 
+#include "busy_stretch.h"
 #include "dotio_player.h"
 #include "showcase.h"
 #include "stage.h"
@@ -36,10 +37,13 @@ constexpr int clip_fps = Stage::clip_fps;
 /// Seconds a session runs before it is captured, so agents and enemies are under way. Dotio's
 /// enemies first have to find the player.
 constexpr double warm_up_seconds = 2, dotio_warm_up_seconds = 8;
-/// Seconds the i4sim floor runs before it is captured: ticks 23200 to 25600 are the busiest
-/// stretch of the captured blueprint with capture_seed and the captured motion settings,
-/// with 12 to 18 of its 29 movers driving and hardly any waiting.
-constexpr double i4sim_warm_up_seconds = 116;
+/// Steps of session time per second.
+constexpr int steps_per_second = clip_fps * Stage::steps_per_frame;
+/// Steps a long clip records.
+constexpr int long_clip_steps = long_clip_frames * Stage::steps_per_frame;
+/// Seconds of the captured i4sim floor that are searched for its busiest stretch. The floor
+/// needs about a minute before most movers have work.
+constexpr int i4sim_search_seconds = 150;
 /// Wheel notches the Dotio debug scenes zoom out: the screenshot for a wider view of the
 /// agents, the clip far enough to show the whole area the enemies spawn in.
 constexpr float dotio_debug_zoom_out = -3, dotio_debug_clip_zoom_out = -9;
@@ -272,10 +276,19 @@ enum class I4simView {
     debug_with_layers,
 };
 
-/// Loads the captured blueprint, chooses its motion settings and runs it through the
-/// warm-up. The settings are rows of the debug menu, which only Debug Mode shows, so the
-/// normal view turns Debug Mode off after them.
-void i4sim_start(Stage &stage, I4simView view) {
+/// The step after Space at which the busiest stretch of a long clip begins on the captured
+/// floor, on a whole second: the twelve seconds in which most movers drive. Measured in a
+/// headless run of the same floor (busy_stretch.h), so it follows the simulation.
+int i4sim_busy_start() {
+    const auto driving = driving_movers(i4sim::default_blueprint_directory() / i4sim_capture_blueprint,
+                                        i4sim_search_seconds * steps_per_second);
+    return busiest_window_start(driving, long_clip_steps, steps_per_second);
+}
+
+/// Loads the captured blueprint, chooses its motion settings and runs it to `into` steps
+/// into its busiest stretch. The settings are rows of the debug menu, which only Debug Mode
+/// shows, so the normal view turns Debug Mode off after them.
+void i4sim_start(Stage &stage, I4simView view, int into) {
     stage.start_i4sim(i4sim_capture_blueprint);
     stage.press(Key::backquote);
     for (const auto &click : i4sim_motion_clicks)
@@ -288,17 +301,20 @@ void i4sim_start(Stage &stage, I4simView view) {
     if (view == I4simView::normal)
         stage.toggle_setting(SettingsRow::debug_mode);
     stage.press(Key::space);
-    stage.wait(i4sim_warm_up_seconds);
+    stage.steps(i4sim_busy_start() + into);
 }
 
+/// A screenshot shows the middle of the stretch the clips record.
+constexpr int i4sim_shot_steps = long_clip_steps / 2;
+
 void i4sim(Stage &stage) {
-    i4sim_start(stage, I4simView::normal);
+    i4sim_start(stage, I4simView::normal, i4sim_shot_steps);
     stage.shot();
 }
 
 void i4sim_debug(Stage &stage) {
     // The LAYERS section fits the screenshot's height and leaves most of the floor free.
-    i4sim_start(stage, I4simView::debug_with_layers);
+    i4sim_start(stage, I4simView::debug_with_layers, i4sim_shot_steps);
     stage.shot();
 }
 
@@ -307,13 +323,13 @@ Input no_input(int) {
 }
 
 void i4sim_clip(Stage &stage) {
-    i4sim_start(stage, I4simView::normal);
+    i4sim_start(stage, I4simView::normal, 0);
     stage.record(long_clip_frames, no_input);
 }
 
 void i4sim_debug_clip(Stage &stage) {
     // The menu stays closed: at clip size it would cover a fifth of the floor.
-    i4sim_start(stage, I4simView::debug);
+    i4sim_start(stage, I4simView::debug, 0);
     stage.record(long_clip_frames, no_input);
 }
 

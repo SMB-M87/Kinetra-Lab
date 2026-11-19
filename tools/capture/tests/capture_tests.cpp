@@ -1,7 +1,9 @@
 // Window-free tests for kinetra_capture: the PNG writer (tools/capture/src/png.h), the
 // scene list and the menu rows the scripts click (tools/capture/src/scenes.h), the showcase
-// cycle measurement (tools/capture/src/showcase.h) and the scripted Dotio player
+// cycle measurement (tools/capture/src/showcase.h), the busiest stretch of the captured
+// i4sim floor (tools/capture/src/busy_stretch.h) and the scripted Dotio player
 // (tools/capture/src/dotio_player.h). No Runtime or session is created.
+#include "busy_stretch.h"
 #include "dotio_player.h"
 #include "png.h"
 #include "scenes.h"
@@ -15,6 +17,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
@@ -217,25 +220,71 @@ TEST_CASE("showcase_cycle_steps rejects a blueprint without a repeating scenario
     CHECK_THROWS_AS(capture::showcase_cycle_steps(showcase_file("no-such-scene")), std::runtime_error);
 }
 
+/// The captured i4sim blueprint in the Lab source tree.
+static std::filesystem::path captured_floor() {
+    return std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "labs/i4sim/blueprints" /
+           capture::i4sim_capture_blueprint;
+}
+
 TEST_CASE("the i4sim menu clicks find their rows and choose the Reciprocal profile with plain A*") {
     i4sim::FactoryController controller(capture::capture_seed, false, capture::i4sim_updates_per_second);
-    REQUIRE(controller.load(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "labs/i4sim/blueprints" /
-                            capture::i4sim_capture_blueprint));
+    REQUIRE(controller.load(captured_floor()));
     // The session shows the controller's entries as menu rows one to one, so a click on a
     // row runs the action of the entry with that index.
-    for (const auto &click : capture::i4sim_motion_clicks) {
-        auto menu = controller.menu();
-        CAPTURE(click.label);
-        REQUIRE(click.row < menu.size());
-        REQUIRE(menu[click.row].label == click.label);
-        menu[click.row].action();
-    }
+    REQUIRE_NOTHROW(capture::apply_menu_clicks(controller, capture::i4sim_motion_clicks));
     const auto &motion = controller.simulation().motion_settings();
     CHECK(motion.profile == i4sim::SteeringProfile::reciprocal);
+    CHECK(motion.path_planning);
     CHECK_FALSE(motion.heatmap);
-    const auto menu = controller.menu();
-    REQUIRE(capture::i4sim_layers_click.row < menu.size());
-    CHECK(menu[capture::i4sim_layers_click.row].label == capture::i4sim_layers_click.label);
+    // The debug screenshot clicks LAYERS in the menu these clicks leave behind.
+    const capture::MenuClick layers[]{capture::i4sim_layers_click};
+    CHECK_NOTHROW(capture::apply_menu_clicks(controller, layers));
+}
+
+TEST_CASE("apply_menu_clicks rejects a row with another label and a row that does not exist") {
+    i4sim::FactoryController controller(capture::capture_seed, false, capture::i4sim_updates_per_second);
+    REQUIRE(controller.load(captured_floor()));
+    const auto before = controller.simulation().motion_settings().profile;
+    const capture::MenuClick renamed[]{{6, "MOTION"}, {3, "STEERING"}};
+    CHECK_THROWS_AS(capture::apply_menu_clicks(controller, renamed), std::runtime_error);
+    const capture::MenuClick missing[]{{99, "MOTION"}};
+    CHECK_THROWS_AS(capture::apply_menu_clicks(controller, missing), std::runtime_error);
+    CHECK(controller.simulation().motion_settings().profile == before);
+}
+
+TEST_CASE("busiest_window_start finds the window with the largest sum on the stride") {
+    const std::vector<int> activity{0, 1, 5, 5, 1, 0, 4, 4, 4, 0};
+    CHECK(capture::busiest_window_start(activity, 2, 1) == 2);
+    CHECK(capture::busiest_window_start(activity, 3, 1) == 6);
+    // Only every third index may start a window: 6 (4 + 4) beats 3 (5 + 1) and 0 (0 + 1).
+    CHECK(capture::busiest_window_start(activity, 2, 3) == 6);
+    // Equal sums: the earliest wins.
+    CHECK(capture::busiest_window_start(std::vector<int>{2, 2, 2, 2}, 2, 1) == 0);
+    CHECK(capture::busiest_window_start(activity, 10, 4) == 0);
+    CHECK_THROWS_AS(capture::busiest_window_start(activity, 11, 1), std::invalid_argument);
+    CHECK_THROWS_AS(capture::busiest_window_start(activity, 0, 1), std::invalid_argument);
+    CHECK_THROWS_AS(capture::busiest_window_start(activity, 2, 0), std::invalid_argument);
+}
+
+TEST_CASE("driving_movers counts the captured floor's movers step by step, the same on every run") {
+    constexpr int steps = 1200;
+    const auto driving = capture::driving_movers(captured_floor(), steps);
+    REQUIRE(driving.size() == steps);
+    const auto movers = i4sim::load_blueprint(captured_floor()).movers.size();
+    int busiest = 0;
+    for (const int count : driving) {
+        CHECK(count >= 0);
+        CHECK(count <= static_cast<int>(movers));
+        busiest = std::max(busiest, count);
+    }
+    // The workload sets movers off within the 20 s measured, but never all of them at once.
+    CHECK(busiest > 0);
+    CHECK(busiest < static_cast<int>(movers));
+    CHECK(capture::driving_movers(captured_floor(), steps) == driving);
+    CHECK(capture::driving_movers(captured_floor(), 0).empty());
+    CHECK_THROWS_AS(capture::driving_movers(captured_floor(), -1), std::invalid_argument);
+    CHECK_THROWS_AS(capture::driving_movers(captured_floor().parent_path() / "no-such-floor.json", 1),
+                    std::runtime_error);
 }
 
 TEST_CASE("the Dotio debug rows the scripts click turn on every row but GHOST CAMERA") {

@@ -101,10 +101,13 @@ void Stage::step(Input input) {
     session().advance(step_seconds, input, runtime_.camera);
 }
 
-void Stage::wait(double seconds) {
-    const auto steps = static_cast<int>(seconds / step_seconds + 0.5);
-    for (int i = 0; i < steps; ++i)
+void Stage::steps(int count) {
+    for (int i = 0; i < count; ++i)
         step();
+}
+
+void Stage::wait(double seconds) {
+    steps(static_cast<int>(seconds / step_seconds + 0.5));
 }
 
 void Stage::advance_frame(const Input &input) {

@@ -74,6 +74,8 @@ class Stage {
 
     /// Advances the session one step with `input`; its pointer is replaced by the stage's.
     void step(kinetra::Input input = {});
+    /// Advances `count` steps without input or drawing.
+    void steps(int count);
     /// Advances `seconds` of steps without input or drawing.
     void wait(double seconds);
     /// Advances `frames` clip frames with `input`, without drawing.
