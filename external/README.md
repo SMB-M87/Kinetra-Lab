@@ -10,6 +10,7 @@ Kinetra-Lab consumes the reusable Kinetra engine as a Git submodule in `Kinetra/
 - [Change Kinetra in a standalone checkout](#change-kinetra-in-a-standalone-checkout)
 - [Build against an unpublished checkout](#build-against-an-unpublished-checkout)
 - [Receive published Lab changes](#receive-published-lab-changes)
+- [Put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main)
 
 [Parent guide](../README.md) · [Documentation index](../docs/README.md) · [Agent rules](../AGENTS.md)
 
@@ -75,7 +76,7 @@ git commit -m "<type>(<scope>): <summary>"
 git push -u origin <type>/<topic>
 ```
 
-Once Kinetra merges with a merge commit, the pointer stays reachable from Kinetra's `main` and no further Lab commit is needed. If the Kinetra pull request was squashed instead, move the pointer to the merged commit in a follow-up Lab commit.
+Once Kinetra merges with a merge commit, the pointer stays reachable from Kinetra's `main` and no further Lab commit is needed. If the Kinetra pull request was squashed instead, move the pointer to the merged commit in a follow-up Lab commit. To record the merge commit itself, see [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main).
 
 ## Change Kinetra in a standalone checkout
 
@@ -114,3 +115,39 @@ cmake --workflow --preset dev
 ```
 
 In `git submodule status`, a leading space means the checkout matches Lab's recorded commit, `-` means uninitialized, and `+` means a different commit is checked out. `git submodule update` selects Lab's recorded commit, not the latest Kinetra `main`. Lab application changes never flow into Kinetra; make reusable engine changes in Kinetra and publish them there.
+
+## Put the submodule on Kinetra main
+
+`git submodule update` checks out the commit that Lab records, not a branch, so `external/Kinetra` normally sits on a detached HEAD. That is the intended state: the build uses exactly the engine Lab was tested with. A branch is only needed to commit in Kinetra ([above](#change-kinetra-from-inside-lab)) or to follow Kinetra's `main`.
+
+To put the submodule on Kinetra's `main`, check that it has no local work, then switch and pull:
+
+```sh
+git -C external/Kinetra status
+git -C external/Kinetra switch main
+git -C external/Kinetra pull --ff-only
+git submodule status
+```
+
+If the pull asks for SSH authentication, switch the submodule to HTTPS as in the [quick start](../README.md#quick-start).
+
+In lazygit: in the Lab repository, open the *Submodules* tab of the Files panel (`]` cycles the tabs) and press Enter on `external/Kinetra`. In its Branches panel (`3`), select `main`, check it out with space and pull with `p`. Esc returns to Lab.
+
+Switching usually moves the checkout away from the recorded commit, even when that commit is already in `main`: after a merge-commit merge, the tip of `main` is the merge commit, not the commit Lab records. `git submodule status` then shows `+`, and `git status` in Lab shows `modified: external/Kinetra (new commits)`. Pick one:
+
+| Goal | Action |
+| --- | --- |
+| Keep Lab's recorded engine | `git submodule update external/Kinetra`, which returns to the recorded commit on a detached HEAD. Being on `main` locally changes nothing for others |
+| Record Kinetra `main` in Lab | Commit the pointer on a Lab branch, push it and open a Lab pull request, as below |
+
+Record the pointer only when the submodule is on a commit that is already on `origin/main`: `git -C external/Kinetra status -sb` must show `## main...origin/main` without `[ahead N]`. Then no Kinetra pull request is needed:
+
+```sh
+git switch -c build/<topic>
+git diff --submodule=log external/Kinetra
+git add external/Kinetra
+git commit -m "build: update Kinetra to its main"
+git push -u origin build/<topic>
+```
+
+Open the pull request with `gh pr create`; it merges like any Lab change. In lazygit, stage `external/Kinetra` in the Lab Files panel with space, commit with `c` and push with `P`, after creating the branch in the Branches panel with `n`. Stage the pointer on purpose: a moved submodule is easy to commit by accident together with other Lab changes.
