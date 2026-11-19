@@ -1,6 +1,6 @@
 # i4sim showcase scenarios
 
-Status: accepted · Branch: `feat/i4sim-showcase` · Related: [i4sim](../../labs/i4sim/README.md), [blueprints](../../labs/i4sim/blueprints/README.md), [i4sim verification](../../labs/i4sim/tests/README.md)
+Status: implemented · Branch: `feat/i4sim-showcase` · Related: [i4sim](../../labs/i4sim/README.md), [blueprints](../../labs/i4sim/blueprints/README.md), [i4sim verification](../../labs/i4sim/tests/README.md)
 
 The i4sim presentation test drives four traffic scenes (a junction crossing, corridor passing, a corridor retreat and predictive passing) by clicking through the debug menu and setting goals with the mouse. The user wants to show these scenes in the application itself. This change lets a blueprint carry a `scenario` section (steering profile, coordination features, workload and mover goals) and adds a SHOWCASE entry to the loadscreen that opens the four scenes ready to run.
 
@@ -113,9 +113,9 @@ An independent review of `git diff main...HEAD` (a separate agent, without this 
 
 | Command | Result |
 | --- | --- |
-| `cmake --workflow --preset ci` | VERIFY_CI |
-| `cmake --workflow --preset headless` | VERIFY_HEADLESS |
-| `cmake --workflow --preset graphics` | VERIFY_GRAPHICS |
+| `cmake --workflow --preset ci` | 144/144 passed |
+| `cmake --workflow --preset headless` | 137/137 passed |
+| `cmake --workflow --preset graphics` | 156/156 passed |
 | `ctest --preset dev -R '^kinetra_i4sim(:\|_golden)'` after the fixture move | 62/62; the ten golden lines are unchanged |
 | `kinetra_i4sim --blueprint …/showcase/predictive-passing.json --ticks 3000`; `… junction-crossing.json --run --frames 120` in WSLg | Exit 0 |
 | `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
@@ -137,7 +137,7 @@ Title: `feat(i4sim): showcase the presentation-test scenes from the loadscreen`
 
 **Design.** [docs/design/2026-11-19-i4sim-showcase.md](2026-11-19-i4sim-showcase.md).
 
-**Verification.** See the design document.
+**Verification.** `ci` 144/144, `headless` 137/137, `graphics` 156/156, golden lines unchanged after the fixture move, smoke runs of two scenes, docs check. An independent review's findings are fixed in the last commit.
 
 **Review notes.** The blueprint format gains an optional section; existing files are unaffected. Unknown properties inside `scenario` are rejected on purpose. The two refactor commits (JSON readers, fixture move) change no behavior; the golden lines prove the move.
 
