@@ -1,45 +1,43 @@
 # i4sim
 
-Local C++20 Industry 4.0 factory simulation, migrated from the C# reference.
+A local C++20 factory simulation, ported from the C# Industry 4.0 reference. Movers carry products between producers on a grid floor, and optional traffic policies keep them from blocking each other. It runs as a graphical session, from the bundled launcher or on its own, and as a batch program without a window. People use it to watch and compare motion and traffic policies; phases 7 and 8 of the [quality roadmap](../../docs/design/2026-11-18-quality-roadmap.md) build on it.
 
 ## Table of contents
 
-- [Visual overview](#visual-overview)
+- [Purpose and scope](#purpose-and-scope)
 - [Build and run](#build-and-run)
 - [Controls](#controls)
-- [Behavior and ownership](#behavior-and-ownership)
+- [Concepts](#concepts)
+- [Structure](#structure)
+- [How it works](#how-it-works)
+  - [A frame of the session](#a-frame-of-the-session)
+  - [A tick of the simulation](#a-tick-of-the-simulation)
+  - [Steering profiles](#steering-profiles)
+  - [Junction traffic](#junction-traffic)
+  - [Corridor traffic and recovery](#corridor-traffic-and-recovery)
+  - [Predictive passing](#predictive-passing)
+  - [Parking traffic](#parking-traffic)
+- [Invariants and contracts](#invariants-and-contracts)
+- [Changing this module](#changing-this-module)
+- [Tests](#tests)
 - [Provenance and differences](#provenance-and-differences)
-- [Verification](#verification)
+- [Open points](#open-points)
 
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
-Directory guides: [headers](include/README.md), [sources](src/README.md), [tests](tests/README.md), [blueprints](blueprints/README.md).
+## Purpose and scope
 
-## Visual overview
+i4sim answers one question: how does a fleet of movers behave on a given factory layout under a given steering profile and set of traffic policies? It loads a layout from a JSON blueprint, generates a product workload, and reports throughput, contacts and waiting.
 
-Graphical and batch entry paths share the same validated blueprint and deterministic simulation.
+- **In scope:** blueprint loading and validation, production scheduling, routes, traffic policies, the session with its inspection and debug views, and a summary export.
+- **Not in scope:** the reusable mechanisms. The weighted grid, A*, steering, reciprocal avoidance, contact resolution, the traffic gate, the launcher menu and the overlays live in [Kinetra](../../external/Kinetra/README.md). i4sim chooses when and with which values to use them.
+- **Not reproduced from the reference:** MQTT, the actor framework and the Windows rendering. See [provenance and differences](#provenance-and-differences).
 
-```mermaid
-flowchart TD
-    JSON["Original JSON blueprints"] --> Loader["Blueprint loader and validation"]
-    Showcase["Showcase scenes: blueprint plus scenario"] --> Loader
-    Showcase --> Scenario["Scenario loader: motion, workload, goals"]
-    Loader --> Sim["Simulation: products, movers and producers"]
-    Scenario -->|apply_scenario| Sim
-    Session["Graphical session: Loadscreen and controls"] --> Loader
-    Session --> Sim
-    Batch["Batch CLI: blueprint and tick limit"] --> Loader
-    Batch --> Sim
-    Sim --> Engine["Kinetra grid, steering and timing"]
-    Sim --> Metrics["Metrics export"]
-    Session --> Runtime["Kinetra Runtime and debug views"]
-```
+The exact rules and limits of every policy are in the [factory simulation architecture](../../docs/factory-simulation-architecture.md). This page explains how the module is built and how its algorithms work; the blueprint and scenario formats are in the [blueprint guide](blueprints/README.md), and the suites and the benchmark in the [test guide](tests/README.md).
 
 ## Build and run
 
-Install the existing CMake/C++20 and SDL2/OpenGL dependencies plus the header-only `nlohmann-json3-dev` package (3.11+). The JSON library is private to the application; Kinetra has no JSON dependency.
-
-From the repository root:
+i4sim needs the header-only nlohmann JSON package (3.11+, `nlohmann-json3-dev` on Debian) in every build; the graphical session also needs SDL2 and OpenGL. From the repository root:
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -50,121 +48,333 @@ cmake --build build -j2
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --run --ups 200
 ```
 
-The launcher opens a paginated Loadscreen. Select a JSON blueprint using arrows/Enter or mouse; loading starts paused. The last row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the steering profile, coordination features, workload and mover goals, so pressing Space plays the scene. CMake bundles the default resources in `i4sim-blueprints/` beside the executable. Discovery uses the executable location, independent of the current working directory and the original build location. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog. An explicit `--blueprint FILE` loads a file directly. Invalid input reports its filename and retains the loadscreen. A missing/empty catalog displays the directory and logs the full error to stderr. Restore the adjacent resource directory and press Enter to rediscover the catalog; then select a blueprint.
+The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. The last row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload and mover goals, so pressing Space plays the scene.
 
-A deterministic batch executable is available even with `KINETRA_LAB_BUILD_RUNTIME=OFF`:
+CMake copies the catalog to `i4sim-blueprints/` beside the executables, and the session finds it through the executable's location, whatever the working directory is. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog; `--blueprint FILE` loads one file directly. A file that fails to load reports its name and the cause, and the blueprint screen stays open. A missing or empty catalog shows the directory on screen and on standard error; restore the directory and press Enter to read it again.
+
+The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`:
 
 ```sh
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --seed 42 --output /tmp/i4sim-results
 ```
 
-`--ticks` runs without a window until the requested tick count or blueprint tick cap. `--frames N` bounds graphical smoke runs. `--output DIR` selects the summary directory; graphical sessions do not automatically export summaries. Export failures are displayed or reported to stderr during destruction. Summaries include mover/producer counters and active/completed product records.
+| Option | Effect |
+| --- | --- |
+| `--blueprint FILE` | Load this file directly; with a `scenario` section, apply it |
+| `--blueprints DIR` | Catalog directory of the blueprint screen |
+| `--ticks N` | Batch mode: run N ticks without a window, or fewer when the blueprint's tick cap comes first. Needs `--blueprint` |
+| `--output DIR` | Batch mode: write `summary.json` with run totals and per-mover, per-producer and per-product counters. A graphical session writes no summary |
+| `--seed N` | Seed of the workload; 42 by default |
+| `--run`, `--ups N` | Graphical: start a loaded blueprint running, and its ticks per second (1 to 10000, default 200) |
+| `--frames N` | Graphical: stop after N frames, for smoke runs |
 
 ## Controls
 
-Ctrl or SETTINGS opens the modal settings panel and suspends simulation and world input.
-Resume restores the previous pause state. Launcher and Exit are available there.
-Debug Mode, statistics and every visual debug layer start enabled. Click DEBUG next to Settings to open the paged debug menu below the buttons.
+Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. LAUNCHER and EXIT are in that panel. Debug Mode, the statistics and every debug layer start on. The DEBUG button next to SETTINGS, or Backquote, opens the debug menu.
 
 | Input | Action |
 | --- | --- |
-| Escape / M on the Loadscreen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page they return to the blueprint list |
+| Escape / M on the blueprint screen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page they return to the blueprint list |
 | Space / P | Pause or resume |
-| R | Reset the blueprint and seed, retaining motion configuration; start paused. A showcase scene also re-sends its goals and workload setting, so a changed motion setting can be compared against the original run |
-| G | Toggle automatic factory workload |
-| Q / E | Halve / double target UPS |
+| R | Restart the blueprint with the same seed, paused, and keep the motion settings. A showcase scene also gets its goals and workload setting again, so a changed setting can be compared with the original run |
+| G | Toggle the automatic workload |
+| Q / E | Halve / double the ticks per second |
 | 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode) |
-| WASD / arrows | Pan camera |
-| Wheel (debug) / F | Zoom / frame scene |
-| Left click / right click | Inspect / toggle blocked state |
-| Shift + left click | Replace selected free mover's manual goal |
+| WASD / arrows | Pan the camera |
+| Wheel (in Debug Mode) / F | Zoom / fit the floor in the window |
+| Left click / right click | Inspect a mover or producer / also hold the mover or block the producer |
+| Shift + left click | Send the selected mover there as a manual goal |
 
-Debug View offers grid, heatmap, routes, force vectors, boundaries, detection and contact contours,
-pause, single tick, workload, framing and blueprint selection. Debug Motion offers Improved,
-Original Basic, experimental RVO and experimental Reciprocal steering, A*/heatmap A*, optional geometric route recovery,
-speed, acceleration and lookahead adjustments with parameter reset (default lookahead: 32 ticks).
-Motion configuration can change while the factory runs. Factory assignments and positions survive configuration changes; routes are rebuilt.
+The debug menu has two pages:
 
-Manual goals reserve only their mover until arrival; busy movers reject them. Invalid goals
-leave the current goal intact. Other movers continue their factory work.
+| Page | Entries |
+| --- | --- |
+| View | The seven layers (the six above and Contact Shapes), PAUSE / RUN, SINGLE TICK, WORKLOAD, FRAME SCENE, BLUEPRINTS (back to the blueprint screen), CORRIDOR TRAFFIC, PREDICTIVE PASS |
+| Motion | PROFILE, PLANNER (A* with or without heatmap costs), RECOVERY, speed, force and horizon steps with RESET PARAMETERS, the ticks per second, PARKING TRAFFIC, JUNCTION TRAFFIC |
 
-Improved steering uses exact rectangular clearance between axis-aligned movers rather than
-inflating each mover to a circle. Routes are reconsidered after 100 ticks without progress
-along the remaining route, rather than reacting to the mover's own heatmap footprint.
-Parked and processing movers remain stationary during mover contact correction.
-Geometric route recovery remains optional and disabled by default.
+Motion settings can change while the factory runs: assignments and positions stay, routes are rebuilt. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds and changes nothing.
 
-Reciprocal uses the shared Kinetra avoidance controller with immutable neighbor snapshots.
-It operates directly in millimeters per tick (`dt = 1`); changing UPS does not change
-its speed or acceleration settings. Fixed axis-aligned mover pairs use their exact
-summed rectangular footprint with 2 mm clearance per axis, permitting narrow gaps
-and parking departures that enclosing circles would reject.
-Improved remains the default. `AVOID LIMIT` counts movers whose reciprocal constraints
-were infeasible or whose command needed contact/border recovery in the last movement
-tick. Wall constraints and rectangular contact correction remain active; this profile
-does not guarantee collision freedom or factory throughput.
+The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space). An inspected mover shows distance, contact ticks, its status and `STALLED` when it made no route progress for 120 ticks. That is a lack of progress, not a proven deadlock.
 
-Optional **DEBUG → View → PREDICTIVE PASS** coordinates oncoming movers on
-open floors before they become stuck. Improved and Reciprocal support it; Original
-and RVO retain their existing behavior. Both movers first enter separate temporary
-lanes, then pass and replan towards their unchanged destinations. Mint arrows show
-the temporary targets and `PASS` counts active pairs. The policy starts disabled:
-factory throughput depends on the layout and workload. Narrow passages keep their
-existing admission/retreat policies. See the [passing contract](../../docs/factory-simulation-architecture.md#predictive-passing).
+## Concepts
 
-Optional **DEBUG → Motion → PARKING TRAFFIC** defers automatic parking returns
-that would obstruct active routes. Movers use a staging area and resume their own
-parking goal when the route clears; `PARK WAIT` shows the number deferred. Manual
-goals take precedence. This policy is disabled by default and does not relocate
-already parked movers. It improves several measured workloads but does not provide
-general junction scheduling; see the [simulation contract](../../docs/factory-simulation-architecture.md).
+| Term | Meaning |
+| --- | --- |
+| Blueprint | A JSON file with the floor size, the grid cell size, movers, producers and forbidden zones. Validated on load; a data format, so changing a field is a contract change |
+| Factory space | Millimeters from the floor's top-left corner, **Y down**. Blueprints, the simulation and every `Simulation` query use it. The camera's world has Y up; `flip_y` ([view.h](include/view.h)) converts either way |
+| Tick, UPS | The simulation advances in fixed ticks. Speeds are millimeters per tick, so changing the ticks per second (UPS) changes only how fast the wall clock runs |
+| Mover | A rectangular transport vehicle. It has a parking place (its start), at most one goal, and at most one product |
+| Producer | A robot or manual station with a processing place where a mover stands while it works, and a bounded queue |
+| Product, recipe | A product needs a fixed sequence of interactions, each at a producer that supports it. It keeps one mover until it is complete |
+| Workload | The generator that opens a random product while fewer products than movers are open |
+| Goal kind | Who chose a mover's goal: the factory (`automatic`), the operator (`manual`), or parking traffic (`parking_staging`) |
+| Hold, block | The operator's stop for a mover (it keeps goal and product) and for a producer (it accepts and processes nothing) |
+| Steering profile | How movers avoid each other: Improved (default), Original, RVO experiment, Reciprocal |
+| Traffic policy | An optional rule on top of steering: parking, junction or corridor traffic, or predictive passing. All are off by default |
+| Zone | A junction or corridor that a traffic policy admits movers to, one at a time |
+| Exit pocket | The space behind a zone that an admitted mover needs to leave it; it is reserved with the admission |
+| Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
+| Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch and mover goals; a showcase scene is a small blueprint with one |
+| Event log, flow metrics | Opt-in observation: passing and contact events ([events.h](include/events.h)), and waiting and stuck movers ([flow_metrics.h](include/flow_metrics.h)). Neither changes a run |
 
-Optional **DEBUG → Motion → JUNCTION TRAFFIC** admits movers in FIFO order at
-isolated T/+ junctions with one-cell corridor arms. `CROSS WAIT` shows waiting movers
-and the detected junction count; cyan outlines appear with the boundary view.
-Waiting movers brake before entry, while physical occupants retain the zone until
-they leave. Goals stay intact, including manual goals. The option is disabled by
-default; open floors and adjacent junction complexes are outside this detector.
-New entry also requires a clear exit pocket, outlined in lime. `EXIT` counts
-movers waiting for that space. Blocked requests retain FIFO priority while traffic
-to a free exit can pass. Already admitted space stays reserved until the mover
-clears the zone. This does not relocate blockers or solve opposing single-lane traffic.
-Use the [crossing demonstration](tests/README.md#crossing-demonstration) to compare
-the behavior visually.
+## Structure
 
-Optional **DEBUG → View → CORRIDOR TRAFFIC** reserves a complete straight narrow
-corridor between two wider rooms. One mover traverses at a time; the opposite
-approach waits outside its exit space. Blue outlines show controlled corridors,
-lime shows the admitted exit, and `LANE WAIT` reports waiting movers and zone count.
-It is disabled by default and covers straight runs up to 256 cells with room at
-both ends. For two active opposing movers already stalled inside, it can hold one
-and back the other into a validated free side position in an entrance room, then
-resume both original goals. `RETREAT` counts active recoveries; pink path arrows
-show the temporary steering target. Occupied refuges or blocked retreat routes
-prevent recovery from starting. Use the [corridor demonstrations](tests/README.md#corridor-demonstration).
+```mermaid
+flowchart TD
+    Main["main.cpp<br/>arguments, batch loop"] --> Session["FactorySession<br/>frame order, panels"]
+    Main --> Simulation
+    Launcher["bundled launcher"] --> Session
+    Session --> Screen["BlueprintScreen<br/>catalog as a menu"]
+    Session --> Controller["FactoryController<br/>input to commands"]
+    Session --> World["draw_world"]
+    Session --> Hud["draw_hud"]
+    Controller --> Loaders["load_blueprint<br/>load_scenario, apply_scenario"]
+    Controller --> Simulation["Simulation<br/>facade"]
+    World --> Simulation
+    Hud --> Simulation
+    Simulation --> Core["SimulationCore<br/>components, tick order"]
+    Flow["FlowMetrics"] --> Simulation
+    subgraph headless ["kinetra_i4sim_application: no window"]
+        Controller
+        Loaders
+        Simulation
+        Core
+        Flow
+    end
+    subgraph presentation ["kinetra_i4sim_presentation: SDL2 and OpenGL"]
+        Session
+        Screen
+        World
+        Hud
+    end
+```
 
-Contacts count new unordered mover-pair or mover-boundary contacts before correction. Duration
-counts pair/segment contact ticks, not seconds. Ongoing contact is not a new event every tick.
-Inspection reports mover contact ticks and marks lack of goal progress as STALLED, not a proven deadlock.
+*Takeaway:* everything that decides something is in the headless library and is tested without a window: the simulation, the loaders and the controller that turns input into commands. The presentation only orders a frame, shows panels and draws; the world view and the HUD read the simulation and never change it.
 
-For diagnosis, a simulation can record an event log (`Simulation::record_events`, types in [events.h](include/events.h)): every predictive passing plan as it forms, starts crossing and ends, with the reason it ended, and every contact as it starts, with tick and participants. With `Simulation::seed()`, the blueprint and the motion settings, a contact can be replayed to its tick. [FlowMetrics](include/flow_metrics.h) observes a run from outside and counts waiting mover-ticks and movers that make no progress toward their destination for 2000 ticks. Both only observe; the [motion benchmark](tests/README.md#motion-benchmark) reports them.
+Public headers, in [include/](include/):
 
-## Behavior and ownership
+| File | Responsibility |
+| --- | --- |
+| [blueprint.h](include/blueprint.h) | The validated layout types, the model tables, `load_blueprint`, catalog discovery |
+| [scenario.h](include/scenario.h) | The optional `scenario` section: `load_scenario`, `apply_scenario` |
+| [simulation.h](include/simulation.h) | `Simulation`: the facade with all state queries and commands, `MotionSettings`, the mover, producer and product types |
+| [events.h](include/events.h), [flow_metrics.h](include/flow_metrics.h) | The event log's types; waiting and stuck movers measured from outside |
+| [view.h](include/view.h) | `ViewLayers`, the zoom limits and `flip_y`: view state as plain data |
+| [controller.h](include/controller.h) | `FactoryController`: the loaded simulation, selection, messages, camera, keys, pointer and debug-menu entries |
+| [session.h](include/session.h) | `create_session`: the only entry to the graphical session |
 
-[Factory simulation architecture](../../docs/factory-simulation-architecture.md) describes the implemented boundaries and remaining fidelity limits. The engine owns weighted A*, spatial queries, geometric recovery planning, contact resolution and priority steering. Lab owns model tables, JSON interpretation, workload, product recipes, queues, assignments, inspection and controls.
+Sources, in [src/](src/):
 
-Both recipes are implemented: Trimmer has four interactions; TrimmerPersonalized has six. Producers advertise the original capabilities and spend 1000 ticks per interaction. Allocation retains the original linear queue/distance cost structure and keeps a mover with its product between interactions. Queue reservations are bounded; only the queue head approaches a processor. Other movers wait at reserved parking or free staging cells. A blocked mover stops; an ongoing blocked producer pauses processing until restored. Before processing, blocked producers release their reservation so the product can retry another producer.
+| File | Responsibility |
+| --- | --- |
+| [main.cpp](src/main.cpp) | Command line; the batch loop, or a `Runtime` with the session |
+| [blueprint.cpp](src/blueprint.cpp), [scenario.cpp](src/scenario.cpp), [json_fields.h](src/json_fields.h) | The loaders and the case-insensitive JSON field readers they share |
+| [simulation.cpp](src/simulation.cpp), [simulation_core.cpp](src/simulation_core.cpp) | The facade, and the private core that owns the components and runs the tick |
+| [floor_plan.cpp](src/floor_plan.cpp), [routing.cpp](src/routing.cpp), [goals.cpp](src/goals.cpp), [traffic.cpp](src/traffic.cpp), [predictive_passing.cpp](src/predictive_passing.cpp), [production.cpp](src/production.cpp), [motion_step.cpp](src/motion_step.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
+| [fleet.h](src/fleet.h), [event_log.h](src/event_log.h), [geometry.cpp](src/geometry.cpp), [simulation_constants.h](src/simulation_constants.h) | Shared mover data, the event log, geometry helpers and the named tuning values |
+| [flow_metrics.cpp](src/flow_metrics.cpp) | `FlowMetrics` |
+| [controller.cpp](src/controller.cpp) | `FactoryController` |
+| [session.cpp](src/session.cpp) | `FactorySession`: the frame order, the settings overlay and the debug menu |
+| [blueprint_screen.cpp](src/blueprint_screen.cpp) | `BlueprintScreen`: the catalog on Kinetra's `LaunchMenu`, with the SHOWCASE page and the load-error screen |
+| [world_view.cpp](src/world_view.cpp), [hud.cpp](src/hud.cpp) | Drawing in the world, and the screen-space text |
 
-Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+The component headers in `src/` are private. Callers, tests included, use the facade, so a component can change without touching them.
 
-Units remain millimeters and ticks: maximum speed 2 mm/tick, maximum acceleration 0.6 mm/tick per tick, original mover dimensions/payloads, default 200 UPS. Changing UPS changes wall-clock speed. Physics is fixed per tick and the update backlog is bounded. Blueprint `tickCap` pauses the simulation exactly at its limit.
+## How it works
+
+### A frame of the session
+
+The host (the launcher loop or `run_session`) calls `advance` and then `render`. While no blueprint is loaded, both go to the blueprint screen. With a blueprint:
+
+```mermaid
+sequenceDiagram
+    participant H as Host
+    participant S as FactorySession
+    participant P as Settings overlay and debug menu
+    participant C as FactoryController
+    participant Sim as Simulation
+    H->>S: advance(elapsed, input, camera)
+    S->>C: begin_frame(elapsed)
+    Note over C: closes the blueprint after BLUEPRINTS,<br/>ages the message
+    S->>P: settings.update(input)
+    S->>C: suspend(panel open)
+    Note over S: an open panel ends the frame here
+    S->>C: menu()
+    S->>P: update_debug(rows)
+    P-->>C: action of a clicked entry
+    S->>C: handle_input(elapsed, input, camera, panels)
+    C->>Sim: commands, then advance(elapsed)
+    H->>S: render(runtime)
+    S->>C: update_camera
+    S->>Sim: draw_world, draw_hud (read only)
+    S->>P: draw menu and panel
+```
+
+*Takeaway:* the panels see the input first. An open settings panel takes the whole frame; the debug menu takes the pointer while it is over the menu. Only then does the controller map what is left to commands and advance the simulation.
+
+- **Why the controller is separate.** Which key does what, when a click selects, how long a message stays and how the camera fits are rules, and rules need tests. In the controller they are tested from plain `kinetra::Input` values, without a window ([controller tests](tests/controller_tests.cpp)).
+- **Menu entries.** The controller describes each debug-menu row as a `MenuEntry`: a label, an action, and optionally a value text or a check state. The session turns the entries into `kinetra::DebugOption` rows. A check entry is drawn as `[X] NAME` and its action flips the state where it lives, so no flag has to be mirrored between the menu and the simulation.
+- **Deferred close.** BLUEPRINTS only sets a request. The frame that clicked it still finishes with its simulation; the next `begin_frame` closes it.
+- **Drawing between ticks.** Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+
+### A tick of the simulation
+
+`Simulation` forwards every call to a private `SimulationCore`, which owns one instance of each component and runs the tick: open a product when the workload allows it, refresh the heatmap every ten ticks, run the parking interlock, move, then advance production. Moving means: prepare routes, take one snapshot of all bodies, run corridor recovery, predictive passing and zone admission against that snapshot, steer and integrate every mover, and finally count and resolve contacts. The component table, their dependency diagram, the exact tick order and the mover's state diagram are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure).
+
+Two design choices explain most of the code:
+
+- **One snapshot per tick.** Every decision of a tick reads the same positions, and movers are handled in a stable order. That makes a run reproducible: the same blueprint, seed, settings and commands give the same run, tick for tick.
+- **Policies change targets, not bodies.** A traffic policy never moves a mover itself. It makes the mover wait (a stop line the steering respects) or gives it a temporary target, while the destination, the product and the parking place stay as they were. When the policy ends, the mover plans a route to its unchanged goal.
+
+### Steering profiles
+
+A route comes from A* on the weighted grid. With the heatmap, cells where movers stand cost more, so routes avoid crowds. A mover that makes no progress along its route for 100 ticks plans again.
+
+| Profile | How a mover avoids others |
+| --- | --- |
+| Improved (default) | Priority steering (overlap safety, then predicted conflicts, then seek and arrive) followed by seek-and-avoid, with the exact rectangular clearance between movers instead of enclosing circles |
+| Original | Priority steering alone, as in the reference |
+| RVO experiment | Tangent steering around predicted conflicts |
+| Reciprocal | Kinetra's reciprocal avoidance on the tick's snapshot, with rectangular envelopes and 2 mm clearance; parked and held movers do not cooperate |
+
+Profiles never switch on their own. None of them guarantees a run without contacts; the [benchmark](tests/README.md#motion-benchmark) shows what each achieves on the large layouts.
+
+### Junction traffic
+
+*Problem:* at a crossing of one-cell corridors, two movers that enter together block each other.
+
+- **Detection.** At construction, the floor plan marks every free cell with three or four open neighbors that are themselves corridor cells: an isolated T or + junction. Open floors and junctions next to each other are not detected.
+- **Admission.** Each junction has one `kinetra::TrafficGate`. A mover whose route enters the junction within a bounded lookahead requests it; the gate grants requests first come, first served, one mover at a time.
+- **Exit pocket.** A grant needs room to leave. The simulation follows the mover's route to the first place where it is clear of the junction and reserves that swept footprint plus braking space. If other bodies or reservations are in that pocket, the request waits and a later request with a free exit may go first.
+- **Waiting.** A mover without a grant gets a stop line before the junction, enforced by the same controller that keeps movers off walls. Its goal is untouched. A mover inside may always leave.
+
+Cyan outlines mark junctions and lime outlines the reserved exit. *Limit:* this reserves the space to clear the junction, not the route behind it.
+
+### Corridor traffic and recovery
+
+*Problem:* in a corridor one cell wide, two opposing movers cannot pass.
+
+- **Detection.** A corridor is a straight run of free cells with blocked cells on both sides, up to 256 cells long, whose ends both open into a room at least three cells wide and two deep. Dead ends and bends are excluded.
+- **Admission.** The gate and exit-pocket machinery of junctions is reused, for the whole run: one mover traverses, and the opposite approach waits in its room, far enough back to leave the holder a full exit pocket.
+
+When corridor traffic is switched on late, or a mover parked inside starts, two movers can already face each other in the corridor. Recovery handles exactly that case:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Standstill: two opposing movers, 120 ticks without progress
+    Standstill --> Retreating: a refuge and a retreat path are free
+    Standstill --> Standstill: none free, check again after 120 ticks
+    Retreating --> InRefuge: the yielding mover settled beside the entrance
+    InRefuge --> [*]: the other mover cleared the corridor, both resume
+    Retreating --> [*]: new goal, or corridor traffic off
+    InRefuge --> [*]: new goal, or corridor traffic off
+```
+
+*Takeaway:* one mover backs out to the side of an entrance room, the other passes, and both continue to their own goals. Up to four candidates are checked (either mover, to either side of its room); the shortest valid retreat wins. The pink arrow shows the retreat target and `RETREAT` counts active recoveries. *Limits:* two movers only, and a refuge is checked when the retreat starts, not during it.
+
+### Predictive passing
+
+*Problem:* on an open floor, two movers on a head-on course brake in front of each other, and local avoidance may take long or fail to separate them.
+
+The policy pairs such movers early and has them agree on sides. It works for Improved and Reciprocal.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Formed: head-on conflict predicted, lanes fit
+    Formed --> Crossing: both stopped at their entry points
+    Crossing --> [*]: both reached their exit points (completed)
+    Formed --> [*]: cancelled
+    Crossing --> [*]: cancelled
+```
+
+- **Prediction.** From the tick's snapshot, with preferred speed and a lookahead that depends on the footprints, the policy finds pairs with roughly opposite headings that would meet. Pairs are sorted by encounter time and mover index, so pairing is deterministic; a mover joins one pair at most.
+- **Plan.** Each mover gets an *entry point* in its own side lane and an *exit point* beyond the encounter. The lanes are offset by the footprints plus 8 mm. Two side choices and three shared sideways shifts are tried, so a pair can also pass next to a wall.
+- **Checks.** A plan is accepted only if both swept paths clear the static grid (with 2 mm inflation), every other mover in the snapshot, the detected junctions and corridors, and the paths of existing pairs. If nothing fits, ordinary steering continues.
+- **Two stages.** Both movers first reach their entry points and stop (*formed*), then both drive to their exit points (*crossing*), and then they plan routes to their unchanged goals.
+- **Cancellation.** A plan ends early when the feature is switched off, a participant is held or gets a new goal, corridor recovery takes a participant, or the pair makes no progress for 240 ticks; the movers then wait 120 ticks before trying again.
+
+Mint arrows show the temporary targets and `PASS` counts active pairs. With the event log on, every plan records its formation, crossing and end with the reason. *Limits:* the checks use the snapshot of the tick in which the plan forms. A third mover that enters a lane later is not guarded against; the [pressure scenarios](tests/README.md#golden-and-pressure-lines) record what happens then, and roadmap phase 7 addresses it.
+
+### Parking traffic
+
+*Problem:* a mover returning to its parking place can seal in a neighbor that is about to leave.
+
+Before movement, an automatic parking return whose parking footprint lies on another mover's active route is sent to a free staging cell instead (goal kind `parking_staging`). The mover keeps its parking place, is not given a new product while it waits, and resumes its own parking goal when the route is clear. `PARK WAIT` counts the movers that wait. Manual goals and new production take precedence.
+
+## Invariants and contracts
+
+- **Determinism.** The same blueprint, seed, motion settings and commands give the same run tick for tick. Randomness comes only from the seeded workload generator. The [golden and pressure suites](tests/README.md#golden-and-pressure-lines) pin this with fingerprints of every position after every tick, so they need exact floating-point results (no fast-math, no FMA contraction).
+- **Units.** Millimeters, ticks, millimeters per tick. The frame time only selects how many ticks run; it never scales a physical value.
+- **Observation only.** The event log, `FlowMetrics`, the world view and the HUD read the simulation through `const` access. Recording or drawing never changes a decision.
+- **Copies are deep.** Copying a `Simulation` copies its whole state, including the event log. Components store no references to each other, so a copy cannot point into the original.
+- **Only goals move goals.** A mover's destination changes only through the `Goals` view, which also cancels the corridor recovery and passing plan that depended on the old goal.
+- **Controller preconditions.** Every `FactoryController` call that reads or commands the simulation requires `loaded()`. `simulation()` returns a reference that a load, a restart or a close invalidates; the drawing code takes it anew each frame.
+- **Frame order.** `begin_frame`, `suspend`, menu actions, `handle_input`, and `update_camera` before drawing. Menu entries borrow the controller and are built anew for every update and every draw, because the page decides which entries exist.
+- **Failed loads change nothing.** `load_blueprint` never loads partially, and `FactoryController::load` builds the new simulation aside, so a failure leaves the loaded blueprint as it was.
+- **Layers.** The headless library depends on `Kinetra::Simulation` and the headless `lab/input.h` only; the presentation adds `Kinetra::Runtime`, the Lab session helpers and `Kinetra::Launcher` for the blueprint screen ([Lab boundaries](../../AGENTS.md#lab-boundaries)).
+
+## Changing this module
+
+| To | Change | Test with |
+| --- | --- | --- |
+| Add a key | `FactoryController::handle_keys`; the help lines in `session.cpp`; the [controls](#controls) table | A case in `controller_tests.cpp` |
+| Add a debug-menu entry | `add_view_entries` or `add_motion_entries` in `controller.cpp` | The page-listing cases in `controller_tests.cpp`. The graphics test clicks rows by index, so a new row in the middle moves its `click_row` numbers |
+| Add a debug layer | A flag in `ViewLayers`, an entry (and a key), the drawing in `world_view.cpp`, and `hidden_layers` in `session.cpp` (a `static_assert` reminds you) | Controller cases for the flag; the graphics suite for the drawing |
+| Change what the HUD shows | `hud.cpp` | The graphics suite compares the statistics lines |
+| Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
+| Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
+| Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases, a showcase scene when it is worth showing |
+| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the fourteen original files stay unchanged | The loader cases in `simulation_tests.cpp` |
+| Add a tuning value | `simulation_constants.h` when components share it, otherwise a named constant where it is used | |
+
+Pitfalls:
+
+- Positions in factory space have Y down. Convert with `flip_y` at the camera, never inside the simulation.
+- A line width or marker size in world units must be divided by the camera zoom, or it changes with the zoom.
+- The drawing order is the layering: later calls cover earlier ones.
+- Warnings are errors for all of `labs/i4sim` in the `dev`, `ci` and `windows` presets.
+- The session has no pixel-exact test in the repository. A restructuring of the drawing code is best checked by saving frames before and after and comparing them; `I4SIM_CAPTURE` in the graphics test saves one.
+
+## Tests
+
+| Suite | Covers | Needs |
+| --- | --- | --- |
+| `kinetra_i4sim` | Blueprints, recipes, production, motion and every traffic policy, the event log, flow metrics, scenarios | Nothing |
+| `kinetra_i4sim_golden`, `kinetra_i4sim_pressure` | Ten seeded runs and eight passing scenarios under pressure, each pinned to one recorded line | Exact floating point |
+| `kinetra_i4sim_controller` | Loading, keys, pointer, camera, modal pause and the debug-menu entries | Nothing |
+| `kinetra_i4sim_graphics` | The session as a whole: blueprint screen, panels, rendered overlays, catalog recovery, showcase scenes | An OpenGL context |
+| `kinetra_i4sim_relocation` | The catalog is found beside a relocated executable | Nothing |
+
+```sh
+cmake --preset release
+cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim
+ctest --preset release -R '^kinetra_i4sim'
+cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics
+```
+
+Not covered: desktop feel and real-time performance, which software rendering cannot show, and the path where a scene cannot be replayed after `R`. The [test guide](tests/README.md) describes each suite, the demonstrations and the motion benchmark with its baseline.
 
 ## Provenance and differences
 
-Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. The original checkout remains unchanged. All fourteen JSON files are bundled unchanged; their city aliases intentionally retain the original internal names. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry [engine license](../../external/Kinetra/LICENSE).
+Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. All fourteen JSON blueprints are bundled unchanged; their city aliases keep the original internal names. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
 
-MQTT, Akka.NET, .NET and Win32/Direct2D are absent. Deterministic tick state transitions replace actors. The original asynchronous scheduling and pixel appearance are not reproduced exactly. The port uses safe waypoint paths and optional, explicitly enabled geometric replanning rather than unchecked Bezier curves; weighted costs use physical cell distances. Parking reservations remain owned by their original movers instead of compacting/switching between model-specific spaces. Collision counters count contact episodes; duration is reported separately, rather than reproducing the original cooldown counter. Summary JSON replaces per-tick text logs and original dump formatting. The tangent-based `RVODeadlock` translation is exposed as an experiment, not a collision-free solver. Radial-border steering is not a separate mode. These differences rule out bit-for-bit parity with the reference.
+| Reference | This port |
+| --- | --- |
+| MQTT, Akka.NET actors, .NET, Win32/Direct2D | Absent. Deterministic state transitions per tick replace the actors, so the asynchronous scheduling and the pixel appearance are not reproduced |
+| Bezier curves between cells | Waypoint paths that are checked against the mover's footprint, and optional geometric replanning; weighted costs use physical cell distances |
+| Parking places compact and switch between model-specific spaces | Each mover keeps its own parking place |
+| A cooldown counter for collisions | Contact episodes, with their duration counted separately |
+| Per-tick text logs and dump formatting | One `summary.json` |
+| `RVODeadlock` | Exposed as the RVO experiment, not as a collision-free solver |
+| Radial-border steering | Not a separate mode |
 
-## Verification
+These differences rule out bit-for-bit parity with the reference. Both recipes are implemented: Trimmer with four interactions and TrimmerPersonalized with six, at 1000 ticks per interaction.
 
-The [test guide](tests/README.md) records behavioral and graphics coverage. Run Kinetra independently after engine edits, then the normal Lab integration build and CTest suite. Software OpenGL verifies rendering and input contracts, not desktop feel or real-time performance.
+## Open points
+
+- `R` builds a new simulation at the default 200 ticks per second, so a session started with `--ups N` loses its rate on a restart.
+- RESET PARAMETERS sets the horizon to 8 ticks, while a new simulation starts at 32.
+- `create_session` accepts an `output` directory and ignores it; a graphical session writes no summary.
+- The graphics suite is one long case that clicks debug-menu rows by index. Named steps would make a failure easier to place.
+- Predictive passing is not safe under pressure yet: a third mover in a passing lane, and three oncoming movers, are recorded as today's outcomes. Roadmap [phase 7](../../docs/design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure) addresses them, and [phase 8](../../docs/design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism) moves the proven mechanism to Kinetra.
+- Desktop playtests and performance checks stay manual.
