@@ -170,4 +170,3 @@ Filled in when the branch is complete.
 ## Open points
 
 - Dotio's other randomness is still unseeded ([quality roadmap](2026-11-18-quality-roadmap.md)).
-- Lab `main` records Kinetra `745ac3c`, the head of the open Kinetra pull request 11, not a commit on Kinetra `main`. This branch's engine branch builds on it, so that pull request merges first.
