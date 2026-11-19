@@ -77,7 +77,7 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     const auto position = [&](std::size_t id) { return application.presented_pose(id).position; };
     // The camera follows the drawn player, not the simulated one, or the player would
     // jitter on screen. Only for this frame's drawing: the session keeps its camera.
-    const lab::ScopedCameraShift follow_drawn_player(
+    const kinetra_lab::ScopedCameraShift follow_drawn_player(
         runtime.camera,
         scene.following ? position(scene.player) - scene.world.body(scene.player).position : Vec2{});
     runtime.begin();

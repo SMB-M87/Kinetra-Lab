@@ -93,7 +93,7 @@ class FactoryController {
     /// frame is over.
     bool begin_frame(double elapsed);
     /// Pauses the simulation while a modal panel is `open` and restores the run state it
-    /// had when the panel closes (lab::ModalPause). Call once per frame.
+    /// had when the panel closes (kinetra_lab::ModalPause). Call once per frame.
     void suspend(bool open);
     /// The rows of the debug menu, in display order: the headings SIMULATION, LAYERS, MOTION
     /// and TRAFFIC, each followed by its rows while it is open, then, below a rule, ZOOM,
@@ -165,11 +165,11 @@ class FactoryController {
     /// Which section and which list of the debug menu are open.
     kinetra::DebugFolds folds_{"SIMULATION"};
     /// The menu's ZOOM row and the steps its buttons asked for.
-    lab::ZoomControl zoom_;
+    kinetra_lab::ZoomControl zoom_;
     bool fit_pending_{};
     /// Set by the BLUEPRINTS entry; the next begin_frame() closes the blueprint, so the
     /// frame that clicked the entry still finishes with its simulation.
     bool close_requested_{};
-    lab::ModalPause modal_pause_;
+    kinetra_lab::ModalPause modal_pause_;
 };
 } // namespace i4sim

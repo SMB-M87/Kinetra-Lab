@@ -8,14 +8,14 @@ namespace dotio {
 namespace {
 class DotioSession final : public Session {
     dotio::Application application_;
-    lab::FrameLimitSwitch frame_limit_;
+    kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the application and the switch whose flags it borrows.
     kinetra::SettingsOverlay settings_{
-        lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
+        kinetra_lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
                            frame_limit_.enabled, {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
                            {"GHOST CLICK  TELEPORT"}),
         &application_.debug};
-    lab::ModalPause pause_;
+    kinetra_lab::ModalPause pause_;
 
   public:
     DotioSession(std::uint32_t seed, logic::Difficulty difficulty) : application_(seed, difficulty) {}

@@ -23,7 +23,7 @@ class Application;
 /// Input alone cannot tell a tool where the enemies are, and the AI is not seeded, so a
 /// script cannot know it in advance. A tool that plays the game, such as the capture tool's
 /// scripted player, reads the world here and answers with ordinary input.
-class Session : public lab::Session {
+class Session : public kinetra_lab::Session {
   public:
     /// The application this session advances and draws; it lives as long as the session.
     /// For reading between two advance() calls. The session owns the rules: a caller that

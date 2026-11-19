@@ -37,7 +37,7 @@ class Recorder {
     }
 
     /// The fingerprint of the trajectory recorded so far.
-    lab::test::Fingerprint trajectory() const { return trajectory_; }
+    kinetra_lab::testing::Fingerprint trajectory() const { return trajectory_; }
 
     /// Reduces the totals, the recorded trajectory and the open work to one line.
     std::string summary(const Simulation &simulation) const {
@@ -66,7 +66,7 @@ class Recorder {
     }
 
   private:
-    lab::test::Fingerprint trajectory_;
+    kinetra_lab::testing::Fingerprint trajectory_;
 };
 
 /// True when KINETRA_PRINT_GOLDEN=1 asks for the current lines.

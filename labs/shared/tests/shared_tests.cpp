@@ -25,29 +25,29 @@ kinetra::Input holding(std::initializer_list<kinetra::Key> keys) {
 
 TEST_CASE("wasd and arrows map to the same world direction") {
     using kinetra::Key;
-    CHECK(lab::direction(holding({Key::d})).x == 1);
-    CHECK(lab::direction(holding({Key::right})).x == 1);
-    CHECK(lab::direction(holding({Key::a})).x == -1);
-    CHECK(lab::direction(holding({Key::left})).x == -1);
-    CHECK(lab::direction(holding({Key::w})).y == 1);
-    CHECK(lab::direction(holding({Key::up})).y == 1);
-    CHECK(lab::direction(holding({Key::s})).y == -1);
-    CHECK(lab::direction(holding({Key::down})).y == -1);
+    CHECK(kinetra_lab::direction(holding({Key::d})).x == 1);
+    CHECK(kinetra_lab::direction(holding({Key::right})).x == 1);
+    CHECK(kinetra_lab::direction(holding({Key::a})).x == -1);
+    CHECK(kinetra_lab::direction(holding({Key::left})).x == -1);
+    CHECK(kinetra_lab::direction(holding({Key::w})).y == 1);
+    CHECK(kinetra_lab::direction(holding({Key::up})).y == 1);
+    CHECK(kinetra_lab::direction(holding({Key::s})).y == -1);
+    CHECK(kinetra_lab::direction(holding({Key::down})).y == -1);
 }
 
 TEST_CASE("opposite keys cancel and diagonals stay unnormalized") {
     using kinetra::Key;
-    const auto cancelled = lab::direction(holding({Key::a, Key::d, Key::w, Key::down}));
+    const auto cancelled = kinetra_lab::direction(holding({Key::a, Key::d, Key::w, Key::down}));
     CHECK(cancelled.x == 0);
     CHECK(cancelled.y == 0);
-    const auto diagonal = lab::direction(holding({Key::d, Key::up}));
+    const auto diagonal = kinetra_lab::direction(holding({Key::d, Key::up}));
     CHECK(diagonal.x == 1);
     CHECK(diagonal.y == 1);
-    CHECK_MESSAGE(lab::direction(holding({Key::d, Key::right})).x == 1, "a key and its arrow do not add up");
+    CHECK_MESSAGE(kinetra_lab::direction(holding({Key::d, Key::right})).x == 1, "a key and its arrow do not add up");
 }
 
 TEST_CASE("a modal panel pauses and then restores a running application") {
-    lab::ModalPause pause;
+    kinetra_lab::ModalPause pause;
     CHECK_FALSE(pause.update(false, false));
     CHECK(pause.update(true, false));
     CHECK_MESSAGE(pause.update(true, true), "the application stays paused while the panel is open");
@@ -55,20 +55,20 @@ TEST_CASE("a modal panel pauses and then restores a running application") {
 }
 
 TEST_CASE("a modal panel keeps an application paused that was paused before") {
-    lab::ModalPause pause;
+    kinetra_lab::ModalPause pause;
     CHECK(pause.update(true, true));
     CHECK(pause.update(false, true));
 }
 
 TEST_CASE("without a panel the pause state passes through") {
-    lab::ModalPause pause;
+    kinetra_lab::ModalPause pause;
     CHECK(pause.update(false, true));
     CHECK_FALSE(pause.update(false, false));
 }
 
 TEST_CASE("the settings rows come in Lab's order without a zoom row") {
     bool statistics{}, debug{}, frame_times{}, frame_limit{};
-    const auto rows = lab::settings_rows(statistics, debug, frame_times, frame_limit, {"MOVE"}, {"TELEPORT"});
+    const auto rows = kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"MOVE"}, {"TELEPORT"});
     REQUIRE(rows.size() == 6);
     const std::pair<const char *, bool *> toggles[]{{"STATISTICS", &statistics},
                                                     {"DEBUG MODE", &debug},
@@ -85,12 +85,12 @@ TEST_CASE("the settings rows come in Lab's order without a zoom row") {
     CHECK(sim.lines == std::vector<std::string>{"MOVE"});
     const auto &controls = std::get<kinetra::HelpSection>(rows[5]);
     CHECK(controls.label == "DEBUG CONTROLS");
-    const std::vector<std::string> expected{lab::debug_menu_help, lab::wheel_zoom_help, "TELEPORT"};
+    const std::vector<std::string> expected{kinetra_lab::debug_menu_help, kinetra_lab::wheel_zoom_help, "TELEPORT"};
     CHECK_MESSAGE(controls.lines == expected, "the shared lines come before the application's");
 }
 
 TEST_CASE("the zoom row collects the steps of its buttons and shows the observed zoom") {
-    lab::ZoomControl zoom;
+    kinetra_lab::ZoomControl zoom;
     auto row = zoom.entry();
     CHECK(row.label == "ZOOM");
     CHECK(row.depth == 0);
@@ -113,7 +113,7 @@ TEST_CASE("the zoom row collects the steps of its buttons and shows the observed
 
 TEST_CASE("the speed row halves and doubles the time scale within its limits") {
     float scale = 1;
-    auto row = lab::time_scale_entry(scale);
+    auto row = kinetra_lab::time_scale_entry(scale);
     CHECK(row.label == "SPEED");
     CHECK(row.depth == 1);
     CHECK(row.value() == "1X");
@@ -122,9 +122,9 @@ TEST_CASE("the speed row halves and doubles the time scale within its limits") {
     CHECK(row.value() == "0.5X");
     for (int i = 0; i < 10; ++i)
         row.decrease();
-    CHECK(scale == lab::slowest_time_scale);
+    CHECK(scale == kinetra_lab::slowest_time_scale);
     for (int i = 0; i < 20; ++i)
         row.increase();
-    CHECK(scale == lab::fastest_time_scale);
+    CHECK(scale == kinetra_lab::fastest_time_scale);
     CHECK(row.value() == "4X");
 }

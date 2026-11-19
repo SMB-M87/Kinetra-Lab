@@ -39,7 +39,7 @@ void DebugPanel::add_simulation_entries(std::vector<DebugEntry> &entries) {
                                step_requested_ = true;
                            },
                        .depth = 1});
-    entries.push_back(lab::time_scale_entry(time_scale_));
+    entries.push_back(kinetra_lab::time_scale_entry(time_scale_));
     entries.push_back(kinetra::debug_check("GRAVITY", gravity_));
 }
 

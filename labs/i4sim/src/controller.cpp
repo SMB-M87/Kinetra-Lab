@@ -345,7 +345,7 @@ void FactoryController::handle_input(double elapsed, const Input &input, Camera2
     kinetra::zoom(camera, (wheel_zooms ? input.wheel : 0) + zoom_.take_steps(), zoom_limits);
     zoom_.observe(camera);
     const float step = float(std::min(elapsed, longest_pan_frame)) * pan_speed / camera.pixels_per_unit;
-    camera.position += lab::direction(input) * step;
+    camera.position += kinetra_lab::direction(input) * step;
     if (!panels.pointer_captured)
         handle_pointer(input, camera);
     simulation_->advance(elapsed);

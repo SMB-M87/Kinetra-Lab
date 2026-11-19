@@ -3,7 +3,7 @@
 #include <kinetra/runtime/session.h>
 #include <string>
 
-namespace lab {
+namespace kinetra_lab {
 
 /// Base of every Lab session. Lab applications leave through their settings panel
 /// (LAUNCHER or EXIT) or the window's close button, never through Escape, which their
@@ -17,4 +17,4 @@ class Session : public kinetra::Session {
     virtual std::string status() = 0;
 };
 
-} // namespace lab
+} // namespace kinetra_lab

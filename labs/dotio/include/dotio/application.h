@@ -91,7 +91,7 @@ class Application {
                                    step_requested_ = true;
                                },
                            .depth = 1});
-        entries.push_back(lab::time_scale_entry(time_scale));
+        entries.push_back(kinetra_lab::time_scale_entry(time_scale));
         entries.push_back(kinetra::debug_check("INVULNERABLE", invulnerable));
     }
 
@@ -174,7 +174,7 @@ class Application {
     /// Which section and which list of the debug menu are open.
     kinetra::DebugFolds folds{"SIMULATION"};
     /// The debug menu's ZOOM row and the steps its buttons asked for.
-    lab::ZoomControl zoom;
+    kinetra_lab::ZoomControl zoom;
     /// Frames, fixed updates and AI decisions per second, for the statistics line.
     kinetra::RateCounter frame_rate, update_rate, decision_rate;
     /// The rows of the debug menu in display order: the headings SIMULATION, LAYERS, ENEMIES

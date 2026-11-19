@@ -144,5 +144,5 @@ cmake --build --preset graphics --target kinetra_capture && ctest --preset graph
 
 - A frame read-back helper on Kinetra's `Runtime` would replace the `glReadPixels` code here and in the graphics tests.
 - Dotio captures are not reproducible until Dotio's randomness is seeded. Until then the debug clip waits for a recovery instead of a fixed time, and its take is chosen by eye.
-- The scripts click rows by number. Tests check the debug-menu clicks against the applications' own rows, and the i4sim clicks are checked again at capture time; the settings rows still follow `lab::settings_rows` by hand.
+- The scripts click rows by number. Tests check the debug-menu clicks against the applications' own rows, and the i4sim clicks are checked again at capture time; the settings rows still follow `kinetra_lab::settings_rows` by hand.
 - The two i4sim measurements repeat the session's frame order (`begin_frame`, `suspend`, `handle_input`) by hand. A helper in the i4sim logic that runs one session frame would serve both.

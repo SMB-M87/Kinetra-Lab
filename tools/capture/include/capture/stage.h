@@ -24,7 +24,7 @@ inline constexpr std::uint32_t capture_seed = 42;
 /// measurement (showcase.h) shares.
 inline constexpr unsigned i4sim_updates_per_second = 200;
 
-/// Rows of the Lab settings panel, in the order of lab::settings_rows.
+/// Rows of the Lab settings panel, in the order of kinetra_lab::settings_rows.
 enum class SettingsRow : std::size_t {
     statistics,
     debug_mode,

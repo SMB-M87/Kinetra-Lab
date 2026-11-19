@@ -4,7 +4,7 @@
 
 /// Input policy shared by the Lab applications. Headless: it uses only Kinetra's input
 /// types, so the rules are testable without a window.
-namespace lab {
+namespace kinetra_lab {
 
 /// Movement direction from WASD or the arrow keys: x is right minus left, y is up minus
 /// down (world axes, Y up). Opposite keys cancel; diagonals are not normalized.
@@ -40,4 +40,4 @@ class ModalPause {
     bool was_open_{}, paused_before_{};
 };
 
-} // namespace lab
+} // namespace kinetra_lab

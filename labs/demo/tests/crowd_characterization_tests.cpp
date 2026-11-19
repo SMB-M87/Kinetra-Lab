@@ -30,7 +30,7 @@
 #include <string_view>
 
 namespace {
-using lab::test::Fingerprint;
+using kinetra_lab::testing::Fingerprint;
 
 /// Elapsed time per frame in seconds; the Demo's fixed clock steps at the same rate.
 constexpr double frame_seconds = 1.0 / 120;

@@ -10,7 +10,7 @@ namespace sandbox {
 inline FrameCommands read_commands(const kinetra::Input &input) {
     using kinetra::Key;
     FrameCommands commands;
-    commands.player.direction = lab::direction(input);
+    commands.player.direction = kinetra_lab::direction(input);
     commands.player.turn_left = input.down(Key::q) || (input.down(Key::shift) && input.down(Key::left));
     commands.player.turn_right = input.down(Key::e) || (input.down(Key::shift) && input.down(Key::right));
     // Shift turns the arrows into rotation, so only A and D still move sideways.

@@ -159,7 +159,7 @@ Vec2 Stage::settings_point(SettingsRow row) const {
     // move collapsed rows.
     bool statistics{}, debug{}, frame_times{}, frame_limit{};
     const kinetra::SettingsOverlay mirror(
-        lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
     const Vec2 panel{settings_click_x, mirror.row_y(std::size_t(row)) + settings_click_below_top};
     return viewport() / 2 + (panel - mirror.half_extent()) * kinetra::SettingsOverlay::scale(viewport());
 }

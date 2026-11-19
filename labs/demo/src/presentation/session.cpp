@@ -11,21 +11,21 @@ namespace sandbox {
 namespace {
 /// The graphical Demo session: it orders a frame and owns the panels. What the debug menu
 /// holds and decides is the DebugPanel's; the scene is drawn by the renderer.
-class DemoSession final : public lab::Session {
+class DemoSession final : public kinetra_lab::Session {
     sandbox::SandboxApplication application_;
     // Declared after the application it borrows.
     sandbox::DebugPanel panel_{application_};
     kinetra::DebugMenu menu_;
     bool debug_{true}, statistics_{true}, frame_times_{};
-    lab::FrameLimitSwitch frame_limit_;
+    kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     kinetra::SettingsOverlay settings_{
-        lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
+        kinetra_lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
                            {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL", "Q / E  ROTATE PLAYER",
                             "SHIFT + LEFT / RIGHT  ROTATE"},
                            {"GHOST CLICK  TELEPORT"}),
         &debug_};
-    lab::ModalPause pause_;
+    kinetra_lab::ModalPause pause_;
     kinetra::RateCounter fps_;
     /// The menu's rows while it shows. A hidden menu needs none: it takes no click and
     /// draws nothing, and the rows are rebuilt on the frame after the shortcut shows it.
@@ -69,7 +69,7 @@ class DemoSession final : public lab::Session {
     std::string status() override { return sandbox::status_text(application_); }
 };
 } // namespace
-std::unique_ptr<lab::Session> create_session(int count, std::uint32_t seed) {
+std::unique_ptr<kinetra_lab::Session> create_session(int count, std::uint32_t seed) {
     return std::make_unique<DemoSession>(count, seed);
 }
 } // namespace sandbox

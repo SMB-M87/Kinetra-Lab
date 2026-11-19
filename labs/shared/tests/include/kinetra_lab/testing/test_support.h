@@ -9,7 +9,7 @@
 /// included here, so every application's tests can link the `kinetra_lab_test_support`
 /// target. Assertions come from doctest (`CHECK`, `REQUIRE`); this header only adds what
 /// doctest lacks.
-namespace lab::test {
+namespace kinetra_lab::testing {
 
 /// 64-bit FNV-1a hash over the exact bits of the values added, in order.
 ///
@@ -35,4 +35,4 @@ class Fingerprint {
     std::uint64_t hash_{0xcbf29ce484222325};
 };
 
-} // namespace lab::test
+} // namespace kinetra_lab::testing

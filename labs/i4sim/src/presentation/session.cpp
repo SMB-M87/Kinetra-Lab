@@ -23,7 +23,7 @@ using namespace kinetra;
 /// The graphical i4sim session: it orders a frame and owns the panels. What a frame decides
 /// is the controller's; what it shows is drawn by the blueprint screen, the world view and
 /// the HUD.
-class FactorySession final : public lab::Session {
+class FactorySession final : public kinetra_lab::Session {
   public:
     FactorySession(std::uint32_t seed, const std::filesystem::path &directory,
                    const std::optional<std::filesystem::path> &initial, bool running, unsigned ups)
@@ -128,10 +128,10 @@ class FactorySession final : public lab::Session {
     bool leave_{}, exit_{};
     DebugMenu menu_;
     bool statistics_{true}, debug_{true}, frame_times_{};
-    lab::FrameLimitSwitch frame_limit_;
+    kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     SettingsOverlay settings_{
-        lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
+        kinetra_lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
                            {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK",
                             "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
                            {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),
@@ -139,7 +139,7 @@ class FactorySession final : public lab::Session {
 };
 } // namespace
 
-std::unique_ptr<lab::Session> create_session(std::uint32_t seed, std::filesystem::path directory,
+std::unique_ptr<kinetra_lab::Session> create_session(std::uint32_t seed, std::filesystem::path directory,
                                              std::optional<std::filesystem::path> initial, bool running,
                                              unsigned ups, std::optional<std::filesystem::path>) {
     return std::make_unique<FactorySession>(seed, directory, initial, running, ups);

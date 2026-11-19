@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace lab {
+namespace kinetra_lab {
 
 /// Help lines that every Lab application shows under DEBUG CONTROLS before its own.
 inline const std::string debug_menu_help = "SHIFT + CTRL  DEBUG MENU";
@@ -60,4 +60,4 @@ class FrameLimitSwitch {
     bool synchronized_{}, applied_{true};
 };
 
-} // namespace lab
+} // namespace kinetra_lab

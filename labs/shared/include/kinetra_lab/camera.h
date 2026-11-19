@@ -2,7 +2,7 @@
 
 #include <kinetra/view/camera.h>
 
-namespace lab {
+namespace kinetra_lab {
 
 /// Moves a camera by `offset` world units for one frame's drawing and puts it back when
 /// destroyed, also when drawing throws.
@@ -25,4 +25,4 @@ class ScopedCameraShift {
     kinetra::Vec2 saved_;
 };
 
-} // namespace lab
+} // namespace kinetra_lab

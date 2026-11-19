@@ -33,9 +33,9 @@ flowchart LR
 
 ## Navigation
 
-Lab runs `kinetra::run_launcher` with `launcher::bindings` = `{std::nullopt, false}`: no menu key, and Escape never closes the window. Every Lab session derives from `lab::Session`, whose `close_on_escape()` is false, because Escape belongs to the applications (i4sim's blueprint screen uses it).
+Lab runs `kinetra::run_launcher` with `launcher::bindings` = `{std::nullopt, false}`: no menu key, and Escape never closes the window. Every Lab session derives from `kinetra_lab::Session`, whose `close_on_escape()` is false, because Escape belongs to the applications (i4sim's blueprint screen uses it).
 
-The window title is "Launcher" in the menu and the application's name in a session: "Demo", "Dotio" or "i4sim". State such as pause, counters or the loaded blueprint is drawn in the window, not put in the title. `lab::Session::status()` returns that state as one line for tests and diagnostics; the graphics tests read pause state and screen changes from it.
+The window title is "Launcher" in the menu and the application's name in a session: "Demo", "Dotio" or "i4sim". State such as pause, counters or the loaded blueprint is drawn in the window, not put in the title. `kinetra_lab::Session::status()` returns that state as one line for tests and diagnostics; the graphics tests read pause state and screen changes from it.
 
 | Action | In the launcher | In a direct executable (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) |
 | --- | --- | --- |
@@ -46,14 +46,14 @@ The window title is "Launcher" in the menu and the application's name in a sessi
 
 ## Settings policy
 
-Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/shared](../labs/shared/include/kinetra_lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
+Each session owns a `kinetra::SettingsOverlay` built by `kinetra_lab::settings_rows()` ([labs/shared](../labs/shared/include/kinetra_lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
 
 | Row | Effect |
 | --- | --- |
 | STATISTICS | The application's statistics line |
 | DEBUG MODE | The debug layers, the DEBUG toolbar button and the debug zoom range. Shift+Ctrl switches it on as well |
 | FRAME TIMES | Off by default. Draws Kinetra's frame-time graph in the top-right corner: the time between the last 240 presented frames and what paces them, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)) |
-| FRAME LIMIT | On by default. Where the platform has no VSync (WSLg), the runtime paces frames at the display's refresh rate; off shows the unpaced loop for comparison. Without effect where VSync works. The choice belongs to the window (`lab::FrameLimitSwitch`), so it carries over to the next application started from the launcher |
+| FRAME LIMIT | On by default. Where the platform has no VSync (WSLg), the runtime paces frames at the display's refresh rate; off shows the unpaced loop for comparison. Without effect where VSync works. The choice belongs to the window (`kinetra_lab::FrameLimitSwitch`), so it carries over to the next application started from the launcher |
 
 | Application | Zoom limits (pixels per unit) | Sim controls lines |
 | --- | --- | --- |
@@ -62,11 +62,11 @@ Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` (
 | i4sim | 0.005–10 (pixels per millimeter) | 4 |
 
 While the panel is open:
-- the application is paused by `lab::ModalPause`, which restores the earlier pause state on close (the application may have been paused before);
+- the application is paused by `kinetra_lab::ModalPause`, which restores the earlier pause state on close (the application may have been paused before);
 - every gameplay input is suppressed, including the click that closes the panel;
 - the debug menu is hidden.
 
-Ctrl opens and closes the panel when the key is released. Movement keys come from `lab::direction` (WASD or arrows).
+Ctrl opens and closes the panel when the key is released. Movement keys come from `kinetra_lab::direction` (WASD or arrows).
 
 ## Debug menu
 
@@ -83,7 +83,7 @@ Every application builds its rows in its logic layer, as `kinetra::DebugEntry` v
 
 One section is open at a time (`kinetra::DebugFolds`). The rows of each application are listed in its README: [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md), [i4sim](../labs/i4sim/README.md).
 
-**Zoom** is a debug tool. The ZOOM row (`lab::ZoomControl` in [kinetra_lab/debug.h](../labs/shared/include/kinetra_lab/debug.h)) and the wheel both zoom through `kinetra::zoom` with the application's limits; the wheel only in Debug Mode and not over a panel. Leaving Debug Mode clamps the zoom to the normal range.
+**Zoom** is a debug tool. The ZOOM row (`kinetra_lab::ZoomControl` in [kinetra_lab/debug.h](../labs/shared/include/kinetra_lab/debug.h)) and the wheel both zoom through `kinetra::zoom` with the application's limits; the wheel only in Debug Mode and not over a panel. Leaving Debug Mode clamps the zoom to the normal range.
 
 ## Tests
 

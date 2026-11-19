@@ -16,7 +16,7 @@ Color wall_color(int absolute_row, int absolute_column) {
 
 Commands read_commands(const Input &input, const Camera2D &camera) {
     Commands commands;
-    commands.direction = lab::direction(input);
+    commands.direction = kinetra_lab::direction(input);
     commands.camera_pan = commands.direction;
     commands.aim = camera.screen_to_world(input.mouse);
     commands.shoot = input.mouse_down || input.clicked;
@@ -99,7 +99,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     // on screen; Ghost moves per frame and needs no correction. Restored after the frame.
     const auto simulated_player = to_world(world.GetPlayer().Position);
     const PresentedPositions presented(application);
-    const lab::ScopedCameraShift follow_drawn_player(
+    const kinetra_lab::ScopedCameraShift follow_drawn_player(
         runtime.camera, application.ghost ? Vec2{} : to_world(world.GetPlayer().Position) - simulated_player);
     runtime.begin({0, 0, 0});
     Renderer renderer(runtime);

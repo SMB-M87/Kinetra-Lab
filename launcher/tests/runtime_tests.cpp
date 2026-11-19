@@ -33,7 +33,7 @@ std::unique_ptr<Session> start(Variant variant, Camera2D &camera,
 
 /// The state summary of a Lab session; every launcher registration creates one.
 std::string status(Session &session) {
-    return dynamic_cast<lab::Session &>(session).status();
+    return dynamic_cast<kinetra_lab::Session &>(session).status();
 }
 
 bool paused(Session &session) {
@@ -66,7 +66,7 @@ struct PanelLayout {
     SettingsOverlay overlay;
     Camera2D camera;
     explicit PanelLayout(std::size_t sim_lines, Vec2 viewport)
-        : overlay(lab::settings_rows(statistics, debug, frame_times, frame_limit,
+        : overlay(kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit,
                                      std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
         camera.viewport = viewport;
         Input open;
@@ -447,7 +447,7 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
 
 TEST_CASE("lab bindings keep m and escape inside the running session") {
     Runtime runtime("Launcher bindings", 160, 120);
-    struct LoopSession final : lab::Session {
+    struct LoopSession final : kinetra_lab::Session {
         int &updates, &destroyed;
         LoopSession(int &u, int &d) : updates(u), destroyed(d) {}
         ~LoopSession() override { ++destroyed; }

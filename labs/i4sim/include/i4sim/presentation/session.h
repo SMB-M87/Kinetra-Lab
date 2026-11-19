@@ -16,7 +16,7 @@ inline constexpr float initial_zoom = 25;
 /// loaded blueprint unpaused, and `updates_per_second` is its tick rate. `output` is
 /// accepted for the command line's sake and not used: a session writes no summary.
 /// Throws std::invalid_argument for an update rate outside 1..10000.
-std::unique_ptr<lab::Session>
+std::unique_ptr<kinetra_lab::Session>
 create_session(std::uint32_t seed = 42, std::filesystem::path directory = default_blueprint_directory(),
                std::optional<std::filesystem::path> initial_blueprint = std::nullopt, bool running = false,
                unsigned updates_per_second = 200, std::optional<std::filesystem::path> output = std::nullopt);

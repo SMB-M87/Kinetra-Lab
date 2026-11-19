@@ -99,7 +99,7 @@ class DebugPanel {
 
     SandboxApplication &application_;
     kinetra::DebugFolds folds_{"SIMULATION"};
-    lab::ZoomControl zoom_;
+    kinetra_lab::ZoomControl zoom_;
     DebugLayers layers_;
     bool ghost_{}, gravity_{}, click_sets_goal_{}, reciprocal_{true};
     float time_scale_{1};

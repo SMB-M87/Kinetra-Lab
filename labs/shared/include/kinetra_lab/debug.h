@@ -9,7 +9,7 @@
 
 /// Debug-menu rows every Lab application shows. Headless: it uses only Kinetra's plain menu
 /// and camera types, so an application's logic layer builds and tests its menu with them.
-namespace lab {
+namespace kinetra_lab {
 
 /// The ZOOM row of a debug menu.
 ///
@@ -57,4 +57,4 @@ inline kinetra::DebugEntry time_scale_entry(float &scale, int depth = 1) {
             .depth = depth};
 }
 
-} // namespace lab
+} // namespace kinetra_lab

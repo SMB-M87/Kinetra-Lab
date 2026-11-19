@@ -51,7 +51,7 @@ With `KINETRA_LAB_BUILD_RUNTIME=OFF`, application logic, its headless tests and 
 sequenceDiagram
     participant Main as kinetra main.cpp
     participant Host as kinetra::run_launcher
-    participant Session as Application session (lab::Session)
+    participant Session as Application session (kinetra_lab::Session)
     participant App as Application state
     participant Runtime as Kinetra Runtime
     Main->>Host: run_launcher(runtime, launcher::applications(options), initial, frames, launcher::bindings)
@@ -81,7 +81,7 @@ The bundled launcher calls `kinetra::run_launcher` with Lab's registrations and 
 
 Runtime outlives every session; sessions own application state. Applications choose timing, bindings, pause behavior and world residency. Debug overlay pointers and callbacks borrow application state and must remain valid during update and draw. The direct executables (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) use the core `run_session` loop.
 
-**Drawing between ticks.** Each application keeps the state of its moving objects before and after the last fixed tick and draws them at the fraction of the next tick already accumulated (`FixedClock::interpolation()`), so motion stays even when one frame runs more ticks than the next. A paused scene, and any object that changed outside the last tick (a teleport, Demo's chunk streaming renumbering bodies, a Dotio slot reused by a new enemy), is drawn at its exact state, and so is Dotio's player in a tick that respawned it. The first running frame after a pause, and i4sim after a UPS change, start from the current state, so drawing never steps back behind what the paused frame showed. Demo and Dotio move the camera with the drawn player for the frame through `lab::ScopedCameraShift` ([labs/shared](../labs/shared/include/kinetra_lab/camera.h)), which restores it afterwards. The snapshots are presentation state: no simulation decision reads them, so seeded runs and characterization fingerprints are unchanged.
+**Drawing between ticks.** Each application keeps the state of its moving objects before and after the last fixed tick and draws them at the fraction of the next tick already accumulated (`FixedClock::interpolation()`), so motion stays even when one frame runs more ticks than the next. A paused scene, and any object that changed outside the last tick (a teleport, Demo's chunk streaming renumbering bodies, a Dotio slot reused by a new enemy), is drawn at its exact state, and so is Dotio's player in a tick that respawned it. The first running frame after a pause, and i4sim after a UPS change, start from the current state, so drawing never steps back behind what the paused frame showed. Demo and Dotio move the camera with the drawn player for the frame through `kinetra_lab::ScopedCameraShift` ([labs/shared](../labs/shared/include/kinetra_lab/camera.h)), which restores it afterwards. The snapshots are presentation state: no simulation decision reads them, so seeded runs and characterization fingerprints are unchanged.
 
 | Application | Snapshot | How drawing uses it |
 | --- | --- | --- |
