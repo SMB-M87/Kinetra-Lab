@@ -10,6 +10,8 @@
 #include <lab/settings.h>
 
 #include <cstddef>
+#include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,10 +40,23 @@ std::string row_text(const MenuEntry &entry) {
     return text + std::string(entry.label);
 }
 
+/// Side of a layer's color swatch, in debug-menu panel pixels: one glyph high.
+constexpr float swatch_size = 7;
+
+/// Draws the color swatch of a layer row at the right edge of the row whose text starts at
+/// screen position `text`; `scale` is the menu's screen pixels per panel pixel.
+void draw_swatch(Runtime &runtime, Vec2 text, float scale, Color color) {
+    const float half = swatch_size / 2;
+    const Vec2 center = text + Vec2{DebugMenu::panel_width - 2 * DebugMenu::text_margin - half, half} * scale;
+    runtime.box(runtime.camera.screen_to_world(center),
+                Vec2{half, half} * scale / runtime.camera.pixels_per_unit, 0, color);
+}
+
 /// The controller's menu entries as rows of the engine's debug menu.
 ///
 /// Every entry becomes a button row whose text carries its mark (row_text), so the menu
-/// needs no flag to point at: the entry's action changes the state where it lives. The rows
+/// needs no flag to point at: the entry's action changes the state where it lives. A layer
+/// row drawn in one color gets a swatch of it, as an on-screen legend. The rows
 /// view `labels`: build the rows anew for every menu update and every draw, and do not copy
 /// them.
 struct DebugRows {
@@ -53,9 +68,15 @@ struct DebugRows {
         options.reserve(entries.size());
         for (auto &entry : entries) {
             labels.push_back(row_text(entry));
+            std::function<void(Runtime &, Vec2, float)> swatch;
+            if (const auto color = entry.layer ? layer_color(*entry.layer) : std::nullopt)
+                swatch = [color = *color](Runtime &runtime, Vec2 text, float scale) {
+                    draw_swatch(runtime, text, scale, color);
+                };
             options.push_back({.label = labels.back(),
                                .action = std::move(entry.action),
                                .text = std::move(entry.value),
+                               .visualization = std::move(swatch),
                                .decrease = std::move(entry.decrease),
                                .increase = std::move(entry.increase)});
         }

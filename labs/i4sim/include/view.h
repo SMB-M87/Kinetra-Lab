@@ -20,7 +20,8 @@ constexpr kinetra::Vec2 flip_y(kinetra::Vec2 point) {
 }
 
 /// A debug layer of the world view. Every layer starts selected; layers are drawn only in
-/// debug mode.
+/// debug mode. PATHS, FORCES and BORDERS consist of parts, which are layers of their own:
+/// a part is drawn only while it and its layer are selected (parent_layer).
 enum class Layer : std::uint8_t {
     /// Cell outlines of the route grid.
     grid,
@@ -36,9 +37,53 @@ enum class Layer : std::uint8_t {
     detection,
     /// Outline of each mover's collision box.
     contact_shapes,
+    /// Part of PATHS: the line along each mover's remaining route.
+    routes,
+    /// Part of PATHS: the arrow to a mover's corridor retreat target.
+    retreat_targets,
+    /// Part of PATHS: the arrow to a mover's predictive passing target.
+    passing_targets,
+    /// Part of FORCES: the steering component toward the next route point.
+    seek_force,
+    /// Part of FORCES: the steering component away from other movers.
+    collision_force,
+    /// Part of FORCES: the steering component away from walls.
+    border_force,
+    /// Part of FORCES: the steering component of predictive avoidance.
+    predictive_force,
+    /// Part of FORCES: the line along each mover's velocity.
+    velocity,
+    /// Part of FORCES: the line along each mover's acceleration.
+    acceleration,
+    /// Part of BORDERS: the wall segments.
+    walls,
+    /// Part of BORDERS: the junction and corridor zones with their exit reservations.
+    traffic_zones,
 };
 /// Number of Layer values.
-inline constexpr std::size_t layer_count = 7;
+inline constexpr std::size_t layer_count = 18;
+
+/// The layer that `layer` is a part of, or `layer` itself for a top-level layer.
+constexpr Layer parent_layer(Layer layer) {
+    switch (layer) {
+    case Layer::routes:
+    case Layer::retreat_targets:
+    case Layer::passing_targets:
+        return Layer::paths;
+    case Layer::seek_force:
+    case Layer::collision_force:
+    case Layer::border_force:
+    case Layer::predictive_force:
+    case Layer::velocity:
+    case Layer::acceleration:
+        return Layer::forces;
+    case Layer::walls:
+    case Layer::traffic_zones:
+        return Layer::borders;
+    default:
+        return layer;
+    }
+}
 
 /// Which debug layers are selected: a set of Layer values.
 class ViewLayers {
@@ -55,8 +100,9 @@ class ViewLayers {
     bool selected(Layer layer) const { return selected_.test(index(layer)); }
     /// Selects `layer` when it is not, and the other way around.
     void toggle(Layer layer) { selected_.flip(index(layer)); }
-    /// Whether the world view draws `layer`.
-    bool shows(Layer layer) const { return selected(layer); }
+    /// Whether the world view draws `layer`: it is selected, and so is the layer it is a part
+    /// of. Turning a layer off hides its parts but keeps their selection.
+    bool shows(Layer layer) const { return selected(layer) && selected(parent_layer(layer)); }
 
   private:
     static std::size_t index(Layer layer) { return static_cast<std::size_t>(layer); }

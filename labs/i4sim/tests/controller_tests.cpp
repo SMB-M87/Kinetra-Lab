@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -26,7 +27,7 @@ namespace {
 const auto factory = i4sim::test::original_blueprint("MAS-demonstrator");
 /// An open floor of 2400 by 1600 mm with two movers at (500, 800) and (1900, 800).
 const auto open_floor = i4sim::test::showcase_blueprint("predictive-passing");
-const Layer all_layers[]{Layer::grid,    Layer::heatmap,   Layer::paths,         Layer::forces,
+const Layer top_layers[]{Layer::grid,    Layer::heatmap,   Layer::paths,         Layer::forces,
                          Layer::borders, Layer::detection, Layer::contact_shapes};
 
 Input key(Key pressed) {
@@ -235,7 +236,7 @@ TEST_CASE("the keys one to six toggle their layers") {
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     const auto &layers = controller.layers();
-    for (auto layer : all_layers)
+    for (auto layer : top_layers)
         CHECK(layers.selected(layer));
     frame(controller, camera, key(Key::one));
     CHECK_FALSE(layers.selected(Layer::grid));
@@ -529,15 +530,54 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
           std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
 }
 
-TEST_CASE("the layers section lists every layer as a check box") {
+TEST_CASE("the layers section lists every layer as a check box, each with its parts") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     open_section(controller, "LAYERS");
-    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "GRID", "HEATMAP", "PATHS",
-                                                         "FORCES", "BORDERS", "DETECTION", "CONTACT SHAPES",
-                                                         "MOTION", "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
+    CHECK(labels(controller) ==
+          std::vector<std::string>{
+              "SIMULATION",      "LAYERS",          "GRID",         "HEATMAP", "PATHS",       "ROUTES",
+              "RETREAT TARGETS", "PASSING TARGETS", "FORCES",       "SEEK",    "COLLISION",   "BORDER",
+              "PREDICTIVE",      "VELOCITY",        "ACCELERATION", "BORDERS", "WALLS",       "TRAFFIC ZONES",
+              "DETECTION",       "CONTACT SHAPES",  "MOTION",       "TRAFFIC", "FRAME SCENE", "BLUEPRINTS"});
     const auto paths = entry(controller, "PATHS");
-    CHECK((paths.kind == i4sim::EntryKind::check && paths.layer == Layer::paths));
+    CHECK((paths.kind == i4sim::EntryKind::check && paths.layer == Layer::paths && paths.depth == 1));
+    const auto routes = entry(controller, "ROUTES");
+    CHECK((routes.kind == i4sim::EntryKind::check && routes.layer == Layer::routes && routes.depth == 2));
+}
+
+TEST_CASE("a layer lists its parts only while it is on") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
+    auto camera = camera_for(controller);
+    frame(controller, camera, key(Key::four)); // FORCES off
+    choose(controller, "BORDERS");
+    const auto rows = labels(controller);
+    for (const char *part : {"SEEK", "ACCELERATION", "WALLS", "TRAFFIC ZONES"})
+        CHECK_MESSAGE(std::find(rows.begin(), rows.end(), part) == rows.end(), part << " is listed");
+    CHECK_MESSAGE(std::find(rows.begin(), rows.end(), "ROUTES") != rows.end(), "PATHS is still on");
+    choose(controller, "FORCES");
+    CHECK(entry(controller, "SEEK").active());
+}
+
+TEST_CASE("a part is drawn only while it and its layer are on") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "LAYERS");
+    const auto &layers = controller.layers();
+    choose(controller, "ROUTES");
+    CHECK_FALSE(layers.shows(Layer::routes));
+    CHECK(layers.shows(Layer::retreat_targets));
+    CHECK_MESSAGE(layers.shows(Layer::paths), "turning a part off keeps its layer");
+    choose(controller, "ROUTES");
+    auto camera = camera_for(controller);
+    frame(controller, camera, key(Key::three)); // PATHS off with the key
+    CHECK_FALSE(layers.shows(Layer::routes));
+    CHECK_MESSAGE(layers.selected(Layer::routes), "the part keeps its selection for when PATHS returns");
+    frame(controller, camera, key(Key::three));
+    CHECK(layers.shows(Layer::routes));
+    CHECK_FALSE(i4sim::ViewLayers::none().shows(Layer::routes));
 }
 
 TEST_CASE("the motion section lists the profile, the planner and the parameters") {
@@ -571,7 +611,7 @@ TEST_CASE("the layer entries are check boxes on the layers") {
     const auto &layers = controller.layers();
     for (const char *label : {"GRID", "HEATMAP", "PATHS", "FORCES", "BORDERS", "DETECTION", "CONTACT SHAPES"})
         choose(controller, label);
-    for (auto layer : all_layers)
+    for (auto layer : top_layers)
         CHECK_FALSE(layers.selected(layer));
     CHECK_FALSE(entry(controller, "CONTACT SHAPES").active());
     choose(controller, "CONTACT SHAPES");

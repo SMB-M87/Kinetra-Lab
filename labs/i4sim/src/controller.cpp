@@ -60,13 +60,23 @@ std::string number_text(float value) {
     return text.str();
 }
 
-/// The top-level debug layers in menu order, with their row labels. The keys 1 to 6 toggle
-/// the first six (handle_keys).
-constexpr std::pair<std::string_view, Layer> top_layers[]{{"GRID", Layer::grid},
+/// The debug layers in menu order with their row labels, each layer followed by its parts.
+constexpr std::pair<std::string_view, Layer> layer_rows[]{{"GRID", Layer::grid},
                                                           {"HEATMAP", Layer::heatmap},
                                                           {"PATHS", Layer::paths},
+                                                          {"ROUTES", Layer::routes},
+                                                          {"RETREAT TARGETS", Layer::retreat_targets},
+                                                          {"PASSING TARGETS", Layer::passing_targets},
                                                           {"FORCES", Layer::forces},
+                                                          {"SEEK", Layer::seek_force},
+                                                          {"COLLISION", Layer::collision_force},
+                                                          {"BORDER", Layer::border_force},
+                                                          {"PREDICTIVE", Layer::predictive_force},
+                                                          {"VELOCITY", Layer::velocity},
+                                                          {"ACCELERATION", Layer::acceleration},
                                                           {"BORDERS", Layer::borders},
+                                                          {"WALLS", Layer::walls},
+                                                          {"TRAFFIC ZONES", Layer::traffic_zones},
                                                           {"DETECTION", Layer::detection},
                                                           {"CONTACT SHAPES", Layer::contact_shapes}};
 } // namespace
@@ -377,13 +387,18 @@ void FactoryController::add_simulation_entries(std::vector<MenuEntry> &entries) 
 }
 
 void FactoryController::add_layer_entries(std::vector<MenuEntry> &entries) {
-    for (const auto &[label, layer] : top_layers)
+    for (const auto &[label, layer] : layer_rows) {
+        const Layer parent = parent_layer(layer);
+        // As in Dotio, a layer lists its parts only while it is on.
+        if (parent != layer && !layers_.selected(parent))
+            continue;
         entries.push_back({.label = label,
                            .action = [this, layer] { layers_.toggle(layer); },
                            .kind = EntryKind::check,
                            .active = [this, layer] { return layers_.selected(layer); },
-                           .depth = 1,
+                           .depth = parent == layer ? 1 : 2,
                            .layer = layer});
+    }
 }
 
 void FactoryController::add_motion_entries(std::vector<MenuEntry> &entries) {

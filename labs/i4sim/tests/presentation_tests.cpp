@@ -49,8 +49,11 @@ std::filesystem::path without_scenario(std::string_view name, const std::filesys
 /// menu opens with SIMULATION open; opening a section closes the open one, so the open
 /// section's rows always start right below its heading.
 namespace menu_row {
-/// The MOTION heading while SIMULATION, with its four rows, is open.
-constexpr unsigned motion_below_simulation = 6;
+/// The SIMULATION heading, and the LAYERS and MOTION headings while SIMULATION, with its
+/// four rows, is open.
+constexpr unsigned simulation = 0, layers_below_simulation = 5, motion_below_simulation = 6;
+/// LAYERS open: heading on row 1, then GRID, HEATMAP and PATHS.
+constexpr unsigned layers = 1, paths = 4;
 /// MOTION open: heading on row 2, then PROFILE, PLANNER, RECOVERY, SPEED, FORCE, HORIZON and
 /// RESET PARAMETERS, then the TRAFFIC heading.
 constexpr unsigned motion = 2, profile = 3, planner = 4, speed = 6, force = 7, horizon = 8,
@@ -105,6 +108,38 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
         click_row(row,
                   (up ? DebugMenu::increase_left : DebugMenu::decrease_left) + DebugMenu::stepper_width / 2);
     };
+    // Pixels inside the debug menu panel that match `color`, in the 16 rows below its heading.
+    auto menu_pixels = [&](auto color) {
+        session->render(runtime);
+        glFinish();
+        std::vector<unsigned char> pixels(640 * 480 * 3);
+        glReadBuffer(GL_FRONT);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        const float scale = DebugMenu::scale(runtime.camera.viewport);
+        const int right = int(8 + DebugMenu::panel_width * scale),
+                  bottom = int(32 + DebugMenu::row_top(16) * scale);
+        unsigned count = 0;
+        for (int y = 32; y < bottom; ++y)
+            for (int x = 8; x < right; ++x) {
+                const auto *pixel = &pixels[std::size_t(((479 - y) * 640 + x) * 3)];
+                count += color(pixel[0], pixel[1], pixel[2]);
+            }
+        return count;
+    };
+    const auto contact_red = [](int r, int g, int b) { return r > 240 && g < 20 && b < 20; };
+    const auto route_purple = [](int r, int g, int b) {
+        return r > 150 && r < 200 && g > 80 && g < 125 && b > 230;
+    };
+    // The keys above turned PATHS off: its parts are not listed until it is on again.
+    click_row(menu_row::layers_below_simulation);
+    CHECK_MESSAGE(menu_pixels(contact_red) > 50, "The CONTACT SHAPES row has no color swatch");
+    CHECK_MESSAGE(menu_pixels(route_purple) == 0, "PATHS lists its parts while it is off");
+    click_row(menu_row::paths);
+    CHECK_MESSAGE(menu_pixels(route_purple) > 50, "PATHS does not list ROUTES with its swatch");
+    click_row(menu_row::paths);
+    click_row(menu_row::layers);
+    click_row(menu_row::simulation);
     click_row(menu_row::motion_below_simulation);
     auto statistics_pixels = [&] {
         session->render(runtime);

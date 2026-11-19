@@ -20,4 +20,9 @@ inline constexpr kinetra::Color world_background{0.045f, 0.055f, 0.07f};
 /// ViewLayers::none() to draw the plain factory. Reads the simulation only.
 void draw_world(kinetra::Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,
                 std::optional<std::size_t> selected_mover);
+
+/// The color draw_world() draws `layer` in, for a swatch beside its debug-menu row. Empty
+/// for a layer drawn as a tint or in several colors: the heatmap, PATHS, FORCES, BORDERS and
+/// the traffic zones.
+std::optional<kinetra::Color> layer_color(Layer layer);
 } // namespace i4sim
