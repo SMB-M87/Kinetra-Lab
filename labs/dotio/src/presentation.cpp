@@ -220,12 +220,12 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     runtime.end();
 }
 
-std::string window_title(Application &application) {
+std::string status_text(Application &application) {
     auto &player = application.world().GetPlayer();
-    return "Kinetra | Dotio | " + std::string(application.world().difficulty_settings().name) + " | " +
+    return std::string(application.world().difficulty_settings().name) + " | " +
            std::string(application.paused ? "PAUSED" : "playing") + " | health " +
            std::to_string(int(player.Health)) + " | mana " + std::to_string(int(player.Mana)) + " | kills " +
            std::to_string(player.Kills - 1) + (application.debug ? " | DEBUG" : "") +
-           (application.ghost ? " | GHOST" : "") + " | CTRL settings";
+           (application.ghost ? " | GHOST" : "");
 }
 } // namespace dotio

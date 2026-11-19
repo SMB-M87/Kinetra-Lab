@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <kinetra/engine.h>
+#include <kinetra/launcher.h>
 #include <random>
 #include <string>
 
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Usage: kinetra [--variant demo|dotio|i4sim] [--difficulty "
                                             "easy|medium|hard] [--agents 0..300] [--frames 1..100000]");
         }
-        kinetra::Runtime runtime;
+        kinetra::Runtime runtime{std::string(kinetra::launcher_window_title)};
         options.seed = std::random_device{}();
         std::cout << "World seed: " << options.seed << '\n';
         std::optional<kinetra::LaunchSelection> initial;

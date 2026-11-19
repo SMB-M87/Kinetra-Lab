@@ -44,7 +44,8 @@ class DotioSession final : public lab::Session {
     }
     void render(kinetra::Runtime &runtime) override { dotio::render(runtime, application_, settings_); }
     kinetra::SessionRequest request() const override { return settings_.request(); }
-    std::string title() override { return dotio::window_title(application_); }
+    std::string title() override { return "Dotio"; }
+    std::string status() override { return dotio::status_text(application_); }
 };
 } // namespace
 std::vector<std::string> difficulty_names() {

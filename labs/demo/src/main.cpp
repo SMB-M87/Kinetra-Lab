@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
             if (used != std::string(argv[2]).size() || frames < 1 || frames > 100000)
                 throw std::invalid_argument("Invalid frame limit");
         }
-        kinetra::Runtime runtime;
+        kinetra::Runtime runtime("Demo");
         runtime.camera.pixels_per_unit = sandbox::initial_zoom;
         const std::uint32_t seed = std::random_device{}();
         std::cout << "World seed: " << seed << '\n';
