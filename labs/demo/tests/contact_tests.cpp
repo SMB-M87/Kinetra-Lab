@@ -1,6 +1,6 @@
 // Contact-response tests for the Demo's physics use: head-on, rotated, off-center,
 // resting and thin-wall contacts, isolated from steering, navigation and rendering.
-#include <kinetra/physics.h>
+#include <kinetra/simulation/physics.h>
 
 #include <doctest/doctest.h>
 

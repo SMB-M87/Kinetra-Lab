@@ -7,7 +7,7 @@
 //
 // The last two cases watch a minute of a small crowd around a standing player: the
 // reproduction of agents that walked away and never came back.
-#include "../include/sandbox_application.h"
+#include "demo/sandbox_application.h"
 
 #include <doctest/doctest.h>
 

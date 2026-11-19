@@ -17,14 +17,14 @@ The factory application lives in Lab and consumes reusable simulation capabiliti
 
 | C# reference component | C++ owner / implementation |
 | --- | --- |
-| Blueprint, MoverGroup, ProducerGroup, model tables | [Lab blueprint loader](../labs/i4sim/src/blueprint.cpp) |
+| Blueprint, MoverGroup, ProducerGroup, model tables | [Lab blueprint loader](../labs/i4sim/src/blueprint/blueprint.cpp) |
 | BasicSteering, BorderRepulsionRect, CollisionDetection, CollisionAvoidance, SeekAndArrival | [Kinetra priority steering](../external/Kinetra/src/simulation/priority_steering.cpp) |
-| AStarHeatmap / graph topology and congestion | [Kinetra WeightedGrid](../external/Kinetra/include/kinetra/weighted_grid.h); Lab chooses occupancy and replan timing |
+| AStarHeatmap / graph topology and congestion | [Kinetra WeightedGrid](../external/Kinetra/include/kinetra/simulation/weighted_grid.h); Lab chooses occupancy and replan timing |
 | Rectangle geometry, neighborhood queries | Existing Kinetra Body/contact and SpatialGrid APIs |
 | Blocked route recovery | Existing Kinetra Navigation with a snapshot of blocked grid cells and neighboring bodies |
-| Dummy product actors, allocation managers, producer queues | [Lab production](../labs/i4sim/src/production.cpp) in the [deterministic simulation](#simulation-structure) |
+| Dummy product actors, allocation managers, producer queues | [Lab production](../labs/i4sim/src/simulation/production.cpp) in the [deterministic simulation](#simulation-structure) |
 | Parking and producer approach policy | Lab reservations, staging and queue ownership |
-| LoadingScreen / rendering / interaction | Lab [controller](../labs/i4sim/include/controller.h) (headless: input to commands) and [session](../labs/i4sim/src/session.cpp) with its blueprint screen, world view and HUD ([structure](../labs/i4sim/README.md#structure)); shared Kinetra LaunchMenu, Runtime and bitmap text |
+| LoadingScreen / rendering / interaction | Lab [controller](../labs/i4sim/include/i4sim/controller.h) (headless: input to commands) and [session](../labs/i4sim/src/presentation/session.cpp) with its blueprint screen, world view and HUD ([structure](../labs/i4sim/README.md#structure)); shared Kinetra LaunchMenu, Runtime and bitmap text |
 | Tick / render cycles | Existing Kinetra FixedClock and session loop; Lab chooses UPS |
 | Dumps / metrics | Lab summary export |
 | MQTT / actor framework / Windows platform | Excluded |
@@ -47,20 +47,20 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 
 ## Simulation structure
 
-`Simulation` ([simulation.h](../labs/i4sim/include/simulation.h)) is a facade. Every call forwards to `detail::SimulationCore`, which owns one instance of each component below and runs the tick. The component headers are private to `labs/i4sim/src/`, so the public header stays small and the components can change without touching callers. A copy of a simulation is deep; the tests copy a running simulation to branch off a replay.
+`Simulation` ([simulation.h](../labs/i4sim/include/i4sim/simulation/simulation.h)) is a facade. Every call forwards to `detail::SimulationCore`, which owns one instance of each component below and runs the tick. The component headers are private to `labs/i4sim/src/`, so the public header stays small and the components can change without touching callers. A copy of a simulation is deep; the tests copy a running simulation to branch off a replay.
 
 | Component | File | Owns | Responsibility |
 | --- | --- | --- | --- |
-| `FloorPlan` | [floor_plan.h](../labs/i4sim/src/floor_plan.h) | Weighted grid, borders, zone geometry, processing cells | Topology built once from the blueprint; heatmap weights |
-| `Fleet` | [fleet.h](../labs/i4sim/src/fleet.h) | Movers, progress counters, per-tick controls and stop lines | Shared mover data that the components pass to each other |
-| Routing | [routing.h](../labs/i4sim/src/routing.h) | Nothing | Grid routes refined around stationary movers; Navigation recovery routes |
-| `Traffic` | [traffic.h](../labs/i4sim/src/traffic.h) | Gates, exit reservations, corridor recoveries | Junction and corridor admission, exit pockets, corridor recovery |
-| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/src/predictive_passing.h) | Plans, retry ticks, plan ids | [Predictive passing](#predictive-passing) |
-| `Goals` | [goals.h](../labs/i4sim/src/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
-| `Production` | [production.h](../labs/i4sim/src/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
-| `MotionStep` | [motion_step.h](../labs/i4sim/src/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
-| `EventLog` | [event_log.h](../labs/i4sim/src/event_log.h) | Recording flag, events | Opt-in passing and contact events |
-| `Shuttle` | [shuttle.h](../labs/i4sim/src/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
+| `FloorPlan` | [floor_plan.h](../labs/i4sim/include/i4sim/simulation/detail/floor_plan.h) | Weighted grid, borders, zone geometry, processing cells | Topology built once from the blueprint; heatmap weights |
+| `Fleet` | [fleet.h](../labs/i4sim/include/i4sim/simulation/detail/fleet.h) | Movers, progress counters, per-tick controls and stop lines | Shared mover data that the components pass to each other |
+| Routing | [routing.h](../labs/i4sim/include/i4sim/simulation/detail/routing.h) | Nothing | Grid routes refined around stationary movers; Navigation recovery routes |
+| `Traffic` | [traffic.h](../labs/i4sim/include/i4sim/simulation/detail/traffic.h) | Gates, exit reservations, corridor recoveries | Junction and corridor admission, exit pockets, corridor recovery |
+| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/include/i4sim/simulation/detail/predictive_passing.h) | Plans, retry ticks, plan ids | [Predictive passing](#predictive-passing) |
+| `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
+| `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
+| `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
+| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing and contact events |
+| `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
 
 ```mermaid
 flowchart TD
@@ -114,7 +114,7 @@ A fixed tick generates bounded local workload, refreshes occupancy, moves agents
 
 Grid occupancy uses the original four-corner contributions of 4/8/16 per mover according to its size relative to a cell. The occupancy includes the querying mover itself, so high local weight alone does not trigger replanning. After 100 ticks without progress, weighted A* reconsiders the route; progress is measured along the remaining polyline rather than straight-line distance to the destination. With `MotionSettings::path_planning` off, the grid route only decides whether a goal is reachable; the route a mover follows is the destination alone, and local steering with the wall constraints carries it there. Optional route recovery uses the existing finer geometric planner around actual bodies; it is disabled by default. Steering profiles never switch automatically. Improved prediction, original priority steering, experimental tangent/spring steering and experimental Reciprocal avoidance are selected explicitly. The local priority is overlap safety, predictive avoidance, then seek/arrival, followed by wall-normal velocity constraints; acceleration and speed are capped in original tick units. Lab's default lookahead is 32 ticks. Improved steering opts into exact rectangular clearance for axis-aligned mover pairs; the engine's conservative circular envelope remains the default for existing consumers. Parked/processing movers have zero prediction velocity and are fixed during mover-pair contact correction, so passing traffic cannot displace their reservations.
 
-Reciprocal adapts the shared [avoidance controller](../external/Kinetra/include/kinetra/avoidance.h) to millimeters per tick with `dt = 1`. It reads an immutable snapshot; parked and blocked neighbors are noncooperative. Pairs use exact fixed axis-aligned rectangular envelopes with 2 mm clearance per axis; mixed shapes in the shared controller retain enclosing circles. Improved remains the default while factory throughput and contact behavior are evaluated. The last movement tick's `AVOID LIMIT` counter includes infeasible constraints and subsequent contact/border overrides. Existing wall constraints and rectangular contact correction still apply; reciprocal feasibility alone does not certify the final command or guarantee progress.
+Reciprocal adapts the shared [avoidance controller](../external/Kinetra/include/kinetra/simulation/avoidance.h) to millimeters per tick with `dt = 1`. It reads an immutable snapshot; parked and blocked neighbors are noncooperative. Pairs use exact fixed axis-aligned rectangular envelopes with 2 mm clearance per axis; mixed shapes in the shared controller retain enclosing circles. Improved remains the default while factory throughput and contact behavior are evaluated. The last movement tick's `AVOID LIMIT` counter includes infeasible constraints and subsequent contact/border overrides. Existing wall constraints and rectangular contact correction still apply; reciprocal feasibility alone does not certify the final command or guarantee progress.
 
 Optional `MotionSettings::parking_traffic` is application-owned parking coordination,
 independent of the steering profile and disabled by default. Before movement, an
@@ -133,7 +133,7 @@ reservation, corridor scheduling or a guarantee against starvation/deadlock.
 
 Optional `MotionSettings::junction_traffic` detects isolated T/+ cells whose open
 cardinal neighbors are degree-two corridor cells. It uses the shared
-[`TrafficGate`](../external/Kinetra/include/kinetra/traffic.h), with one gate per
+[`TrafficGate`](../external/Kinetra/include/kinetra/simulation/traffic.h), with one gate per
 junction and spatially indexed candidate queries. Movers request their next zone
 within a bounded route lookahead. A braking-travel check retains approaching
 requests after goal changes until coasting can no longer enter the zone. Complete physical-occupancy snapshots include
@@ -245,7 +245,7 @@ The [application guide](../labs/i4sim/README.md#provenance-and-differences) is a
 
 ## Predictive passing
 
-[Lab coordination](../labs/i4sim/src/predictive_passing.cpp) is an opt-in policy
+[Lab coordination](../labs/i4sim/src/simulation/predictive_passing.cpp) is an opt-in policy
 for Improved and Reciprocal. It predicts conflicting, approximately opposite route
 headings using preferred speed and a footprint-dependent lookahead. Detection uses
 an immutable spatial snapshot; sorted encounter times and mover IDs make pairing

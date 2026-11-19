@@ -2,12 +2,12 @@
 // mapping, culling, statistics, AI labels and the Ghost marker, read back from a real
 // OpenGL context. The context checks share one Runtime, because only one may exist at a
 // time, so they form one case. CTest labels the suite `graphics`.
-#include "../include/physics_adapter.h"
-#include "../include/presentation.h"
+#include "dotio/entities/physics_adapter.h"
+#include "dotio/presentation/presentation.h"
 
-#include <kinetra/engine.h>
-#include <kinetra/settings_view.h>
-#include <lab/settings.h>
+#include "kinetra_lab/settings.h"
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <doctest/doctest.h>
 #include <glad/glad.h>

@@ -40,13 +40,14 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 
 | Layer | Targets | May depend on |
 | --- | --- | --- |
-| Logic: headless rules, state, window-free input mapping and debug-menu rows | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation`, and the headless Lab policy in `lab/input.h` and `lab/debug.h` |
+| Logic: headless rules, state, window-free input mapping and debug-menu rows | `kinetra_sandbox_application`, `kinetra_dotio_logic`, `kinetra_i4sim_application` | `Kinetra::Simulation`, and the headless Lab policy in `kinetra_lab/input.h` and `kinetra_lab/debug.h` |
 | Presentation: session, panels, drawing | `kinetra_demo_presentation`, `kinetra_dotio_presentation`, `kinetra_i4sim_presentation` | Its own logic, `Kinetra::Runtime`, shared Lab helpers, and `Kinetra::Launcher` for its menu widgets |
 | Composition roots | `kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, `kinetra_sessions`, and the developer tool `kinetra_capture` | Presentation libraries, `Kinetra::Launcher`; `kinetra_capture` also `kinetra_sessions` and zlib |
 
-- Input mapping that needs no window belongs in the logic layer, where it is tested headless: Demo's `sandbox_input.h` and i4sim's `FactoryController`. So do the rows of a debug menu, as `kinetra::DebugEntry` values: Demo's `DebugPanel`, Dotio's `Application::debug_entries()` and `FactoryController::menu()`. From `kinetra_lab_common`, logic may include only `lab/input.h` and `lab/debug.h`, which use Kinetra's plain input, camera and menu types; `lab/settings.h` and `lab/session.h` need the runtime.
+- Input mapping that needs no window belongs in the logic layer, where it is tested headless: Demo's `demo/input/sandbox_input.h` and i4sim's `FactoryController`. So do the rows of a debug menu, as `kinetra::DebugEntry` values: Demo's `DebugPanel`, Dotio's `Application::debug_entries()` and `FactoryController::menu()`. From `kinetra_lab_common`, logic may include only `kinetra_lab/input.h` and `kinetra_lab/debug.h`, which use Kinetra's plain input, camera and menu types; `kinetra_lab/settings.h` and `kinetra_lab/session.h` need the runtime.
 - A presentation may link `Kinetra::Launcher` to reuse its menu widgets, as i4sim does with `LaunchMenu` for its blueprint screen. It never depends on the bundled launcher in `launcher/`.
-- Applications never include each other's headers. Shared Lab code is application-neutral: today the Lab policy in [labs/common](labs/common/include/lab/) (target `kinetra_lab_common`) and the test helpers in [labs/test_support/test_support.h](labs/test_support/test_support.h) (target `kinetra_lab_test_support`).
+- Applications never include each other's headers. Shared Lab code is application-neutral: the Lab policy in [labs/shared](labs/shared/include/kinetra_lab/) (target `kinetra_lab_common`) and the test helpers in [kinetra_lab/testing/test_support.h](labs/shared/tests/include/kinetra_lab/testing/test_support.h) (target `kinetra_lab_test_support`).
+- Files follow the [directory layout](external/Kinetra/docs/conventions.md#directory-layout): every module has one `include/<name>/` (`demo`, `dotio`, `i4sim`, `kinetra_lab`, `launcher`, `capture`) and one `src/` that mirrors it, presentation code in `presentation/`, topic folders in the applications, internal headers in `detail/`, test helpers in `tests/include/<name>/testing/`. Include as `"i4sim/simulation/simulation.h"`; never `../`.
 - Logic must build and test with `-DKINETRA_LAB_BUILD_RUNTIME=OFF`.
 - i4sim needs the header-only nlohmann JSON package (3.11+). Its blueprints live in `labs/i4sim/blueprints/`; CMake copies them to `i4sim-blueprints/` next to every executable that opens them, and the application reads them from there. Treat blueprint files as a data format: changing their fields is a contract change.
 
@@ -64,13 +65,13 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
-| `labs/i4sim/` logic (the simulation and its components, `flow_metrics`, `blueprint`, `scenario`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` | `^kinetra_i4sim` |
-| `labs/demo/` logic (`sandbox_application`, `debug_panel`, `tuning`, terrain, agents) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
-| `labs/dotio/logic/`, `labs/dotio/gmath/` | `kinetra_dotio_tests` | `^kinetra_dotio:` |
-| `labs/common/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |
-| `launcher/include/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
+| `labs/i4sim/` logic (`simulation/`, `blueprint/`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` | `^kinetra_i4sim` |
+| `labs/demo/` logic (`sandbox_application`, `debug_panel`, `world/`, `input/`) | `kinetra_sandbox_tests kinetra_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_(sandbox_application\|terrain\|demo_contacts\|demo_crowd)` |
+| `labs/dotio/` logic (everything outside `presentation/`) | `kinetra_dotio_tests` | `^kinetra_dotio:` |
+| `labs/shared/` | `kinetra_lab_common_tests` | `^kinetra_lab_common:` |
+| `launcher/include/launcher/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
 | `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`) | `^kinetra_capture` |
-| Any `session.cpp`, presentation (in i4sim also `world_view`, `hud` and `blueprint_screen`), launcher loop, `main.cpp` | Full level with graphics | |
+| Any `presentation/` folder, launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level, plus `cmake --workflow --preset windows` from WSL ([Windows](docs/windows.md)) | |
 
@@ -104,10 +105,10 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 
 | Application | Implementation | Tests | Documentation |
 | --- | --- | --- | --- |
-| Bundled launcher | [launcher/src](launcher/src/), [registrations](launcher/include/applications.h) | [launcher/tests](launcher/tests/) | [launcher](launcher/README.md), [launcher and overlays](docs/launcher-overlays.md) |
+| Bundled launcher | [launcher/src](launcher/src/), [registrations](launcher/include/launcher/applications.h) | [launcher/tests](launcher/tests/) | [launcher](launcher/README.md), [launcher and overlays](docs/launcher-overlays.md) |
 | Demo | [labs/demo](labs/demo/) | [labs/demo/tests](labs/demo/tests/) | [Demo](labs/demo/README.md), [architecture](docs/demo-architecture.md) |
 | Dotio | [labs/dotio](labs/dotio/) | [labs/dotio/tests](labs/dotio/tests/) | [Dotio](labs/dotio/README.md), [architecture](docs/dotio-architecture.md) |
 | i4sim | [labs/i4sim](labs/i4sim/) | [labs/i4sim/tests](labs/i4sim/tests/) | [i4sim](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md) |
-| Shared Lab policy (settings rows, debug rows, input, pause, session base) | [labs/common](labs/common/include/lab/) | [common tests](labs/common/tests/common_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
+| Shared Lab policy (settings rows, debug rows, input, pause, session base) | [labs/shared](labs/shared/include/kinetra_lab/) | [shared tests](labs/shared/tests/shared_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
 | Build | [CMakeLists.txt](CMakeLists.txt), [build.sh](build.sh) | `ctest --test-dir build` | [README](README.md#quick-start) |
 | Media capture (screenshots and GIF clips) | [tools/capture](tools/capture/) | [capture tests](tools/capture/tests/) | [capture tool](tools/capture/README.md), [media guide](docs/media/README.md) |

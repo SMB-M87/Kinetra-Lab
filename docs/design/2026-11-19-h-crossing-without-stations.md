@@ -43,7 +43,7 @@ The H crossing showcase scene still carried the four stations of the reference's
 
 ## Affected areas
 
-- [h-crossing.json](../../labs/i4sim/blueprints/showcase/h-crossing.json), [blueprint.cpp](../../labs/i4sim/src/blueprint.cpp) (comment only).
+- [h-crossing.json](../../labs/i4sim/blueprints/showcase/h-crossing.json), [blueprint.cpp](../../labs/i4sim/src/blueprint/blueprint.cpp) (comment only).
 - [simulation_tests.cpp](../../labs/i4sim/tests/simulation_tests.cpp): new blueprint test.
 - [i4sim-showcase-h-crossing-clip.gif](../media/i4sim-showcase-h-crossing-clip.gif), [i4sim README](../../labs/i4sim/README.md), [blueprints README](../../labs/i4sim/blueprints/README.md).
 

@@ -1,8 +1,8 @@
 // Window-free tests for the i4sim session's controller (labs/i4sim/include/controller.h):
 // loading, keys, pointer, camera, modal pause and the debug menu's entries. The blueprints
 // come from the source tree.
-#include "controller.h"
-#include "showcase.h"
+#include "i4sim/controller.h"
+#include "i4sim/testing/showcase.h"
 
 #include <doctest/doctest.h>
 

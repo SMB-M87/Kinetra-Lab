@@ -4,13 +4,13 @@
 // one may exist at a time, so they form one case. CTest labels it `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
-#include "session.h"
-#include "showcase.h"
+#include "i4sim/presentation/session.h"
+#include "i4sim/testing/showcase.h"
 
-#include <kinetra/debug_view.h>
-#include <kinetra/launcher.h>
-#include <kinetra/settings_view.h>
-#include <lab/settings.h>
+#include "kinetra_lab/settings.h"
+#include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/launcher.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <SDL2/SDL.h>
 #include <doctest/doctest.h>

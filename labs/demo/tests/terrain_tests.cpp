@@ -1,7 +1,7 @@
 // Headless tests for the Demo scene: seeded terrain streaming, obstacles, agent
 // population and lifecycle, wandering by steering and by route, navigation, the path
 // follower and Ghost isolation.
-#include "../include/sandbox_scene.h"
+#include "demo/world/sandbox_scene.h"
 
 #include <doctest/doctest.h>
 

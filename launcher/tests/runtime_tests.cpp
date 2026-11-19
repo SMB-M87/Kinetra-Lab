@@ -1,15 +1,15 @@
 // Graphics integration tests for the bundled launcher: the real Lab sessions, created
 // through launcher::applications(), with an OpenGL context. They need
 // KINETRA_TEST_GRAPHICS; only one Runtime exists at a time, so every case owns its own.
-#include "../../labs/dotio/include/session.h"
-#include "../include/applications.h"
+#include "dotio/presentation/session.h"
+#include "kinetra_lab/session.h"
+#include "kinetra_lab/settings.h"
+#include "launcher/applications.h"
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
-#include <kinetra/debug_view.h>
-#include <kinetra/engine.h>
-#include <kinetra/settings_view.h>
-#include <lab/session.h>
-#include <lab/settings.h>
+#include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <doctest/doctest.h>
 

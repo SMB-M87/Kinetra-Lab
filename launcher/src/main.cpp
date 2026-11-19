@@ -1,10 +1,10 @@
-#include "../../labs/demo/include/session.h"
-#include "../../labs/dotio/include/session.h"
-#include "../include/applications.h"
+#include "demo/presentation/session.h"
+#include "dotio/presentation/session.h"
+#include "launcher/applications.h"
 #include <cstdlib>
 #include <iostream>
-#include <kinetra/engine.h>
-#include <kinetra/launcher.h>
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/launcher.h>
 #include <random>
 #include <string>
 

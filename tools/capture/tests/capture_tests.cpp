@@ -3,17 +3,17 @@
 // cycle measurement (tools/capture/src/showcase.h), the busiest stretch of the captured
 // i4sim floor (tools/capture/src/busy_stretch.h) and the scripted Dotio player
 // (tools/capture/src/dotio_player.h). No Runtime or session is created.
-#include "busy_stretch.h"
-#include "dotio_player.h"
-#include "png.h"
-#include "scenes.h"
-#include "showcase.h"
-#include "stage.h"
+#include "capture/busy_stretch.h"
+#include "capture/dotio_player.h"
+#include "capture/png.h"
+#include "capture/scenes.h"
+#include "capture/showcase.h"
+#include "capture/stage.h"
 
-#include "../../../labs/demo/include/debug_panel.h"
-#include "../../../labs/demo/include/session.h"
-#include "../../../labs/i4sim/include/controller.h"
-#include "../../../labs/i4sim/include/simulation.h"
+#include "demo/debug_panel.h"
+#include "demo/presentation/session.h"
+#include "i4sim/controller.h"
+#include "i4sim/simulation/simulation.h"
 
 #include <zlib.h>
 

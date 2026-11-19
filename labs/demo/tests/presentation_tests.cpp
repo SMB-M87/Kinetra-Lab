@@ -1,10 +1,10 @@
 // Graphics tests for the Demo presentation: help overlay placement, routes and the
 // renderer, read back from a real OpenGL context. Every check shares one Runtime,
 // because only one may exist at a time, so they form one case. CTest labels it `graphics`.
-#include "../include/help_overlay.h"
-#include "../include/sandbox_renderer.h"
+#include "demo/presentation/help_overlay.h"
+#include "demo/presentation/sandbox_renderer.h"
 
-#include <kinetra/engine.h>
+#include <kinetra/runtime/engine.h>
 
 #include <SDL2/SDL.h>
 #include <doctest/doctest.h>

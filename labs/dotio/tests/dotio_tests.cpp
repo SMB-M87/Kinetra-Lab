@@ -4,9 +4,9 @@
 // logic::Grid::Array is global. Generating or initializing a world overwrites all of it.
 // Cases that build on the plain bordered arena start with open_map(), so no case depends
 // on the order in which cases run or on what an earlier case left behind.
-#include "../include/application.h"
-#include "fuzzy.h"
-#include "wander.h"
+#include "dotio/ai/fuzzy.h"
+#include "dotio/ai/wander.h"
+#include "dotio/application.h"
 
 #include <doctest/doctest.h>
 

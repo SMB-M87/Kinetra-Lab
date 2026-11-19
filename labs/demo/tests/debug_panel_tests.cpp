@@ -1,7 +1,7 @@
 // Window-free tests for the Demo's debug menu (labs/demo/include/debug_panel.h): which rows
 // it lists, what they change in the application's tuning, and which commands a frame gets
 // from them.
-#include "debug_panel.h"
+#include "demo/debug_panel.h"
 
 #include <doctest/doctest.h>
 

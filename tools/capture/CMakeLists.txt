@@ -10,7 +10,7 @@ endif()
 # launcher::applications.
 add_library(kinetra_capture_core STATIC src/busy_stretch.cpp src/dotio_player.cpp src/png.cpp src/scenes.cpp
     src/showcase.cpp src/stage.cpp)
-target_include_directories(kinetra_capture_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(kinetra_capture_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_capture_core PUBLIC ZLIB::ZLIB kinetra_sessions)
 
 add_executable(kinetra_capture src/main.cpp)

@@ -25,7 +25,7 @@ flowchart TD
     Demo --> Engine["Public Kinetra APIs"]
     Dotio --> Engine
     Factory --> Engine
-    Demo -.-> Common["labs/common: Lab policy"]
+    Demo -.-> Common["labs/shared: Lab policy"]
     Dotio -.-> Common
     Factory -.-> Common
 ```
@@ -34,8 +34,8 @@ flowchart TD
 
 Code shared between applications stays application-neutral ([Lab boundaries](../AGENTS.md#lab-boundaries)):
 
-- [common/include/lab](common/include/lab/) (target `kinetra_lab_common`, header-only) holds the policy every application shares: `lab::Session` (Escape never closes a Lab window), `lab::settings_rows` and `lab::FrameLimitSwitch` (the settings panel's rows and its FRAME LIMIT setting), `lab::direction` (WASD and arrows), `lab::ModalPause` (pause while the panel is open), and `lab::ZoomControl` and `lab::time_scale_entry` (the ZOOM and SPEED rows of every debug menu). Input and pause are in `lab/input.h` and the debug rows in `lab/debug.h`; both need no window, so an application's logic library may use them. The others need the runtime. The mechanisms behind them are Kinetra's; see [launcher and overlays](../docs/launcher-overlays.md#settings-policy).
-- [test_support/test_support.h](test_support/test_support.h) holds header-only helpers for the test programs (target `kinetra_lab_test_support`, built only with `BUILD_TESTING`).
+- [shared/include/kinetra_lab](shared/include/kinetra_lab/) (target `kinetra_lab_common`, header-only; include as `"kinetra_lab/input.h"`) holds the policy every application shares: `lab::Session` (Escape never closes a Lab window), `lab::settings_rows` and `lab::FrameLimitSwitch` (the settings panel's rows and its FRAME LIMIT setting), `lab::direction` (WASD and arrows), `lab::ModalPause` (pause while the panel is open), and `lab::ZoomControl` and `lab::time_scale_entry` (the ZOOM and SPEED rows of every debug menu). Input and pause are in `kinetra_lab/input.h` and the debug rows in `kinetra_lab/debug.h`; both need no window, so an application's logic library may use them. The others need the runtime. The mechanisms behind them are Kinetra's; see [launcher and overlays](../docs/launcher-overlays.md#settings-policy).
+- [kinetra_lab/testing/test_support.h](shared/tests/include/kinetra_lab/testing/test_support.h) holds header-only helpers for the test programs (target `kinetra_lab_test_support`, built only with `BUILD_TESTING`).
 
 ## Build and run
 

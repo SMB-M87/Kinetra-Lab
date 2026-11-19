@@ -13,10 +13,10 @@
 // Set KINETRA_PRINT_GOLDEN=1 to print the current line of every scenario, for a
 // deliberate update. The run still compares, so a changed line also fails its case
 // and shows expected and actual.
-#include "sandbox_application.h"
-#include "test_support.h"
+#include "demo/sandbox_application.h"
+#include "kinetra_lab/testing/test_support.h"
 
-#include <kinetra/physics.h>
+#include <kinetra/simulation/physics.h>
 
 #include <doctest/doctest.h>
 

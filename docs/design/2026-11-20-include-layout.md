@@ -31,7 +31,7 @@ Lab's modules each grew their own layout: 17 headers in `labs/i4sim/src/`, 7 in 
 ## Goals and non-goals
 
 - Goal: every Lab module follows the [directory rule](../../external/Kinetra/docs/conventions.md#directory-layout); no `.h` outside an include root.
-- Goal: every include starts with its module (`<i4sim/...>`, `<dotio/...>`, `<kinetra_lab/...>`); no `../` include remains.
+- Goal: every include starts with its module (`"i4sim/..."`, `"dotio/..."`, `"kinetra_lab/..."`; Kinetra stays `<kinetra/...>`); no `../` include remains.
 - Goal: namespace equals include root, in separate commits after the moves.
 - Goal: the engine's new include paths are used everywhere.
 - Non-goal: behavior changes, renamed types or functions, renamed CMake targets or CTest names (CI, presets and AGENTS.md regexes depend on them).
@@ -107,8 +107,8 @@ launcher/include/launcher/applications.h
 tools/capture/include/capture/  busy_stretch.h dotio_player.h png.h scenes.h showcase.h stage.h
 ```
 
-- Every target's `target_include_directories` points at its module's `include/`; test targets add `tests/include/`. The launcher and capture link the presentation targets and include `<demo/presentation/session.h>` and friends instead of `../../`.
-- Includes inside a module also use the full form (`<i4sim/simulation/detail/routing.h>`), so moving a file never depends on the directory of its includer.
+- Every target's `target_include_directories` points at its module's `include/`; test targets add `tests/include/`. The launcher and capture link the presentation targets and include `"demo/presentation/session.h"` and friends instead of `../../`.
+- Includes inside a module also use the full form (`"i4sim/simulation/detail/routing.h"`), so moving a file never depends on the directory of its includer.
 - Thin sub-READMEs in `include/`, `src/` and `tests/` folders (Demo, Dotio, Dotio's `logic/` and `gmath/`) fold into their module README, as [AGENTS.md](../../AGENTS.md#documentation-in-lab) plans; each module README gets a layout section that shows its tree.
 - Namespace commits: `sandbox` → `demo`; `logic`, `gmath`, `gamef` → `dotio`; `lab` → `kinetra_lab`; `lab::test` → `kinetra_lab::testing`. Helper namespaces inside a file (`layer_color`, `tuning_step`, `menu_row`) stay.
 

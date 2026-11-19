@@ -1,9 +1,9 @@
-#include "showcase.h"
+#include "capture/showcase.h"
 
-#include "stage.h"
+#include "capture/stage.h"
 
-#include "../../../labs/i4sim/include/controller.h"
-#include "../../../labs/i4sim/include/scenario.h"
+#include "i4sim/blueprint/scenario.h"
+#include "i4sim/controller.h"
 
 #include <algorithm>
 #include <stdexcept>

@@ -73,8 +73,8 @@ flowchart LR
 
 ## Affected areas
 
-- New: [scenario.h](../../labs/i4sim/include/scenario.h), [scenario.cpp](../../labs/i4sim/src/scenario.cpp), [json_fields.h](../../labs/i4sim/src/json_fields.h), [tests/showcase.h](../../labs/i4sim/tests/showcase.h).
-- [blueprint.cpp](../../labs/i4sim/src/blueprint.cpp), [session.cpp](../../labs/i4sim/src/session.cpp), [main.cpp](../../labs/i4sim/src/main.cpp), [CMakeLists.txt](../../labs/i4sim/CMakeLists.txt).
+- New: [scenario.h](../../labs/i4sim/include/i4sim/blueprint/scenario.h), [scenario.cpp](../../labs/i4sim/src/blueprint/scenario.cpp), [json_fields.h](../../labs/i4sim/include/i4sim/blueprint/detail/json_fields.h), [tests/showcase.h](../../labs/i4sim/tests/include/i4sim/testing/showcase.h).
+- [blueprint.cpp](../../labs/i4sim/src/blueprint/blueprint.cpp), [session.cpp](../../labs/i4sim/src/presentation/session.cpp), [main.cpp](../../labs/i4sim/src/main.cpp), [CMakeLists.txt](../../labs/i4sim/CMakeLists.txt).
 - Moved: the four fixtures to [blueprints/showcase/](../../labs/i4sim/blueprints/showcase/), each with a `scenario` section.
 - Tests: [simulation_tests.cpp](../../labs/i4sim/tests/simulation_tests.cpp), [golden_tests.cpp](../../labs/i4sim/tests/golden_tests.cpp), [presentation_tests.cpp](../../labs/i4sim/tests/presentation_tests.cpp).
 - Docs: [blueprints README](../../labs/i4sim/blueprints/README.md) (the format), [i4sim README](../../labs/i4sim/README.md), [tests README](../../labs/i4sim/tests/README.md), the `include/` and `src/` READMEs.

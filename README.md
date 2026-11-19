@@ -85,18 +85,18 @@ Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps 
 
 Requires a C++20 compiler, CMake 3.16+ and a build tool, SDL2 and OpenGL development files with an OpenGL 3.3 context, and the header-only nlohmann JSON package 3.11+ (i4sim needs it in every build, headless included). The [CMake presets](CMakePresets.json) also need CMake 3.25+, Ninja and ccache. Linux is supported, and Windows through a MinGW-w64 cross build from WSL or Linux, or natively in an MSYS2 shell ([Windows](docs/windows.md)). On Artix/Arch: `pacman -S --needed base-devel cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json`, the same set CI uses (`clang` provides clang-format). On Debian, the JSON package is `nlohmann-json3-dev`.
 
-Repository layout:
+Repository layout (every module follows the [directory layout](external/Kinetra/docs/conventions.md#directory-layout)):
 
 ```text
 Kinetra-Lab/
 ├── docs/                # architecture pages, design documents, media
 ├── launcher/            # bundled launcher executable kinetra
 ├── labs/
-│   ├── demo/
+│   ├── demo/            # each module: include/<name>/, src/, tests/
 │   ├── dotio/
 │   ├── i4sim/
-│   ├── test_support/    # header-only test helpers
-│   └── common/          # shared Lab policy: settings rows, debug rows, input
+│   └── shared/          # shared Lab policy and test helpers (kinetra_lab/)
+├── tools/capture/       # media capture tool
 └── external/
     └── Kinetra/         # engine submodule
 ```

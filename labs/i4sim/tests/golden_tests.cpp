@@ -13,9 +13,9 @@
 //
 // The recorder and its floating-point caveats are in recorder.h, shared with the
 // pressure scenarios.
-#include "recorder.h"
-#include "showcase.h"
-#include "simulation.h"
+#include "i4sim/simulation/simulation.h"
+#include "i4sim/testing/recorder.h"
+#include "i4sim/testing/showcase.h"
 
 #include <doctest/doctest.h>
 

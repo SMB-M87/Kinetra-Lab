@@ -1,8 +1,8 @@
 // kinetra_capture: renders the screenshots and clip frames of docs/media. See README.md.
-#include "scenes.h"
-#include "stage.h"
+#include "capture/scenes.h"
+#include "capture/stage.h"
 
-#include <kinetra/engine.h>
+#include <kinetra/runtime/engine.h>
 
 #include <cstdlib>
 #include <exception>

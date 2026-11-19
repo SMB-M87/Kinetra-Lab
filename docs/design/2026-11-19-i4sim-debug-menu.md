@@ -21,7 +21,7 @@ The user finds i4sim's debug menu clumsy compared with Dotio, where clicking PAT
 
 ## Problem
 
-All evidence is in [controller.cpp](../../labs/i4sim/src/controller.cpp) and [session.cpp](../../labs/i4sim/src/session.cpp) on `main`.
+All evidence is in [controller.cpp](../../labs/i4sim/src/controller.cpp) and [session.cpp](../../labs/i4sim/src/presentation/session.cpp) on `main`.
 
 - **Hidden pages.** The menu has a VIEW and a MOTION page, swapped by a `PAGE:` row (`FactoryController::menu`). What is on the other page is invisible, and the split is arbitrary: CORRIDOR TRAFFIC and PREDICTIVE PASS sit on VIEW "so the motion page stays above the statistics on short viewports" (`add_view_entries`).
 - **Numbers without values.** `SPEED +`, `SPEED -`, `FORCE +`, `FORCE -`, `HORIZON +`, `HORIZON -`, `UPS +` and `UPS -` are eight rows, and none shows the value. The operator reads it from the HUD statistics, which can be turned off.

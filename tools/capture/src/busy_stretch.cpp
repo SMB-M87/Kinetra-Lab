@@ -1,8 +1,8 @@
-#include "busy_stretch.h"
+#include "capture/busy_stretch.h"
 
-#include "stage.h"
+#include "capture/stage.h"
 
-#include "../../../labs/i4sim/include/controller.h"
+#include "i4sim/controller.h"
 
 #include <algorithm>
 #include <cstddef>

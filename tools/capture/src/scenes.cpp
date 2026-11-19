@@ -1,13 +1,13 @@
-#include "scenes.h"
+#include "capture/scenes.h"
 
-#include "busy_stretch.h"
-#include "dotio_player.h"
-#include "showcase.h"
-#include "stage.h"
+#include "capture/busy_stretch.h"
+#include "capture/dotio_player.h"
+#include "capture/showcase.h"
+#include "capture/stage.h"
 
-#include "../../../labs/i4sim/include/blueprint.h"
+#include "i4sim/blueprint/blueprint.h"
 
-#include <kinetra/launcher.h>
+#include <kinetra/runtime/launcher.h>
 
 #include <algorithm>
 #include <cstddef>

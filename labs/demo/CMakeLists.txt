@@ -1,6 +1,6 @@
 add_library(kinetra_sandbox_application src/sandbox_application.cpp src/debug_panel.cpp)
 target_include_directories(kinetra_sandbox_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-# lab/debug.h is headless: the menu rows that every Lab application shares.
+# kinetra_lab/debug.h is headless: the menu rows that every Lab application shares.
 target_link_libraries(kinetra_sandbox_application PUBLIC Kinetra::Simulation kinetra_lab_common)
 target_compile_features(kinetra_sandbox_application PUBLIC cxx_std_20)
 if(BUILD_TESTING)
@@ -14,13 +14,13 @@ if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_demo_contact_tests PREFIX kinetra_demo_contacts
         SOURCES tests/contact_tests.cpp LIBRARIES Kinetra::Simulation)
     kinetra_add_doctest(kinetra_terrain_tests PREFIX kinetra_terrain
-        SOURCES tests/terrain_tests.cpp LIBRARIES Kinetra::Simulation)
+        SOURCES tests/terrain_tests.cpp LIBRARIES kinetra_sandbox_application)
     kinetra_add_doctest(kinetra_sandbox_tests PREFIX kinetra_sandbox_application
         SOURCES tests/sandbox_application_tests.cpp tests/debug_panel_tests.cpp
         LIBRARIES kinetra_sandbox_application kinetra_lab_common)
 endif()
 if(KINETRA_BUILD_RUNTIME)
-    add_library(kinetra_demo_presentation src/sandbox_renderer.cpp src/session.cpp)
+    add_library(kinetra_demo_presentation src/presentation/sandbox_renderer.cpp src/presentation/session.cpp)
     target_link_libraries(kinetra_demo_presentation
         PUBLIC kinetra_sandbox_application kinetra_lab_common Kinetra::Runtime)
 endif()

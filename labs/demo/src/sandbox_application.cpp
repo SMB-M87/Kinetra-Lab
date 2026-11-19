@@ -1,4 +1,4 @@
-#include "../include/sandbox_application.h"
+#include "demo/sandbox_application.h"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>

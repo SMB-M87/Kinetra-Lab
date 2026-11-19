@@ -24,7 +24,7 @@ The gallery's Dotio player fires at a fixed point of the screen, whether an enem
 **Dotio.**
 
 - `dotio_play` in [scenes.cpp](../../tools/capture/src/scenes.cpp) parks the pointer at 70% / 45% of the window and holds the button for the first half of every second. The bolts fly at walls; an enemy is hit by chance.
-- The debug clip lasts four seconds. An enemy leaves the Attack state for Recover only when its ammunition is spent: nine shots at one per second on Medium, with the player in sight all the time ([state.cpp](../../labs/dotio/logic/src/state.cpp), `AttackState::Update`). Reloading in shelter takes another five seconds. Neither fits in the clip, so the RECOVERY path filter and HIDING HITS, two of the rows the script turns on, never draw anything.
+- The debug clip lasts four seconds. An enemy leaves the Attack state for Recover only when its ammunition is spent: nine shots at one per second on Medium, with the player in sight all the time ([state.cpp](../../labs/dotio/src/ai/state.cpp), `AttackState::Update`). Reloading in shelter takes another five seconds. Neither fits in the clip, so the RECOVERY path filter and HIDING HITS, two of the rows the script turns on, never draw anything.
 - The debug menu stays open and covers the upper-left fifth of the 960 × 540 frame. Three wheel notches out show 12.8 × 7.2 cells.
 - The capture tool drives a session through `kinetra::Session` only, and Dotio's AI draws from `std::random_device`, so a script cannot know in advance where an enemy will be.
 
@@ -50,7 +50,7 @@ The user left the choice of floor and motion settings to what looks best and smo
 | Decision | Choice | Why |
 | --- | --- | --- |
 | How the script learns where the enemies are | `dotio::create_session` returns a `dotio::Session`, a `lab::Session` that also gives its `Application` | The tool can then read the world and answer with ordinary input, through the real session. Finding enemies in the rendered pixels would be fragile; composing a second session in the tool from `Application` and `render` would capture something other than the application |
-| Where the aiming lives | Free functions in the capture tool ([dotio_player.h](../../tools/capture/src/dotio_player.h)) | It is capture policy, not a game rule, and it is testable without a window. Nothing is added to the game for it |
+| Where the aiming lives | Free functions in the capture tool ([dotio_player.h](../../tools/capture/include/capture/dotio_player.h)) | It is capture policy, not a game rule, and it is testable without a window. Nothing is added to the game for it |
 | Target and aim | The nearest live enemy on screen that a bolt can reach in a straight line (no wall and no crate in between), led by its velocity for the bolt's flight time | What a player does: shoot at the closest threat in view. The wall check is the sight line the enemies' AI uses; crates stop bolts, and the room the player starts in has one. Bolts fly at 6 px per tick, so an unled shot misses a moving enemy |
 | Fire | Half-second bursts while a target is in sight, in both views | Kept from the old script: outside Debug Mode a shot costs 10 mana, and bursts make it last |
 | Start of the debug clip | Hold fire until an enemy enters Recover at least a fifth of the window's height inside the view, at most 60 s, then record | The AI is not seeded, so a fixed warm-up cannot promise a recovery. A player that shoots from the start kills an enemy (two hits on Medium) long before its ninth shot. An enemy at the edge runs for shelter and is gone in the first frames |
@@ -104,7 +104,7 @@ sequenceDiagram
 
 *Takeaway:* the script reads the world between frames and answers with a pointer position and a button, so the session still gets nothing but input.
 
-**Dotio session** ([session.h](../../labs/dotio/include/session.h)). `dotio::Session` derives from `lab::Session` and adds `virtual Application &application()`. `create_session` returns `std::unique_ptr<dotio::Session>`; the launcher and `main.cpp` keep compiling, because the pointer converts to its base. `Application` is forward-declared, so the launcher still does not compile the world.
+**Dotio session** ([session.h](../../labs/dotio/include/dotio/presentation/session.h)). `dotio::Session` derives from `lab::Session` and adds `virtual Application &application()`. `create_session` returns `std::unique_ptr<dotio::Session>`; the launcher and `main.cpp` keep compiling, because the pointer converts to its base. `Application` is forward-declared, so the launcher still does not compile the world.
 
 **Scripted player** (`tools/capture/src/dotio_player.h`, `.cpp`):
 

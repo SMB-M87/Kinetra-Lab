@@ -1,4 +1,4 @@
-#include "../include/debug_panel.h"
+#include "demo/debug_panel.h"
 
 #include <string>
 #include <utility>

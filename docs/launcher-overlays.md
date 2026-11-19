@@ -46,7 +46,7 @@ The window title is "Launcher" in the menu and the application's name in a sessi
 
 ## Settings policy
 
-Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/common](../labs/common/include/lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
+Each session owns a `kinetra::SettingsOverlay` built by `lab::settings_rows()` ([labs/shared](../labs/shared/include/kinetra_lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
 
 | Row | Effect |
 | --- | --- |
@@ -83,7 +83,7 @@ Every application builds its rows in its logic layer, as `kinetra::DebugEntry` v
 
 One section is open at a time (`kinetra::DebugFolds`). The rows of each application are listed in its README: [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md), [i4sim](../labs/i4sim/README.md).
 
-**Zoom** is a debug tool. The ZOOM row (`lab::ZoomControl` in [lab/debug.h](../labs/common/include/lab/debug.h)) and the wheel both zoom through `kinetra::zoom` with the application's limits; the wheel only in Debug Mode and not over a panel. Leaving Debug Mode clamps the zoom to the normal range.
+**Zoom** is a debug tool. The ZOOM row (`lab::ZoomControl` in [kinetra_lab/debug.h](../labs/shared/include/kinetra_lab/debug.h)) and the wheel both zoom through `kinetra::zoom` with the application's limits; the wheel only in Debug Mode and not over a panel. Leaving Debug Mode clamps the zoom to the normal range.
 
 ## Tests
 

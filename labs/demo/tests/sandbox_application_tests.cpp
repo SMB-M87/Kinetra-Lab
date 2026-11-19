@@ -1,8 +1,8 @@
 // Headless tests for the Demo application layer: input commands, pause, time scale and
 // single steps, camera, pointer actions, avoidance mode, tuning, player intent, drawn
 // poses, and agents that stay around the player and clear of terrain, without a window.
-#include "../include/sandbox_application.h"
-#include "../include/sandbox_input.h"
+#include "demo/input/sandbox_input.h"
+#include "demo/sandbox_application.h"
 
 #include <doctest/doctest.h>
 

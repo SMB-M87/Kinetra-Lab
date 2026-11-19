@@ -1,34 +1,33 @@
 add_library(kinetra_dotio_logic
-    gmath/src/gmath.cpp
-    logic/src/arrow.cpp
-    logic/src/bolt.cpp
-    logic/src/difficulty.cpp
-    logic/src/enemy.cpp
-    logic/src/fuzzy.cpp
-    logic/src/graph.cpp
-    logic/src/grid.cpp
-    logic/src/moving_object.cpp
-    logic/src/physics_object.cpp
-    logic/src/player.cpp
-    logic/src/priority_queue.cpp
-    logic/src/stack.cpp
-    logic/src/state.cpp
-    logic/src/static_object.cpp
-    logic/src/vertex.cpp
-    logic/src/wander.cpp
-    logic/src/world.cpp
+    src/ai/fuzzy.cpp
+    src/ai/state.cpp
+    src/ai/wander.cpp
+    src/difficulty.cpp
+    src/entities/arrow.cpp
+    src/entities/bolt.cpp
+    src/entities/enemy.cpp
+    src/entities/moving_object.cpp
+    src/entities/physics_object.cpp
+    src/entities/player.cpp
+    src/entities/static_object.cpp
+    src/math/gmath.cpp
+    src/navigation/graph.cpp
+    src/navigation/grid.cpp
+    src/navigation/priority_queue.cpp
+    src/navigation/stack.cpp
+    src/navigation/vertex.cpp
+    src/world.cpp
 )
 target_compile_features(kinetra_dotio_logic PUBLIC cxx_std_20)
-target_include_directories(kinetra_dotio_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include logic/include
-    gmath/include)
-# lab/debug.h is headless: the menu rows that every Lab application shares.
+target_include_directories(kinetra_dotio_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# kinetra_lab/debug.h is headless: the menu rows that every Lab application shares.
 target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation kinetra_lab_common)
 if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_dotio_tests PREFIX kinetra_dotio
         SOURCES tests/dotio_tests.cpp LIBRARIES kinetra_dotio_logic)
 endif()
 if(KINETRA_BUILD_RUNTIME)
-    add_library(kinetra_dotio_presentation src/presentation.cpp src/session.cpp)
+    add_library(kinetra_dotio_presentation src/presentation/presentation.cpp src/presentation/session.cpp)
     target_link_libraries(kinetra_dotio_presentation PUBLIC kinetra_dotio_logic kinetra_lab_common Kinetra::Runtime)
 endif()
 if(BUILD_TESTING AND KINETRA_BUILD_RUNTIME AND KINETRA_TEST_GRAPHICS)

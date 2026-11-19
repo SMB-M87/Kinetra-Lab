@@ -215,7 +215,7 @@ The CSV has one line per blueprint and seed:
 | `completed` | Completed products |
 | `contacts`, `contact_ticks` | Contact episodes, and pair/segment contact ticks |
 | `acceleration_change` | Summed changes in commanded acceleration: a diagnostic for steering activity, not a physical jerk measurement; contact impulses are not included |
-| `waiting_ticks` | Mover-ticks with an active goal, below 0.05 mm/tick and more than 10 mm from the destination ([FlowMetrics](../include/flow_metrics.h)) |
+| `waiting_ticks` | Mover-ticks with an active goal, below 0.05 mm/tick and more than 10 mm from the destination ([FlowMetrics](../include/i4sim/simulation/flow_metrics.h)) |
 | `stuck_movers`, `stuck_at_end` | Movers that went 2000 ticks without getting 10 mm closer to their destination at least once, and at the last tick |
 | `passing_plans`, `passing_cancelled`, `passing_contacts` | Predictive passing plans formed, plans that ended without completing, and contacts that started while a participant was in a plan (from the event log) |
 | `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |

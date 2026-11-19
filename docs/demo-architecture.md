@@ -25,7 +25,7 @@ flowchart LR
     Render --> Runtime[Public Runtime and overlays]
 ```
 
-Session/presentation consume public engine APIs. World generation and agent decisions remain local. The debug menu's content is logic: `DebugPanel` builds its rows, holds what they set and fills the debug part of a frame's commands, without a window. Source entry points: [application](../labs/demo/include/sandbox_application.h), [scene](../labs/demo/include/sandbox_scene.h), [tuning](../labs/demo/include/tuning.h), [agent](../labs/demo/include/agent.h), [terrain](../labs/demo/include/terrain.h), [debug panel](../labs/demo/include/debug_panel.h), [session](../labs/demo/src/session.cpp).
+Session/presentation consume public engine APIs. World generation and agent decisions remain local. The debug menu's content is logic: `DebugPanel` builds its rows, holds what they set and fills the debug part of a frame's commands, without a window. Source entry points: [application](../labs/demo/include/demo/sandbox_application.h), [scene](../labs/demo/include/demo/world/sandbox_scene.h), [tuning](../labs/demo/include/demo/world/tuning.h), [agent](../labs/demo/include/demo/world/agent.h), [terrain](../labs/demo/include/demo/world/terrain.h), [debug panel](../labs/demo/include/demo/debug_panel.h), [session](../labs/demo/src/presentation/session.cpp).
 
 ## Lifecycle and constraints
 

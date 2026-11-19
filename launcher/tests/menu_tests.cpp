@@ -1,8 +1,8 @@
 // Window-free tests of the bundled launcher's registrations (launcher/include/applications.h)
 // through kinetra::LaunchMenu: names and order, Dotio's difficulties and default, hover and
 // keyboard selection, and picking at resized viewports. No session is created.
-#include "../../labs/dotio/include/session.h"
-#include "../include/applications.h"
+#include "dotio/presentation/session.h"
+#include "launcher/applications.h"
 
 #include <doctest/doctest.h>
 

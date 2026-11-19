@@ -1,16 +1,16 @@
-#include "stage.h"
+#include "capture/stage.h"
 
-#include "../../../labs/demo/include/session.h"
-#include "../../../labs/dotio/include/session.h"
-#include "../../../labs/dotio/include/zoom.h"
-#include "../../../labs/i4sim/include/session.h"
-#include "png.h"
+#include "capture/png.h"
+#include "demo/presentation/session.h"
+#include "dotio/presentation/session.h"
+#include "dotio/presentation/zoom.h"
+#include "i4sim/presentation/session.h"
 
+#include "kinetra_lab/settings.h"
 #include <glad/glad.h>
-#include <kinetra/debug_view.h>
-#include <kinetra/launcher.h>
-#include <kinetra/settings_view.h>
-#include <lab/settings.h>
+#include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/launcher.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <algorithm>
 #include <array>

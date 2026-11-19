@@ -1,9 +1,9 @@
-#include "session.h"
-#include "zoom.h"
+#include "demo/presentation/session.h"
+#include "demo/presentation/zoom.h"
 #include <cstdlib>
 #include <iostream>
-#include <kinetra/engine.h>
-#include <kinetra/session.h>
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/session.h>
 #include <random>
 #include <string>
 
