@@ -411,4 +411,27 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     before = world_pixels();
     run_frames(30);
     CHECK_MESSAGE(world_pixels() != before, "R did not re-send the scene's goals");
+
+    // A restarting scene (corridor-recovery, the second scene) starts again by itself once its
+    // movers have stood still for the pause. They settle near tick 2200 and the scene restarts
+    // at tick 2600, so around tick 3000 they move again; without a restart they stand still.
+    session = i4sim::create_session();
+    session->advance(0, up, runtime.camera);
+    session->advance(0, choose, runtime.camera);
+    Input down;
+    down.pressed[std::size_t(Key::down)] = true;
+    session->advance(0, down, runtime.camera);
+    session->advance(0, choose, runtime.camera);
+    REQUIRE_MESSAGE(session->status() == "Corridor retreat recovery | PAUSED", "Restarting scene did not load");
+    session->advance(0, run, runtime.camera);
+    const auto run_ticks = [&](int ticks) {
+        // 0.25 s holds exactly 50 ticks at the default 200 ticks per second.
+        for (int frame = 0; frame < ticks / 50; ++frame)
+            session->advance(0.25, {}, runtime.camera);
+    };
+    run_ticks(3000);
+    before = world_pixels();
+    run_ticks(200);
+    CHECK_MESSAGE(world_pixels() != before, "Restarting scene did not start again after its pause");
+    CHECK_MESSAGE(session->status() == "Corridor retreat recovery | RUNNING", "A restart paused the scene");
 }

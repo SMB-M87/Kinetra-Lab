@@ -43,6 +43,8 @@ class FactorySession final : public lab::Session {
     std::vector<std::filesystem::path> files_, showcase_files_;
     /// Setup of the loaded blueprint; R replays it.
     std::optional<Scenario> scenario_;
+    /// When a restarting scenario starts again; one per simulation.
+    RestartTimer restart_timer_;
     std::unique_ptr<LaunchMenu> loadscreen_;
     std::unique_ptr<Simulation> simulation_;
     bool back_{}, exit_{}, fitted_{}, running_{};
@@ -224,6 +226,7 @@ class FactorySession final : public lab::Session {
     bool reset() {
         const auto config = simulation_->motion_settings();
         simulation_ = std::make_unique<Simulation>(simulation_->blueprint(), seed_);
+        restart_timer_ = {};
         error_.clear();
         if (scenario_) {
             // Replay the scene with the motion settings in use, so a changed setting can be
@@ -255,6 +258,7 @@ class FactorySession final : public lab::Session {
                 apply_scenario(*scenario, *next);
             simulation_ = std::move(next);
             scenario_ = std::move(scenario);
+            restart_timer_ = {};
             if (running_)
                 simulation_->run();
             simulation_->updates_per_second(ups_);
@@ -409,6 +413,16 @@ class FactorySession final : public lab::Session {
                 pick(point, input.right_clicked);
         }
         simulation_->advance(elapsed);
+        if (scenario_ && scenario_->repeat == ScenarioRepeat::restart && restart_timer_.due(*simulation_)) {
+            // Unlike R, a restart continues the show: same speed, same run state.
+            const bool was_running = simulation_->running();
+            const auto rate = simulation_->updates_per_second();
+            if (reset()) {
+                simulation_->updates_per_second(rate);
+                if (was_running)
+                    simulation_->run();
+            }
+        }
     }
     void render(Runtime &runtime) override {
         if (!simulation_) {

@@ -1425,6 +1425,9 @@ TEST_CASE("the bundled showcase holds four scenes whose scenarios load and apply
         CHECK_MESSAGE((simulation.movers()[0].goal == GoalKind::manual &&
                        simulation.movers()[1].goal == GoalKind::manual),
                       "Scenario goals were not sent");
+        const bool shuttles = scenario->repeat == ScenarioRepeat::shuttle;
+        CHECK_MESSAGE((simulation.shuttling(0) == shuttles && simulation.shuttling(1) == shuttles),
+                      "Scenario repeat mode not applied");
     }
 }
 
@@ -1450,18 +1453,24 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
          {1900, 800},
          {500, 800}},
     };
-    constexpr std::uint64_t ticks = 2000;
+    // Long enough for the shuttling scenes to turn at least once.
+    constexpr std::uint64_t ticks = 6000;
     for (const auto &scene : scenes) {
         CAPTURE(scene.name);
         const auto file = i4sim::test::showcase_blueprint(scene.name);
-        // The setup the presentation and golden tests build by hand.
+        // The setup the presentation and golden tests build by hand, shuttling where the
+        // scene does.
         MotionSettings motion;
         motion.profile = SteeringProfile::reciprocal;
         scene.enable(motion);
         Simulation by_hand(load_blueprint(file));
         by_hand.set_workload(false);
         by_hand.configure_motion(motion);
-        REQUIRE((by_hand.move_to(0, scene.first_goal) && by_hand.move_to(1, scene.second_goal)));
+        const auto send = [&](std::size_t mover, Vec2 goal) {
+            return load_scenario(file)->repeat == ScenarioRepeat::shuttle ? by_hand.shuttle(mover, goal)
+                                                                           : by_hand.move_to(mover, goal);
+        };
+        REQUIRE((send(0, scene.first_goal) && send(1, scene.second_goal)));
         by_hand.run();
         i4sim::test::Recorder hand_recorder;
         hand_recorder.run(by_hand, ticks);
@@ -1556,6 +1565,77 @@ TEST_CASE("a manual goal ends shuttling for that mover only") {
     CHECK_MESSAGE(s.movers()[1].lifecycle == MoverLifecycle::idle, "A mover with a manual goal kept shuttling");
 }
 
+TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
+    for (const auto &file : discover_blueprints(default_blueprint_directory() / "showcase")) {
+        CAPTURE(file);
+        const auto scenario = load_scenario(file);
+        REQUIRE(scenario);
+        if (scenario->repeat != ScenarioRepeat::shuttle)
+            continue;
+        Simulation s(load_blueprint(file));
+        apply_scenario(*scenario, s);
+        s.run();
+        // A leg runs from one turn to the next; count the legs in which traffic coordination
+        // stepped in, which is the situation the scene exists to show.
+        constexpr int wanted_legs = 4;
+        int legs = 0, coordinated_legs = 0;
+        bool coordinated = false, under_way = true;
+        while (legs < wanted_legs && s.ticks() < 40000) {
+            s.tick();
+            for (const auto &m : s.movers()) {
+                const auto &c = m.coordination;
+                coordinated = coordinated || c.junction_waiting || c.exit_waiting || c.corridor_waiting ||
+                              c.corridor_retreating || c.passing;
+            }
+            const bool idle = std::all_of(s.movers().begin(), s.movers().end(),
+                                          [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
+            if (under_way && idle) {
+                ++legs;
+                coordinated_legs += coordinated;
+                coordinated = false;
+            }
+            under_way = !idle;
+        }
+        CHECK_MESSAGE(legs == wanted_legs, "The scene did not complete its legs");
+        CHECK_MESSAGE(coordinated_legs == wanted_legs, "A leg did not show the traffic situation again");
+        CHECK(s.collisions() == 0);
+        CHECK((s.shuttling(0) && s.shuttling(1)));
+    }
+}
+
+TEST_CASE("a restarting scene is due once its movers have stood still for the pause") {
+    const auto file = i4sim::test::showcase_blueprint("corridor-recovery");
+    const auto scenario = load_scenario(file);
+    REQUIRE(scenario);
+    REQUIRE(scenario->repeat == ScenarioRepeat::restart);
+    Simulation s(load_blueprint(file));
+    apply_scenario(*scenario, s);
+    CHECK_FALSE_MESSAGE((s.shuttling(0) || s.shuttling(1)), "A restarting scene must not shuttle");
+    s.run();
+    RestartTimer timer;
+    const auto settled = [&] {
+        return std::all_of(s.movers().begin(), s.movers().end(),
+                           [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
+    };
+    bool retreated = false;
+    while (!settled() && s.ticks() < 20000) {
+        s.tick();
+        retreated = retreated || s.corridor_recovering() > 0;
+        REQUIRE_FALSE_MESSAGE(timer.due(s), "Restart due while a mover is under way");
+    }
+    REQUIRE_MESSAGE(settled(), "The corridor-recovery scene did not settle");
+    CHECK_MESSAGE(retreated, "The scene did not show its corridor retreat");
+    const auto arrival = s.ticks();
+    CHECK_FALSE(timer.due(s));
+    while (s.ticks() < arrival + shuttle_pause_ticks - 1) {
+        s.tick();
+        REQUIRE_FALSE_MESSAGE(timer.due(s), "Restart due before the pause ended");
+    }
+    s.tick();
+    CHECK(timer.due(s));
+    CHECK(s.collisions() == 0);
+}
+
 TEST_CASE("an invalid scenario is rejected with its cause") {
     const auto dir = std::filesystem::temp_directory_path() / "kinetra-i4sim-regression";
     std::filesystem::create_directories(dir);
@@ -1593,6 +1673,10 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
           std::string::npos);
     CHECK(load_error(with_scenario(R"({"workload": 0})")).find("workload must be true or false") !=
           std::string::npos);
+    CHECK(load_error(with_scenario(R"({"repeat": true})")).find("scenario.repeat must be a string") !=
+          std::string::npos);
+    CHECK(load_error(with_scenario(R"({"repeat": "forever"})")).find("Unknown repeat: forever") !=
+          std::string::npos);
     CHECK(load_error(with_scenario(R"({"goals": [{"mover": "west", "position": {"x": 1, "y": 2, "z": 3}}]})"))
               .find("Unknown property in scenario.goals[].position: z") != std::string::npos);
     CHECK(apply_error(with_scenario(R"({"goals": [{"mover": "south", "position": {"x": 700, "y": 700}}]})"))
@@ -1605,6 +1689,10 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     REQUIRE(loaded);
     CHECK(loaded->motion.profile == SteeringProfile::experimental_rvo);
     CHECK(loaded->workload);
+    CHECK(loaded->repeat == ScenarioRepeat::none);
+    const auto restarting = load_scenario(with_scenario(R"({"Repeat": "Restart"})"));
+    REQUIRE(restarting);
+    CHECK(restarting->repeat == ScenarioRepeat::restart);
 }
 
 TEST_CASE("every bundled blueprint expands its groups and starts paused") {

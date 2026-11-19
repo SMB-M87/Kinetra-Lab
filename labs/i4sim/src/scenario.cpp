@@ -1,5 +1,6 @@
 #include "scenario.h"
 #include "json_fields.h"
+#include <algorithm>
 #include <array>
 #include <fstream>
 #include <initializer_list>
@@ -14,6 +15,9 @@ using json_fields::lower;
 /// Profile names as written in a scenario, in SteeringProfile order.
 constexpr std::array<std::string_view, 4> profile_names{"improved", "original", "experimentalrvo",
                                                         "reciprocal"};
+
+/// Repeat modes as written in a scenario, in ScenarioRepeat order.
+constexpr std::array<std::string_view, 3> repeat_names{"none", "shuttle", "restart"};
 
 /// Rejects keys of `object` that are not in `allowed` (lower case), naming `where`.
 void only_keys(const Json &object, std::initializer_list<std::string_view> allowed, std::string_view where) {
@@ -63,6 +67,15 @@ MotionSettings motion(const Json &object) {
     settings.predictive_passing = flag(object, "predictivepassing", settings.predictive_passing);
     return settings;
 }
+ScenarioRepeat repeat(const Json &value) {
+    if (!value.is_string())
+        throw std::runtime_error("scenario.repeat must be a string");
+    const auto name = lower(value.get<std::string>());
+    for (std::size_t i = 0; i < repeat_names.size(); ++i)
+        if (name == repeat_names[i])
+            return ScenarioRepeat(i);
+    throw std::runtime_error("Unknown repeat: " + value.get<std::string>());
+}
 ScenarioGoal goal(const Json &object) {
     only_keys(object, {"mover", "position"}, "scenario.goals");
     if (!object.contains("mover") || !object.at("mover").is_string() ||
@@ -84,7 +97,7 @@ std::optional<Scenario> load_scenario(const std::filesystem::path &path) {
         if (!root.contains("scenario"))
             return std::nullopt;
         const auto &section = root.at("scenario");
-        only_keys(section, {"description", "motion", "workload", "goals"}, "scenario");
+        only_keys(section, {"description", "motion", "workload", "goals", "repeat"}, "scenario");
         Scenario scenario;
         if (section.contains("description")) {
             if (!section.at("description").is_string())
@@ -94,6 +107,8 @@ std::optional<Scenario> load_scenario(const std::filesystem::path &path) {
         if (section.contains("motion"))
             scenario.motion = motion(section.at("motion"));
         scenario.workload = flag(section, "workload", scenario.workload);
+        if (section.contains("repeat"))
+            scenario.repeat = repeat(section.at("repeat"));
         if (section.contains("goals")) {
             if (!section.at("goals").is_array())
                 throw std::runtime_error("scenario.goals must be an array");
@@ -122,8 +137,23 @@ void apply_scenario(const Scenario &scenario, Simulation &simulation) {
         }
         if (!index)
             throw std::runtime_error("Scenario goal names no mover: " + target.mover);
-        if (!simulation.move_to(*index, target.position))
+        const bool sent = scenario.repeat == ScenarioRepeat::shuttle ? simulation.shuttle(*index, target.position)
+                                           : simulation.move_to(*index, target.position);
+        if (!sent)
             throw std::runtime_error("Scenario goal rejected for mover " + target.mover);
     }
+}
+
+bool RestartTimer::due(const Simulation &simulation) {
+    const auto &movers = simulation.movers();
+    const bool settled = std::all_of(movers.begin(), movers.end(),
+                                     [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
+    if (!settled) {
+        settled_.reset();
+        return false;
+    }
+    if (!settled_)
+        settled_ = simulation.ticks();
+    return simulation.ticks() - *settled_ >= shuttle_pause_ticks;
 }
 } // namespace i4sim

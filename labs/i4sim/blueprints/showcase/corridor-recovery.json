@@ -20,6 +20,7 @@
     "description": "Corridor retreat: two movers meet head-on inside the corridor; one backs out.",
     "motion": {"profile": "reciprocal", "corridorTraffic": true},
     "workload": false,
+    "repeat": "restart",
     "goals": [
       {"mover": "west", "position": {"x": 1900, "y": 700}},
       {"mover": "east", "position": {"x": 300, "y": 700}}
