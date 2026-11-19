@@ -6,7 +6,8 @@
 #include "dotio/entities/arrow.h"
 
 namespace dotio {
-Arrow::Arrow(dotio::math::Position position, dotio::math::Vector2 velocity) : MovingObject(position, 0, false) {
+Arrow::Arrow(dotio::math::Position position, dotio::math::Vector2 velocity)
+    : MovingObject(position, 0, false) {
     Velocity = velocity;
 }
 

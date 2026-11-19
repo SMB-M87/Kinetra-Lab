@@ -128,8 +128,8 @@ dotio::math::Vec2 World::StreamAroundPlayer() {
     return shift;
 }
 
-void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal_half, dotio::math::Vec2 active_half,
-                          dotio::math::Vec2 retained_half, float elapsed) {
+void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal_half,
+                          dotio::math::Vec2 active_half, dotio::math::Vec2 retained_half, float elapsed) {
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Spawn elapsed time must be finite and nonnegative");
     const auto outside = [&](dotio::math::Position position, dotio::math::Vec2 half) {
@@ -210,13 +210,14 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
         if (!enemy.IsActive && spawn_due && attempts++ < 8) {
             const auto unit = [&]() { return float(population_random_() >> 8) / 16777216.f; };
             const dotio::math::Vec2 position{center.X + (unit() * 2 - 1) * spawn_half.X,
-                                       center.Y + (unit() * 2 - 1) * spawn_half.Y};
+                                             center.Y + (unit() * 2 - 1) * spawn_half.Y};
             dotio::math::GridEntry cell;
-            if (!dotio::math::GridEntry::FromWorld(position, Grid::Origin, Grid::CellSize, Grid::GridSize, cell) ||
+            if (!dotio::math::GridEntry::FromWorld(position, Grid::Origin, Grid::CellSize, Grid::GridSize,
+                                                   cell) ||
                 Grid::Array[cell.Row][cell.Column])
                 continue;
             const dotio::math::Vec2 spawn{(cell.Column + 0.5f) * Grid::CellSize,
-                                    (cell.Row + 0.5f) * Grid::CellSize};
+                                          (cell.Row + 0.5f) * Grid::CellSize};
             const bool occupied =
                 std::any_of(GetEnemies().GetInstances(),
                             GetEnemies().GetInstances() + GetEnemies().GetCapacity(),
@@ -382,7 +383,8 @@ dotio::Player &World::GetGhost() {
     return _ghost;
 }
 
-void World::AddEnemy(const dotio::math::Position position, dotio::math::Position target, const float fear, bool) {
+void World::AddEnemy(const dotio::math::Position position, dotio::math::Position target, const float fear,
+                     bool) {
     _enemies += Enemy(this, position, target, 0.0f, fear);
 }
 

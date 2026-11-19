@@ -46,7 +46,8 @@ class World {
     };
     std::vector<Prop> props_;
     void PopulateObjects();
-    std::optional<std::pair<std::size_t, float>> FirstObjectHit(dotio::math::Segment segment, float radius) const;
+    std::optional<std::pair<std::size_t, float>> FirstObjectHit(dotio::math::Segment segment,
+                                                                float radius) const;
 
   public:
     /// Throws std::invalid_argument for a difficulty without a preset.
@@ -114,8 +115,8 @@ class World {
     }
     /// Update residency; timed fuzzy density control refills at most one offscreen slot per call.
     /// elapsed is simulated seconds, zero while paused; nearby counts ignore health and mana.
-    void StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal_half, dotio::math::Vec2 active_half,
-                       dotio::math::Vec2 retained_half, float elapsed = 0);
+    void StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal_half,
+                       dotio::math::Vec2 active_half, dotio::math::Vec2 retained_half, float elapsed = 0);
     void UpdateObjects(float delta);
     const auto &GetObjects() const { return props_; }
 
@@ -131,7 +132,8 @@ class World {
 
     dotio::Player &GetGhost();
 
-    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear, bool active);
+    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear,
+                  bool active);
 
     void AddArrow(dotio::math::Position position, dotio::math::Vector2 velocity);
 

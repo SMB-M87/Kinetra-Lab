@@ -131,17 +131,19 @@ class FactorySession final : public kinetra_lab::Session {
     kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     SettingsOverlay settings_{
-        kinetra_lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
-                           {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK",
-                            "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
-                           {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),
+        kinetra_lab::settings_rows(
+            statistics_, debug_, frame_times_, frame_limit_.enabled,
+            {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK", "SHIFT CLICK FREE MOVER GOAL",
+             "SPACE PAUSE / R RESET"},
+            {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),
         &debug_};
 };
 } // namespace
 
 std::unique_ptr<kinetra_lab::Session> create_session(std::uint32_t seed, std::filesystem::path directory,
-                                             std::optional<std::filesystem::path> initial, bool running,
-                                             unsigned ups, std::optional<std::filesystem::path>) {
+                                                     std::optional<std::filesystem::path> initial,
+                                                     bool running, unsigned ups,
+                                                     std::optional<std::filesystem::path>) {
     return std::make_unique<FactorySession>(seed, directory, initial, running, ups);
 }
 } // namespace i4sim

@@ -44,8 +44,8 @@ class Enemy final : public PhysicsObject {
 
     Enemy();
 
-    explicit Enemy(World *world, dotio::math::Position position, dotio::math::Position target, float direction,
-                   float fear);
+    explicit Enemy(World *world, dotio::math::Position position, dotio::math::Position target,
+                   float direction, float fear);
 
     ~Enemy() override = default;
 

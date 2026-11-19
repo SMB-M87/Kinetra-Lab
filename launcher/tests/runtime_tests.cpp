@@ -67,7 +67,7 @@ struct PanelLayout {
     Camera2D camera;
     explicit PanelLayout(std::size_t sim_lines, Vec2 viewport)
         : overlay(kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit,
-                                     std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
+                                             std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
         camera.viewport = viewport;
         Input open;
         open.pressed[std::size_t(Key::control)] = true;

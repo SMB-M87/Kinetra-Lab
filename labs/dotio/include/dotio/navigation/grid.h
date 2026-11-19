@@ -26,10 +26,12 @@ class Grid {
     static bool SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
                                            const float r);
 
-    static uint8_t SegementCircleIntersection(const dotio::math::Segment &segment, const dotio::math::Point2 c,
-                                              const float r, dotio::math::Point2 &outIntersection);
+    static uint8_t SegementCircleIntersection(const dotio::math::Segment &segment,
+                                              const dotio::math::Point2 c, const float r,
+                                              dotio::math::Point2 &outIntersection);
 
-    static bool IsIntersectingAnyCell(dotio::math::Segment segment, const int *Array, dotio::math::Point2 &intersection);
+    static bool IsIntersectingAnyCell(dotio::math::Segment segment, const int *Array,
+                                      dotio::math::Point2 &intersection);
 
     static dotio::math::GridEntry GenerateGridEntry(dotio::math::GridEntry origin);
 

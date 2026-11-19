@@ -11,9 +11,9 @@ class DotioSession final : public Session {
     kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the application and the switch whose flags it borrows.
     kinetra::SettingsOverlay settings_{
-        kinetra_lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
-                           frame_limit_.enabled, {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
-                           {"GHOST CLICK  TELEPORT"}),
+        kinetra_lab::settings_rows(
+            application_.statistics, application_.debug, application_.frame_times, frame_limit_.enabled,
+            {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"}, {"GHOST CLICK  TELEPORT"}),
         &application_.debug};
     kinetra_lab::ModalPause pause_;
 

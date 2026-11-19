@@ -43,7 +43,8 @@ TEST_CASE("opposite keys cancel and diagonals stay unnormalized") {
     const auto diagonal = kinetra_lab::direction(holding({Key::d, Key::up}));
     CHECK(diagonal.x == 1);
     CHECK(diagonal.y == 1);
-    CHECK_MESSAGE(kinetra_lab::direction(holding({Key::d, Key::right})).x == 1, "a key and its arrow do not add up");
+    CHECK_MESSAGE(kinetra_lab::direction(holding({Key::d, Key::right})).x == 1,
+                  "a key and its arrow do not add up");
 }
 
 TEST_CASE("a modal panel pauses and then restores a running application") {
@@ -68,7 +69,8 @@ TEST_CASE("without a panel the pause state passes through") {
 
 TEST_CASE("the settings rows come in Lab's order without a zoom row") {
     bool statistics{}, debug{}, frame_times{}, frame_limit{};
-    const auto rows = kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"MOVE"}, {"TELEPORT"});
+    const auto rows =
+        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"MOVE"}, {"TELEPORT"});
     REQUIRE(rows.size() == 6);
     const std::pair<const char *, bool *> toggles[]{{"STATISTICS", &statistics},
                                                     {"DEBUG MODE", &debug},
@@ -85,7 +87,8 @@ TEST_CASE("the settings rows come in Lab's order without a zoom row") {
     CHECK(sim.lines == std::vector<std::string>{"MOVE"});
     const auto &controls = std::get<kinetra::HelpSection>(rows[5]);
     CHECK(controls.label == "DEBUG CONTROLS");
-    const std::vector<std::string> expected{kinetra_lab::debug_menu_help, kinetra_lab::wheel_zoom_help, "TELEPORT"};
+    const std::vector<std::string> expected{kinetra_lab::debug_menu_help, kinetra_lab::wheel_zoom_help,
+                                            "TELEPORT"};
     CHECK_MESSAGE(controls.lines == expected, "the shared lines come before the application's");
 }
 

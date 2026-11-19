@@ -10,8 +10,8 @@ namespace dotio {
 Enemy::Enemy() : PhysicsObject() {
 }
 
-Enemy::Enemy(World *world, dotio::math::Position position, dotio::math::Position target, const float direction,
-             const float fear)
+Enemy::Enemy(World *world, dotio::math::Position position, dotio::math::Position target,
+             const float direction, const float fear)
     : PhysicsObject(60.0f, dotio::Grid::CellSize * 0.2, 0.2f, 0.2f, position, direction, true), _world(world),
       Target(target), Path{}, Fear(fear) {
 }
@@ -93,7 +93,7 @@ void Enemy::SpatialPartitioning(const float delta) {
     dotio::math::GridEntry partitions[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
     dotio::math::GridEntry::GetPartitions(p, next, dotio::Grid::Origin, dotio::Grid::CellSize,
-                                    dotio::Grid::GridSize, partitions);
+                                          dotio::Grid::GridSize, partitions);
 
     bool keep[4]{false, false, false, false};
 
@@ -126,14 +126,15 @@ void Enemy::SpatialPartitioning(const float delta) {
     kinetra::integrate(motion, delta);
     dotio::apply_body(*this, motion);
 
-    p = dotio::math::GridEntry::GetSquarePartition(Position, Radius, dotio::Grid::Origin, dotio::Grid::CellSize);
+    p = dotio::math::GridEntry::GetSquarePartition(Position, Radius, dotio::Grid::Origin,
+                                                   dotio::Grid::CellSize);
     partitions[0] = {-1, -1};
     partitions[1] = {-1, -1};
     partitions[2] = {-1, -1};
     partitions[3] = {-1, -1};
 
     dotio::math::GridEntry::GetPartitions(p, Position, dotio::Grid::Origin, dotio::Grid::CellSize,
-                                    dotio::Grid::GridSize, partitions);
+                                          dotio::Grid::GridSize, partitions);
 
     keep[0] = false;
     keep[1] = false;

@@ -245,8 +245,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     // Centered modal settings, default collapsed help: the LAUNCHER action, located through a
     // panel with the same Lab rows so the test follows the shared layout.
     bool mirror_statistics{}, mirror_debug{}, mirror_frame_times{}, mirror_frame_limit{};
-    const SettingsOverlay mirror(kinetra_lab::settings_rows(mirror_statistics, mirror_debug, mirror_frame_times,
-                                                    mirror_frame_limit, {"LINE"}, {"LINE"}));
+    const SettingsOverlay mirror(kinetra_lab::settings_rows(
+        mirror_statistics, mirror_debug, mirror_frame_times, mirror_frame_limit, {"LINE"}, {"LINE"}));
     back.mouse = runtime.camera.viewport / 2 +
                  (Vec2{SettingsOverlay::launcher_x, mirror.actions_y() + 3} - mirror.half_extent()) *
                      SettingsOverlay::scale(runtime.camera.viewport);

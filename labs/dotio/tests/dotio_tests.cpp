@@ -48,8 +48,8 @@ std::unique_ptr<dotio::World> fixture() {
 /// of `dt`, checks spawn placement, spacing and admission, and returns the positions of
 /// the active enemies. `active` is the normal player view in world units.
 std::vector<dotio::math::Vec2> population(float dt, float resources, dotio::math::Vec2 active = {1120, 700},
-                                    dotio::Difficulty difficulty = dotio::Difficulty::easy,
-                                    float duration = 20) {
+                                          dotio::Difficulty difficulty = dotio::Difficulty::easy,
+                                          float duration = 20) {
     CAPTURE(dt);
     CAPTURE(duration);
     auto world = std::make_unique<dotio::World>();
@@ -627,12 +627,14 @@ TEST_CASE("debug teleport accepts only free targets in range and keeps absolute 
     application.paused = true;
     player.Velocity = {4, 5};
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050} && player.Velocity == dotio::math::Vec2{}),
-                  "Paused debug teleport failed");
+    CHECK_MESSAGE(
+        (player.Position == dotio::math::Vec2{8150, 8050} && player.Velocity == dotio::math::Vec2{}),
+        "Paused debug teleport failed");
     dotio::Grid::Array[80][82] = 1;
     commands.teleport_target = dotio::to_world({8190, 8050});
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050}), "Teleport accepted circle overlapping wall");
+    CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050}),
+                  "Teleport accepted circle overlapping wall");
     commands.teleport_target = dotio::to_world({100000000, 550});
     application.advance(0, commands, camera);
     CHECK_MESSAGE((player.Position == dotio::math::Vec2{8150, 8050}),
@@ -1089,15 +1091,16 @@ TEST_CASE("legacy vector math and coordinate conversion keep their contracts") {
     CHECK_MESSAGE((vector.GetLength() == 5 && vector.DotProduct({2, -1}) == 2),
                   "Legacy vector units or dot product changed");
     CHECK_MESSAGE(vector.Determinant({2, -1}) == -11, "Legacy cross product changed");
-    CHECK_MESSAGE(dotio::math::Vec2{}.GetNormalized() == dotio::math::Vec2{}, "Legacy zero normalization changed");
+    CHECK_MESSAGE(dotio::math::Vec2{}.GetNormalized() == dotio::math::Vec2{},
+                  "Legacy zero normalization changed");
     auto normalized = vector.GetNormalized();
     CHECK_MESSAGE((std::abs(normalized.X - 0.6f) < 0.000001f && std::abs(normalized.Y - 0.8f) < 0.000001f),
                   "Legacy normalization changed");
     auto rotated = dotio::math::Vec2{1, 0}.Rotate(std::numbers::pi_v<float> / 2);
     CHECK_MESSAGE((std::abs(rotated.X) < 0.000001f && std::abs(rotated.Y - 1) < 0.000001f),
                   "Legacy rotation orientation changed");
-    CHECK_MESSAGE(std::abs(dotio::math::Vec2{1, 0}.SignedAngleDifference({0, 1}) - std::numbers::pi_v<float> / 2) <
-                      0.000001f,
+    CHECK_MESSAGE(std::abs(dotio::math::Vec2{1, 0}.SignedAngleDifference({0, 1}) -
+                           std::numbers::pi_v<float> / 2) < 0.000001f,
                   "Legacy signed angle changed");
     CHECK_MESSAGE((dotio::from_world(dotio::to_world({250, -125})) == dotio::math::Vec2{250, -125}),
                   "Legacy/world coordinate conversion changed");

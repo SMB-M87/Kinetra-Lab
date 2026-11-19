@@ -139,7 +139,8 @@ void Grid::HandleGridCollision(dotio::PhysicsObject &object, const float, const 
     dotio::apply_body(object, body);
 }
 
-bool Grid::GridIntersection(const dotio::math::Segment &segment, const int *cells, dotio::math::Point2 &intersection) {
+bool Grid::GridIntersection(const dotio::math::Segment &segment, const int *cells,
+                            dotio::math::Point2 &intersection) {
     return IsIntersectingAnyCell(segment, cells, intersection);
 }
 
@@ -149,8 +150,9 @@ bool Grid::SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const
     return SegementCircleIntersection(segment, center, radius, hit) & 1;
 }
 
-uint8_t Grid::SegementCircleIntersection(const dotio::math::Segment &segment, const dotio::math::Point2 center,
-                                         const float radius, dotio::math::Point2 &intersection) {
+uint8_t Grid::SegementCircleIntersection(const dotio::math::Segment &segment,
+                                         const dotio::math::Point2 center, const float radius,
+                                         dotio::math::Point2 &intersection) {
     const auto start = dotio::physics_vector(segment.Start), end = dotio::physics_vector(segment.End);
     const auto c = dotio::physics_vector(center);
     const uint8_t flags =
@@ -162,7 +164,8 @@ uint8_t Grid::SegementCircleIntersection(const dotio::math::Segment &segment, co
     return flags;
 }
 
-bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, const int *cells, dotio::math::Point2 &intersection) {
+bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, const int *cells,
+                                 dotio::math::Point2 &intersection) {
     if (const auto fraction = kinetra::segment_grid(
             dotio::physics_vector(segment.Start), dotio::physics_vector(segment.End), CollisionView(cells))) {
         intersection = segment.Start + (segment.End - segment.Start) * *fraction;

@@ -21,9 +21,9 @@ class DemoSession final : public kinetra_lab::Session {
     // Declared after the flags it borrows.
     kinetra::SettingsOverlay settings_{
         kinetra_lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
-                           {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL", "Q / E  ROTATE PLAYER",
-                            "SHIFT + LEFT / RIGHT  ROTATE"},
-                           {"GHOST CLICK  TELEPORT"}),
+                                   {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL",
+                                    "Q / E  ROTATE PLAYER", "SHIFT + LEFT / RIGHT  ROTATE"},
+                                   {"GHOST CLICK  TELEPORT"}),
         &debug_};
     kinetra_lab::ModalPause pause_;
     kinetra::RateCounter fps_;
@@ -56,13 +56,13 @@ class DemoSession final : public kinetra_lab::Session {
         frame_limit_.apply(runtime);
         const auto entries = menu_rows();
         demo::render(runtime, application_, panel_.layers(debug_),
-                        {.menu = &menu_,
-                         .entries = entries,
-                         .statistics = statistics_,
-                         .fps = fps_.rate(),
-                         .time_scale = panel_.time_scale(),
-                         .settings = &settings_,
-                         .frame_times = frame_times_ ? &runtime.frame_times() : nullptr});
+                     {.menu = &menu_,
+                      .entries = entries,
+                      .statistics = statistics_,
+                      .fps = fps_.rate(),
+                      .time_scale = panel_.time_scale(),
+                      .settings = &settings_,
+                      .frame_times = frame_times_ ? &runtime.frame_times() : nullptr});
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Demo"; }

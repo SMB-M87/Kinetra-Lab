@@ -70,14 +70,14 @@ bool Graph::AStar(const dotio::math::GridEntry &start, const dotio::math::GridEn
     return false;
 }
 
-bool Graph::HideStar(const dotio::math::GridEntry &start, const dotio::math::Position &player, const float fear,
-                     Vertex &output) {
+bool Graph::HideStar(const dotio::math::GridEntry &start, const dotio::math::Position &player,
+                     const float fear, Vertex &output) {
     ClearAll();
     dotio::PriorityQueue q(start);
 
     dotio::math::GridEntry player_output;
-    dotio::math::GridEntry::FromWorld(player, dotio::Grid::Origin, dotio::Grid::CellSize, dotio::Grid::GridSize,
-                                player_output);
+    dotio::math::GridEntry::FromWorld(player, dotio::Grid::Origin, dotio::Grid::CellSize,
+                                      dotio::Grid::GridSize, player_output);
     int row = start.Row - player_output.Row;
     int column = start.Column - player_output.Column;
     bool up = row == 0 ? true : row < 0 ? true : false;
@@ -93,8 +93,8 @@ bool Graph::HideStar(const dotio::math::GridEntry &start, const dotio::math::Pos
 
     while (!q.empty()) {
         vertex = &q.pop();
-        dotio::math::Point2 intersection{dotio::math::GridEntry::ToWorld(vertex->cell.Row, vertex->cell.Column,
-                                                             dotio::Grid::CellSize, dotio::Grid::Origin)};
+        dotio::math::Point2 intersection{dotio::math::GridEntry::ToWorld(
+            vertex->cell.Row, vertex->cell.Column, dotio::Grid::CellSize, dotio::Grid::Origin)};
         intersection.X += dotio::Grid::CellSize / 2;
         intersection.Y += dotio::Grid::CellSize / 2;
 
