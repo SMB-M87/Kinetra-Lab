@@ -58,6 +58,7 @@ Measured on 2026-11-18 at `4eb5dba` with `kinetra_i4sim_motion_benchmark` (Relea
 - Passing costs about 55% more run time on the large layout.
 - Reciprocal on `MAS-demonstrator` with seed 42 completes 10 products against 16 with the other seed, which suggests stuck movers. The benchmark reports neither waiting time nor stuck movers.
 - The passing checks use snapshots: a third mover that enters a passing lane later is not guarded against.
+- Phase 4 extended this baseline on 2026-11-19 with waiting time, stuck movers and passing outcomes; see the [i4sim test guide](../../labs/i4sim/tests/README.md#motion-benchmark).
 
 ## Decisions
 
@@ -101,7 +102,8 @@ Updated on 2026-11-19.
 | 1 Process and rules | Implemented | [Development process](2026-11-18-development-process.md) |
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
-| 4–8 | Not started | This page |
+| 4 i4sim | In progress: step 1 (passing safety net) on `test/i4sim-passing-safety-net` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
+| 5–8 | Not started | This page |
 
 ## Phase 2: tooling and CI
 

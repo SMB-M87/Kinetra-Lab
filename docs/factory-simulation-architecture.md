@@ -209,6 +209,15 @@ measurable progress; both participants wait 120 ticks before retrying. Body posi
 are never snapped by this policy. Existing local avoidance and contact correction
 remain active. Snapshot checks do not reserve space against later intrusions by
 unrelated movers; this is not a general collision-free or starvation-free scheduler.
+
+Each plan has an id. With the event log on (`Simulation::record_events`), the
+simulation records the plan's formation with both entry and exit targets, the start
+of crossing, and its end with the first reason that applied, in the order the policy
+checks them: completed, disabled, participant stopped, participant held, corridor
+recovery took a participant, no progress, or a new goal. Contact starts are recorded
+with tick and participants, flagged when a participant was in a plan. Recording never
+changes a decision. The [pressure scenarios](../labs/i4sim/tests/README.md#contents-and-use)
+record today's outcomes in situations the snapshot checks do not cover.
 The [regression and benchmark guide](../labs/i4sim/tests/README.md) describes coverage.
 
 ## Verification

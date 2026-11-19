@@ -47,6 +47,23 @@ void Simulation::restore_passing_routes(std::array<std::size_t, 2> ids) {
             passing_retry_[id] = ticks_ + 120;
     }
 }
+void Simulation::record_passing(EventKind kind, const PassingPlan &plan, std::optional<PassingEnd> end) {
+    if (!recording_)
+        return;
+    SimulationEvent event{.tick = ticks_, .kind = kind, .plan = plan.id, .movers = plan.movers};
+    if (kind == EventKind::passing_formed) {
+        event.entry = plan.entry;
+        event.exit = plan.exit;
+    }
+    event.end = end;
+    events_.push_back(event);
+}
+void Simulation::end_passing(std::size_t index, PassingEnd end) {
+    record_passing(EventKind::passing_ended, passing_plans_[index], end);
+    const auto ids = passing_plans_[index].movers;
+    passing_plans_.erase(passing_plans_.begin() + std::ptrdiff_t(index));
+    restore_passing_routes(ids);
+}
 void Simulation::cancel_predictive_passing(Mover &m) {
     for (std::size_t i = 0; i < passing_plans_.size();) {
         const auto ids = passing_plans_[i].movers;
@@ -54,8 +71,7 @@ void Simulation::cancel_predictive_passing(Mover &m) {
             ++i;
             continue;
         }
-        passing_plans_.erase(passing_plans_.begin() + i);
-        restore_passing_routes(ids);
+        end_passing(i, PassingEnd::goal_changed);
     }
 }
 void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
@@ -64,7 +80,10 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
         m.passing_detour = false;
     for (std::size_t i = 0; i < passing_plans_.size();) {
         auto &plan = passing_plans_[i];
-        bool cancel = !predictive_enabled();
+        // The first reason found ends the plan; the event log reports it.
+        std::optional<PassingEnd> end;
+        if (!predictive_enabled())
+            end = PassingEnd::disabled;
         bool arrived = true;
         float remaining = 0;
         for (std::size_t side = 0; side < 2; ++side) {
@@ -74,23 +93,32 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
             const float d = distance(m.body.position, target);
             remaining += d;
             arrived = arrived && d < 0.1f && length(m.body.velocity) < 0.05f;
-            cancel = cancel || !m.moving || m.blocked || traffic_controls_[id].has_value();
+            if (end)
+                continue;
+            if (!m.moving)
+                end = PassingEnd::participant_stopped;
+            else if (m.blocked)
+                end = PassingEnd::participant_held;
+            else if (traffic_controls_[id].has_value())
+                end = PassingEnd::traffic_control;
         }
         if (remaining + std::max(0.0001f, motion_.speed * 0.05f) < plan.best_remaining) {
             plan.best_remaining = remaining;
             plan.progress_at = ticks_;
         }
-        cancel = cancel || ticks_ - plan.progress_at >= 240;
-        if (cancel || (arrived && plan.crossing)) {
-            const auto ids = plan.movers;
-            passing_plans_.erase(passing_plans_.begin() + i);
-            restore_passing_routes(ids);
+        if (!end && ticks_ - plan.progress_at >= 240)
+            end = PassingEnd::no_progress;
+        if (!end && arrived && plan.crossing)
+            end = PassingEnd::completed;
+        if (end) {
+            end_passing(i, *end);
             continue;
         }
         if (arrived) {
             plan.crossing = true;
             plan.best_remaining = std::numeric_limits<float>::infinity();
             plan.progress_at = ticks_;
+            record_passing(EventKind::passing_crossing, plan);
         }
         ++i;
     }
@@ -205,6 +233,8 @@ void Simulation::coordinate_predictive_passing(const SpatialGrid &index) {
                     }
                     if (!clear)
                         continue;
+                    plan.id = next_plan_++;
+                    record_passing(EventKind::passing_formed, plan);
                     passing_plans_.push_back(std::move(plan));
                     claimed[a] = claimed[b] = true;
                     accepted = true;

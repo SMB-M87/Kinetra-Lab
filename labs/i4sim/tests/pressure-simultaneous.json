@@ -1,0 +1,16 @@
+{
+  "name": "Two simultaneous passing pairs (manual)",
+  "tickCap": 100000,
+  "dimension": {"x": 2400, "y": 1600},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 155,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "upper west", "model": "APM4220", "position": {"x": 443.5, "y": 543.5}},
+    {"id": "upper east", "model": "APM4220", "position": {"x": 1843.5, "y": 543.5}},
+    {"id": "lower west", "model": "APM4220", "position": {"x": 443.5, "y": 943.5}},
+    {"id": "lower east", "model": "APM4220", "position": {"x": 1843.5, "y": 943.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": []
+}

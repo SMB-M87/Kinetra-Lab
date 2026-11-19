@@ -1,5 +1,6 @@
 find_package(nlohmann_json 3.11 REQUIRED)
-add_library(kinetra_i4sim_application src/blueprint.cpp src/simulation.cpp src/predictive_passing.cpp)
+add_library(kinetra_i4sim_application src/blueprint.cpp src/flow_metrics.cpp src/simulation.cpp
+    src/predictive_passing.cpp)
 target_include_directories(kinetra_i4sim_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_i4sim_application PUBLIC Kinetra::Simulation PRIVATE nlohmann_json::nlohmann_json)
 target_compile_features(kinetra_i4sim_application PUBLIC cxx_std_20)
@@ -34,6 +35,9 @@ if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_i4sim_golden_tests PREFIX kinetra_i4sim_golden
         SOURCES tests/golden_tests.cpp LIBRARIES kinetra_i4sim_application kinetra_lab_test_support)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_golden_tests)
+    # Recorded passing outcomes under pressure; reads its fixtures from tests/.
+    kinetra_add_doctest(kinetra_i4sim_pressure_tests PREFIX kinetra_i4sim_pressure
+        SOURCES tests/pressure_tests.cpp LIBRARIES kinetra_i4sim_application kinetra_lab_test_support)
     # Runs the catalog case of kinetra_i4sim_tests from a relocated copy of the executable.
     add_test(NAME kinetra_i4sim_relocation COMMAND ${CMAKE_COMMAND}
         "-DPROBE=$<TARGET_FILE:kinetra_i4sim_tests>"

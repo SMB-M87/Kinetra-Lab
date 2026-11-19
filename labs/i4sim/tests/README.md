@@ -31,8 +31,9 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 
 | Source | CTest suite (cases) |
 | --- | --- |
-| `simulation_tests.cpp` | `kinetra_i4sim` (44) |
+| `simulation_tests.cpp` | `kinetra_i4sim` (52) |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) |
+| `pressure_tests.cpp` | `kinetra_i4sim_pressure` (8: four scenarios under Reciprocal and Improved) |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) |
 
@@ -40,13 +41,26 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 
 `golden_tests.cpp` (`kinetra_i4sim_golden`) pins the current behavior for the planned i4sim refactor. Ten seeded scenarios cover the MAS factory with default motion and with every coordination feature, the large `3840x2400` factory, the Original, RVO and recovery steering variants, and the junction, corridor, corridor-recovery and predictive-passing fixtures with manual goals. Each scenario is one case and must reproduce one recorded line: ticks, completed products, contacts, producer interactions, distance travelled and a 64-bit fingerprint of every mover's exact position and velocity after every tick. A mismatch shows the expected and actual line. A refactor must leave every line unchanged. For a deliberate behavior change, run `KINETRA_PRINT_GOLDEN=1 ./build-release/kinetra_i4sim_golden_tests` to print the current lines, update the expected values and explain the change in the commit. The fingerprint needs exact floating-point results; Release and Debug builds without fast-math reproduce it. The scenarios do not reach every path: heatmap refresh timing and the stalled-pair cancellation of predictive passing leave the values unchanged.
 
+`pressure_tests.cpp` (`kinetra_i4sim_pressure`) records how predictive passing behaves under pressure, as the baseline for roadmap phase 7. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved:
+
+| Fixture | Situation | The case first checks |
+| --- | --- | --- |
+| `pressure-three-oncoming.json` | One mover meets two oncoming movers in a column on its line | it forms a plan with the first one |
+| `pressure-lane-intrusion.json` | A third mover crosses a passing pair at right angles | it comes within 250 mm of a participant while their plan is active |
+| `pressure-simultaneous.json` | Two head-on pairs on parallel lines 400 mm apart | both pairs hold plans at the same time |
+| `pressure-narrow-aisle.json` | A 113 mm and a 155 by 235 mm mover meet in a 400 mm aisle | both are in the aisle at the same time |
+
+Each case then compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The lines are today's behavior, not requirements: under Reciprocal, the three-oncoming case leaves two movers shuffling in front of each other without a plan. Phase 7 turns the lines into required outcomes. Both suites share the recorder in `recorder.h`, and `KINETRA_PRINT_GOLDEN=1` prints the lines of either suite.
+
+The `simulation_tests.cpp` cases on the event log check a plan's formation, crossing and completion, the `goal_changed` and `participant_held` reasons, mover and border contacts, and that recording changes no pose. The flow-metrics cases check a free trip, a corridor standstill, a held mover and invalid limits.
+
 The `3840x2400` and `8640x4800` workloads with seed `915839214` exercise route recovery across large factories and guard against spatial query limit failures.
 
 Run from the repository root:
 
 ```sh
 cmake --preset release
-cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim
+cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim
 ctest --preset release -R '^kinetra_i4sim' --output-on-failure
 cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics; needs an OpenGL context
 ```
@@ -169,12 +183,43 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 The bundled blueprints run for 50000 ticks each with seeds 42 and 915839214.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
 `--ticks` accepts 1 through 1000000. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
-CSV reports completed products, contact episodes, pair/segment contact ticks,
-summed changes in commanded acceleration, and elapsed milliseconds. Acceleration
-change is a diagnostic for steering activity, not a physical jerk measurement;
-contact impulses are not included. Elapsed time depends on the machine and load.
+The CSV has one line per blueprint and seed:
+
+| Column | Meaning |
+| --- | --- |
+| `completed` | Completed products |
+| `contacts`, `contact_ticks` | Contact episodes, and pair/segment contact ticks |
+| `acceleration_change` | Summed changes in commanded acceleration: a diagnostic for steering activity, not a physical jerk measurement; contact impulses are not included |
+| `waiting_ticks` | Mover-ticks with an active goal, below 0.05 mm/tick and more than 10 mm from the destination ([FlowMetrics](../include/flow_metrics.h)) |
+| `stuck_movers`, `stuck_at_end` | Movers that went 2000 ticks without getting 10 mm closer to their destination at least once, and at the last tick |
+| `passing_plans`, `passing_cancelled`, `passing_contacts` | Predictive passing plans formed, plans that ended without completing, and contacts that started while a participant was in a plan (from the event log) |
+| `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |
+
 The benchmark is deliberately outside CTest. See the
 [simulation contract](../../../docs/factory-simulation-architecture.md).
+
+**Baseline for roadmap phase 7**, measured on 2026-11-19 (Release, 50000 ticks, recovery and traffic policies off). Each cell shows predictive passing **off / on**; stuck movers show the count at the end in parentheses.
+
+| Profile | Blueprint | Seed | Completed | Contacts | Waiting ticks | Stuck movers | Plans (cancelled) | Contacts in a plan |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Reciprocal | MAS-demonstrator | 42 | 10 / 10 | 0 / 0 | 24006 / 25041 | 1 (1) / 1 (1) | 4 (1) | 0 |
+| Reciprocal | MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 | 12872 / 10842 | 2 (1) / 1 (1) | 5 (0) | 0 |
+| Reciprocal | 3840x2400 | 42 | 59 / 59 | 0 / 0 | 1583 / 3095 | 0 / 0 | 11 (5) | 0 |
+| Reciprocal | 3840x2400 | 915839214 | 61 / 61 | 0 / 0 | 651 / 3177 | 0 / 0 | 7 (3) | 0 |
+| Reciprocal | 8640x4800 | 42 | 95 / 99 | 0 / 0 | 48187 / 45668 | 6 (0) / 6 (0) | 244 (87) | 0 |
+| Reciprocal | 8640x4800 | 915839214 | 93 / 103 | 0 / 0 | 64702 / 58203 | 15 (1) / 10 (2) | 219 (74) | 0 |
+| Improved | MAS-demonstrator | 42 | 16 / 15 | 53 / 42 | 278 / 1814 | 0 / 1 (1) | 3 (1) | 0 |
+| Improved | MAS-demonstrator | 915839214 | 16 / 14 | 204 / 222 | 288 / 2071 | 0 / 1 (0) | 4 (4) | 0 |
+| Improved | 3840x2400 | 42 | 59 / 57 | 3 / 3 | 634 / 1168 | 0 / 0 | 9 (2) | 0 |
+| Improved | 3840x2400 | 915839214 | 59 / 59 | 0 / 6 | 962 / 1547 | 1 (0) / 1 (0) | 8 (5) | 0 |
+| Improved | 8640x4800 | 42 | 98 / 96 | 384 / 767 | 2595 / 34343 | 2 (0) / 4 (0) | 242 (96) | 17 |
+| Improved | 8640x4800 | 915839214 | 99 / 101 | 726 / 823 | 2953 / 33940 | 4 (1) / 6 (0) | 224 (89) | 5 |
+
+On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s with passing on, for both profiles; part of the Reciprocal runs shared the machine with a compile. Completed products and contacts equal the measurements of the [quality roadmap](../../../docs/design/2026-11-18-quality-roadmap.md#predictive-passing-baseline), so recording and measuring changed nothing. What the new columns show:
+
+- Reciprocal on `MAS-demonstrator` ends with one stuck mover for both seeds, with and without passing, so a stuck mover alone does not explain the 10 products of seed 42 against 16. Seed 42 does wait about twice as long.
+- With passing on, Improved waits 11–13 times longer on `8640x4800`, but only 17 and 5 of its 767 and 823 contacts start while a participant is in a plan.
+- On `8640x4800`, about 35–40% of the plans end without completing.
 
 Current wall/parking implementation, default Improved profile, recovery disabled,
 50000 ticks per run:
