@@ -1,6 +1,6 @@
 # Blueprint copy race
 
-Status: draft · Branch: `fix/blueprint-copy-race` · Related: [i4sim restructuring, open points](2026-11-19-i4sim-restructuring.md#open-points), [i4sim blueprints](../../labs/i4sim/blueprints/README.md)
+Status: implemented · Branch: `fix/blueprint-copy-race` · Related: [i4sim restructuring, open points](2026-11-19-i4sim-restructuring.md#open-points), [i4sim blueprints](../../labs/i4sim/blueprints/README.md)
 
 The i4sim blueprint catalog is copied into the build output once per build by one target, instead of once per executable after it links. The per-executable copies write into the same directory and fail when executables link in parallel.
 
@@ -88,11 +88,41 @@ A race in the build graph has no deterministic unit test, so the proof is struct
 
 ## Verification
 
-To be filled.
+Full level, because the build configuration changed. Run on `ffc6eaa` (the final code), and before the review fixes on `a2ee12b` with the same results.
+
+| Command | Result |
+| --- | --- |
+| `cmake --workflow --preset ci` | passed: 140/140 tests |
+| `cmake --workflow --preset headless` | passed: 133/133 tests |
+| `cmake --workflow --preset graphics` | passed: 152/152 tests, including the graphics suites that open the catalog beside `kinetra_runtime_tests` and `kinetra_i4sim_presentation_tests` |
+| `grep -c 'copy_directory.*i4sim-blueprints' build-dev/build.ninja` | 6 before, 1 after |
+| Delete `build-dev/i4sim-blueprints`, `cmake --build --preset dev`, `diff -r labs/i4sim/blueprints build-dev/i4sim-blueprints` | identical |
+| Second `cmake --build --preset dev` | `[1/1] Copying i4sim blueprints`, no relink |
+| `python3 external/Kinetra/tools/check_docs.py` | all links resolve |
+
+Not run: a multi-config generator, which no preset uses; the `$<CONFIG>` branch is reasoned, not tested. The configure-time guard for an unset `CMAKE_RUNTIME_OUTPUT_DIRECTORY` is not exercised, because the root `CMakeLists.txt` always sets it.
 
 ## Pull request
 
-To be filled.
+**Title:** `fix(i4sim): copy the blueprint catalog once per build`
+
+**Description:**
+
+> **Summary.** Every executable that opens i4sim blueprints copied the catalog into the shared output directory after linking. When Ninja linked several of them at once, the copies ran concurrently and could fail the build with "Error copying directory" (seen once in `cmake --workflow --preset ci`). One target now copies the catalog once per build. Resolves an open point of the [i4sim restructuring](2026-11-19-i4sim-restructuring.md#open-points). Design: [blueprint copy race](2026-11-19-blueprint-copy-race.md).
+>
+> **Changes.**
+> - `labs/i4sim/CMakeLists.txt`: an always-run custom target `kinetra_i4sim_blueprints` copies `labs/i4sim/blueprints/` to `${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/i4sim-blueprints` (plus `/$<CONFIG>` for multi-config generators). `kinetra_i4sim_bundle_blueprints` keeps its name and call sites and now adds a dependency on it; it fails at configure time for a target outside the shared output directory. The redundant configure-time `file(COPY …)` is gone.
+> - The i4sim design document links this fix from its open points.
+>
+> **Evidence.** Eight concurrent `cmake -E copy_directory` runs into one existing directory, 300 rounds with CMake 4.5.0: 260 failures. `build-dev/build.ninja` held six copies of the catalog before and holds one now.
+>
+> **Verification.** See the design document's Verification section: `ci`, `headless` and `graphics` workflows, docs check, catalog diff and a no-relink rebuild.
+>
+> **Review notes.** Four findings, two fixed (a guard for an unset output directory, an inaccurate comment), two skipped with reasons. Behavior change: the catalog is now refreshed on every build, also when no executable relinks, so a build never reports "no work to do".
+>
+> **Dependencies and merge order.** None; no Kinetra change. Merge with a merge commit.
+>
+> **Follow-up.** None.
 
 ## Open points
 
