@@ -8,6 +8,7 @@
 #include "showcase.h"
 #include "stage.h"
 
+#include "../../../labs/i4sim/include/controller.h"
 #include "../../../labs/i4sim/include/simulation.h"
 
 #include <zlib.h>
@@ -214,6 +215,27 @@ TEST_CASE("showcase_cycle_steps rejects a blueprint without a repeating scenario
                                                   "labs/i4sim/blueprints/MAS-demonstrator.json"),
                     std::invalid_argument);
     CHECK_THROWS_AS(capture::showcase_cycle_steps(showcase_file("no-such-scene")), std::runtime_error);
+}
+
+TEST_CASE("the i4sim menu clicks find their rows and choose the Reciprocal profile with plain A*") {
+    i4sim::FactoryController controller(capture::capture_seed, false, capture::i4sim_updates_per_second);
+    REQUIRE(controller.load(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "labs/i4sim/blueprints" /
+                            capture::i4sim_capture_blueprint));
+    // The session shows the controller's entries as menu rows one to one, so a click on a
+    // row runs the action of the entry with that index.
+    for (const auto &click : capture::i4sim_motion_clicks) {
+        auto menu = controller.menu();
+        CAPTURE(click.label);
+        REQUIRE(click.row < menu.size());
+        REQUIRE(menu[click.row].label == click.label);
+        menu[click.row].action();
+    }
+    const auto &motion = controller.simulation().motion_settings();
+    CHECK(motion.profile == i4sim::SteeringProfile::reciprocal);
+    CHECK_FALSE(motion.heatmap);
+    const auto menu = controller.menu();
+    REQUIRE(capture::i4sim_layers_click.row < menu.size());
+    CHECK(menu[capture::i4sim_layers_click.row].label == capture::i4sim_layers_click.label);
 }
 
 TEST_CASE("the Dotio debug rows the scripts click turn on every row but GHOST CAMERA") {

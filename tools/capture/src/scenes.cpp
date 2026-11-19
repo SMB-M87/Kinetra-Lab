@@ -27,16 +27,19 @@ using launcher::Variant;
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
-/// Length of the Dotio debug clip: twelve seconds, long enough for an enemy to run for
-/// shelter, reload and come back.
+/// Length of the Dotio debug clip and the i4sim clips: twelve seconds. Long enough for a
+/// Dotio enemy to run for shelter, reload and come back, and for an i4sim mover to cross
+/// its floor at the session's own speed.
 constexpr int long_clip_frames = 180;
 /// Clip frames per second.
 constexpr int clip_fps = Stage::clip_fps;
 /// Seconds a session runs before it is captured, so agents and enemies are under way. Dotio's
-/// enemies first have to find the player; i4sim's movers need time to spread over the hall.
-constexpr double warm_up_seconds = 2, dotio_warm_up_seconds = 8, i4sim_warm_up_seconds = 20;
-/// Debug-menu row of i4sim's LAYERS heading while SIMULATION and its four rows are open.
-constexpr std::size_t i4sim_layers_heading_row = 5;
+/// enemies first have to find the player.
+constexpr double warm_up_seconds = 2, dotio_warm_up_seconds = 8;
+/// Seconds the i4sim floor runs before it is captured: ticks 23200 to 25600 are the busiest
+/// stretch of the captured blueprint with capture_seed and the captured motion settings,
+/// with 12 to 18 of its 29 movers driving and hardly any waiting.
+constexpr double i4sim_warm_up_seconds = 116;
 /// Wheel notches the Dotio debug scenes zoom out: the screenshot for a wider view of the
 /// agents, the clip far enough to show the whole area the enemies spawn in.
 constexpr float dotio_debug_zoom_out = -3, dotio_debug_clip_zoom_out = -9;
@@ -227,30 +230,46 @@ void dotio_debug_clip(Stage &stage) {
     });
 }
 
-// i4sim: the MAS-demonstrator blueprint, running; Debug Mode is on at the start.
+// i4sim: the captured blueprint (i4sim_capture_blueprint) with the Reciprocal profile and
+// plain A*, running at the session's own rate; Debug Mode is on at the start.
 
-void i4sim_start(Stage &stage, bool debug, bool layers) {
-    stage.start_i4sim("MAS-demonstrator.json");
-    if (!debug)
+/// What an i4sim capture shows around the floor.
+enum class I4simView {
+    /// Debug Mode off: the floor, the labels and the statistics.
+    normal,
+    /// Debug Mode with every layer, the debug menu closed.
+    debug,
+    /// Debug Mode with the debug menu open on LAYERS: every part and its swatch.
+    debug_with_layers,
+};
+
+/// Loads the captured blueprint, chooses its motion settings and runs it through the
+/// warm-up. The settings are rows of the debug menu, which only Debug Mode shows, so the
+/// normal view turns Debug Mode off after them.
+void i4sim_start(Stage &stage, I4simView view) {
+    stage.start_i4sim(i4sim_capture_blueprint);
+    stage.press(Key::backquote);
+    for (const auto &click : i4sim_motion_clicks)
+        stage.click_debug_row(click.row);
+    if (view == I4simView::debug_with_layers)
+        stage.click_debug_row(i4sim_layers_click.row);
+    else
+        stage.press(Key::backquote);
+    stage.point_at(stage.viewport() - Vec2{2, 2});
+    if (view == I4simView::normal)
         stage.toggle_setting(SettingsRow::debug_mode);
     stage.press(Key::space);
     stage.wait(i4sim_warm_up_seconds);
-    if (debug) {
-        stage.press(Key::backquote);
-        if (layers)
-            stage.click_debug_row(i4sim_layers_heading_row);
-        stage.point_at(stage.viewport() - Vec2{2, 2});
-    }
 }
 
 void i4sim(Stage &stage) {
-    i4sim_start(stage, false, false);
+    i4sim_start(stage, I4simView::normal);
     stage.shot();
 }
 
 void i4sim_debug(Stage &stage) {
-    // The LAYERS section with every part and swatch; it fits the screenshot's height.
-    i4sim_start(stage, true, true);
+    // The LAYERS section fits the screenshot's height and leaves most of the floor free.
+    i4sim_start(stage, I4simView::debug_with_layers);
     stage.shot();
 }
 
@@ -258,24 +277,15 @@ Input no_input(int) {
     return {};
 }
 
-/// Doubles the update rate twice with E, to 800 ticks per second: at the default 200 the
-/// movers of the MAS demonstrator cover only a few pixels in a four-second clip.
-void i4sim_fast_forward(Stage &stage) {
-    stage.press(Key::e);
-    stage.press(Key::e);
-}
-
 void i4sim_clip(Stage &stage) {
-    i4sim_start(stage, false, false);
-    i4sim_fast_forward(stage);
-    stage.record(clip_frames, no_input);
+    i4sim_start(stage, I4simView::normal);
+    stage.record(long_clip_frames, no_input);
 }
 
 void i4sim_debug_clip(Stage &stage) {
-    // SIMULATION stays open: the full LAYERS section is taller than a clip.
-    i4sim_start(stage, true, false);
-    i4sim_fast_forward(stage);
-    stage.record(clip_frames, no_input);
+    // The menu stays closed: at clip size it would cover a fifth of the floor.
+    i4sim_start(stage, I4simView::debug);
+    stage.record(long_clip_frames, no_input);
 }
 
 // i4sim showcase scenes: Debug Mode and every visual layer on, as the session starts, the
