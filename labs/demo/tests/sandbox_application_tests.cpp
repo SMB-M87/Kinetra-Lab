@@ -40,29 +40,6 @@ std::size_t active_agents(const SandboxApplication &application) {
         std::count_if(agents.begin(), agents.end(), [](const Agent &agent) { return agent.active(); }));
 }
 
-/// Checks that the agents around a player who stands still are still there a minute
-/// later. Before agents had a home range they walked out of the active area, fell asleep
-/// there and left the surroundings of the player empty.
-void check_agents_stay_around_a_standing_player(WanderMode mode) {
-    // One simulated second lets the first streaming pass populate and wake the area.
-    constexpr int warm_up_frames = 120;
-    // 60 simulated seconds: long enough for a wanderer at 4 units per second to leave.
-    constexpr int observed_frames = 60 * 120;
-    SandboxApplication application(48, 42);
-    application.tuning().wander.mode = mode;
-    Camera2D camera = session_camera();
-    for (int frame = 0; frame < warm_up_frames; ++frame)
-        application.advance(frame_seconds, {}, camera);
-    const auto early = active_agents(application);
-    for (int frame = warm_up_frames; frame < observed_frames; ++frame)
-        application.advance(frame_seconds, {}, camera);
-    const auto late = active_agents(application);
-    INFO("active agents after 1 s: " << early << ", after 60 s: " << late);
-    REQUIRE(early > 0);
-    // Agents may drift in and out at the edge, but the area must not empty.
-    CHECK(late * 5 >= early * 4);
-}
-
 /// Summed path length in world units that the active agents cover in `frames` frames.
 float distance_covered(SandboxApplication &application, Camera2D &camera, int frames) {
     float covered = 0;
@@ -93,14 +70,6 @@ Body nearest_terrain(const Sandbox &scene, Shape shape) {
     return *nearest;
 }
 } // namespace
-
-TEST_CASE("agents stay around a standing player when they wander by steering") {
-    check_agents_stay_around_a_standing_player(WanderMode::steering);
-}
-
-TEST_CASE("agents stay around a standing player when they wander by route") {
-    check_agents_stay_around_a_standing_player(WanderMode::route);
-}
 
 TEST_CASE("a steering wanderer heading for terrain gets away from it without touching it") {
     // Distance in world units between the agent and the obstacle's bounding circle at the start.

@@ -41,8 +41,10 @@ class ZoomControl {
     float shown_{}, steps_{};
 };
 
-/// Slowest and fastest time scale of the SPEED row.
-inline constexpr float slowest_time_scale = 0.125f, fastest_time_scale = 8;
+/// Slowest and fastest time scale of the SPEED row. The applications' fixed clocks run at
+/// most eight frames' worth of ticks in one frame, so four leaves room for a frame that
+/// takes twice as long before simulated time falls behind the scale shown.
+inline constexpr float slowest_time_scale = 0.125f, fastest_time_scale = 4;
 
 /// The SPEED row of a debug menu over `scale`, the factor between simulated and real time,
 /// which the row borrows: it shows the factor ("0.5X") and its buttons halve and double it

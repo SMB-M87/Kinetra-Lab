@@ -126,5 +126,5 @@ TEST_CASE("the speed row halves and doubles the time scale within its limits") {
     for (int i = 0; i < 20; ++i)
         row.increase();
     CHECK(scale == lab::fastest_time_scale);
-    CHECK(row.value() == "8X");
+    CHECK(row.value() == "4X");
 }

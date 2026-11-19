@@ -27,6 +27,11 @@ class DemoSession final : public lab::Session {
         &debug_};
     lab::ModalPause pause_;
     kinetra::RateCounter fps_;
+    /// The menu's rows while it shows. A hidden menu needs none: it takes no click and
+    /// draws nothing, and the rows are rebuilt on the frame after the shortcut shows it.
+    std::vector<kinetra::DebugEntry> menu_rows() {
+        return menu_.visible ? panel_.entries() : std::vector<kinetra::DebugEntry>{};
+    }
 
   public:
     DemoSession(int count, std::uint32_t seed) : application_(count, seed) {}
@@ -38,7 +43,7 @@ class DemoSession final : public lab::Session {
         // The panels come first: an open settings panel takes the whole frame, and the debug
         // menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
-        const auto entries = panel_.entries();
+        const auto entries = menu_rows();
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         auto commands = sandbox::read_commands(modal ? kinetra::Input{} : input);
         commands.toggle_pause =
@@ -49,7 +54,7 @@ class DemoSession final : public lab::Session {
     }
     void render(kinetra::Runtime &runtime) override {
         frame_limit_.apply(runtime);
-        const auto entries = panel_.entries();
+        const auto entries = menu_rows();
         sandbox::render(runtime, application_, panel_.layers(debug_),
                         {.menu = &menu_,
                          .entries = entries,

@@ -26,7 +26,9 @@ class DotioSession final : public Session {
         // The panels come first: an open settings panel takes the whole frame, and the debug
         // menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
-        const auto entries = application_.debug_entries();
+        // A hidden menu takes no click, so it needs no rows.
+        const auto entries =
+            application_.menu.visible ? application_.debug_entries() : std::vector<kinetra::DebugEntry>{};
         const bool captured = settings_.update_debug(input, camera.viewport, application_.menu, entries);
         if (!was_ghost && application_.ghost) {
             application_.world().GetGhost().Position = application_.world().GetPlayer().Position;

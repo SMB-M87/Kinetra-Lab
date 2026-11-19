@@ -256,8 +256,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             draw_row(population, baseline - 12 * statistics_scale);
         draw_row(rates, baseline);
     }
-    const auto entries = application.debug_entries();
-    application.menu.draw(runtime, entries);
+    if (application.menu.visible)
+        application.menu.draw(runtime, application.debug_entries());
     if (application.frame_times)
         draw_frame_times(runtime, runtime.frame_times());
     settings.draw(runtime);

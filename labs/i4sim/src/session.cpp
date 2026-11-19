@@ -44,7 +44,8 @@ class FactorySession final : public lab::Session {
         // debug menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
         controller_.suspend(settings_.visible());
-        const auto entries = controller_.menu(layer_color);
+        // A hidden menu takes no click, so it needs no rows.
+        const auto entries = menu_.visible ? controller_.menu(layer_color) : std::vector<DebugEntry>{};
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         if (modal)
             return;
