@@ -1,6 +1,6 @@
 # Tour thumbnail in the README
 
-Status: accepted · Branch: `feat/tour-thumbnail` · Related: [generated tour video](2026-11-19-tour-video.md), [media guide](../media/README.md), [capture tool](../../tools/capture/README.md)
+Status: implemented · Branch: `feat/tour-thumbnail` · Related: [generated tour video](2026-11-19-tour-video.md), [media guide](../media/README.md), [capture tool](../../tools/capture/README.md)
 
 The README links the tour video with one line of text below the gallery, which is easy to miss. The user asked whether the video could play in the README itself. On a free GitHub plan it cannot, so the README now opens its gallery with a clickable thumbnail of the tour. The thumbnail is generated from the video, like every other image in `docs/media`.
 
@@ -42,7 +42,7 @@ The README links the tour video with one line of text below the gallery, which i
 | Script | A separate `tools/capture/tour_thumbnail.sh`, run by `capture_tour.sh` after it encodes the video | The thumbnail can be refreshed from the existing video in seconds, without rendering the tour again for minutes. |
 | Which frames | Four fixed times in the tour, named in the script | The tour's timing comes from its script and only changes when the script does; its maintainers already look at frames of every chapter after a change. A caption-to-frame index from `kinetra_capture` would be more robust, but is more code than four timestamps need. |
 | Play button | A dark translucent disc with a white triangle, drawn by ffmpeg's `geq` filter | No font and no image file are needed, and the tour's video stays untouched. |
-| Size and format | PNG at 1280 × 720, about 0.6 MB | Sharp on high-density screens at GitHub's README width; PNG like the other screenshots. |
+| Size and format | PNG at 1280 × 720, 586 KB | Sharp on high-density screens at GitHub's README width; PNG like the other screenshots. |
 
 ## Design
 
@@ -61,7 +61,8 @@ flowchart LR
 
 *Takeaway:* four frames of the existing video become one picture; nothing is rendered again.
 
-- The output defaults to the video's name with `-thumbnail.png`, so `capture_tour.sh` with a custom output file puts the thumbnail next to it.
+- The script stops when `moments` does not hold exactly four times, because the filter graph stacks four tiles.
+- The output defaults to the video's file name with `-thumbnail.png`, in the video's directory, so `capture_tour.sh` with a custom output file puts the thumbnail next to it.
 - ffmpeg writes to a temporary file, which replaces the output only when it is not empty. A failed run therefore never leaves a stale or broken thumbnail.
 - The README shows the picture as a Markdown image inside a link to `https://youtu.be/jkPwx831MOU`, with a sentence below it that names the length and contents, for readers who do not see images.
 
@@ -88,16 +89,46 @@ The graphics smoke test (`kinetra_capture_smoke`) runs `kinetra_capture` itself 
 
 ## Review
 
-To be filled after the review.
+`/code-review` on `feat/tour-thumbnail`, four findings:
+
+| Finding | Resolution |
+| --- | --- |
+| A new render rewrites the thumbnail, but the README links the YouTube copy, which only changes with a manual upload | Fixed in the [media guide](../media/README.md#refreshing-the-media): upload a new render too, and replace the link in the README and the guide |
+| The filter graph stacks four tiles, while the loop over `moments` takes any number | Fixed: the script stops unless there are exactly four moments |
+| `${video%.*}` strips from the last dot anywhere in the path, so a directory such as `out.v2/` lost its suffix | Fixed: the default is built from the video's file name and directory; checked with `dot.v2/tour` |
+| This document still had placeholder sections | Filled in before the pull request |
 
 ## Verification
 
-To be filled after verification.
+- `tools/capture/tour_thumbnail.sh`: writes `docs/media/kinetra-lab-tour-thumbnail.png` (576 K, 1280 × 720) in under a second; looked at: the launcher, Demo's CLICK SETS GOAL, Dotio zoomed out and i4sim's layers, with the play button in the middle. A second run gives the same bytes.
+- On a 60 s cut of the video: `moment 94 s lies past the end`, exit 1, and the existing output file kept its contents. On a missing video: a message and exit 1. On `dot.v2/tour` without an output: `dot.v2/tour-thumbnail.png`.
+- `bash -n` on both scripts: no errors. shellcheck is not installed here, so it did not run.
+- `cmake --build --preset dev --target kinetra_capture_tests kinetra_capture` and `ctest --preset dev -R '^kinetra_capture'`: 31/31 passed (they read the README and the media guide).
+- `python3 external/Kinetra/tools/check_docs.py`: all links resolve in 61 Markdown files.
+- Not run: `capture_tour.sh` end to end. It renders for minutes and would replace the committed video with a new Dotio take; its change is the one call to `tour_thumbnail.sh` with its output file. The graphics smoke test does not run the scripts.
 
 ## Pull request
 
-To be filled before the pull request.
+**Title:** `feat(tools): show a thumbnail of the tour in the README`
+
+**Summary:** the README gallery opens with a clickable picture of the tour that links to the YouTube copy, instead of a text link below the gallery. GitHub plays a README video only as an uploaded attachment of at most 10 MB on a free plan, and the tour is 93 MB.
+
+**Changes:**
+- `tools/capture/tour_thumbnail.sh`: four moments of the tour video (the launcher, Demo, Dotio, i4sim) in a 1280 × 720 mosaic with a play button, with ffmpeg; checks its moments against the video's length and replaces the PNG only on success.
+- `capture_tour.sh` runs it after encoding, so a new video brings a matching thumbnail.
+- `docs/media/kinetra-lab-tour-thumbnail.png` (586 KB) at the top of *Screenshots and demo* in the README, with a sentence on the tour below it.
+- The media guide and the capture tool README describe the file, the script and why it is a picture and not the video.
+
+**Design:** [docs/design/2026-11-20-tour-thumbnail.md](https://github.com/SMB-M87/Kinetra-Lab/blob/feat/tour-thumbnail/docs/design/2026-11-20-tour-thumbnail.md)
+
+**Verification:** the script on the committed video (looked at the result, same bytes on a second run), on a too-short video and on a missing one; `bash -n` on both scripts; `ctest --preset dev -R '^kinetra_capture'` 31/31 passed; `check_docs.py` passed. Not run: a full `capture_tour.sh` render (minutes, and it would replace the committed video); shellcheck is not installed.
+
+**Review notes:** `/code-review` found four points, all fixed (see the design document). The thumbnail's moments are fixed times in the tour, so a tour change needs a look at the thumbnail; the guides say so.
+
+**Dependencies and merge order:** no Kinetra change and no pointer change. Open PR SMB-M87/Kinetra-Lab#34 also edits `README.md`, in other lines (repository layout and tests); the two should merge without conflict in either order.
+
+**Follow-up:** none.
 
 ## Open points
 
-- None yet.
+- The thumbnail's moments are fixed times in the tour. A caption-to-frame index from `kinetra_capture` would let the script find its moments by caption, if the tour changes often.
