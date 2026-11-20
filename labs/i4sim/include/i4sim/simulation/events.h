@@ -24,13 +24,13 @@ enum class EventKind {
 /// simulation records the first it finds: `disabled`; then for each participant in
 /// turn `participant_stopped`, `participant_held`, `traffic_control`; then
 /// `no_progress`; and only when none applies, `completed`. `goal_changed` is recorded
-/// immediately when a participant receives a goal.
+/// immediately when a participant receives a goal, and `disabled` when a motion change
+/// turns passing off.
 enum class PassingEnd {
     /// Both participants reached their exit targets after crossing.
     completed,
     /// Predictive passing is off or the steering profile does not support it.
-    /// `Simulation::configure_motion` normally ends plans first, as `goal_changed`,
-    /// because it sets every moving mover's goal again.
+    /// `Simulation::configure_motion` records it at once when a change turns passing off.
     disabled,
     /// A participant has no active route any more.
     participant_stopped,
@@ -42,7 +42,8 @@ enum class PassingEnd {
     /// 240 ticks.
     no_progress,
     /// A participant received a goal: a manual command, a scheduling or parking
-    /// decision, or a motion-settings change that sets the goal again.
+    /// decision, or a PLANNER change (path planning or heatmap) that plans every route
+    /// again.
     goal_changed,
 };
 

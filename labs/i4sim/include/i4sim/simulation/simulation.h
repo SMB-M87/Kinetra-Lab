@@ -274,9 +274,12 @@ class Simulation {
     bool stalled(std::size_t mover) const;
     /// The motion settings in use.
     const MotionSettings &motion_settings() const;
-    /// Replaces the motion settings, in any run state. Clears the coordination state of the
-    /// features it turns off and sets every moving mover's goal again, which ends passing
-    /// plans and corridor recoveries; bodies do not move. Throws std::invalid_argument for
+    /// Replaces the motion settings, in any run state; bodies do not move. Clears the
+    /// coordination state of the features it turns off: junction and corridor state, and
+    /// passing plans, which end as `PassingEnd::disabled`. Only a change of `path_planning`
+    /// or `heatmap` plans every moving mover's route again, which also ends its passing
+    /// plan and corridor recovery; every other change keeps routes, plans and progress, so
+    /// setting the same settings again changes nothing. Throws std::invalid_argument for
     /// an unknown profile or a speed, force or horizon that is not finite and positive
     /// (horizon at most 64 ticks); the settings are then unchanged.
     void configure_motion(MotionSettings settings);

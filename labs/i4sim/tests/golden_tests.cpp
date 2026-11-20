@@ -180,7 +180,7 @@ TEST_CASE("corridor recovery reproduces its recorded summary") {
     const auto simulation = run_corridor_recovery(recorder);
     check_summary("corridor recovery", recorder, simulation,
                   "ticks=7500 completed=0 collisions=0 contact_ticks=0 interactions=0 distance_mm=3322.049 "
-                  "trajectory=490a20982ef9cc46");
+                  "trajectory=32a56480b9ed1ded");
 }
 
 TEST_CASE("predictive passing reproduces its recorded summary") {

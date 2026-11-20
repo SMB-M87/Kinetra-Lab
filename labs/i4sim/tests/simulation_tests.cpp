@@ -1000,6 +1000,105 @@ TEST_CASE("the event log records why a passing plan ends") {
     CHECK(hold.tick == held.ticks());
 }
 
+TEST_CASE("turning predictive passing off ends a plan as disabled") {
+    auto pair = passing_pair(SteeringProfile::reciprocal);
+    run_until_pair(pair);
+    auto settings = pair.motion_settings();
+    settings.predictive_passing = false;
+    pair.configure_motion(settings);
+    CHECK(pair.predictive_pairs() == 0);
+    REQUIRE(!pair.events().empty());
+    const auto &end = pair.events().back();
+    CHECK(end.kind == EventKind::passing_ended);
+    CHECK(end.end == PassingEnd::disabled);
+    CHECK(end.tick == pair.ticks());
+}
+
+namespace {
+/// The MAS demonstrator with its workload, run until at least three movers are on their way
+/// somewhere (at most 20,000 ticks).
+Simulation busy_demonstrator() {
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json"));
+    simulation.run();
+    const auto moving = [&] {
+        return std::count_if(simulation.movers().begin(), simulation.movers().end(),
+                             [](const Mover &m) { return m.moving(); });
+    };
+    while (moving() < 3 && simulation.ticks() < 20000)
+        simulation.tick();
+    REQUIRE_MESSAGE(moving() >= 3, "Fewer than three movers are moving");
+    return simulation;
+}
+
+/// Whether two routes have the same waypoints, exactly.
+bool same_route(const std::vector<Vec2> &a, const std::vector<Vec2> &b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                      [](Vec2 p, Vec2 q) { return kinetra::distance(p, q) == 0; });
+}
+} // namespace
+
+TEST_CASE("a motion change that does not shape routes keeps every route and its progress") {
+    const auto reference = busy_demonstrator();
+    using Change = void (*)(MotionSettings &);
+    const std::array<std::pair<const char *, Change>, 6> changes{{
+        {"speed", [](MotionSettings &m) { m.speed *= 1.25f; }},
+        {"force", [](MotionSettings &m) { m.force /= 1.25f; }},
+        {"horizon", [](MotionSettings &m) { m.horizon = 16; }},
+        {"profile", [](MotionSettings &m) { m.profile = SteeringProfile::reciprocal; }},
+        {"recovery", [](MotionSettings &m) { m.recovery = true; }},
+        {"junction traffic", [](MotionSettings &m) { m.junction_traffic = true; }},
+    }};
+    for (const auto &[label, change] : changes) {
+        const std::string name = label;
+        CAPTURE(name);
+        auto changed = reference;
+        auto settings = changed.motion_settings();
+        change(settings);
+        changed.configure_motion(settings);
+        for (std::size_t i = 0; i < reference.movers().size(); ++i) {
+            CAPTURE(i);
+            const auto &before = reference.movers()[i];
+            const auto &after = changed.movers()[i];
+            CHECK(same_route(after.route, before.route));
+            CHECK(after.lifecycle == before.lifecycle);
+            CHECK(kinetra::distance(after.destination, before.destination) == 0);
+            CHECK(changed.stalled(i) == reference.stalled(i));
+        }
+    }
+}
+
+TEST_CASE("setting the same motion settings again changes nothing") {
+    const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
+    Simulation plain(blueprint), reconfigured(blueprint);
+    plain.run();
+    reconfigured.run();
+    for (int tick = 1; tick <= 6000; ++tick) {
+        if (tick % 250 == 0)
+            reconfigured.configure_motion(reconfigured.motion_settings());
+        plain.tick();
+        reconfigured.tick();
+    }
+    for (std::size_t i = 0; i < plain.movers().size(); ++i) {
+        CAPTURE(i);
+        CHECK(kinetra::distance(reconfigured.movers()[i].body.position, plain.movers()[i].body.position) ==
+              0);
+    }
+    CHECK(reconfigured.completed() == plain.completed());
+}
+
+TEST_CASE("a planner change replans every moving mover") {
+    auto simulation = busy_demonstrator();
+    auto settings = simulation.motion_settings();
+    settings.path_planning = false;
+    simulation.configure_motion(settings);
+    for (const auto &m : simulation.movers())
+        if (m.moving()) {
+            // Without path planning a route is the destination alone.
+            REQUIRE(m.route.size() == 1);
+            CHECK(kinetra::distance(m.route.front(), m.destination) == 0);
+        }
+}
+
 TEST_CASE("the event log records each contact once with its tick and participants") {
     auto b = fixture();
     b.producers.clear();
