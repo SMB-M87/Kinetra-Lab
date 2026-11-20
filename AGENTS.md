@@ -60,7 +60,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | --- | --- |
 | Docs | `python3 external/Kinetra/tools/check_docs.py` |
 | Targeted | `cmake --build --preset dev --target <targets>` and `ctest --preset dev -R '<regex>'`, using the table below (configure once with `cmake --preset dev`) |
-| Full | `cmake --workflow --preset ci` and `cmake --workflow --preset headless`, which is what CI runs (or `./build.sh`). For runtime, presentation or launcher changes, also `cmake --workflow --preset graphics` and the smoke runs in the [README](README.md#tests-and-resources) |
+| Full | Locally `cmake --workflow --preset graphics` and the smoke runs in the [README](README.md#tests-and-resources); then the pull request's CI (format, docs, `headless`, `ci`, native Windows). Verified only when both pass. Run `ci`, `headless` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
@@ -72,7 +72,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`) | `^kinetra_capture` |
 | Any `session.cpp`, presentation (in i4sim also `world_view`, `hud` and `blueprint_screen`), launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
-| Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level, plus `cmake --workflow --preset windows` from WSL ([Windows](docs/windows.md)) | |
+| Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level; CI's `windows` job builds natively. Only a change to the WSL cross build itself (`cmake/toolchains/`, the `windows` preset) also needs `cmake --workflow --preset windows` from WSL, which CI does not run ([Windows](docs/windows.md)) | |
 
 The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the five 60-second Demo crowd cases.
 
