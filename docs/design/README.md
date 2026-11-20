@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-20 | [Tour version note](2026-11-20-tour-version-note.md): below the thumbnail, which copy of the tour is newest instead of a second YouTube link | implemented |
 | 2026-11-20 | [Tour thumbnail in the README](2026-11-20-tour-thumbnail.md): a clickable mosaic of the tour at the top of the gallery, generated from the video | implemented |
 | 2026-11-19 | [Generated tour video](2026-11-19-tour-video.md): the capture tool plays the launcher and all three applications with a visible pointer, keycaps and captions | implemented |
 | 2026-11-19 | [H crossing without stations](2026-11-19-h-crossing-without-stations.md): the unused stations out of the H showcase scene | implemented |
