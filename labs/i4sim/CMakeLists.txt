@@ -65,8 +65,10 @@ if(BUILD_TESTING)
     add_library(kinetra_i4sim_testing INTERFACE)
     target_include_directories(kinetra_i4sim_testing INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/tests/include)
     target_link_libraries(kinetra_i4sim_testing INTERFACE kinetra_i4sim_logic kinetra_lab_testing)
+    # The catalog, and the fixtures in tests/ that the catalog does not ship (MAS-demonstrator).
     target_compile_definitions(kinetra_i4sim_testing
-        INTERFACE KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/blueprints")
+        INTERFACE KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
+                  KINETRA_I4SIM_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
     # Explicit benchmark target: comparisons are useful, but too slow for every CTest run.
     add_executable(kinetra_i4sim_motion_benchmark tests/motion_benchmark.cpp)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_testing)

@@ -3,7 +3,7 @@
 // parking traffic, the bundled blueprints and showcase scenarios, recipes, workloads,
 // determinism and export.
 //
-// The `the bundled catalog holds six blueprints that all load` case doubles as the
+// The `the bundled catalog holds five blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/flow_metrics.h"
@@ -1117,7 +1117,7 @@ TEST_CASE("flow metrics reject invalid limits and a second simulation") {
 }
 
 TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock consistent") {
-    const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
+    const auto blueprint = load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator"));
     Simulation simulation(blueprint, 42), replay(blueprint, 42);
     for (auto *trial : {&simulation, &replay}) {
         auto config = trial->motion_settings();
@@ -1428,9 +1428,9 @@ TEST_CASE("drawing interpolates between a mover's last two ticks") {
     CHECK(simulation.interpolation() == 1);
 }
 
-TEST_CASE("the bundled catalog holds six blueprints that all load") {
+TEST_CASE("the bundled catalog holds five blueprints that all load") {
     const auto files = discover_blueprints(default_blueprint_directory());
-    REQUIRE_MESSAGE(files.size() == 6, "Original blueprint bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 5, "Original blueprint bundle is incomplete");
     for (const auto &file : files)
         load_blueprint(file);
 }
@@ -1463,8 +1463,14 @@ TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply
     }
 }
 
-TEST_CASE("an original blueprint has no scenario") {
-    CHECK_FALSE(load_scenario(default_blueprint_directory() / "MAS-demonstrator.json"));
+TEST_CASE("the original blueprints have no scenario") {
+    // Discovery stays at the top level, so the showcase scenes are not among these files.
+    const auto files = discover_blueprints(default_blueprint_directory());
+    REQUIRE_FALSE(files.empty());
+    for (const auto &file : files) {
+        CAPTURE(file);
+        CHECK_FALSE(load_scenario(file));
+    }
 }
 
 TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
@@ -1833,7 +1839,7 @@ TEST_CASE("every bundled blueprint expands its groups and starts paused") {
 }
 
 TEST_CASE("the MAS blueprint and mover models keep their original semantics") {
-    const auto mas = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
+    const auto mas = load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator"));
     CHECK_MESSAGE((mas.movers.size() == 11 && mas.producers.size() == 4 && mas.cell_size.x == 240),
                   "Original blueprint semantics changed");
     CHECK_MESSAGE((mas.producers[0].id == "Kuka_1" && mas.producers[3].rectangular),
@@ -1869,7 +1875,7 @@ TEST_CASE("both product recipes complete with the original production timing") {
 }
 
 TEST_CASE("the original MAS workload completes recipes within producer queue capacity") {
-    const auto mas = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
+    const auto mas = load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator"));
     Simulation factory(mas, 42);
     factory.run();
     for (int i = 0; i < 50000; ++i)

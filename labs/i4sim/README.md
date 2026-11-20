@@ -45,7 +45,7 @@ cmake --build build -j2
 ./build/kinetra --variant i4sim
 ./build/kinetra_i4sim
 ./build/kinetra_i4sim --blueprints /path/to/Blueprint
-./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --run --ups 200
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --run --ups 200
 ```
 
 The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. The first row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload, mover goals and how the scene repeats, so pressing Space plays the scene. The scenes repeat: their movers drive back and forth between start and goal and turn together after a two-second pause, or, for corridor recovery, the scene starts again from its blueprint after the same pause.
@@ -55,7 +55,7 @@ CMake copies the catalog to `i4sim-blueprints/` beside the executables, and the 
 The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`:
 
 ```sh
-./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --seed 42 --output /tmp/i4sim-results
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --ticks 50000 --seed 42 --output /tmp/i4sim-results
 ```
 
 | Option | Effect |
@@ -342,7 +342,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
 | Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases, a showcase scene when it is worth showing |
-| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the six original files stay unchanged | The loader cases in `simulation_tests.cpp` |
+| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the five originals in the catalog and the `MAS-demonstrator` test fixture stay unchanged | The loader cases in `simulation_tests.cpp` |
 | Add a tuning value | `simulation_constants.h` when components share it, otherwise a named constant where it is used | |
 
 Pitfalls:
@@ -374,7 +374,7 @@ Not covered: desktop feel and real-time performance, which software rendering ca
 
 ## Provenance and differences
 
-Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. Six of its fourteen JSON blueprints are bundled unchanged; `H` became the h-crossing showcase scene (same floor and movers without its four stations, which the scene never used, with a scenario, a longer tick cap and a descriptive name), and the seven city aliases, each identical to one of the others apart from its name, were removed. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
+Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. Five of its fourteen JSON blueprints are bundled unchanged, and a sixth, `MAS-demonstrator`, is kept unchanged as a [test fixture](tests/README.md#suites); `H` became the h-crossing showcase scene (same floor and movers without its four stations, which the scene never used, with a scenario, a longer tick cap and a descriptive name), and the seven city aliases, each identical to one of the others apart from its name, were removed. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
 
 | Reference | This port |
 | --- | --- |

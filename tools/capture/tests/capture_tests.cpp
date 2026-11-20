@@ -223,7 +223,7 @@ TEST_CASE("a showcase cycle holds the scene's pauses and is the same on every ru
 
 TEST_CASE("showcase_cycle_steps rejects a blueprint without a repeating scenario and a missing file") {
     CHECK_THROWS_AS(capture::showcase_cycle_steps(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) /
-                                                  "labs/i4sim/blueprints/MAS-demonstrator.json"),
+                                                  "labs/i4sim/blueprints/3840x2400.json"),
                     std::invalid_argument);
     CHECK_THROWS_AS(capture::showcase_cycle_steps(showcase_file("no-such-scene")), std::runtime_error);
 }
