@@ -121,7 +121,7 @@ Repositories: Kinetra and Lab.
 - **Formatting.** One `chore: apply clang-format` commit per repository, separate from any other change.
 - **doctest.** Vendored as a single header in Kinetra `third_party/doctest/` with an internal CMake target that Lab can link. Convert one test file first as the pattern.
 - **CI.** A GitHub Actions workflow per repository: headless configure, build, tests, `clang-format --dry-run --Werror` and `tools/check_docs.py`.
-- **Claude Code hook (optional).** Runs `clang-format -i` on edited `.h`/`.cpp` files.
+- **Coding agent hook (optional).** Runs `clang-format -i` on edited `.h`/`.cpp` files.
 
 **Done when:** CI is green on a pull request, `cmake --preset dev` works, and clangd resolves includes.
 
