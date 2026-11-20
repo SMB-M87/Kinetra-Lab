@@ -1,11 +1,13 @@
-// Runs the bundled large factories under one motion configuration and prints one CSV
-// line per blueprint and seed: throughput, contacts, flow (waiting and stuck movers) and
-// predictive passing outcomes. Outside CTest: comparisons are useful, but too slow for
-// every test run.
+// Runs the MAS demonstrator fixture and two bundled large factories under one motion
+// configuration and prints one CSV line per blueprint and seed: throughput, contacts, flow
+// (waiting and stuck movers) and predictive passing outcomes. Outside CTest: comparisons
+// are useful, but too slow for every test run.
 #include "i4sim/simulation/flow_metrics.h"
 #include "i4sim/simulation/simulation.h"
 #include "i4sim/testing/event_counts.h"
+#include "i4sim/testing/showcase.h"
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -72,10 +74,15 @@ int main(int argc, char **argv) {
         std::cout
             << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
                "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,elapsed_ms\n";
-        for (const char *name : {"MAS-demonstrator", "3840x2400", "8640x4800"}) {
+        // MAS is a test fixture since it left the catalog; the CSV keeps its name, so runs
+        // stay comparable with the recorded baselines.
+        const std::filesystem::path blueprints[]{test::fixture_blueprint("MAS-demonstrator"),
+                                                 default_blueprint_directory() / "3840x2400.json",
+                                                 default_blueprint_directory() / "8640x4800.json"};
+        for (const auto &file : blueprints) {
+            const auto name = file.stem().string();
             for (unsigned seed : {42u, 915839214u}) {
-                Simulation simulation(
-                    load_blueprint(default_blueprint_directory() / (std::string(name) + ".json")), seed);
+                Simulation simulation(load_blueprint(file), seed);
                 auto settings = simulation.motion_settings();
                 settings.predictive_passing = predictive_passing;
                 settings.recovery = recovery;
