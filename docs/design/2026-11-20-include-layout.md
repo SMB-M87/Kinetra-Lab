@@ -34,7 +34,7 @@ Lab's modules each grew their own layout: 17 headers in `labs/i4sim/src/`, 7 in 
 - Goal: every include starts with its module (`"i4sim/..."`, `"dotio/..."`, `"kinetra_lab/..."`; Kinetra stays `<kinetra/...>`); no `../` include remains.
 - Goal: namespace equals include root, in separate commits after the moves.
 - Goal: the engine's new include paths are used everywhere.
-- Non-goal: behavior changes, renamed types or functions, renamed CMake targets or CTest names (CI, presets and AGENTS.md regexes depend on them).
+- Non-goal: behavior changes. Types, files and targets are renamed only where the names below say so.
 - Non-goal: the i4sim blueprint catalog (`labs/i4sim/blueprints/` is data and stays).
 
 ## Decisions
@@ -44,10 +44,14 @@ Settled with the user in three grilling rounds; choices that differ from the fir
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Module layout | `include/<name>/` and `src/` per module; layers as subfolders (`presentation/`) in both | Same shape as Kinetra; one include root per module |
+| Module folder inside `include/` *(asked again after the first review)* | Kept: `include/<name>/` | Without it, `presentation/session.h` of Demo, Dotio and i4sim and both `zoom.h` meet in the launcher and the capture tool, which see every module's include root; the compiler takes the first silently. User's choice after that explanation |
 | Internal headers | `detail/` inside their topic | Visible public/internal split without a third root |
 | Test helper headers | `tests/include/<name>/testing/`, linked to test targets only | Test code stays out of the production include root |
 | Shared Lab code | `labs/shared/include/kinetra_lab/`, namespace `kinetra_lab` | Names the owner without looking like an engine header |
-| Namespaces | Equal to the include root (`demo`, `dotio`, `i4sim`, `capture`, `launcher`, `kinetra_lab`), in separate commits after the moves | Moves stay reviewable; targets keep their names |
+| Namespaces | Equal to the include root (`demo`, `dotio`, `i4sim`, `capture`, `launcher`, `kinetra_lab`), in separate commits after the moves | Moves stay reviewable |
+| Demo names *(follow-up, settled after the first review)* | `demo::Application` and `demo::Scene` (were `SandboxApplication` and `Sandbox`); files `application.h`, `world/scene.h`, `input/mapping.h`, `input/commands.h`, `presentation/renderer.h` | User's choice: one name for the application everywhere |
+| Target names *(follow-up)* | Logic targets `kinetra_demo_logic`, `kinetra_dotio_logic`, `kinetra_i4sim_logic`; shared `kinetra_lab` and `kinetra_lab_testing`, i4sim's helpers `kinetra_i4sim_testing`; tests `kinetra_demo_tests` (prefix `kinetra_demo`), `kinetra_demo_terrain_tests`, `kinetra_lab_tests` | User's choice: one form for every module, equal to namespace and include root |
+| `kinetra_sandbox` executable *(follow-up)* | Removed; the launcher is only `kinetra` | User's choice; it was a compatibility name from the first commit |
 | i4sim topics | `simulation/`, `blueprint/`, `presentation/`, each with `detail/` *(differs: recommended was public/detail only)* | User's choice: the logic folder had grown too large |
 | Engine | Moves in the same round to `simulation/`, `view/`, `runtime/` *(differs: recommended was Lab only)* | User's choice; [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md) |
 | Dotio topics | `entities/`, `ai/`, `navigation/`, `math/`, `presentation/` *(differs: recommended was flat)* | User's choice; `gmath` folds into `math/` |
@@ -56,7 +60,7 @@ Settled with the user in three grilling rounds; choices that differ from the fir
 | Start | After Kinetra-Lab #31 and #32 are merged | They touch files that move |
 | Commits | One `git mv` commit for all modules, include and CMake fixes in the same commit, then one commit per namespace *(changed while building: planned was one commit per module)* | The modules include each other and the engine, so a commit per module would not build on its own |
 | `gmath` namespace | `dotio::math`, not `dotio` *(changed while building)* | Merged into `dotio`, its `Vec2` met `kinetra::Vec2` in the presentation, which uses `using namespace kinetra`; the sub-namespace matches its folder |
-| `zoom.h` in Demo and Dotio | Top of the include root, not `presentation/` *(changed while building)* | The logic (`SandboxApplication`, `dotio::Application`) includes it; a logic header must not reach into `presentation/` |
+| `zoom.h` in Demo and Dotio | Top of the include root, not `presentation/` *(changed while building)* | The logic (`demo::Application`, `dotio::Application`) includes it; a logic header must not reach into `presentation/` |
 
 ## Design
 
@@ -70,12 +74,12 @@ labs/shared/                                 (was labs/common, labs/test_support
 
 labs/demo/
   include/demo/
-    sandbox_application.h debug_panel.h zoom.h
-    world/         agent.h terrain.h sandbox_scene.h tuning.h
-    input/         sandbox_input.h sandbox_commands.h player_control.h
-    presentation/  session.h sandbox_renderer.h help_overlay.h
-  src/  sandbox_application.cpp debug_panel.cpp main.cpp
-        presentation/ sandbox_renderer.cpp session.cpp
+    application.h debug_panel.h zoom.h
+    world/         agent.h terrain.h scene.h tuning.h
+    input/         mapping.h commands.h player_control.h
+    presentation/  session.h renderer.h help_overlay.h
+  src/  application.cpp debug_panel.cpp main.cpp
+        presentation/ renderer.cpp session.cpp
 
 labs/dotio/                                  (logic/, gmath/ and their sub-READMEs disappear)
   include/dotio/
@@ -143,8 +147,8 @@ The full diff was read as a reviewer would; most of it is renames, which `git di
 | Finding | Resolution |
 | --- | --- |
 | `dotio/ai/tracker.h` had no includes and relied on its includer's order, which `clang-format` changed after the new paths | It includes `<concepts>` and `<cstddef>` itself (folded into the move commit) |
-| `showcase.h` found the blueprints through `__FILE__`, one folder deeper after the move | The new `kinetra_i4sim_test_support` target passes `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR` |
-| `terrain_tests.cpp` reached Demo headers through `../include/` while linking only `Kinetra::Simulation` | It links `kinetra_sandbox_application` |
+| `showcase.h` found the blueprints through `__FILE__`, one folder deeper after the move | The new `kinetra_i4sim_testing` target passes `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR` |
+| `terrain_tests.cpp` reached Demo headers through `../include/` while linking only `Kinetra::Simulation` | It links `kinetra_demo_logic` |
 | Merging `gamef` into `dotio` made the presentation's private `Renderer` adapter ambiguous with `dotio::Renderer` | The adapter is `RuntimeRenderer` |
 | `zoom.h` sat in `presentation/` but logic includes it | Moved to the top of each include root |
 | Namespace renames changed line lengths | A separate `style` commit reformats the touched files |
@@ -177,9 +181,8 @@ Changes: the move (`git mv`, includes, CMake), the folded directory READMEs, thr
 
 Dependencies and merge order: the Kinetra pull request merges first, with a merge commit; then the pointer on this branch moves to that merge commit, and this pull request merges.
 
-Follow-up: target names (`kinetra_sandbox_*`, `kinetra_lab_common`) and Demo's `sandbox_` file names, see open points.
+Also in this pull request, after the first review: Demo's `sandbox_` files and classes become `demo::Application` and `demo::Scene`, every logic target is `kinetra_<app>_logic`, the shared targets are `kinetra_lab` and `kinetra_lab_testing`, and the `kinetra_sandbox` executable is gone.
 
 ## Open points
 
-- CMake target names keep their history (`kinetra_sandbox_*` for Demo, `kinetra_lab_common` for `labs/shared`). Renaming them touches CI, presets and the AGENTS.md regexes; a separate change if wanted.
-- Demo's file names keep their `sandbox_` prefix (`sandbox_application.h`); with the `demo` namespace it could drop. Same reason, same follow-up.
+None.

@@ -1,8 +1,8 @@
 #include "demo/presentation/session.h"
+#include "demo/application.h"
 #include "demo/debug_panel.h"
-#include "demo/input/sandbox_input.h"
-#include "demo/presentation/sandbox_renderer.h"
-#include "demo/sandbox_application.h"
+#include "demo/input/mapping.h"
+#include "demo/presentation/renderer.h"
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/timing.h>
@@ -12,7 +12,7 @@ namespace {
 /// The graphical Demo session: it orders a frame and owns the panels. What the debug menu
 /// holds and decides is the DebugPanel's; the scene is drawn by the renderer.
 class DemoSession final : public Session {
-    demo::SandboxApplication application_;
+    demo::Application application_;
     // Declared after the application it borrows.
     demo::DebugPanel panel_{application_};
     kinetra::DebugMenu menu_;
@@ -70,7 +70,7 @@ class DemoSession final : public Session {
     std::vector<kinetra_lab::DebugRow> debug_rows() override {
         return kinetra_lab::debug_rows_of(panel_.entries());
     }
-    const SandboxApplication &application() const override { return application_; }
+    const Application &application() const override { return application_; }
 };
 } // namespace
 std::unique_ptr<Session> create_session(int count, std::uint32_t seed) {

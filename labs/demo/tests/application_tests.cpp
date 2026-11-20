@@ -1,8 +1,8 @@
 // Headless tests for the Demo application layer: input commands, pause, time scale and
 // single steps, camera, pointer actions, avoidance mode, tuning, player intent, drawn
 // poses, and agents that stay around the player and clear of terrain, without a window.
-#include "demo/input/sandbox_input.h"
-#include "demo/sandbox_application.h"
+#include "demo/application.h"
+#include "demo/input/mapping.h"
 
 #include <doctest/doctest.h>
 
@@ -17,7 +17,7 @@ using namespace demo;
 using namespace kinetra;
 
 namespace {
-Vec2 player_position(const SandboxApplication &application) {
+Vec2 player_position(const Application &application) {
     const auto &scene = application.scene();
     return scene.world.body(scene.player).position;
 }
@@ -34,7 +34,7 @@ Camera2D session_camera() {
 }
 
 /// Summed path length in world units that the active agents cover in `frames` frames.
-float distance_covered(SandboxApplication &application, Camera2D &camera, int frames) {
+float distance_covered(Application &application, Camera2D &camera, int frames) {
     float covered = 0;
     for (int frame = 0; frame < frames; ++frame) {
         std::vector<Vec2> before;
@@ -51,7 +51,7 @@ float distance_covered(SandboxApplication &application, Camera2D &camera, int fr
 }
 
 /// The loaded terrain body of `shape` that lies nearest to the player of `scene`.
-Body nearest_terrain(const Sandbox &scene, Shape shape) {
+Body nearest_terrain(const Scene &scene, Shape shape) {
     const auto bodies = scene.world.bodies();
     const Vec2 player = bodies[scene.player].position;
     std::optional<Body> nearest;
@@ -75,7 +75,7 @@ TEST_CASE("a steering wanderer heading for terrain gets away from it without tou
         for (const Shape shape : {Shape::circle, Shape::box}) {
             CAPTURE(reciprocal);
             CAPTURE(static_cast<int>(shape));
-            Sandbox scene(1, 42);
+            Scene scene(1, 42);
             scene.reciprocal_avoidance = reciprocal;
             // The agent walks a straight line unless avoidance turns it, and its home
             // range does not pull it away from the obstacle.
@@ -149,7 +149,7 @@ TEST_CASE("the default tuning equals the former literals of the scene and is val
     CHECK(tuning.motion.response_time == Steering{}.response_time);
     CHECK(tuning.motion.horizon == AvoidanceSettings{}.horizon);
     CHECK(tuning.motion.passing_bias == AvoidanceSettings{}.passing_bias);
-    const SandboxApplication application(0, 42);
+    const Application application(0, 42);
     CHECK_MESSAGE((application.tuning().motion.max_speed == 4 &&
                    application.tuning().wander.mode == WanderMode::steering),
                   "A new application does not start from the default tuning");
@@ -206,7 +206,7 @@ TEST_CASE("tuning validation rejects values that are not finite or out of range"
     CHECK_MESSAGE(rejected(unknown_mode), "An unknown wander mode was accepted");
 
     // The scene refuses to run a tick on invalid values and leaves its bodies alone.
-    SandboxApplication application(4, 42);
+    Application application(4, 42);
     Camera2D camera = session_camera();
     application.advance(frame_seconds, {}, camera);
     const Vec2 before = player_position(application);
@@ -222,7 +222,7 @@ TEST_CASE("tuning validation rejects values that are not finite or out of range"
 TEST_CASE("a larger top speed makes agents cover more distance in the same time") {
     // Three simulated seconds.
     constexpr int frames = 360;
-    SandboxApplication slow(12, 42), fast(12, 42);
+    Application slow(12, 42), fast(12, 42);
     fast.tuning().motion.max_speed = 8;
     Camera2D slow_camera = session_camera(), fast_camera = session_camera();
     // The first frame streams the population in; measure from the second one.
@@ -242,7 +242,7 @@ TEST_CASE("half the time scale runs half as many fixed ticks") {
     constexpr double elapsed = 16.0 / 120;
     FrameCommands commands;
     commands.player.direction = {1, 0};
-    SandboxApplication half_speed(0, 42), half_time(0, 42), full(0, 42);
+    Application half_speed(0, 42), half_time(0, 42), full(0, 42);
     Camera2D camera;
     const Vec2 start = player_position(full);
     full.advance(elapsed, commands, camera);
@@ -255,7 +255,7 @@ TEST_CASE("half the time scale runs half as many fixed ticks") {
     CHECK_MESSAGE(player_position(full).x > player_position(half_speed).x,
                   "Half the time scale ran as far as full speed");
     // Scaled time accumulates like real time: two half ticks make one.
-    SandboxApplication slow(0, 42), reference(0, 42);
+    Application slow(0, 42), reference(0, 42);
     slow.advance(1.0 / 120, commands, camera);
     CHECK_MESSAGE(length(player_position(slow) - start) == 0, "Half a tick of scaled time ran a tick");
     slow.advance(1.0 / 120, commands, camera);
@@ -270,12 +270,12 @@ TEST_CASE("half the time scale runs half as many fixed ticks") {
 }
 
 TEST_CASE("a single step while paused runs exactly one fixed tick") {
-    SandboxApplication stepped(6, 42), reference(6, 42);
+    Application stepped(6, 42), reference(6, 42);
     Camera2D camera = session_camera(), reference_camera = session_camera();
     FrameCommands commands;
     commands.player.direction = {1, 0};
     reference.advance(1.0 / 120, commands, reference_camera);
-    const auto positions = [](const SandboxApplication &application) {
+    const auto positions = [](const Application &application) {
         std::vector<Vec2> result;
         for (const auto &body : application.scene().world.bodies())
             result.push_back(body.position);
@@ -315,7 +315,7 @@ TEST_CASE("a single step while paused runs exactly one fixed tick") {
 }
 
 TEST_CASE("a negative or non-finite time scale is rejected before the frame changes anything") {
-    SandboxApplication application(0, 42);
+    Application application(0, 42);
     Camera2D camera;
     application.advance(1.0 / 120, {}, camera);
     const Vec2 before = player_position(application);
@@ -333,7 +333,7 @@ TEST_CASE("a negative or non-finite time scale is rejected before the frame chan
 }
 
 TEST_CASE("switching avoidance mode neither resets nor advances the scene") {
-    SandboxApplication application(10, 42);
+    Application application(10, 42);
     Camera2D camera;
     FrameCommands commands;
     application.advance(1.0 / 120, commands, camera);
@@ -352,7 +352,7 @@ TEST_CASE("switching avoidance mode neither resets nor advances the scene") {
 }
 
 TEST_CASE("help toggles and pause stops fixed updates without replaying paused time") {
-    SandboxApplication application(0, 42);
+    Application application(0, 42);
     Camera2D camera;
     FrameCommands commands;
     CHECK_MESSAGE(!application.presentation().help, "Demo help must start hidden");
@@ -380,7 +380,7 @@ TEST_CASE("help toggles and pause stops fixed updates without replaying paused t
 }
 
 TEST_CASE("ghost input pans the camera and the zoom limit depends on debug mode") {
-    SandboxApplication application(0, 42);
+    Application application(0, 42);
     Camera2D camera;
     FrameCommands commands;
     application.advance(0, commands, camera);
@@ -407,7 +407,7 @@ TEST_CASE("ghost input pans the camera and the zoom limit depends on debug mode"
 }
 
 TEST_CASE("pointer commands report walking teleport route and agent results") {
-    SandboxApplication application(6, 42);
+    Application application(6, 42);
     Camera2D camera;
     application.advance(0, {}, camera);
     FrameCommands commands;
@@ -453,7 +453,7 @@ TEST_CASE("pointer commands report walking teleport route and agent results") {
 }
 
 TEST_CASE("a right click in ghost mode clears the selection without teleporting") {
-    SandboxApplication application(6, 42);
+    Application application(6, 42);
     Camera2D camera;
     application.advance(0, {}, camera);
     const auto &scene = application.scene();
@@ -479,7 +479,7 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
 }
 
 TEST_CASE("opposing held rotation cancels navigation without rotating") {
-    Sandbox scene(0, 42);
+    Scene scene(0, 42);
     scene.stream(Camera2D{});
     CHECK_MESSAGE(scene.walk_to({12, 0}), "Missing initial route");
     PlayerControl control;
@@ -524,7 +524,7 @@ TEST_CASE("the command adapter keeps held controls and maps clicks to walking") 
 }
 
 TEST_CASE("drawn poses lie between the last two ticks and snap after a teleport or pause") {
-    SandboxApplication application(0, 42);
+    Application application(0, 42);
     Camera2D camera;
     FrameCommands commands;
     commands.player.direction = {1, 0};

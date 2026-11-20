@@ -1,28 +1,28 @@
-add_library(kinetra_sandbox_application src/sandbox_application.cpp src/debug_panel.cpp)
-target_include_directories(kinetra_sandbox_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(kinetra_demo_logic src/application.cpp src/debug_panel.cpp)
+target_include_directories(kinetra_demo_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab/debug.h is headless: the menu rows that every Lab application shares.
-target_link_libraries(kinetra_sandbox_application PUBLIC Kinetra::Simulation kinetra_lab_common)
-target_compile_features(kinetra_sandbox_application PUBLIC cxx_std_20)
+target_link_libraries(kinetra_demo_logic PUBLIC Kinetra::Simulation kinetra_lab)
+target_compile_features(kinetra_demo_logic PUBLIC cxx_std_20)
 if(BUILD_TESTING)
     # 60 simulated seconds per seed; labelled soak so quick runs can exclude them.
     kinetra_add_doctest(kinetra_demo_crowd_tests PREFIX kinetra_demo_crowd
-        SOURCES tests/crowd_stability_tests.cpp LIBRARIES kinetra_sandbox_application
+        SOURCES tests/crowd_stability_tests.cpp LIBRARIES kinetra_demo_logic
         LABELS soak TIMEOUT 180)
     kinetra_add_doctest(kinetra_demo_crowd_characterization_tests PREFIX kinetra_demo_crowd_characterization
         SOURCES tests/crowd_characterization_tests.cpp
-        LIBRARIES kinetra_sandbox_application kinetra_lab_test_support)
+        LIBRARIES kinetra_demo_logic kinetra_lab_testing)
     kinetra_add_doctest(kinetra_demo_contact_tests PREFIX kinetra_demo_contacts
         SOURCES tests/contact_tests.cpp LIBRARIES Kinetra::Simulation)
-    kinetra_add_doctest(kinetra_terrain_tests PREFIX kinetra_terrain
-        SOURCES tests/terrain_tests.cpp LIBRARIES kinetra_sandbox_application)
-    kinetra_add_doctest(kinetra_sandbox_tests PREFIX kinetra_sandbox_application
-        SOURCES tests/sandbox_application_tests.cpp tests/debug_panel_tests.cpp
-        LIBRARIES kinetra_sandbox_application kinetra_lab_common)
+    kinetra_add_doctest(kinetra_demo_terrain_tests PREFIX kinetra_demo_terrain
+        SOURCES tests/terrain_tests.cpp LIBRARIES kinetra_demo_logic)
+    kinetra_add_doctest(kinetra_demo_tests PREFIX kinetra_demo
+        SOURCES tests/application_tests.cpp tests/debug_panel_tests.cpp
+        LIBRARIES kinetra_demo_logic kinetra_lab)
 endif()
 if(KINETRA_BUILD_RUNTIME)
-    add_library(kinetra_demo_presentation src/presentation/sandbox_renderer.cpp src/presentation/session.cpp)
+    add_library(kinetra_demo_presentation src/presentation/renderer.cpp src/presentation/session.cpp)
     target_link_libraries(kinetra_demo_presentation
-        PUBLIC kinetra_sandbox_application kinetra_lab_common Kinetra::Runtime)
+        PUBLIC kinetra_demo_logic kinetra_lab Kinetra::Runtime)
 endif()
 if(BUILD_TESTING AND KINETRA_BUILD_RUNTIME AND KINETRA_TEST_GRAPHICS)
     find_package(SDL2 REQUIRED)

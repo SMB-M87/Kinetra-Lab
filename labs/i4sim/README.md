@@ -137,7 +137,7 @@ flowchart TD
     Hud --> Simulation
     Simulation --> Core["SimulationCore<br/>components, tick order"]
     Flow["FlowMetrics"] --> Simulation
-    subgraph headless ["kinetra_i4sim_application: no window"]
+    subgraph headless ["kinetra_i4sim_logic: no window"]
         Controller
         Loaders
         Simulation

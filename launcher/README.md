@@ -26,7 +26,7 @@ The launcher lets a user try every Lab application without restarting, and gives
 | [src/applications.cpp](src/applications.cpp) | The three registrations: menu names, Dotio difficulties, camera reset and session factories |
 | [src/main.cpp](src/main.cpp) | Arguments, the world seed and the call to `kinetra::run_launcher` |
 
-`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. Two executables use it: `kinetra` and the compatibility name `kinetra_sandbox`. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
+`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. The `kinetra` executable uses it. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
 
 ## How it works
 

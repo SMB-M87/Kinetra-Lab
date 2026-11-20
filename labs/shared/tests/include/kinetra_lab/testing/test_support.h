@@ -6,7 +6,7 @@
 #include <cstdint>
 
 /// Helpers shared by Lab doctest suites. Application-neutral: no application header is
-/// included here, so every application's tests can link the `kinetra_lab_test_support`
+/// included here, so every application's tests can link the `kinetra_lab_testing`
 /// target. Assertions come from doctest (`CHECK`, `REQUIRE`); this header only adds what
 /// doctest lacks.
 namespace kinetra_lab::testing {

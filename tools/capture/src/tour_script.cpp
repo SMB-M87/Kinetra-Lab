@@ -5,8 +5,8 @@
 #include "capture/dotio_player.h"
 #include "capture/tour.h"
 
+#include "demo/application.h"
 #include "demo/presentation/session.h"
-#include "demo/sandbox_application.h"
 #include "dotio/presentation/session.h"
 #include "i4sim/blueprint/blueprint.h"
 #include "i4sim/simulation/view.h"
@@ -74,7 +74,7 @@ void launcher_chapter(Tour &tour) {
 
 // Demo.
 
-const demo::SandboxApplication &demo_application(Tour &tour) {
+const demo::Application &demo_application(Tour &tour) {
     return dynamic_cast<demo::Session &>(tour.session()).application();
 }
 

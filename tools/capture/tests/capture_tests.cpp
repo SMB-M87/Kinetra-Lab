@@ -324,7 +324,7 @@ TEST_CASE("the Dotio debug clicks find their rows and turn on every layer but no
 }
 
 TEST_CASE("the Demo debug click opens the motion section of a new session's menu") {
-    demo::SandboxApplication application(demo::default_agent_count, capture::capture_seed);
+    demo::Application application(demo::default_agent_count, capture::capture_seed);
     demo::DebugPanel panel(application);
     const auto closed = panel.entries();
     REQUIRE_NOTHROW(capture::apply_menu_click(closed, capture::demo_motion_click, "Demo"));

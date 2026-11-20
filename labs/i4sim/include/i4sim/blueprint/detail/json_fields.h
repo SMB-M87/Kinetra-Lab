@@ -1,6 +1,6 @@
 #pragma once
 // JSON field readers shared by the blueprint and scenario loaders. Private to
-// kinetra_i4sim_application. Every reader throws std::runtime_error with a short message;
+// kinetra_i4sim_logic. Every reader throws std::runtime_error with a short message;
 // the loaders add the file path.
 #include <cctype>
 #include <cmath>

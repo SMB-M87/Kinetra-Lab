@@ -50,7 +50,7 @@ inline void append_avoidance_circles(const Body &obstacle, std::vector<Circle> &
 }
 
 /// Application-owned population, routes and terrain. Eviction remaps body indices.
-class Sandbox {
+class Scene {
   public:
     World world;
     Terrain terrain;
@@ -71,7 +71,7 @@ class Sandbox {
     Aabb view{};
     static constexpr std::size_t maximum_agents = 1200;
 
-    explicit Sandbox(int count, std::uint32_t seed) : terrain(seed), preview(seed) {
+    explicit Scene(int count, std::uint32_t seed) : terrain(seed), preview(seed) {
         if (count < 0 || count > 300)
             throw std::invalid_argument("Initial agent count must be 0..300");
         // Use the world seed for dispersed, repeatable spawn candidates. Temporary

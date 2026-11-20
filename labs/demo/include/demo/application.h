@@ -1,7 +1,7 @@
 #pragma once
 
-#include "demo/input/sandbox_commands.h"
-#include "demo/world/sandbox_scene.h"
+#include "demo/input/commands.h"
+#include "demo/world/scene.h"
 #include "demo/world/tuning.h"
 #include "demo/zoom.h"
 #include <kinetra/runtime/timing.h>
@@ -10,15 +10,15 @@ namespace demo {
 
 /// Coordinates a sandbox session without a window or renderer. The caller supplies
 /// elapsed time, intent and the current logical camera viewport, including on paused frames.
-class SandboxApplication {
+class Application {
   public:
-    SandboxApplication(int agent_count, std::uint32_t seed);
+    Application(int agent_count, std::uint32_t seed);
     /// Applies one frame of intent, then runs the fixed ticks that `elapsed` seconds times
     /// `commands.time_scale` are worth; none while paused, except one for
     /// `commands.single_step`. Throws std::invalid_argument, before anything changes, for
     /// a negative or non-finite time scale.
     void advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);
-    const Sandbox &scene() const { return scene_; }
+    const Scene &scene() const { return scene_; }
     /// The scene's motion and wander values, for a debug menu to change between frames.
     /// The next tick throws std::invalid_argument for values that validate() rejects.
     Tuning &tuning() { return scene_.tuning; }
@@ -40,7 +40,7 @@ class SandboxApplication {
     Pose presented_pose(std::size_t id) const;
 
   private:
-    Sandbox scene_;
+    Scene scene_;
     kinetra::FixedClock clock_;
     PresentationOptions presentation_;
     bool paused_{}, gravity_{};

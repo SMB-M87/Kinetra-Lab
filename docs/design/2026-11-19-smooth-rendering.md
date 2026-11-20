@@ -70,9 +70,9 @@ sequenceDiagram
 
 - [labs/common/include/lab/settings.h](../../labs/shared/include/kinetra_lab/settings.h): FRAME TIMES row.
 - i4sim: [simulation.h](../../labs/i4sim/include/i4sim/simulation/simulation.h) (`Mover::previous_position`, `Simulation::interpolation()`), [simulation.cpp](../../labs/i4sim/src/simulation/simulation.cpp), [session.cpp](../../labs/i4sim/src/presentation/session.cpp).
-- Demo: [sandbox_application.h](../../labs/demo/include/demo/sandbox_application.h) (`presented_pose`), [sandbox_application.cpp](../../labs/demo/src/sandbox_application.cpp), [sandbox_renderer.h](../../labs/demo/include/demo/presentation/sandbox_renderer.h), [sandbox_renderer.cpp](../../labs/demo/src/presentation/sandbox_renderer.cpp), [session.cpp](../../labs/demo/src/presentation/session.cpp).
+- Demo: [sandbox_application.h](../../labs/demo/include/demo/application.h) (`presented_pose`), [sandbox_application.cpp](../../labs/demo/src/application.cpp), [sandbox_renderer.h](../../labs/demo/include/demo/presentation/renderer.h), [sandbox_renderer.cpp](../../labs/demo/src/presentation/renderer.cpp), [session.cpp](../../labs/demo/src/presentation/session.cpp).
 - Dotio: [application.h](../../labs/dotio/include/dotio/application.h) (snapshots, `interpolation()`, `frame_times`), [presentation.cpp](../../labs/dotio/src/presentation/presentation.cpp), [session.cpp](../../labs/dotio/src/presentation/session.cpp).
-- Tests: [i4sim simulation](../../labs/i4sim/tests/simulation_tests.cpp) and [presentation](../../labs/i4sim/tests/presentation_tests.cpp), [Demo application](../../labs/demo/tests/sandbox_application_tests.cpp), [Dotio presentation](../../labs/dotio/tests/presentation_tests.cpp), [launcher runtime](../../launcher/tests/runtime_tests.cpp).
+- Tests: [i4sim simulation](../../labs/i4sim/tests/simulation_tests.cpp) and [presentation](../../labs/i4sim/tests/presentation_tests.cpp), [Demo application](../../labs/demo/tests/application_tests.cpp), [Dotio presentation](../../labs/dotio/tests/presentation_tests.cpp), [launcher runtime](../../launcher/tests/runtime_tests.cpp).
 - Docs: [system architecture](../architecture.md), [launcher and overlays](../launcher-overlays.md).
 - `external/Kinetra` pointer.
 

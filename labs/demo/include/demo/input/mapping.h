@@ -1,6 +1,6 @@
 #pragma once
 
-#include "demo/input/sandbox_commands.h"
+#include "demo/input/commands.h"
 #include "kinetra_lab/input.h"
 #include <kinetra/runtime/engine.h>
 

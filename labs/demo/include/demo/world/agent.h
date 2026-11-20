@@ -11,7 +11,7 @@
 
 namespace demo {
 
-/// Sandbox patrol entity referencing a scene-owned physics body by a scene-remapped index.
+/// Scene patrol entity referencing a scene-owned physics body by a scene-remapped index.
 /// Seeded wander, commanded travel, route, visibility and replanning share one lifecycle.
 ///
 /// An agent wanders around its home until retarget() commands a goal. Commanded travel

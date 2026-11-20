@@ -3,7 +3,7 @@
 // frame's commands they decide. The session (src/session.cpp) adds the menu widget, the
 // settings panel and the drawing.
 
-#include "demo/sandbox_application.h"
+#include "demo/application.h"
 
 #include "kinetra_lab/debug.h"
 #include <kinetra/view/debug_menu.h>
@@ -49,13 +49,13 @@ inline constexpr kinetra::DebugStep max_speed{0.5f, 16, 1.25f, true}, max_accele
 /// The Demo's debug menu and the state its rows change.
 ///
 /// One frame is: entries() for the menu's update, apply() on the frame's commands,
-/// SandboxApplication::advance(), observe(), and entries() again for drawing. The rows
+/// Application::advance(), observe(), and entries() again for drawing. The rows
 /// follow the contract of kinetra::DebugEntry: they refer to the panel and to the
 /// application, which must both outlive them. Not copyable.
 class DebugPanel {
   public:
     /// `application` is borrowed and must outlive the panel.
-    explicit DebugPanel(SandboxApplication &application) : application_(application) {}
+    explicit DebugPanel(Application &application) : application_(application) {}
     DebugPanel(const DebugPanel &) = delete;
     DebugPanel &operator=(const DebugPanel &) = delete;
 
@@ -97,7 +97,7 @@ class DebugPanel {
     void add_agent_entries(std::vector<kinetra::DebugEntry> &entries);
     void reset_parameters();
 
-    SandboxApplication &application_;
+    Application &application_;
     kinetra::DebugFolds folds_{"SIMULATION"};
     kinetra_lab::ZoomControl zoom_;
     DebugLayers layers_;

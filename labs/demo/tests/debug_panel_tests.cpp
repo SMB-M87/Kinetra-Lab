@@ -10,14 +10,14 @@
 #include <vector>
 
 namespace {
+using demo::Application;
 using demo::DebugPanel;
 using demo::FrameCommands;
-using demo::SandboxApplication;
 using kinetra::DebugEntryKind;
 
 /// An application with a few agents, its debug panel and a camera at the Demo's zoom.
 struct Fixture {
-    SandboxApplication application{8, 42};
+    Application application{8, 42};
     DebugPanel panel{application};
     kinetra::Camera2D camera;
 

@@ -1,7 +1,7 @@
 #pragma once
 
+#include "demo/application.h"
 #include "demo/debug_panel.h"
-#include "demo/sandbox_application.h"
 #include <kinetra/runtime/debug_view.h>
 #include <kinetra/runtime/settings_view.h>
 #include <span>
@@ -29,10 +29,10 @@ struct FrameOverlays {
 /// Present the latest scene without changing application state: the bodies between their
 /// last two ticks, the debug `layers` that are on, and the `overlays`. Vectors, paths and
 /// probes follow the application's own presentation options, which commands switch.
-void render(kinetra::Runtime &runtime, const SandboxApplication &application,
+void render(kinetra::Runtime &runtime, const Application &application,
             const DebugLayers &layers = DebugLayers::none(), const FrameOverlays &overlays = {});
 /// State summary for DemoSession::status(): agents, pause, chunks, camera, paths,
 /// avoidance and the last pointer action.
-std::string status_text(const SandboxApplication &application);
+std::string status_text(const Application &application);
 
 } // namespace demo

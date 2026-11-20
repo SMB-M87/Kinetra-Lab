@@ -1,6 +1,6 @@
 // Characterization of Demo crowds before the Demo code is restructured.
 //
-// Each scenario drives a seeded SandboxApplication frame by frame and checks crowd
+// Each scenario drives a seeded Application frame by frame and checks crowd
 // invariants after every frame: finite motion, no exhausted sweep budget, a consistent
 // agent-to-body mapping and no deep overlap between moving bodies. It also records a
 // 64-bit fingerprint of every moving body's motion, so the run as a whole is pinned. A
@@ -13,7 +13,7 @@
 // Set KINETRA_PRINT_GOLDEN=1 to print the current line of every scenario, for a
 // deliberate update. The run still compares, so a changed line also fails its case
 // and shows expected and actual.
-#include "demo/sandbox_application.h"
+#include "demo/application.h"
 #include "kinetra_lab/testing/test_support.h"
 
 #include <kinetra/simulation/physics.h>
@@ -42,7 +42,7 @@ constexpr int overlap_interval_frames = 20;
 
 /// Checks the crowd invariants after one frame. The first violation stops the scenario,
 /// because later frames build on the broken state.
-void check_invariants(const demo::Sandbox &scene, int frame) {
+void check_invariants(const demo::Scene &scene, int frame) {
     const auto &world = scene.world;
     REQUIRE_MESSAGE(!world.sweep_budget_exhausted(), "Crowd contact exhausted the swept-event budget");
     const auto bodies = world.bodies();
@@ -50,7 +50,7 @@ void check_invariants(const demo::Sandbox &scene, int frame) {
     for (const auto &body : bodies)
         REQUIRE_MESSAGE((kinetra::finite(body.position) && kinetra::finite(body.velocity)),
                         "Nonfinite body motion");
-    REQUIRE_MESSAGE(scene.agents().size() <= demo::Sandbox::maximum_agents, "Population exceeded its cap");
+    REQUIRE_MESSAGE(scene.agents().size() <= demo::Scene::maximum_agents, "Population exceeded its cap");
     std::set<std::size_t> agent_bodies;
     for (const auto &agent : scene.agents()) {
         REQUIRE_MESSAGE(agent.body_id() < scene.moving_body_count,
@@ -81,7 +81,7 @@ struct Scenario {
 /// Runs `scenario` with the invariant checks after every frame and returns its summary:
 /// final population and body counts, the summed avoidance limits and the fingerprint.
 std::string run(const Scenario &scenario) {
-    demo::SandboxApplication application(scenario.agent_count, scenario.seed);
+    demo::Application application(scenario.agent_count, scenario.seed);
     application.tuning().wander.mode = scenario.wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};

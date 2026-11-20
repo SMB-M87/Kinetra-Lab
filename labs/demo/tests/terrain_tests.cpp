@@ -1,7 +1,7 @@
 // Headless tests for the Demo scene: seeded terrain streaming, obstacles, agent
 // population and lifecycle, wandering by steering and by route, navigation, the path
 // follower and Ghost isolation.
-#include "demo/world/sandbox_scene.h"
+#include "demo/world/scene.h"
 
 #include <doctest/doctest.h>
 
@@ -112,7 +112,7 @@ Body follower_player(Vec2 position) {
 } // namespace
 
 TEST_CASE("the demo population includes triangle pentagon and hexagon agents") {
-    demo::Sandbox shape_scene(10, 42);
+    demo::Scene shape_scene(10, 42);
     std::set<std::size_t> polygon_sides;
     for (const auto &agent : shape_scene.agents()) {
         const auto &body = shape_scene.world.body(agent.body_id());
@@ -183,7 +183,7 @@ TEST_CASE("generated obstacles are static and disjoint inside their chunk and ou
 }
 
 TEST_CASE("scene streaming keeps the player and gravity and loads physics only near the view") {
-    demo::Sandbox scene(12, 42);
+    demo::Scene scene(12, 42);
     Camera2D camera;
     scene.stream(camera);
     const auto movers = scene.moving_body_count;
@@ -238,7 +238,7 @@ TEST_CASE("scene streaming keeps the player and gravity and loads physics only n
 }
 // Wander resumes at the destination, while dormant navigation remains frozen.
 TEST_CASE("agents wander on from reached goals and distant patrols are evicted") {
-    demo::Sandbox scene(12, 42);
+    demo::Scene scene(12, 42);
     // The assertions below are about wander routes; steering wander plans none.
     scene.tuning = route_wander();
     const auto id = scene.agents().front().body_id();
@@ -509,7 +509,7 @@ TEST_CASE("route wander starts its legs toward home beyond the home range") {
 }
 
 TEST_CASE("a crowded population spawns visible near the initial camera without overlapping the player") {
-    demo::Sandbox scene(240, 42);
+    demo::Scene scene(240, 42);
     CHECK_MESSAGE(scene.agents().size() == 240, "Crowded initial population was not created");
     Camera2D camera;
     camera.viewport = {1280, 800};
@@ -573,7 +573,7 @@ TEST_CASE("navigation rejects invalid areas and routes around walls to reachable
 }
 
 TEST_CASE("teleport walking and camera follow respect free space and manual input") {
-    demo::Sandbox scene(0, 42);
+    demo::Scene scene(0, 42);
     Camera2D camera;
     scene.stream(camera);
     CHECK_MESSAGE(scene.teleport({0, 0}), "Free teleport rejected");
@@ -617,7 +617,7 @@ TEST_CASE("the player and agents depart from static geometry they touch") {
             obstacle.radius = 1;
             obstacle.half_extents = {1, 4};
             obstacle.angle = angle;
-            demo::Sandbox scene(0, 42);
+            demo::Scene scene(0, 42);
             scene.world.clear();
             Body player;
             player.motion = Motion::controlled;
@@ -685,7 +685,7 @@ TEST_CASE("open-space routes go straight and rotated boxes block only their own 
 
 TEST_CASE("the player follower detours around a wall and keeps a projected click endpoint") {
     const Body obstacle = wall_box(0);
-    demo::Sandbox scene(0, 42);
+    demo::Scene scene(0, 42);
     scene.world.clear();
     const Body player = follower_player({-12, 0});
     scene.player = scene.world.add(player);
@@ -713,7 +713,7 @@ TEST_CASE("the player follower detours around a wall and keeps a projected click
 // Agents use the same follower through the actual scene/physics integration.
 TEST_CASE("an agent follower arrives around a wall and physically resumes wandering") {
     const Body obstacle = wall_box(0);
-    demo::Sandbox crowd(1, 42);
+    demo::Scene crowd(1, 42);
     // The wall is added by hand below, so only a planned route knows about it: the scene
     // indexes the terrain it streamed in itself for agents that steer without a route.
     crowd.tuning = route_wander();
@@ -780,7 +780,7 @@ TEST_CASE("circle obstacles keep swept route clearance and occupied goals resolv
 }
 
 TEST_CASE("a ghost camera neither activates agents nor rejects free teleports") {
-    demo::Sandbox scene(12, 42);
+    demo::Scene scene(12, 42);
     Camera2D camera;
     scene.stream(camera);
     std::vector<bool> active;
@@ -813,7 +813,7 @@ TEST_CASE("a ghost camera neither activates agents nor rejects free teleports") 
 }
 
 TEST_CASE("the population is seeded and dispersed and streams without duplicates or invalid handles") {
-    demo::Sandbox scene(100, 42), repeat(100, 42), different(100, 43);
+    demo::Scene scene(100, 42), repeat(100, 42), different(100, 43);
     bool spread = false, changed = false;
     for (std::size_t i = 0; i < scene.agents().size(); ++i) {
         const auto &body = scene.world.body(scene.agents()[i].body_id());
@@ -844,10 +844,10 @@ TEST_CASE("the population is seeded and dispersed and streams without duplicates
     camera.position = {};
     scene.stream(camera);
     CHECK_MESSAGE(same(player_before, scene.world.body(scene.player)), "Eviction mutated player");
-    CHECK_MESSAGE(scene.agents().size() <= demo::Sandbox::maximum_agents, "Population cap exceeded");
+    CHECK_MESSAGE(scene.agents().size() <= demo::Scene::maximum_agents, "Population cap exceeded");
 }
 TEST_CASE("orders reach only their agents and stalled commands resume wandering") {
-    demo::Sandbox scene(2, 42);
+    demo::Scene scene(2, 42);
     Camera2D selection_camera;
     selection_camera.viewport = {4000, 4000};
     scene.stream(selection_camera);

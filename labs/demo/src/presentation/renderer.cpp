@@ -1,4 +1,4 @@
-#include "demo/presentation/sandbox_renderer.h"
+#include "demo/presentation/renderer.h"
 #include "demo/presentation/help_overlay.h"
 #include "kinetra_lab/camera.h"
 #include <string_view>
@@ -60,7 +60,7 @@ std::string_view action_text(ActionResult result) {
 
 } // namespace
 
-void render(Runtime &runtime, const SandboxApplication &application, const DebugLayers &layers,
+void render(Runtime &runtime, const Application &application, const DebugLayers &layers,
             const FrameOverlays &overlays) {
     const auto &scene = application.scene();
     const auto &options = application.presentation();
@@ -187,7 +187,7 @@ void render(Runtime &runtime, const SandboxApplication &application, const Debug
     runtime.end();
 }
 
-std::string status_text(const SandboxApplication &application) {
+std::string status_text(const Application &application) {
     const auto &scene = application.scene();
     return std::to_string(scene.agents().size()) + " agents | " +
            (application.paused() ? "PAUSED" : "running") + " | " +

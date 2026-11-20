@@ -7,7 +7,7 @@
 //
 // The last two cases watch a minute of a small crowd around a standing player: the
 // reproduction of agents that walked away and never came back.
-#include "demo/sandbox_application.h"
+#include "demo/application.h"
 
 #include <doctest/doctest.h>
 
@@ -21,7 +21,7 @@ constexpr int soak_ticks = 7200;
 /// every tick that contact never exhausts the swept-event budget and that all motion
 /// stays finite.
 void soak(unsigned seed, demo::WanderMode wander) {
-    demo::SandboxApplication application(240, seed);
+    demo::Application application(240, seed);
     application.tuning().wander.mode = wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
@@ -47,7 +47,7 @@ void soak(unsigned seed, demo::WanderMode wander) {
 void check_agents_stay_around_a_standing_player(demo::WanderMode wander) {
     // One simulated second lets the first streaming pass populate and wake the area.
     constexpr int warm_up_ticks = 120;
-    demo::SandboxApplication application(48, 42);
+    demo::Application application(48, 42);
     application.tuning().wander.mode = wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};

@@ -2,7 +2,7 @@
 // renderer, read back from a real OpenGL context. Every check shares one Runtime,
 // because only one may exist at a time, so they form one case. CTest labels it `graphics`.
 #include "demo/presentation/help_overlay.h"
-#include "demo/presentation/sandbox_renderer.h"
+#include "demo/presentation/renderer.h"
 
 #include <kinetra/runtime/engine.h>
 
@@ -47,7 +47,7 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
                       "Help overlay changed camera");
     }
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Help overlay rendering failed");
-    demo::SandboxApplication application(0, 42);
+    demo::Application application(0, 42);
     reopened.camera.position = {};
     application.advance(0, {}, reopened.camera);
     demo::render(reopened, application);
@@ -59,7 +59,7 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
     REQUIRE_MESSAGE(application.last_action() == demo::ActionResult::walking,
                     "Missing route for renderer check");
     demo::render(reopened, application);
-    CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Sandbox renderer reported an OpenGL error");
+    CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Scene renderer reported an OpenGL error");
     demo::FrameCommands probes;
     probes.probes = true;
     probes.toggle_paths = probes.toggle_vectors = true;

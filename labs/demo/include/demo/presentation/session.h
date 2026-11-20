@@ -5,7 +5,7 @@
 
 namespace demo {
 inline constexpr int default_agent_count = 48;
-class SandboxApplication;
+class Application;
 
 /// A Demo session that also shows the application it runs.
 ///
@@ -15,7 +15,7 @@ class Session : public kinetra_lab::Session {
   public:
     /// The application this session advances and draws; it lives as long as the session.
     /// For reading between two advance() calls.
-    virtual const SandboxApplication &application() const = 0;
+    virtual const Application &application() const = 0;
 };
 
 /// Creates a Demo session with `count` agents and terrain from `seed`. The caller sets the

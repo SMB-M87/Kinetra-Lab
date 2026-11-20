@@ -92,7 +92,7 @@ One section is open at a time (`kinetra::DebugFolds`). The rows of each applicat
 | Overlay layout, rows, capture and actions, Ctrl and Shift+Ctrl | Kinetra `kinetra_settings_view` |
 | Debug-menu clicks and buttons | Kinetra `kinetra_launcher` |
 | `run_launcher` requests, menu key and Escape policy | Kinetra `kinetra_engine_graphics` |
-| Movement mapping, modal pause, the settings rows, the ZOOM and SPEED rows | `kinetra_lab_common` |
-| Each application's menu rows and what they change | `kinetra_sandbox_application`, `kinetra_dotio`, `kinetra_i4sim_controller` |
+| Movement mapping, modal pause, the settings rows, the ZOOM and SPEED rows | `kinetra_lab` |
+| Each application's menu rows and what they change | `kinetra_demo_logic`, `kinetra_dotio`, `kinetra_i4sim_controller` |
 | The registrations: names, order, Dotio difficulties and default | `kinetra_menu` |
 | Real sessions: settings, zoom, debug gating and navigation with an OpenGL context | `kinetra_graphics` and the application `*_graphics` suites |

@@ -21,10 +21,10 @@ The session adapts input and rendering; the headless application owns simulation
 flowchart LR
     Input["Input and modal capture"] --> Session["Demo session"]
     Session --> Commands["FrameCommands"]
-    Commands --> App["SandboxApplication"]
-    App --> Scene["Sandbox: terrain, agents, physics"]
+    Commands --> App["Application"]
+    App --> Scene["Scene: terrain, agents, physics"]
     Scene --> Engine["Kinetra navigation and simulation"]
-    Scene --> Renderer["Sandbox renderer"]
+    Scene --> Renderer["Demo renderer"]
     Renderer --> Runtime["Kinetra Runtime and overlays"]
 ```
 
@@ -33,12 +33,12 @@ flowchart LR
 ```text
 labs/demo/
   include/demo/
-    sandbox_application.h  debug_panel.h  zoom.h
-    world/          agent.h  terrain.h  sandbox_scene.h  tuning.h
-    input/          sandbox_input.h  sandbox_commands.h  player_control.h
-    presentation/   session.h  sandbox_renderer.h  help_overlay.h
-  src/              sandbox_application.cpp  debug_panel.cpp  main.cpp
-    presentation/   sandbox_renderer.cpp  session.cpp
+    application.h  debug_panel.h  zoom.h
+    world/          agent.h  terrain.h  scene.h  tuning.h
+    input/          mapping.h  commands.h  player_control.h
+    presentation/   session.h  renderer.h  help_overlay.h
+  src/              application.cpp  debug_panel.cpp  main.cpp
+    presentation/   renderer.cpp  session.cpp
   tests/            one doctest suite per behavior area
 ```
 
@@ -46,9 +46,9 @@ Headers are included by their path below `include/`, for example `"demo/world/ag
 
 | Folder | Holds | Target |
 | --- | --- | --- |
-| `include/demo/`, `src/` | The headless application coordinator and the debug menu rows | `kinetra_sandbox_application` |
-| `world/` | Headless scene state: the physics world, streamed terrain, agents and their tuning | `kinetra_sandbox_application` |
-| `input/` | Window-free input mapping and the per-frame commands it produces | `kinetra_sandbox_application` |
+| `include/demo/`, `src/` | The headless application coordinator and the debug menu rows | `kinetra_demo_logic` |
+| `world/` | Headless scene state: the physics world, streamed terrain, agents and their tuning | `kinetra_demo_logic` |
+| `input/` | Window-free input mapping and the per-frame commands it produces | `kinetra_demo_logic` |
 | `presentation/` | Session and drawing; needs `Kinetra::Runtime` | `kinetra_demo_presentation` |
 | `src/main.cpp` | The direct executable | `kinetra_demo` |
 
@@ -56,37 +56,37 @@ The application owns the scene and the fixed clock; the scene owns the world, te
 
 ```mermaid
 classDiagram
-    SandboxApplication *-- Sandbox : scene_
-    SandboxApplication *-- FixedClock : clock_
-    SandboxApplication ..> FrameCommands : consumes
-    Sandbox *-- World : world
-    Sandbox *-- Terrain : terrain and preview
-    Sandbox *-- Navigation : navigation
-    Sandbox ..> Agent : lifecycle and routes
+    Application *-- Scene : scene_
+    Application *-- FixedClock : clock_
+    Application ..> FrameCommands : consumes
+    Scene *-- World : world
+    Scene *-- Terrain : terrain and preview
+    Scene *-- Navigation : navigation
+    Scene ..> Agent : lifecycle and routes
 ```
 
 | Header | Responsibility |
 | --- | --- |
-| [sandbox_application.h](include/demo/sandbox_application.h) | Headless application coordinator and fixed clock; the caller supplies elapsed time, intent and the camera viewport |
+| [application.h](include/demo/application.h) | Headless application coordinator and fixed clock; the caller supplies elapsed time, intent and the camera viewport |
 | [debug_panel.h](include/demo/debug_panel.h) | The debug menu rows and the state they change, the debug-layer colors and the `tuning_step` limits |
-| [world/sandbox_scene.h](include/demo/world/sandbox_scene.h) | World, terrain residency, mixed population, immutable avoidance snapshots and body-index remapping |
+| [world/scene.h](include/demo/world/scene.h) | World, terrain residency, mixed population, immutable avoidance snapshots and body-index remapping |
 | [world/agent.h](include/demo/world/agent.h) | Seeded wandering, commanded routes and lifecycle state |
 | [world/terrain.h](include/demo/world/terrain.h) | Seeded chunk generation and preview cache |
 | [world/tuning.h](include/demo/world/tuning.h) | Motion and wander values that change while the scene runs; the defaults reproduce the former constants |
-| [input/sandbox_commands.h](include/demo/input/sandbox_commands.h) | One frame of commands and presentation options |
-| [input/sandbox_input.h](include/demo/input/sandbox_input.h) | Input mapping and debug capture adapter |
+| [input/commands.h](include/demo/input/commands.h) | One frame of commands and presentation options |
+| [input/mapping.h](include/demo/input/mapping.h) | Input mapping and debug capture adapter |
 | [input/player_control.h](include/demo/input/player_control.h) | Player movement intent |
 | [presentation/session.h](include/demo/presentation/session.h) | Demo Session factory and default initial population |
-| [presentation/sandbox_renderer.h](include/demo/presentation/sandbox_renderer.h) | Scene rendering interface |
+| [presentation/renderer.h](include/demo/presentation/renderer.h) | Scene rendering interface |
 | [presentation/help_overlay.h](include/demo/presentation/help_overlay.h) | Application help content |
 | [zoom.h](include/demo/zoom.h) | Zoom limits in and outside Debug Mode, apart from the scene headers so the launcher can start a Demo without compiling the scene |
 
 | Source | Responsibility |
 | --- | --- |
-| [sandbox_application.cpp](src/sandbox_application.cpp) | Command, camera, pointer and fixed-update ordering |
+| [application.cpp](src/application.cpp) | Command, camera, pointer and fixed-update ordering |
 | [debug_panel.cpp](src/debug_panel.cpp) | The menu sections, their rows and the commands the rows produce |
 | [presentation/session.cpp](src/presentation/session.cpp) | Session adapter, bindings, enabled-by-default debug layers and reciprocal/legacy avoidance selection |
-| [presentation/sandbox_renderer.cpp](src/presentation/sandbox_renderer.cpp) | World rendering with matching convex polygon fills/outlines, culling and application overlays; path and steering-probe strokes are three logical pixels at every zoom |
+| [presentation/renderer.cpp](src/presentation/renderer.cpp) | World rendering with matching convex polygon fills/outlines, culling and application overlays; path and steering-probe strokes are three logical pixels at every zoom |
 | [main.cpp](src/main.cpp) | Direct executable and argument handling |
 
 `main.cpp` and the bundled launcher's factory create the same session from `session.h`, so a direct launch and a launch from the menu behave alike.
@@ -133,7 +133,7 @@ The camera follows the player by default. Ghost moves only the camera; clicking 
 
 See [Demo architecture](../../docs/demo-architecture.md) for component ownership, lifecycle and the engine boundary.
 
-Drawing runs between fixed ticks: `SandboxApplication` keeps every body's pose before and after the last 120 Hz tick, and the renderer draws moving bodies at `presented_pose(id)`, with the camera on the drawn player for that frame ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+Drawing runs between fixed ticks: `Application` keeps every body's pose before and after the last 120 Hz tick, and the renderer draws moving bodies at `presented_pose(id)`, with the camera on the drawn player for that frame ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
 Moving bodies now include circles, boxes, triangles, pentagons and hexagons. Polygon rendering and collision outlines use the same convex vertices. Circle and nonrotating box/polygon pairs use continuous contact detection on a shared timeline, including moving/moving pairs. Pairs containing rotating boxes/polygons still use discrete contacts. Steering and navigation remain conservative envelope-based; this is not yet a collision-free multi-agent or vehicle simulation.
 
@@ -184,19 +184,19 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | [crowd_characterization_tests.cpp](tests/crowd_characterization_tests.cpp) | `kinetra_demo_crowd_characterization` (4) | Pins crowd behavior in both wander modes, so a refactor can prove that it preserves behavior. A dense idle crowd (240 agents, seed 123, 480 frames) and a player walking through newly streamed chunks with commanded agents (40 agents, seed 456, 1200 frames) check every frame for finite motion, an intact swept-event budget, a one-to-one agent-to-body mapping and at most 0.01 units of overlap between moving bodies. Each scenario and wander mode is one case and must reproduce a recorded summary line with a trajectory fingerprint; a mismatch shows the expected and actual line. `KINETRA_PRINT_GOLDEN=1` prints the current lines for a deliberate update |
 | [crowd_stability_tests.cpp](tests/crowd_stability_tests.cpp) | `kinetra_demo_crowd` (5) | 60 simulated seconds per case. 240 initial agents with seeds 123 and 456 and steering wander, and seed 123 with route wander; rejects swept-event starvation, nonfinite motion and the spinning tangent-contact freeze. Two more cases watch 48 agents around a standing player, one per wander mode: at least 80 % of those awake after a second are still awake after a minute (labels `unit` and `soak`, 180-second timeout per case) |
 | [contact_tests.cpp](tests/contact_tests.cpp) | `kinetra_demo_contacts` (6) | Slow/fast head-on elastic moving contacts at 60/120 Hz, momentum/energy conservation, transformed circle/box contacts, off-center angular momentum and resting-wall stability; circle/box/polygon thin-wall translation regressions (rotation and avoidance remain outside this guarantee) |
-| [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
-| [sandbox_application_tests.cpp](tests/sandbox_application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_sandbox_application` (27) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands |
+| [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_demo_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
+| [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo_logic` (27) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (1) | Help overlay placement, camera preservation, routes and OpenGL rendering; one case, because every check shares one `Runtime` (label `graphics`) |
 
 Run the suites that need no window from the repository root:
 
 ```sh
 cmake --preset headless
-cmake --build --preset headless --target kinetra_terrain_tests kinetra_sandbox_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
-ctest --preset headless -R '^kinetra_(terrain|sandbox_application|demo_contacts|demo_crowd|demo_crowd_characterization):'
+cmake --build --preset headless --target kinetra_demo_terrain_tests kinetra_demo_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
+ctest --preset headless -R '^kinetra_demo(|_terrain|_contacts|_crowd|_crowd_characterization):'
 ```
 
-Add `-LE soak` to skip the five 60-second crowd runs. One case runs on its own through CTest (`-R 'kinetra_terrain:a ghost camera'`) or the executable (`./build-headless/kinetra_terrain_tests --test-case='a ghost camera*'`).
+Add `-LE soak` to skip the five 60-second crowd runs. One case runs on its own through CTest (`-R 'kinetra_demo_terrain:a ghost camera'`) or the executable (`./build-headless/kinetra_demo_terrain_tests --test-case='a ghost camera*'`).
 
 After a deliberate change to crowd behavior, print the new characterization lines, copy them into `crowd_characterization_tests.cpp` and explain the change in the commit message:
 

@@ -1,12 +1,12 @@
-#include "demo/sandbox_application.h"
+#include "demo/application.h"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
 namespace demo {
 namespace {
-std::vector<SandboxApplication::Pose> poses(const kinetra::World &world) {
-    std::vector<SandboxApplication::Pose> result;
+std::vector<Application::Pose> poses(const kinetra::World &world) {
+    std::vector<Application::Pose> result;
     result.reserve(world.bodies().size());
     for (const auto &body : world.bodies())
         result.push_back({body.position, body.angle});
@@ -14,10 +14,10 @@ std::vector<SandboxApplication::Pose> poses(const kinetra::World &world) {
 }
 } // namespace
 
-SandboxApplication::SandboxApplication(int agent_count, std::uint32_t seed) : scene_(agent_count, seed) {
+Application::Application(int agent_count, std::uint32_t seed) : scene_(agent_count, seed) {
 }
 
-void SandboxApplication::apply_actions(const FrameCommands &commands) {
+void Application::apply_actions(const FrameCommands &commands) {
     if (commands.toggle_pause)
         paused_ = !paused_;
     if (commands.toggle_vectors)
@@ -32,8 +32,7 @@ void SandboxApplication::apply_actions(const FrameCommands &commands) {
     scene_.world.gravity = gravity_ ? kinetra::Vec2{0, -9.81f} : kinetra::Vec2{};
 }
 
-void SandboxApplication::update_camera(double elapsed, const FrameCommands &commands,
-                                       kinetra::Camera2D &camera) {
+void Application::update_camera(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
     kinetra::zoom(camera, commands.zoom_steps, commands.debug ? debug_zoom_limits : zoom_limits);
     if (!scene_.following)
         camera.position += commands.camera_pan * (float(std::min(elapsed, 0.1)) * 20);
@@ -43,7 +42,7 @@ void SandboxApplication::update_camera(double elapsed, const FrameCommands &comm
     camera.position.y = std::clamp(camera.position.y, -100000.f, 100000.f);
 }
 
-void SandboxApplication::apply_pointer(const PointerCommand &command, const kinetra::Camera2D &camera) {
+void Application::apply_pointer(const PointerCommand &command, const kinetra::Camera2D &camera) {
     const auto destination = camera.screen_to_world(command.screen_position);
     switch (command.action) {
     case PointerAction::clear_selection:
@@ -65,7 +64,7 @@ void SandboxApplication::apply_pointer(const PointerCommand &command, const kine
     }
 }
 
-void SandboxApplication::tick(const FrameCommands &commands, bool snapshot) {
+void Application::tick(const FrameCommands &commands, bool snapshot) {
     if (snapshot)
         before_tick_ = poses(scene_.world);
     scene_.update(float(clock_.step()), commands.debug && commands.ghost ? PlayerControl{} : commands.player);
@@ -73,7 +72,7 @@ void SandboxApplication::tick(const FrameCommands &commands, bool snapshot) {
         after_tick_ = poses(scene_.world);
 }
 
-void SandboxApplication::advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
+void Application::advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
     if (!std::isfinite(commands.time_scale) || commands.time_scale < 0)
         throw std::invalid_argument("Time scale must be finite and not negative");
     scene_.reciprocal_avoidance = commands.reciprocal_avoidance;
@@ -107,7 +106,7 @@ void SandboxApplication::advance(double elapsed, const FrameCommands &commands, 
     scene_.follow(camera);
 }
 
-SandboxApplication::Pose SandboxApplication::presented_pose(std::size_t id) const {
+Application::Pose Application::presented_pose(std::size_t id) const {
     const auto &body = scene_.world.body(id);
     const Pose exact{body.position, body.angle};
     if (paused_ || id >= after_tick_.size() || id >= before_tick_.size())
