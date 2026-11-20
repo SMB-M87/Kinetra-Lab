@@ -27,6 +27,7 @@
 namespace {
 using namespace i4sim;
 
+using i4sim::test::fixture_blueprint;
 using i4sim::test::Recorder;
 using i4sim::test::showcase_blueprint;
 
@@ -52,11 +53,15 @@ MotionSettings profile_motion(SteeringProfile profile, void (*enable)(MotionSett
     return motion;
 }
 
-/// Runs a shipped factory blueprint with its automatic workload.
-Simulation run_factory(Recorder &recorder, std::string_view blueprint, std::uint32_t seed,
+/// Path of `<name>.json` in the catalog copied beside the test executable.
+std::filesystem::path catalog_blueprint(std::string_view name) {
+    return default_blueprint_directory() / (std::string(name) + ".json");
+}
+
+/// Runs a factory blueprint with its automatic workload.
+Simulation run_factory(Recorder &recorder, const std::filesystem::path &blueprint, std::uint32_t seed,
                        MotionSettings motion, std::uint64_t ticks) {
-    Simulation simulation(load_blueprint(default_blueprint_directory() / (std::string(blueprint) + ".json")),
-                          seed);
+    Simulation simulation(load_blueprint(blueprint), seed);
     simulation.configure_motion(motion);
     simulation.run();
     recorder.run(simulation, ticks);
@@ -98,7 +103,8 @@ void check_summary(std::string_view name, const Recorder &recorder, const Simula
 
 TEST_CASE("the factory with default motion reproduces its recorded summary") {
     Recorder recorder;
-    const auto simulation = run_factory(recorder, "MAS-demonstrator", 42, MotionSettings{}, 20000);
+    const auto simulation =
+        run_factory(recorder, fixture_blueprint("MAS-demonstrator"), 42, MotionSettings{}, 20000);
     check_summary(
         "factory default motion", recorder, simulation,
         "ticks=20000 completed=5 collisions=16 contact_ticks=16 interactions=33 distance_mm=27436.008 "
@@ -107,7 +113,8 @@ TEST_CASE("the factory with default motion reproduces its recorded summary") {
 
 TEST_CASE("the coordinated factory reproduces its recorded summary") {
     Recorder recorder;
-    const auto simulation = run_factory(recorder, "MAS-demonstrator", 42, coordinated_motion(), 20000);
+    const auto simulation =
+        run_factory(recorder, fixture_blueprint("MAS-demonstrator"), 42, coordinated_motion(), 20000);
     check_summary(
         "factory coordinated", recorder, simulation,
         "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=33 distance_mm=28894.994 "
@@ -116,7 +123,8 @@ TEST_CASE("the coordinated factory reproduces its recorded summary") {
 
 TEST_CASE("the coordinated large factory reproduces its recorded summary") {
     Recorder recorder;
-    const auto simulation = run_factory(recorder, "3840x2400", 915839214, coordinated_motion(), 12000);
+    const auto simulation =
+        run_factory(recorder, catalog_blueprint("3840x2400"), 915839214, coordinated_motion(), 12000);
     check_summary(
         "large factory coordinated", recorder, simulation,
         "ticks=12000 completed=8 collisions=0 contact_ticks=0 interactions=61 distance_mm=68484.373 "
@@ -125,8 +133,8 @@ TEST_CASE("the coordinated large factory reproduces its recorded summary") {
 
 TEST_CASE("the original steering profile reproduces its recorded summary") {
     Recorder recorder;
-    const auto simulation =
-        run_factory(recorder, "1680x960+", 7, profile_motion(SteeringProfile::original), 10000);
+    const auto simulation = run_factory(recorder, catalog_blueprint("1680x960+"), 7,
+                                        profile_motion(SteeringProfile::original), 10000);
     check_summary("original profile", recorder, simulation,
                   "ticks=10000 completed=1 collisions=0 contact_ticks=0 interactions=13 distance_mm=8523.861 "
                   "trajectory=acc39b34b344dcc6");
@@ -134,8 +142,8 @@ TEST_CASE("the original steering profile reproduces its recorded summary") {
 
 TEST_CASE("the experimental RVO profile reproduces its recorded summary") {
     Recorder recorder;
-    const auto simulation =
-        run_factory(recorder, "1680x960+", 7, profile_motion(SteeringProfile::experimental_rvo), 10000);
+    const auto simulation = run_factory(recorder, catalog_blueprint("1680x960+"), 7,
+                                        profile_motion(SteeringProfile::experimental_rvo), 10000);
     check_summary(
         "experimental rvo profile", recorder, simulation,
         "ticks=10000 completed=1 collisions=24 contact_ticks=24 interactions=14 distance_mm=17582.890 "
@@ -145,7 +153,7 @@ TEST_CASE("the experimental RVO profile reproduces its recorded summary") {
 TEST_CASE("the improved profile with recovery reproduces its recorded summary") {
     Recorder recorder;
     const auto simulation = run_factory(
-        recorder, "1680x960+", 7,
+        recorder, catalog_blueprint("1680x960+"), 7,
         profile_motion(SteeringProfile::improved, [](MotionSettings &m) { m.recovery = true; }), 10000);
     check_summary(
         "improved profile with recovery", recorder, simulation,
