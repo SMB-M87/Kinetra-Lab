@@ -1,6 +1,6 @@
 {
   "name": "Single-lane corridor",
-  "tickCap": 100000,
+  "tickCap": 3600000,
   "dimension": {"x": 2200, "y": 1400},
   "cellsize": {"x": 200, "y": 200},
   "moverMaxExtent": 155,
