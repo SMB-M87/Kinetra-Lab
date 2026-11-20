@@ -24,6 +24,10 @@ inline constexpr std::uint32_t capture_seed = 42;
 /// measurement (showcase.h) shares.
 inline constexpr unsigned i4sim_updates_per_second = 200;
 
+/// Where SettingsOverlay::update_debug places the debug menu, in logical window pixels
+/// (Kinetra's settings_view.cpp; the graphics tests use the same point).
+inline constexpr kinetra::Vec2 debug_menu_origin{8, 32};
+
 /// Rows of the Lab settings panel, in the order of kinetra_lab::settings_rows.
 enum class SettingsRow : std::size_t {
     statistics,

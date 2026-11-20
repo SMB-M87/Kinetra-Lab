@@ -1,13 +1,17 @@
 // Window-free tests for kinetra_capture, whose headers are in tools/capture/include/capture/: the
 // PNG writer (png.h), the scene list and the menu rows the scripts click (scenes.h), the showcase
-// cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h)
-// and the scripted Dotio player (dotio_player.h). No Runtime or session is created.
+// cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h),
+// the scripted Dotio player (dotio_player.h), and the tour's frame drawing (canvas.h), pointer
+// motion (pointer_path.h) and row lookup (tour.h). No Runtime or session is created.
 #include "capture/busy_stretch.h"
+#include "capture/canvas.h"
 #include "capture/dotio_player.h"
 #include "capture/png.h"
+#include "capture/pointer_path.h"
 #include "capture/scenes.h"
 #include "capture/showcase.h"
 #include "capture/stage.h"
+#include "capture/tour.h"
 
 #include "demo/debug_panel.h"
 #include "demo/presentation/session.h"
@@ -512,4 +516,181 @@ TEST_CASE("dotio_recovery_in_view finds a recovering enemy on screen, inside the
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 190));
     enemy.Position = world.player().Position + dotio::math::Vec2{0, 400};
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
+}
+
+namespace {
+constexpr kinetra::Color white{1, 1, 1};
+
+/// Whether `color` is the gray `level` in every channel, within one step of eight bits.
+bool is_gray(kinetra::Color color, float level) {
+    const auto near = [level](float channel) { return std::abs(channel - level) <= 1.5f / 255; };
+    return near(color.r) && near(color.g) && near(color.b);
+}
+} // namespace
+
+TEST_CASE("a canvas fills, blends and clips at its edges") {
+    capture::Canvas canvas(8, 6);
+    REQUIRE(canvas.rgb.size() == 8 * 6 * 3);
+    capture::fill(canvas, {2, 1}, {3, 2}, {1, 0, 0});
+    CHECK(canvas.pixel(2, 1).r == 1);
+    CHECK(canvas.pixel(4, 2).r == 1);
+    CHECK_MESSAGE(canvas.pixel(5, 2).r == 0, "the right edge is not part of the rectangle");
+    CHECK_MESSAGE(canvas.pixel(2, 3).r == 0, "the bottom edge is not part of the rectangle");
+    // Half-transparent blue over the red pixel mixes the two.
+    capture::fill(canvas, {2, 1}, {1, 1}, {0, 0, 1, 0.5f});
+    CHECK(canvas.pixel(2, 1).r == doctest::Approx(0.5).epsilon(0.02));
+    CHECK(canvas.pixel(2, 1).b == doctest::Approx(0.5).epsilon(0.02));
+    CHECK_NOTHROW(capture::fill(canvas, {-5, -5}, {100, 100}, {0, 1, 0}));
+    CHECK(canvas.pixel(0, 0).g == 1);
+    CHECK(canvas.pixel(7, 5).g == 1);
+    CHECK_THROWS_AS(canvas.pixel(8, 0), std::out_of_range);
+    CHECK_THROWS_AS(canvas.pixel(0, -1), std::out_of_range);
+    CHECK_THROWS_AS(capture::Canvas(0, 4), std::invalid_argument);
+}
+
+TEST_CASE("canvas text draws the bitmap font in squares of its scale") {
+    capture::Canvas canvas(40, 20);
+    // I is 01110 on its top row and 00100 on the next one.
+    capture::draw_text(canvas, "I", {2, 3}, 2, white);
+    CHECK(canvas.pixel(2, 3).r == 0);
+    CHECK(canvas.pixel(2 + 2, 3).r == 1);
+    CHECK(canvas.pixel(2 + 3 * 2 + 1, 3 + 1).r == 1);
+    CHECK(canvas.pixel(2 + 4 * 2, 3).r == 0);
+    CHECK(canvas.pixel(2 + 2, 3 + 2).r == 0);
+    CHECK(canvas.pixel(2 + 2 * 2, 3 + 2).r == 1);
+    CHECK(capture::text_width("AB", 2) == (2 * 6 - 1) * 2);
+    CHECK(capture::text_width("", 3) == 0);
+    CHECK_NOTHROW(capture::draw_text(canvas, "CLIPPED AT THE EDGE", {30, 15}, 3, white));
+}
+
+TEST_CASE("the pointer hangs from its tip: a dark outline around a light body") {
+    capture::Canvas canvas(60, 60);
+    capture::fill(canvas, {0, 0}, {60, 60}, {0.5f, 0.5f, 0.5f});
+    capture::draw_pointer(canvas, {10, 10});
+    CHECK_MESSAGE(is_gray(canvas.pixel(10, 10), 0), "the tip is outline");
+    // Fifth row of the shape: outline, three cells of body, outline; two pixels per cell.
+    CHECK_MESSAGE(is_gray(canvas.pixel(10 + 2, 10 + 8), 1), "the body is light");
+    CHECK_MESSAGE(is_gray(canvas.pixel(10 + 8, 10 + 8), 0), "the outline closes the body");
+    CHECK_MESSAGE(is_gray(canvas.pixel(9, 10), 0.5f), "nothing is drawn left of the tip");
+    CHECK_MESSAGE(is_gray(canvas.pixel(10 + capture::pointer_width, 10), 0.5f), "nor beyond its width");
+    CHECK_NOTHROW(capture::draw_pointer(canvas, {55, 55}));
+}
+
+TEST_CASE("a ring covers its rim and leaves its middle and its surroundings alone") {
+    capture::Canvas canvas(80, 80);
+    capture::draw_ring(canvas, {40, 40}, 20, 4, white);
+    CHECK(canvas.pixel(40 + 18, 40).r > 0.9f);
+    CHECK(canvas.pixel(40, 40 - 18).r > 0.9f);
+    CHECK(canvas.pixel(40, 40).r == 0);
+    CHECK(canvas.pixel(40 + 10, 40).r == 0);
+    CHECK(canvas.pixel(40 + 25, 40).r == 0);
+}
+
+TEST_CASE("a keycap is as wide as its label needs and fades with its strength") {
+    CHECK(capture::keycap_width("W") == capture::text_width("W", 2) + 2 * capture::keycap_padding);
+    CHECK(capture::keycap_width("SHIFT") > capture::keycap_width("W"));
+    capture::Canvas full(120, 60), half(120, 60), none(120, 60);
+    capture::draw_keycap(full, "W", {4, 4}, 1);
+    capture::draw_keycap(half, "W", {4, 4}, 0.5f);
+    capture::draw_keycap(none, "W", {4, 4}, 0);
+    CHECK(full.pixel(4, 4).b > half.pixel(4, 4).b);
+    CHECK(half.pixel(4, 4).b > 0);
+    CHECK(none.pixel(4, 4).b == 0);
+    CHECK_MESSAGE(full.pixel(4 + capture::keycap_width("W"), 4).b == 0, "nothing beyond the cap's width");
+    CHECK_MESSAGE(full.pixel(4, 4 + capture::keycap_height).b == 0, "nothing below its height");
+}
+
+TEST_CASE("dimming scales the brightness of every pixel") {
+    capture::Canvas canvas(4, 4);
+    capture::fill(canvas, {0, 0}, {4, 4}, white);
+    capture::dim(canvas, 0.5f);
+    CHECK(is_gray(canvas.pixel(3, 3), 0.5f));
+    capture::dim(canvas, 0);
+    CHECK(is_gray(canvas.pixel(0, 0), 0));
+}
+
+TEST_CASE("the minimum jerk profile starts and ends at rest and never goes back") {
+    CHECK(capture::minimum_jerk(0) == 0);
+    CHECK(capture::minimum_jerk(1) == 1);
+    CHECK(capture::minimum_jerk(0.5) == doctest::Approx(0.5));
+    CHECK_MESSAGE(capture::minimum_jerk(0.1) < 0.02, "a move starts slowly");
+    CHECK_MESSAGE(capture::minimum_jerk(0.9) > 0.98, "and ends slowly");
+    CHECK(capture::minimum_jerk(-1) == 0);
+    CHECK(capture::minimum_jerk(2) == 1);
+    double previous = 0;
+    for (int i = 1; i <= 100; ++i) {
+        const double progress = capture::minimum_jerk(i / 100.0);
+        CHECK(progress >= previous);
+        previous = progress;
+    }
+}
+
+TEST_CASE("a pointer path starts and ends on its points and stays near the straight line") {
+    std::mt19937 random(7);
+    const kinetra::Vec2 from{100, 100}, to{900, 500};
+    const auto path = capture::plan_pointer_path(from, to, random);
+    const auto same = [](kinetra::Vec2 a, kinetra::Vec2 b) { return a.x == b.x && a.y == b.y; };
+    CHECK(same(path.at(0), from));
+    CHECK(same(path.at(-1), from));
+    CHECK(same(path.at(path.duration), to));
+    CHECK(same(path.at(path.duration + 5), to));
+    const float distance = kinetra::length(to - from);
+    const kinetra::Vec2 along = (to - from) / distance;
+    float covered = 0;
+    for (int i = 1; i <= 60; ++i) {
+        const kinetra::Vec2 offset = path.at(path.duration * i / 60) - from;
+        const float progress = kinetra::dot(offset, along);
+        CHECK_MESSAGE(progress >= covered - 0.001f, "the pointer went back at step " << i);
+        covered = progress;
+        // A quadratic curve leaves the straight line by at most half its control point's offset.
+        const float sideways = std::abs(kinetra::dot(offset, kinetra::perpendicular(along)));
+        CHECK(sideways <= distance * capture::largest_bend / 2 + 0.01f);
+    }
+}
+
+TEST_CASE("a longer way takes longer, within limits, and no way takes no time") {
+    std::mt19937 random(7);
+    const auto near = capture::plan_pointer_path({0, 0}, {50, 0}, random);
+    const auto middle = capture::plan_pointer_path({0, 0}, {400, 0}, random);
+    const auto far = capture::plan_pointer_path({0, 0}, {1600, 0}, random);
+    CHECK(near.duration < middle.duration);
+    CHECK(middle.duration < far.duration);
+    for (const auto &path : {near, middle, far}) {
+        CHECK(path.duration >= capture::shortest_move);
+        CHECK(path.duration <= capture::longest_move);
+    }
+    const auto none = capture::plan_pointer_path({30, 40}, {30, 40}, random);
+    CHECK(none.duration == 0);
+    CHECK(none.at(0).x == 30);
+    CHECK(none.at(1).y == 40);
+}
+
+TEST_CASE("pointer paths repeat for a seed and bend otherwise for another") {
+    std::mt19937 first(42), again(42), other(43);
+    const auto a = capture::plan_pointer_path({0, 0}, {800, 300}, first);
+    const auto b = capture::plan_pointer_path({0, 0}, {800, 300}, again);
+    const auto c = capture::plan_pointer_path({0, 0}, {800, 300}, other);
+    CHECK((a.control.x == b.control.x && a.control.y == b.control.y));
+    CHECK((a.control.x != c.control.x || a.control.y != c.control.y));
+    CHECK(a.duration == c.duration);
+}
+
+TEST_CASE("a row is found by its label and a missing label names the rows that are there") {
+    const std::vector<kinetra_lab::DebugRow> rows{{"SIMULATION", 0}, {"RUNNING", 1}, {"ZOOM", 0}};
+    CHECK(capture::row_with_label(rows, "SIMULATION") == 0);
+    CHECK(capture::row_with_label(rows, "ZOOM") == 2);
+    try {
+        capture::row_with_label(rows, "MOTION");
+        FAIL("a missing label was found");
+    } catch (const std::runtime_error &error) {
+        const std::string message = error.what();
+        CHECK(message.find("'MOTION'") != std::string::npos);
+        CHECK(message.find("SIMULATION, RUNNING, ZOOM") != std::string::npos);
+    }
+    try {
+        capture::row_with_label({}, "MOTION");
+        FAIL("a label was found in an empty menu");
+    } catch (const std::runtime_error &error) {
+        CHECK(std::string(error.what()).find("none") != std::string::npos);
+    }
 }

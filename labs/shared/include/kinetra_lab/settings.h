@@ -20,7 +20,7 @@ inline const std::string wheel_zoom_help = "WHEEL  ZOOM";
 /// `frame_limit` is the `enabled` flag of the session's FrameLimitSwitch. The help lines are
 /// the application's own controls; DEBUG CONTROLS starts with debug_menu_help and
 /// wheel_zoom_help. Zoom is not a setting: every application's debug menu has a ZOOM row
-/// (lab/debug.h).
+/// (kinetra_lab/debug.h).
 inline std::vector<kinetra::SettingsRow> settings_rows(bool &statistics, bool &debug, bool &frame_times,
                                                        bool &frame_limit,
                                                        std::vector<std::string> sim_controls,

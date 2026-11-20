@@ -11,7 +11,7 @@ namespace demo {
 namespace {
 /// The graphical Demo session: it orders a frame and owns the panels. What the debug menu
 /// holds and decides is the DebugPanel's; the scene is drawn by the renderer.
-class DemoSession final : public kinetra_lab::Session {
+class DemoSession final : public Session {
     demo::SandboxApplication application_;
     // Declared after the application it borrows.
     demo::DebugPanel panel_{application_};
@@ -67,9 +67,13 @@ class DemoSession final : public kinetra_lab::Session {
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Demo"; }
     std::string status() override { return demo::status_text(application_); }
+    std::vector<kinetra_lab::DebugRow> debug_rows() override {
+        return kinetra_lab::debug_rows_of(panel_.entries());
+    }
+    const SandboxApplication &application() const override { return application_; }
 };
 } // namespace
-std::unique_ptr<kinetra_lab::Session> create_session(int count, std::uint32_t seed) {
+std::unique_ptr<Session> create_session(int count, std::uint32_t seed) {
     return std::make_unique<DemoSession>(count, seed);
 }
 } // namespace demo

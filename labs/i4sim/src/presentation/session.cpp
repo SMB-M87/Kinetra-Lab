@@ -85,6 +85,12 @@ class FactorySession final : public kinetra_lab::Session {
 
     std::string title() override { return "i4sim"; }
 
+    std::vector<kinetra_lab::DebugRow> debug_rows() override {
+        // The menu belongs to a loaded blueprint; the blueprint screen has none.
+        return controller_.loaded() ? kinetra_lab::debug_rows_of(controller_.menu())
+                                    : std::vector<kinetra_lab::DebugRow>{};
+    }
+
     std::string status() override {
         if (!controller_.loaded())
             return controller_.message().empty() ? "Loadscreen" : "Loadscreen | " + controller_.message();

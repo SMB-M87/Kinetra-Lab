@@ -35,7 +35,7 @@ flowchart LR
 
 Lab runs `kinetra::run_launcher` with `launcher::bindings` = `{std::nullopt, false}`: no menu key, and Escape never closes the window. Every Lab session derives from `kinetra_lab::Session`, whose `close_on_escape()` is false, because Escape belongs to the applications (i4sim's blueprint screen uses it).
 
-The window title is "Launcher" in the menu and the application's name in a session: "Demo", "Dotio" or "i4sim". State such as pause, counters or the loaded blueprint is drawn in the window, not put in the title. `kinetra_lab::Session::status()` returns that state as one line for tests and diagnostics; the graphics tests read pause state and screen changes from it.
+The window title is "Launcher" in the menu and the application's name in a session: "Demo", "Dotio" or "i4sim". State such as pause, counters or the loaded blueprint is drawn in the window, not put in the title. `kinetra_lab::Session::status()` returns that state as one line for tests and diagnostics; the graphics tests read pause state and screen changes from it. `kinetra_lab::Session::debug_rows()` returns the labels and depths of the session's debug-menu rows as they stand, so a tool can click a row by its label: the capture tool's tour does.
 
 | Action | In the launcher | In a direct executable (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) |
 | --- | --- | --- |

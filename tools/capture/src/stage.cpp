@@ -26,9 +26,6 @@ using kinetra::Input;
 using kinetra::Key;
 using kinetra::Vec2;
 
-/// Where SettingsOverlay::update_debug places the debug menu, in logical window pixels
-/// (Kinetra's settings_view.cpp; the graphics tests use the same point).
-constexpr Vec2 debug_menu_origin{8, 32};
 /// Panel x of a click on a settings row: the middle of the panel, inside its click column.
 constexpr float settings_click_x = kinetra::SettingsOverlay::panel_width / 2;
 /// Panel y of a click below a settings row's text top, inside its click band.

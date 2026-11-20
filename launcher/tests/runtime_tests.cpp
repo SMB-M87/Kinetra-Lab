@@ -445,6 +445,38 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
     CHECK(glGetError() == GL_NO_ERROR);
 }
 
+TEST_CASE("every session reports the rows of its debug menu") {
+    Runtime runtime("Debug rows", 640, 480);
+    runtime.poll(false);
+    for (auto variant : {Variant::demo, Variant::dotio, Variant::i4sim}) {
+        CAPTURE(static_cast<int>(variant));
+        auto session = start(variant, runtime.camera);
+        auto &lab_session = dynamic_cast<kinetra_lab::Session &>(*session);
+        session->advance(0, {}, runtime.camera);
+        if (variant == Variant::i4sim) {
+            CHECK_MESSAGE(lab_session.debug_rows().empty(), "the blueprint screen has no debug menu");
+            Input down, choose;
+            down.pressed[std::size_t(Key::down)] = true;
+            choose.pressed[std::size_t(Key::enter)] = true;
+            session->advance(0, down, runtime.camera);
+            session->advance(0, choose, runtime.camera);
+        }
+        // The rows are there whether the menu shows or not, with SIMULATION open at the start.
+        auto rows = lab_session.debug_rows();
+        REQUIRE(rows.size() > 5);
+        CHECK((rows[0].label == "SIMULATION" && rows[0].depth == 0));
+        CHECK((rows[1].label == "RUNNING" && rows[1].depth == 1));
+        CHECK(rows[5].label == "LAYERS");
+        // A click on a heading changes them: LAYERS opens and SIMULATION closes.
+        session->advance(0, debug_keys(), runtime.camera);
+        session->advance(0, menu_click(runtime, 5), runtime.camera);
+        rows = lab_session.debug_rows();
+        REQUIRE(rows.size() > 2);
+        CHECK(rows[1].label == "LAYERS");
+        CHECK_MESSAGE(rows[2].depth == 1, "the rows of the open section follow its heading");
+    }
+}
+
 TEST_CASE("lab bindings keep m and escape inside the running session") {
     Runtime runtime("Launcher bindings", 160, 120);
     struct LoopSession final : kinetra_lab::Session {
