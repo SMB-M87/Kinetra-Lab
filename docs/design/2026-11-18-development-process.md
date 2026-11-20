@@ -41,7 +41,7 @@ The decisions are recorded in the [Kinetra design document](../../external/Kinet
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Skills in Lab | Symlinks `.agents/skills` and `.claude/skills` to `external/Kinetra/.agents/skills` | One skill set for both repositories; Codex and Claude Code each find their own path |
+| Skills in Lab | Symlinks `.agents/skills` and `.claude/skills` to `external/Kinetra/.agents/skills` | Both repositories share one skill set through the path supported by each agent |
 | Drift in session ownership | Correct the docs to match the code now; change the code in a later phase | Documentation must describe implemented behavior |
 
 ## Affected areas
