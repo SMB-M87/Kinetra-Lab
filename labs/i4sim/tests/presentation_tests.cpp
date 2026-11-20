@@ -267,7 +267,7 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
                   "Missing catalog error does not identify its directory");
     session->render(runtime);
     std::filesystem::create_directories(repaired_catalog);
-    std::filesystem::copy_file(i4sim::default_blueprint_directory() / "MAS-demonstrator.json",
+    std::filesystem::copy_file(i4sim::test::fixture_blueprint("MAS-demonstrator"),
                                repaired_catalog / "factory.json");
     session->advance(0, choose, runtime.camera);
     CHECK_MESSAGE(session->status() == "Loadscreen", "Enter did not rediscover a repaired catalog");

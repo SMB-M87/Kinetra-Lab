@@ -42,7 +42,7 @@ flowchart TD
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) | The session with a real window and context |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
-Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_testing` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite.
+Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_testing` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree: `showcase_blueprint` in the catalog, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`, and `fixture_blueprint` in this directory, passed as `KINETRA_I4SIM_TEST_FIXTURE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite. `MAS-demonstrator.json` is the original MAS blueprint of the C# reference, unchanged; it left the catalog, but the controller, golden and simulation suites, the graphics suite and the benchmark still run it.
 
 ## Running
 
@@ -57,15 +57,15 @@ cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics; needs an Ope
 
 One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or the executable (`./build-release/kinetra_i4sim_tests --test-case='a T-junction*'`). The `8640x4800` recovery case takes most of the simulation suite's time; in a Debug build the large-factory cases take minutes.
 
-For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/blueprints/MAS-demonstrator.json --ticks 50000 --output /tmp/i4sim-check`.
+For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/MAS-demonstrator.json --ticks 50000 --output /tmp/i4sim-check`.
 
-`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds six blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
+`relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds five blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
 
 ## What the simulation suite covers
 
 | Area | The cases require |
 | --- | --- |
-| Blueprints | All six originals load, groups expand as in the reference, and invalid input is rejected with the path and the cause |
+| Blueprints | All five originals in the catalog load and have no scenario, groups expand as in the reference, and invalid input is rejected with the path and the cause |
 | Production | Both recipes complete; a 50000-tick MAS workload reproduces its totals; queues stay bounded; a blocked producer pauses and resumes; an interaction takes exactly its duration |
 | Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
 | Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
@@ -205,7 +205,7 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic --corridor-traffic > /tmp/i4sim-corridor-traffic.csv
 ```
 
-The bundled blueprints run for 50000 ticks each with seeds 42 and 915839214.
+The `MAS-demonstrator` fixture and the catalog's `3840x2400` and `8640x4800` run for 50000 ticks each with seeds 42 and 915839214.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
 `--ticks` accepts 1 through 1000000. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
 The CSV has one line per blueprint and seed:
