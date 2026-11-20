@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-20 | [Agent terminology in Lab documentation](2026-11-20-agent-terminology.md) | implemented |
 | 2026-11-20 | [Run Lab CI on pull requests](2026-11-20-pr-only-ci.md) | implemented |
 | 2026-11-20 | [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md): only PLANNER changes replan; SPEED, FORCE and HORIZON steps no longer strand movers | implemented |
 | 2026-11-20 | [Frame pacing in WSLg](2026-11-20-wslg-frame-pacing.md): why the Linux build stutters in WSLg and the Windows build does not; three options, decision open | draft |
