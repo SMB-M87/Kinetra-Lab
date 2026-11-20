@@ -1,9 +1,9 @@
-#include "../include/debug_panel.h"
+#include "demo/debug_panel.h"
 
 #include <string>
 #include <utility>
 
-namespace sandbox {
+namespace demo {
 namespace {
 using kinetra::DebugEntry;
 using kinetra::DebugEntryKind;
@@ -39,7 +39,7 @@ void DebugPanel::add_simulation_entries(std::vector<DebugEntry> &entries) {
                                step_requested_ = true;
                            },
                        .depth = 1});
-    entries.push_back(lab::time_scale_entry(time_scale_));
+    entries.push_back(kinetra_lab::time_scale_entry(time_scale_));
     entries.push_back(kinetra::debug_check("GRAVITY", gravity_));
 }
 
@@ -160,4 +160,4 @@ void DebugPanel::apply(FrameCommands &commands, bool debug_mode, bool pointer_ca
              commands.pointer->action == PointerAction::walk)
         commands.pointer->action = PointerAction::target_agents;
 }
-} // namespace sandbox
+} // namespace demo

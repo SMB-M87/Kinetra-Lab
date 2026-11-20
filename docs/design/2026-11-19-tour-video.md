@@ -73,8 +73,8 @@ flowchart LR
 ## Affected areas
 
 - Capture tool: new `canvas`, `pointer_path`, `tour` and `tour_script` sources, `main.cpp`, new `capture_tour.sh`, tests, README.
-- [lab/session.h](../../labs/common/include/lab/session.h): `DebugRow` and `debug_rows()`; the three sessions implement it.
-- [labs/demo/include/session.h](../../labs/demo/include/session.h): `sandbox::Session` with `application()`.
+- [lab/session.h](../../labs/shared/include/kinetra_lab/session.h): `DebugRow` and `debug_rows()`; the three sessions implement it.
+- [labs/demo/include/session.h](../../labs/demo/include/demo/presentation/session.h): `sandbox::Session` with `application()`.
 - [docs/media](../media/README.md): the video, the media guide; [README](../../README.md); [AGENTS.md](../../AGENTS.md) (the video is no longer recorded by hand).
 
 ## Test plan

@@ -2,9 +2,9 @@
 // line per blueprint and seed: throughput, contacts, flow (waiting and stuck movers) and
 // predictive passing outcomes. Outside CTest: comparisons are useful, but too slow for
 // every test run.
-#include "event_counts.h"
-#include "flow_metrics.h"
-#include "simulation.h"
+#include "i4sim/simulation/flow_metrics.h"
+#include "i4sim/simulation/simulation.h"
+#include "i4sim/testing/event_counts.h"
 #include <chrono>
 #include <iostream>
 

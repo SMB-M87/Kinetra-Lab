@@ -8,10 +8,10 @@
 // requirements yet. Phase 7 turns them into required outcomes.
 //
 // KINETRA_PRINT_GOLDEN=1 prints the current lines, as in the golden suite.
-#include "event_counts.h"
-#include "flow_metrics.h"
-#include "recorder.h"
-#include "simulation.h"
+#include "i4sim/simulation/flow_metrics.h"
+#include "i4sim/simulation/simulation.h"
+#include "i4sim/testing/event_counts.h"
+#include "i4sim/testing/recorder.h"
 
 #include <doctest/doctest.h>
 

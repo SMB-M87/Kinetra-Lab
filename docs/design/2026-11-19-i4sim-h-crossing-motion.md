@@ -22,7 +22,7 @@ The h-crossing showcase scene looks rough: its four movers bunch up in the middl
 
 ## Problem
 
-- Every mover follows an A* route over the 240 mm cells ([routing.cpp](../../labs/i4sim/src/routing.cpp)); nothing switches that off. In the H the routes run along cell centers, and predictive passing bends them into lanes.
+- Every mover follows an A* route over the 240 mm cells ([routing.cpp](../../labs/i4sim/src/simulation/routing.cpp)); nothing switches that off. In the H the routes run along cell centers, and predictive passing bends them into lanes.
 - The current scene (Improved, no heatmap costs, predictive passing, speed 2, force 0.6, horizon 32) takes 1721 and 2274 ticks per leg. The movers turn 164 radians per meter driven and change velocity by 147 mm/tick per meter: they wobble, stop and back up in the middle (measured with a headless harness, see [Measurements](#measurements)).
 - The scenario format cannot set speed, force or horizon ([blueprints README](../../labs/i4sim/blueprints/README.md#scenario-section-format)), so a scene cannot ask for softer steering.
 - Without a route, movers steer straight at their goal and slide along the walls. In the H all four stuck for good at the inner corners of the middle bar: Kinetra's `constrain_borders` braked a box sliding flush along a wall when its corner met the end of another wall. That is fixed in Kinetra ([border corner slide](https://github.com/SMB-M87/Kinetra/blob/fix/border-corner-slide/docs/design/2026-11-19-border-corner-slide.md)).

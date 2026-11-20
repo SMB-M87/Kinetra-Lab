@@ -5,11 +5,11 @@
 //
 // The `the bundled catalog holds six blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
-#include "flow_metrics.h"
-#include "recorder.h"
-#include "scenario.h"
-#include "showcase.h"
-#include "simulation.h"
+#include "i4sim/blueprint/scenario.h"
+#include "i4sim/simulation/flow_metrics.h"
+#include "i4sim/simulation/simulation.h"
+#include "i4sim/testing/recorder.h"
+#include "i4sim/testing/showcase.h"
 
 #include <doctest/doctest.h>
 

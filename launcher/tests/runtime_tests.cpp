@@ -1,15 +1,15 @@
 // Graphics integration tests for the bundled launcher: the real Lab sessions, created
 // through launcher::applications(), with an OpenGL context. They need
 // KINETRA_TEST_GRAPHICS; only one Runtime exists at a time, so every case owns its own.
-#include "../../labs/dotio/include/session.h"
-#include "../include/applications.h"
+#include "dotio/presentation/session.h"
+#include "kinetra_lab/session.h"
+#include "kinetra_lab/settings.h"
+#include "launcher/applications.h"
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
-#include <kinetra/debug_view.h>
-#include <kinetra/engine.h>
-#include <kinetra/settings_view.h>
-#include <lab/session.h>
-#include <lab/settings.h>
+#include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <doctest/doctest.h>
 
@@ -33,7 +33,7 @@ std::unique_ptr<Session> start(Variant variant, Camera2D &camera,
 
 /// The state summary of a Lab session; every launcher registration creates one.
 std::string status(Session &session) {
-    return dynamic_cast<lab::Session &>(session).status();
+    return dynamic_cast<kinetra_lab::Session &>(session).status();
 }
 
 bool paused(Session &session) {
@@ -66,8 +66,8 @@ struct PanelLayout {
     SettingsOverlay overlay;
     Camera2D camera;
     explicit PanelLayout(std::size_t sim_lines, Vec2 viewport)
-        : overlay(lab::settings_rows(statistics, debug, frame_times, frame_limit,
-                                     std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
+        : overlay(kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit,
+                                             std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
         camera.viewport = viewport;
         Input open;
         open.pressed[std::size_t(Key::control)] = true;
@@ -451,7 +451,7 @@ TEST_CASE("every session reports the rows of its debug menu") {
     for (auto variant : {Variant::demo, Variant::dotio, Variant::i4sim}) {
         CAPTURE(static_cast<int>(variant));
         auto session = start(variant, runtime.camera);
-        auto &lab_session = dynamic_cast<lab::Session &>(*session);
+        auto &lab_session = dynamic_cast<kinetra_lab::Session &>(*session);
         session->advance(0, {}, runtime.camera);
         if (variant == Variant::i4sim) {
             CHECK_MESSAGE(lab_session.debug_rows().empty(), "the blueprint screen has no debug menu");
@@ -479,7 +479,7 @@ TEST_CASE("every session reports the rows of its debug menu") {
 
 TEST_CASE("lab bindings keep m and escape inside the running session") {
     Runtime runtime("Launcher bindings", 160, 120);
-    struct LoopSession final : lab::Session {
+    struct LoopSession final : kinetra_lab::Session {
         int &updates, &destroyed;
         LoopSession(int &u, int &d) : updates(u), destroyed(d) {}
         ~LoopSession() override { ++destroyed; }

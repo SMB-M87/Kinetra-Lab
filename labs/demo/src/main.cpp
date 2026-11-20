@@ -1,9 +1,9 @@
-#include "session.h"
-#include "zoom.h"
+#include "demo/presentation/session.h"
+#include "demo/zoom.h"
 #include <cstdlib>
 #include <iostream>
-#include <kinetra/engine.h>
-#include <kinetra/session.h>
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/session.h>
 #include <random>
 #include <string>
 
@@ -19,10 +19,10 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Invalid frame limit");
         }
         kinetra::Runtime runtime("Demo");
-        runtime.camera.pixels_per_unit = sandbox::initial_zoom;
+        runtime.camera.pixels_per_unit = demo::initial_zoom;
         const std::uint32_t seed = std::random_device{}();
         std::cout << "World seed: " << seed << '\n';
-        auto session = sandbox::create_session(sandbox::default_agent_count, seed);
+        auto session = demo::create_session(demo::default_agent_count, seed);
         kinetra::run_session(runtime, *session, frames);
     } catch (const std::exception &error) {
         std::cerr << "Demo: " << error.what() << '\n';

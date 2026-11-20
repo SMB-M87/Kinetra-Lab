@@ -7,17 +7,15 @@ Portable local survival game in Kinetra-Lab. Build/run instructions are in [Quic
 - [Visual overview](#visual-overview)
 - [Launch and controls](#launch-and-controls)
 - [Application boundary](#application-boundary)
+- [Layout](#layout)
 - [World and residency](#world-and-residency)
 - [Population and progression](#population-and-progression)
 - [AI and combat](#ai-and-combat)
 - [Difficulty](#difficulty)
 - [Verification and limits](#verification-and-limits)
 - [Provenance](#provenance)
-- [Source navigation](#source-navigation)
 
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
-
-Directory guides: [gmath](gmath/README.md), [include](include/README.md), [logic](logic/README.md), [src](src/README.md), [tests](tests/README.md).
 
 ## Visual overview
 
@@ -66,7 +64,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | SPAWNING | ACTIVE LIMIT, SPAWN RATE, CROWD LOAD, SPACING |
 | Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the difficulty's preset, the default forces and wander mode, speed 1×) |
 
-The ENEMIES and SPAWNING rows change the running world: its copy of the [difficulty preset](#difficulty) and its `EnemyTuning`. Movement, firing, pursuit and spawning follow at once; HITS applies to enemies that spawn afterwards. The rows stop at limits the world can run with (`tuning_step` in [application.h](include/application.h), within `logic::validate`). A new session, and RESET PARAMETERS, start from the preset again; the player's death keeps the tuned values.
+The ENEMIES and SPAWNING rows change the running world: its copy of the [difficulty preset](#difficulty) and its `EnemyTuning`. Movement, firing, pursuit and spawning follow at once; HITS applies to enemies that spawn afterwards. The rows stop at limits the world can run with (`tuning_step` in [application.h](include/dotio/application.h), within `dotio::validate`). A new session, and RESET PARAMETERS, start from the preset again; the player's death keeps the tuned values.
 
 STEERING PROBES draws, for an enemy that wanders by steering, the three feelers its steering tests, and for every other enemy the original forward and rear probes. PATHS > WANDER draws nothing while enemies wander by steering, because they plan no path.
 
@@ -79,6 +77,110 @@ See [Dotio architecture](../../docs/dotio-architecture.md) for component ownersh
 Drawing runs between fixed ticks: `Application` keeps absolute positions of the player, enemies, arrows and bolts before and after the last 60 Hz tick, and `PresentedPositions` swaps the blended positions in for one frame's drawing. A tick that respawned the player is not blended ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
 Dotio links only the public `Kinetra::Simulation` and `Kinetra::Runtime` targets. Its direct executable `kinetra_dotio` needs no Demo or launcher sources.
+
+## Layout
+
+Headers live under `include/dotio/` and are included as `"dotio/<folder>/<file>.h"`; `src/` mirrors their folders. `kinetra_dotio_logic` holds everything except `presentation/` and `main.cpp`, so it builds and tests without a window. `kinetra_dotio_presentation` holds `presentation/`; `kinetra_dotio` is `main.cpp`. These are Lab-owned files, not part of the public Kinetra engine API.
+
+```text
+labs/dotio/
+  include/dotio/
+    application.h world.h difficulty.h renderer.h zoom.h
+    entities/      arrow.h bolt.h enemy.h player.h moving_object.h
+                   physics_object.h static_object.h physics_adapter.h
+    ai/            state.h wander.h fuzzy.h tracker.h
+    navigation/    graph.h grid.h vertex.h priority_queue.h stack.h
+    math/          gmath.h portable.h
+    presentation/  session.h presentation.h
+  src/  world.cpp difficulty.cpp main.cpp
+        entities/ ai/ navigation/ math/ presentation/
+  tests/  dotio_tests.cpp presentation_tests.cpp
+```
+
+| Folder | Content |
+| --- | --- |
+| top level | The application, the world, difficulty presets and the legacy drawing interface |
+| `entities/` | Moving and static world objects and their physics |
+| `ai/` | The enemy state machine, steering wander, fuzzy decisions and the population tracker |
+| `navigation/` | The occupancy grid, the path graph and the storage that A* uses |
+| `math/` | The small `gmath` vector helpers and the portable compatibility header, in namespace `dotio::math` |
+| `presentation/` | Session and drawing; needs `Kinetra::Runtime` |
+
+### Top level
+
+| Header | Source | Responsibility |
+| --- | --- | --- |
+| [application.h](include/dotio/application.h) | header only | Application state, stable World ownership, clocks, debug-menu rows and tuning steps |
+| [world.h](include/dotio/world.h) | [world.cpp](src/world.cpp) | World ownership, streaming, pools, population, progression and projectile ordering |
+| [difficulty.h](include/dotio/difficulty.h) | [difficulty.cpp](src/difficulty.cpp) | Difficulty presets, the enemy tuning a world can change while it runs, and their validation |
+| [renderer.h](include/dotio/renderer.h) | header only | Legacy drawing interface; the presentation adapter implements it and owns the Y-axis conversion |
+| [zoom.h](include/dotio/zoom.h) | header only | Zoom limits and initial zoom in pixels per world unit, apart from the world headers so the launcher can start Dotio without compiling the world; the application reads it too, so it stays outside `presentation/` |
+
+### entities/
+
+| Header | Source | Responsibility |
+| --- | --- | --- |
+| [physics_object.h](include/dotio/entities/physics_object.h) | [physics_object.cpp](src/entities/physics_object.cpp) | Base physical object contract and behavior |
+| [moving_object.h](include/dotio/entities/moving_object.h) | [moving_object.cpp](src/entities/moving_object.cpp) | Moving actor contract, movement and integration |
+| [static_object.h](include/dotio/entities/static_object.h) | [static_object.cpp](src/entities/static_object.cpp) | Static object contract and initialization |
+| [player.h](include/dotio/entities/player.h) | [player.cpp](src/entities/player.cpp) | Player movement, shooting, abilities and resources |
+| [enemy.h](include/dotio/entities/enemy.h) | [enemy.cpp](src/entities/enemy.cpp) | Enemy state, updates and AI integration |
+| [arrow.h](include/dotio/entities/arrow.h) | [arrow.cpp](src/entities/arrow.cpp) | Enemy projectiles |
+| [bolt.h](include/dotio/entities/bolt.h) | [bolt.cpp](src/entities/bolt.cpp) | Player projectiles |
+| [physics_adapter.h](include/dotio/entities/physics_adapter.h) | header only | Conversion between legacy bodies and Kinetra bodies and simulation |
+
+### ai/
+
+| Header | Source | Responsibility |
+| --- | --- | --- |
+| [state.h](include/dotio/ai/state.h) | [state.cpp](src/ai/state.cpp) | The five AI states (wander, attack, pursue, recover, kamikaze) and their transitions |
+| [wander.h](include/dotio/ai/wander.h) | [wander.cpp](src/ai/wander.cpp) | Steering wander: heading drift, wall feelers and their constants |
+| [fuzzy.h](include/dotio/ai/fuzzy.h) | [fuzzy.cpp](src/ai/fuzzy.cpp) | Fuzzy combat and density decisions |
+| [tracker.h](include/dotio/ai/tracker.h) | header only | Fixed-pool population storage with circular slot reuse |
+
+An enemy embeds one instance of each state and points at the current one; it borrows its World.
+
+```mermaid
+classDiagram
+    PhysicsObject <|-- Enemy
+    Enemy *-- AttackState : embedded
+    Enemy *-- WanderState : embedded
+    Enemy *-- PursueState : embedded
+    Enemy *-- RecoverState : embedded
+    Enemy *-- KamikazeState : embedded
+    Enemy --> State : current state
+    Enemy --> World : borrowed world
+    State <|-- AttackState
+    State <|-- WanderState
+    State <|-- PursueState
+    State <|-- RecoverState
+    State <|-- KamikazeState
+```
+
+### navigation/
+
+| Header | Source | Responsibility |
+| --- | --- | --- |
+| [grid.h](include/dotio/navigation/grid.h) | [grid.cpp](src/navigation/grid.cpp) | Static occupancy raster, seeded terrain and raster queries |
+| [graph.h](include/dotio/navigation/graph.h) | [graph.cpp](src/navigation/graph.cpp) | Local A* pathfinding and fear-biased shelter search |
+| [vertex.h](include/dotio/navigation/vertex.h) | [vertex.cpp](src/navigation/vertex.cpp) | Graph node |
+| [priority_queue.h](include/dotio/navigation/priority_queue.h) | [priority_queue.cpp](src/navigation/priority_queue.cpp) | Search frontier |
+| [stack.h](include/dotio/navigation/stack.h) | [stack.cpp](src/navigation/stack.cpp) | Path storage |
+
+### math/
+
+| Header | Source | Responsibility |
+| --- | --- | --- |
+| [gmath.h](include/dotio/math/gmath.h) | [gmath.cpp](src/math/gmath.cpp) | Legacy vector, position, segment and grid types; grid coordinate conversion, neighbor partitions and compatibility operators. Canonical vector math delegates to Kinetra |
+| [portable.h](include/dotio/math/portable.h) | header only | Standard-library includes and the unqualified `min` and `max` the ported code relies on |
+
+### presentation/
+
+| Header | Source | Responsibility |
+| --- | --- | --- |
+| [session.h](include/dotio/presentation/session.h) | [session.cpp](src/presentation/session.cpp) | `dotio::Session`: input mapping, pointer capture and lifecycle; it also gives its `Application` to a tool that plays the game (the [capture tool](../../tools/capture/README.md)'s scripted player). Holds the factory shared by direct and bundled launch |
+| [presentation.h](include/dotio/presentation/presentation.h) | [presentation.cpp](src/presentation/presentation.cpp) | Drawing adapter: coordinates, camera, terrain, actors and overlays |
+| – | [main.cpp](src/main.cpp) | Direct executable `kinetra_dotio`: difficulty and frame-limit arguments |
 
 ## World and residency
 
@@ -128,7 +230,7 @@ The diagram highlights principal transitions, not every fuzzy-rule combination. 
 | Recover | Fear-biased HideStar shelter search and reload outside player sight |
 | Kamikaze | Chase, fire remaining ammo, explode on contact |
 
-**Steering wander** ([wander.h](logic/include/wander.h)). Every decision tick (20 Hz) an enemy's wander heading drifts by up to 0.35 rad, drawn from a generator seeded with the world's seed. Every update a forward feeler of 0.9 cells and two side feelers of 0.6 cells at 0.6 rad are tested against the grid. A blocked forward feeler turns the heading to the first free direction of a fan (0.8, 1.6, 2.4 rad, to the enemy's preferred side first, then a half turn); a single blocked side feeler turns it away by 0.15 rad per update. The enemy accelerates along its heading with the WANDER force. No path is planned, so a wanderer needs no route to exist; it leaves a dead end by turning around in it.
+**Steering wander** ([wander.h](include/dotio/ai/wander.h)). Every decision tick (20 Hz) an enemy's wander heading drifts by up to 0.35 rad, drawn from a generator seeded with the world's seed. Every update a forward feeler of 0.9 cells and two side feelers of 0.6 cells at 0.6 rad are tested against the grid. A blocked forward feeler turns the heading to the first free direction of a fan (0.8, 1.6, 2.4 rad, to the enemy's preferred side first, then a half turn); a single blocked side feeler turns it away by 0.15 rad per update. The enemy accelerates along its heading with the WANDER force. No path is planned, so a wanderer needs no route to exist; it leaves a dead end by turning around in it.
 
 Both fuzzy close/warrior/midway combat and failed recovery can enter kamikaze only at exactly one remaining health. Enemy ammunition capacity is ten. Player health/mana regenerate; shooting costs mana; kills increase bullet speed up to the original 100-kill cap. Contact kills restore mana, with state-specific additional rewards. Resource rewards clamp to maxima. Player death starts fresh population progression.
 
@@ -136,7 +238,7 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 ## Difficulty
 
-[Presets](logic/include/difficulty.h) vary population and enemy behavior; player abilities, maze and spawn exclusion remain shared. A world starts with a copy of its preset, which the debug menu's ENEMIES and SPAWNING sections change while it runs ([debug menu](#debug-menu)).
+[Presets](include/dotio/difficulty.h) vary population and enemy behavior; player abilities, maze and spawn exclusion remain shared. A world starts with a copy of its preset, which the debug menu's ENEMIES and SPAWNING sections change while it runs ([debug menu](#debug-menu)).
 
 | Setting | Easy | Medium (default) | Hard |
 | --- | --- | --- | --- |
@@ -155,12 +257,33 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 [Logic/application tests](tests/dotio_tests.cpp) cover AI, fuzzy pressure, A*/HideStar, collision/sweeps, rewards, durability, progression/reset, pause, streaming, props, difficulty and debug capture. [Presentation tests](tests/presentation_tests.cpp) cover bindings and normal/debug rendering. The [Lab build](../../CMakeLists.txt) links Dotio without engine-private headers. Commands: [development](../../README.md#tests-and-resources).
 
+### Tests
+
+Both test programs are doctest suites: each `TEST_CASE` is one behavior, named after its expected outcome, and CTest registers it as `<suite>:<case>`. How to write cases is in [Kinetra testing](../../external/Kinetra/docs/testing.md#writing-a-doctest-suite).
+
+| Source | CTest suite (cases) | Coverage |
+| --- | --- | --- |
+| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (38) | Geometry, routing, streaming, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom. Needs no window |
+| [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (3) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`. Needs an OpenGL context (label `graphics`) |
+
+Dotio's collision grid, `dotio::Grid::Array`, is global state. Generating or initializing a world overwrites all of it; cases that build on the plain bordered arena call `open_map()` first. No case depends on another case or on the order in which they run.
+
+From the repository root, for the tests that need no window:
+
+```sh
+cmake --preset headless
+cmake --build --preset headless --target kinetra_dotio_tests
+ctest --preset headless -R '^kinetra_dotio:'
+```
+
+One case runs on its own through CTest (`-R 'kinetra_dotio:a failed escape'`) or the executable (`./build-headless/kinetra_dotio_tests --test-case='a failed escape*'`).
+
+`kinetra_dotio_graphics` uses the `graphics` preset, which needs an OpenGL context as described in [Tests and resources](../../README.md#tests-and-resources): `cmake --preset graphics`, `cmake --build --preset graphics --target kinetra_dotio_presentation_tests`, then `ctest --preset graphics -R '^kinetra_dotio_graphics:'`.
+
+### Limits
+
 Static raster storage permits only one active Dotio world. Absolute district integers and local float precision remain finite. Cross-platform random sequences/timing are not promised. Teleport tests destination clearance, not a swept route. Gameplay balance and desktop feel require manual Artix checks.
 
 ## Provenance
 
-The `logic/` and `gmath/` sources come from the independent Dotio repository and keep their author attribution. Lab's [MIT license](../../LICENSE) applies to them; the upstream repository had no license file of its own. The Windows window, Direct2D backend, platform input and concurrent update threads are not part of the port. Tests cover the fixes made in the port: empty paths, zero-vector normalization, frontier capacity, heuristic correctness, waypoint updates and projectile ordering.
-
-## Source navigation
-
-[Headers](include/README.md) and [implementation](src/README.md) describe the local source layout.
+The game logic and math sources (everything outside `presentation/` and `main.cpp`) come from the independent Dotio repository and keep their author attribution. Lab's [MIT license](../../LICENSE) applies to them; the upstream repository had no license file of its own. The Windows window, Direct2D backend, platform input and concurrent update threads are not part of the port. Tests cover the fixes made in the port: empty paths, zero-vector normalization, frontier capacity, heuristic correctness, waypoint updates and projectile ordering.

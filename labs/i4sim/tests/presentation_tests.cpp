@@ -4,13 +4,13 @@
 // one may exist at a time, so they form one case. CTest labels it `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
-#include "session.h"
-#include "showcase.h"
+#include "i4sim/presentation/session.h"
+#include "i4sim/testing/showcase.h"
 
-#include <kinetra/debug_view.h>
-#include <kinetra/launcher.h>
-#include <kinetra/settings_view.h>
-#include <lab/settings.h>
+#include "kinetra_lab/settings.h"
+#include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/launcher.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <SDL2/SDL.h>
 #include <doctest/doctest.h>
@@ -245,8 +245,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     // Centered modal settings, default collapsed help: the LAUNCHER action, located through a
     // panel with the same Lab rows so the test follows the shared layout.
     bool mirror_statistics{}, mirror_debug{}, mirror_frame_times{}, mirror_frame_limit{};
-    const SettingsOverlay mirror(lab::settings_rows(mirror_statistics, mirror_debug, mirror_frame_times,
-                                                    mirror_frame_limit, {"LINE"}, {"LINE"}));
+    const SettingsOverlay mirror(kinetra_lab::settings_rows(
+        mirror_statistics, mirror_debug, mirror_frame_times, mirror_frame_limit, {"LINE"}, {"LINE"}));
     back.mouse = runtime.camera.viewport / 2 +
                  (Vec2{SettingsOverlay::launcher_x, mirror.actions_y() + 3} - mirror.half_extent()) *
                      SettingsOverlay::scale(runtime.camera.viewport);

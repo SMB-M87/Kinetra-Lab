@@ -1,4 +1,4 @@
-#include "dotio_player.h"
+#include "capture/dotio_player.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,7 +8,7 @@ namespace capture {
 namespace {
 /// Whether `enemy` is alive, simulated and with its center on screen for `camera`, at least
 /// `margin` logical pixels away from every edge of the window.
-bool on_screen(const logic::Enemy &enemy, const kinetra::Camera2D &camera, float margin = 0) {
+bool on_screen(const dotio::Enemy &enemy, const kinetra::Camera2D &camera, float margin = 0) {
     if (!enemy.IsActive || enemy.Frozen)
         return false;
     const auto point = camera.world_to_screen(dotio::to_world(enemy.Position));
@@ -18,26 +18,26 @@ bool on_screen(const logic::Enemy &enemy, const kinetra::Camera2D &camera, float
 
 /// Whether a bolt flies from `from` to `to` without meeting a wall cell or a crate, which
 /// stops a bolt that comes within the bolt's radius of it (World::UpdateBolts).
-bool clear_shot(const logic::World &world, gmath::Vec2 from, gmath::Vec2 to) {
-    gmath::Point2 hit{};
-    if (logic::Grid::IsIntersectingAnyCell({from, to}, &logic::Grid::Array[0][0], hit))
+bool clear_shot(const dotio::World &world, dotio::math::Vec2 from, dotio::math::Vec2 to) {
+    dotio::math::Point2 hit{};
+    if (dotio::Grid::IsIntersectingAnyCell({from, to}, &dotio::Grid::Array[0][0], hit))
         return false;
     for (const auto &crate : world.GetObjects())
         if (kinetra::segment_circle(dotio::physics_vector(from), dotio::physics_vector(to),
-                                    crate.body.position, crate.body.radius + logic::Bolt::Radius))
+                                    crate.body.position, crate.body.radius + dotio::Bolt::Radius))
             return false;
     return true;
 }
 } // namespace
 
-float dotio_bolt_speed(const logic::Player &player) {
+float dotio_bolt_speed(const dotio::Player &player) {
     return 6.0f + player.BoltSpeed * (float(player.Kills) / player.MaxBulletKills);
 }
 
-logic::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera) {
+dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera) {
     auto &world = application.world();
     const auto player = world.GetPlayer().Position;
-    logic::Enemy *nearest = nullptr;
+    dotio::Enemy *nearest = nullptr;
     float nearest_distance = std::numeric_limits<float>::infinity();
     for (auto &enemy : world.GetEnemies()) {
         if (!on_screen(enemy, camera))
@@ -51,7 +51,7 @@ logic::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
     return nearest;
 }
 
-gmath::Vec2 lead_offset(gmath::Vec2 offset, gmath::Vec2 velocity, float bolt_speed) {
+dotio::math::Vec2 lead_offset(dotio::math::Vec2 offset, dotio::math::Vec2 velocity, float bolt_speed) {
     // |offset + velocity t| = bolt_speed t, solved for the earliest t > 0.
     const float a = velocity.X * velocity.X + velocity.Y * velocity.Y - bolt_speed * bolt_speed;
     const float b = 2 * (offset.X * velocity.X + offset.Y * velocity.Y);

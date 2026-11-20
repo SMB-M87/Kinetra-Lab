@@ -21,7 +21,7 @@ A showcase scene shows its traffic situation once: both movers reach their goals
 
 ## Problem
 
-- `apply_scenario` ([scenario.cpp](../../labs/i4sim/src/scenario.cpp)) sends each goal once through `Simulation::move_to`. On arrival the motion step makes the mover idle and its goal automatic ([motion_step.cpp](../../labs/i4sim/src/motion_step.cpp)); with the workload off nothing sends it anywhere again. A scene therefore ends after one encounter; the viewer has to press `R` to see it again.
+- `apply_scenario` ([scenario.cpp](../../labs/i4sim/src/blueprint/scenario.cpp)) sends each goal once through `Simulation::move_to`. On arrival the motion step makes the mover idle and its goal automatic ([motion_step.cpp](../../labs/i4sim/src/simulation/motion_step.cpp)); with the workload off nothing sends it anywhere again. A scene therefore ends after one encounter; the viewer has to press `R` to see it again.
 - The catalog holds fourteen top-level blueprints. Seven of them are city aliases (`Istanbul`, `London`, `Madrid`, `Moskou`, `New York`, `Paris`, `Rijn-Ruhrgebied`) that the user no longer wants listed.
 
 ## Goals and non-goals
@@ -66,7 +66,7 @@ stateDiagram-v2
     Driving --> [*]: last member left (move_to, product, factory goal, no route)
 ```
 
-- A private `Shuttle` component ([src/shuttle.h](../../labs/i4sim/src/shuttle.h)) holds the members (mover index, both ends, the end it heads for) and the tick at which all members were last seen arrived. `SimulationCore` owns it and updates it as the last step of every tick.
+- A private `Shuttle` component ([src/shuttle.h](../../labs/i4sim/include/i4sim/simulation/detail/shuttle.h)) holds the members (mover index, both ends, the end it heads for) and the tick at which all members were last seen arrived. `SimulationCore` owns it and updates it as the last step of every tick.
 - `Simulation::shuttle(index, destination)` sends the mover like `move_to` and, on success, adds it with its current position as the other end. `Simulation::move_to` removes the mover from the shuttle first. `Simulation::shuttling(index)` reports membership.
 - Each tick, the update first removes members that left: unreachable, carrying a product, or moving under a goal that is not manual. When every remaining member is idle and not held, it notes the tick; 400 ticks later it sends each member to its other end through the same checks as `move_to`. A member whose leg is rejected leaves.
 - `Scenario::repeat == ScenarioRepeat::shuttle` makes `apply_scenario` call `shuttle` instead of `move_to`. `R` re-applies the scenario, so a replay shuttles again.
@@ -75,7 +75,7 @@ stateDiagram-v2
 ### Merge with main
 
 While this branch was open, main split the i4sim session into a headless `FactoryController` (#19). The merge takes main's session, which already had `R` as `FactoryController::restart()`, so this branch's refactor commit that extracted `FactorySession::reset` became obsolete. The automatic restart moved into the controller, and the module and test READMEs take main's rewrite with this branch's changes applied again.
-- `shuttle_pause_ticks` is public in [simulation.h](../../labs/i4sim/include/simulation.h), so tests and docs name the pause.
+- `shuttle_pause_ticks` is public in [simulation.h](../../labs/i4sim/include/i4sim/simulation/simulation.h), so tests and docs name the pause.
 
 ## Affected areas
 

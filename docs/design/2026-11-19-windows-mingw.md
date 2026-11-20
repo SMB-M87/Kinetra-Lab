@@ -21,7 +21,7 @@ The applications run in WSL through WSLg, which the user experiences as slow. Th
 
 ## Problem
 
-- Lab builds only for Linux. The README says "Linux is supported", and the only Linux-specific code is `default_blueprint_directory()`, which reads `/proc/self/exe` ([blueprint.cpp](../../labs/i4sim/src/blueprint.cpp)).
+- Lab builds only for Linux. The README says "Linux is supported", and the only Linux-specific code is `default_blueprint_directory()`, which reads `/proc/self/exe` ([blueprint.cpp](../../labs/i4sim/src/blueprint/blueprint.cpp)).
 - In WSL, frames go through Mesa's `d3d12` driver and then the WSLg compositor (RDP). Measured on the user's machine (Intel Arc 140T, 60 Hz): the Linux build renders 205 frames per second without VSync, and the compositor decides what reaches the screen.
 - The engine itself is portable: SDL2 and OpenGL 3.3, GLAD with a `_WIN32` branch, no POSIX calls.
 
@@ -70,7 +70,7 @@ flowchart TD
 - New: [cmake/toolchains/x86_64-w64-mingw32.cmake](../../cmake/toolchains/x86_64-w64-mingw32.cmake), [cmake/WindowsDependencies.cmake](../../cmake/WindowsDependencies.cmake), [docs/windows.md](../windows.md).
 - [CMakeLists.txt](../../CMakeLists.txt): includes the module when cross-compiling for Windows.
 - [CMakePresets.json](../../CMakePresets.json): `windows` and `windows-native`.
-- [labs/i4sim/src/blueprint.cpp](../../labs/i4sim/src/blueprint.cpp), [blueprint.h](../../labs/i4sim/include/blueprint.h): executable path on Windows; contract comment.
+- [labs/i4sim/src/blueprint.cpp](../../labs/i4sim/src/blueprint/blueprint.cpp), [blueprint.h](../../labs/i4sim/include/i4sim/blueprint/blueprint.h): executable path on Windows; contract comment.
 - [.github/workflows/ci.yml](../../.github/workflows/ci.yml): `windows` job.
 - Docs: [README](../../README.md), [docs index](../README.md), [AGENTS.md](../../AGENTS.md) verification table.
 

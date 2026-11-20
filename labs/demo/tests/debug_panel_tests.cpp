@@ -1,7 +1,7 @@
 // Window-free tests for the Demo's debug menu (labs/demo/include/debug_panel.h): which rows
 // it lists, what they change in the application's tuning, and which commands a frame gets
 // from them.
-#include "debug_panel.h"
+#include "demo/debug_panel.h"
 
 #include <doctest/doctest.h>
 
@@ -10,19 +10,19 @@
 #include <vector>
 
 namespace {
+using demo::Application;
+using demo::DebugPanel;
+using demo::FrameCommands;
 using kinetra::DebugEntryKind;
-using sandbox::DebugPanel;
-using sandbox::FrameCommands;
-using sandbox::SandboxApplication;
 
 /// An application with a few agents, its debug panel and a camera at the Demo's zoom.
 struct Fixture {
-    SandboxApplication application{8, 42};
+    Application application{8, 42};
     DebugPanel panel{application};
     kinetra::Camera2D camera;
 
     Fixture() {
-        camera.pixels_per_unit = sandbox::initial_zoom;
+        camera.pixels_per_unit = demo::initial_zoom;
         advance();
     }
     /// One frame as the session runs it, in debug mode, with `commands` as the frame's input.
@@ -99,7 +99,7 @@ TEST_CASE("the layer rows carry their colors and start as the session shows them
     CHECK_FALSE(f.row("HOME RANGE").active());
     const auto paths = f.row("PATHS");
     REQUIRE(paths.swatch);
-    CHECK(paths.swatch->b == sandbox::layer_color::paths.b);
+    CHECK(paths.swatch->b == demo::layer_color::paths.b);
     f.row("HOME RANGE").action();
     f.row("VECTORS").action();
     const auto layers = f.panel.layers(true);
@@ -143,7 +143,7 @@ TEST_CASE("the agents section chooses the wander mode and lists the steering row
     CHECK(f.row("WANDER").value() == "STEERING");
     f.row("WANDER").action();
     f.row("ROUTE").action();
-    CHECK(f.application.tuning().wander.mode == sandbox::WanderMode::route);
+    CHECK(f.application.tuning().wander.mode == demo::WanderMode::route);
     CHECK(f.row("WANDER").value() == "ROUTE");
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AGENTS", "WANDER",
                                                  "HOME RANGE", "CLICK SETS GOAL", "ZOOM", "GHOST CAMERA",
@@ -166,7 +166,7 @@ TEST_CASE("every tuning row changes its value and stops at a value the scene can
                     up ? f.row(label).increase() : f.row(label).decrease();
                 CAPTURE(label);
                 CAPTURE(up);
-                CHECK_NOTHROW(sandbox::validate(f.application.tuning()));
+                CHECK_NOTHROW(demo::validate(f.application.tuning()));
                 CHECK_NOTHROW(f.advance({}, 1.0 / 60));
             }
     };
@@ -176,7 +176,7 @@ TEST_CASE("every tuning row changes its value and stops at a value the scene can
     exhaust({"LOOKAHEAD", "SEPARATION", "SEP WEIGHT"});
     f.open("AGENTS");
     exhaust({"HOME RANGE", "WANDER REACH", "WANDER JITTER"});
-    CHECK(f.application.tuning().wander.range == sandbox::tuning_step::home_range.minimum);
+    CHECK(f.application.tuning().wander.range == demo::tuning_step::home_range.minimum);
 }
 
 TEST_CASE("reset parameters restores the tuning, the avoidance model and the time scale") {
@@ -193,7 +193,7 @@ TEST_CASE("reset parameters restores the tuning, the avoidance model and the tim
     f.row("SPEED").increase();
     REQUIRE(f.panel.time_scale() == 2);
     f.row("RESET PARAMETERS").action();
-    const sandbox::Tuning defaults;
+    const demo::Tuning defaults;
     const auto &tuning = f.application.tuning();
     CHECK(tuning.motion.max_speed == defaults.motion.max_speed);
     CHECK(tuning.wander.range == defaults.wander.range);
@@ -283,35 +283,35 @@ TEST_CASE("the wheel and the zoom row zoom in debug mode and not over a panel") 
     CHECK_MESSAGE(applied(f.panel).zoom_steps == 0, "steps are used once");
     f.row("ZOOM").decrease();
     f.advance();
-    CHECK(f.camera.pixels_per_unit == doctest::Approx(sandbox::initial_zoom / kinetra::zoom_factor));
+    CHECK(f.camera.pixels_per_unit == doctest::Approx(demo::initial_zoom / kinetra::zoom_factor));
     CHECK(f.row("ZOOM").value() == kinetra::debug_number_text(f.camera.pixels_per_unit));
 }
 
 TEST_CASE("a captured pointer is dropped and click sets goal turns a walk into goals for the agents") {
     Fixture f;
     FrameCommands click;
-    click.pointer = sandbox::PointerCommand{sandbox::PointerAction::walk, {100, 100}};
+    click.pointer = demo::PointerCommand{demo::PointerAction::walk, {100, 100}};
     FrameCommands captured = click;
     f.panel.apply(captured, true, true, 0);
     CHECK_FALSE(captured.pointer);
     FrameCommands walk = click;
     f.panel.apply(walk, true, false, 0);
     REQUIRE(walk.pointer);
-    CHECK(walk.pointer->action == sandbox::PointerAction::walk);
+    CHECK(walk.pointer->action == demo::PointerAction::walk);
     f.open("AGENTS");
     f.row("CLICK SETS GOAL").action();
     FrameCommands goal = click;
     f.panel.apply(goal, true, false, 0);
     REQUIRE(goal.pointer);
-    CHECK(goal.pointer->action == sandbox::PointerAction::target_agents);
+    CHECK(goal.pointer->action == demo::PointerAction::target_agents);
     FrameCommands outside = click;
     f.panel.apply(outside, false, false, 0);
     REQUIRE(outside.pointer);
-    CHECK_MESSAGE(outside.pointer->action == sandbox::PointerAction::walk,
+    CHECK_MESSAGE(outside.pointer->action == demo::PointerAction::walk,
                   "outside debug mode a click walks the player");
     FrameCommands clear;
-    clear.pointer = sandbox::PointerCommand{sandbox::PointerAction::clear_selection, {100, 100}};
+    clear.pointer = demo::PointerCommand{demo::PointerAction::clear_selection, {100, 100}};
     f.panel.apply(clear, true, false, 0);
-    CHECK_MESSAGE(clear.pointer->action == sandbox::PointerAction::clear_selection,
+    CHECK_MESSAGE(clear.pointer->action == demo::PointerAction::clear_selection,
                   "a right click still clears the selection");
 }

@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-20 | [Include layout](2026-11-20-include-layout.md): every module on one `include/<name>/` and `src/`, topic folders, namespaces equal to include roots | implemented |
 | 2026-11-20 | [Local verification runs only graphics](2026-11-20-verify-locally-graphics.md): `ci`, `headless` and Windows from the pull request's CI | implemented |
 | 2026-11-20 | [Tour version note](2026-11-20-tour-version-note.md): below the thumbnail, which copy of the tour is newest instead of a second YouTube link | implemented |
 | 2026-11-20 | [Tour thumbnail in the README](2026-11-20-tour-thumbnail.md): a clickable mosaic of the tour at the top of the gallery, generated from the video | implemented |

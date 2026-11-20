@@ -1,16 +1,16 @@
-#include "stage.h"
+#include "capture/stage.h"
 
-#include "../../../labs/demo/include/session.h"
-#include "../../../labs/dotio/include/session.h"
-#include "../../../labs/dotio/include/zoom.h"
-#include "../../../labs/i4sim/include/session.h"
-#include "png.h"
+#include "capture/png.h"
+#include "demo/presentation/session.h"
+#include "dotio/presentation/session.h"
+#include "dotio/zoom.h"
+#include "i4sim/presentation/session.h"
 
+#include "kinetra_lab/settings.h"
 #include <glad/glad.h>
-#include <kinetra/debug_view.h>
-#include <kinetra/launcher.h>
-#include <kinetra/settings_view.h>
-#include <lab/settings.h>
+#include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/launcher.h>
+#include <kinetra/runtime/settings_view.h>
 
 #include <algorithm>
 #include <array>
@@ -35,7 +35,7 @@ constexpr float settings_click_below_top = 5;
 constexpr float debug_click_x = kinetra::DebugMenu::label_left(2) + 2;
 
 launcher::Options capture_options() {
-    return {sandbox::default_agent_count, capture_seed, dotio::default_difficulty};
+    return {demo::default_agent_count, capture_seed, dotio::default_difficulty};
 }
 } // namespace
 
@@ -156,7 +156,7 @@ Vec2 Stage::settings_point(SettingsRow row) const {
     // move collapsed rows.
     bool statistics{}, debug{}, frame_times{}, frame_limit{};
     const kinetra::SettingsOverlay mirror(
-        lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
     const Vec2 panel{settings_click_x, mirror.row_y(std::size_t(row)) + settings_click_below_top};
     return viewport() / 2 + (panel - mirror.half_extent()) * kinetra::SettingsOverlay::scale(viewport());
 }

@@ -21,7 +21,7 @@ The window title of every Lab application is a status line: "i4sim | 1680x960+ |
 
 ## Problem
 
-- Session titles carry state: `sandbox::window_title` in [sandbox_renderer.cpp](../../labs/demo/src/sandbox_renderer.cpp) (agents, pause, chunks, camera, paths, avoidance, last action, key hints), `dotio::window_title` in [presentation.cpp](../../labs/dotio/src/presentation.cpp) (difficulty, pause, health, mana, kills, modes) and `FactorySession::title()` in [session.cpp](../../labs/i4sim/src/session.cpp) (blueprint name, PAUSED or RUNNING).
+- Session titles carry state: `sandbox::window_title` in [sandbox_renderer.cpp](../../labs/demo/src/presentation/renderer.cpp) (agents, pause, chunks, camera, paths, avoidance, last action, key hints), `dotio::window_title` in [presentation.cpp](../../labs/dotio/src/presentation/presentation.cpp) (difficulty, pause, health, mana, kills, modes) and `FactorySession::title()` in [session.cpp](../../labs/i4sim/src/presentation/session.cpp) (blueprint name, PAUSED or RUNNING).
 - The direct executables open with "Kinetra" (Demo) and "Dotio on Kinetra" (Dotio); the launcher opens with "Kinetra" and switches to "Kinetra | Start menu".
 - About twenty graphics-test assertions read state from `title()`: pause state in [launcher/tests/runtime_tests.cpp](../../launcher/tests/runtime_tests.cpp) and [labs/i4sim/tests/presentation_tests.cpp](../../labs/i4sim/tests/presentation_tests.cpp), the Dotio difficulty, the i4sim loadscreen and catalog error, and Demo's camera mode and last action.
 
@@ -64,10 +64,10 @@ classDiagram
 
 ## Affected areas
 
-- [labs/common/include/lab/session.h](../../labs/common/include/lab/session.h): pure virtual `status()`.
-- Demo: [session.cpp](../../labs/demo/src/session.cpp), [sandbox_renderer.h](../../labs/demo/include/sandbox_renderer.h), [sandbox_renderer.cpp](../../labs/demo/src/sandbox_renderer.cpp), [main.cpp](../../labs/demo/src/main.cpp).
-- Dotio: [session.cpp](../../labs/dotio/src/session.cpp), [presentation.h](../../labs/dotio/include/presentation.h), [presentation.cpp](../../labs/dotio/src/presentation.cpp), [main.cpp](../../labs/dotio/src/main.cpp).
-- i4sim: [session.cpp](../../labs/i4sim/src/session.cpp).
+- [labs/common/include/lab/session.h](../../labs/shared/include/kinetra_lab/session.h): pure virtual `status()`.
+- Demo: [session.cpp](../../labs/demo/src/presentation/session.cpp), [sandbox_renderer.h](../../labs/demo/include/demo/presentation/renderer.h), [sandbox_renderer.cpp](../../labs/demo/src/presentation/renderer.cpp), [main.cpp](../../labs/demo/src/main.cpp).
+- Dotio: [session.cpp](../../labs/dotio/src/presentation/session.cpp), [presentation.h](../../labs/dotio/include/dotio/presentation/presentation.h), [presentation.cpp](../../labs/dotio/src/presentation/presentation.cpp), [main.cpp](../../labs/dotio/src/main.cpp).
+- i4sim: [session.cpp](../../labs/i4sim/src/presentation/session.cpp).
 - Launcher: [main.cpp](../../launcher/src/main.cpp).
 - Tests: [launcher runtime tests](../../launcher/tests/runtime_tests.cpp), [i4sim presentation tests](../../labs/i4sim/tests/presentation_tests.cpp), [Demo presentation tests](../../labs/demo/tests/presentation_tests.cpp).
 - Docs: [launcher and overlays](../launcher-overlays.md), [launcher README](../../launcher/README.md).

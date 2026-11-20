@@ -16,17 +16,17 @@ The `kinetra` executable: one window with a menu from which Demo, Dotio and i4si
 
 ## Purpose and scope
 
-The launcher lets a user try every Lab application without restarting, and gives the Lab one place that composes all three. Not here: application behavior (each application's session), the menu and the loop (`kinetra::LaunchMenu`, `kinetra::run_launcher`), and the shared Lab settings policy (`labs/common`, described in [launcher and overlays](../docs/launcher-overlays.md)).
+The launcher lets a user try every Lab application without restarting, and gives the Lab one place that composes all three. Not here: application behavior (each application's session), the menu and the loop (`kinetra::LaunchMenu`, `kinetra::run_launcher`), and the shared Lab settings policy (`labs/shared`, described in [launcher and overlays](../docs/launcher-overlays.md)).
 
 ## Structure
 
 | File | Responsibility |
 | --- | --- |
-| [include/applications.h](include/applications.h) | `Variant`, `Options`, Lab's `LauncherBindings`, and the `applications()` and `selection()` declarations |
+| [include/launcher/applications.h](include/launcher/applications.h) | `Variant`, `Options`, Lab's `LauncherBindings`, and the `applications()` and `selection()` declarations |
 | [src/applications.cpp](src/applications.cpp) | The three registrations: menu names, Dotio difficulties, camera reset and session factories |
 | [src/main.cpp](src/main.cpp) | Arguments, the world seed and the call to `kinetra::run_launcher` |
 
-`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. Two executables use it: `kinetra` and the compatibility name `kinetra_sandbox`. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
+`kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. The `kinetra` executable uses it. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
 
 ## How it works
 
@@ -64,7 +64,7 @@ Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README
 
 ## Changing this module
 
-- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `lab::Session`, returns its settings overlay's request, titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name, and add its scenes to the [capture tool](../tools/capture/README.md#changing-this-module).
+- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `kinetra_lab::Session`, returns its settings overlay's request, titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name, and add its scenes to the [capture tool](../tools/capture/README.md#changing-this-module).
 - **Add an application option:** add it to `Options`, parse it in `main.cpp`, and capture it in the factory. Configurations shown in the menu come from the application (as Dotio's difficulties do), not from the launcher.
 
 ## Tests

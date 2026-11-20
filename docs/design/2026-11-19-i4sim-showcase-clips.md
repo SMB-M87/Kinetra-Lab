@@ -21,7 +21,7 @@ The gallery shows i4sim only on the MAS demonstrator. The five showcase scenes o
 
 ## Problem
 
-- The i4sim clips in [docs/media](../media/README.md#files) show `MAS-demonstrator.json` at 800 ticks per second ([scenes.cpp](../../tools/capture/src/scenes.cpp)). No capture loads a file from [blueprints/showcase/](../../labs/i4sim/blueprints/showcase/).
+- The i4sim clips in [docs/media](../media/README.md#files) show `MAS-demonstrator.json` at 800 ticks per second ([scenes.cpp](../../tools/capture/src/scenes/scenes.cpp)). No capture loads a file from [blueprints/showcase/](../../labs/i4sim/blueprints/showcase/).
 - Every capture clip lasts a fixed 60 frames (four seconds). A showcase scene repeats on its own cycle: a shuttle scene drives out, pauses 400 ticks, drives back and pauses again; corridor recovery runs, pauses and restarts ([blueprint guide](../../labs/i4sim/blueprints/README.md#showcase-scenes)). The cycles take between 11 and 27 seconds at 200 ticks per second, and differ per scene. A fixed length cuts a scene off, or shows a jump when the GIF loops.
 - The capture tool drives the session through `kinetra::Session` and cannot see the simulation, so a script cannot tell when the movers have come back.
 

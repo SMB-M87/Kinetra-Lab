@@ -1,6 +1,6 @@
 // Characterization of Demo crowds before the Demo code is restructured.
 //
-// Each scenario drives a seeded SandboxApplication frame by frame and checks crowd
+// Each scenario drives a seeded Application frame by frame and checks crowd
 // invariants after every frame: finite motion, no exhausted sweep budget, a consistent
 // agent-to-body mapping and no deep overlap between moving bodies. It also records a
 // 64-bit fingerprint of every moving body's motion, so the run as a whole is pinned. A
@@ -13,10 +13,10 @@
 // Set KINETRA_PRINT_GOLDEN=1 to print the current line of every scenario, for a
 // deliberate update. The run still compares, so a changed line also fails its case
 // and shows expected and actual.
-#include "sandbox_application.h"
-#include "test_support.h"
+#include "demo/application.h"
+#include "kinetra_lab/testing/test_support.h"
 
-#include <kinetra/physics.h>
+#include <kinetra/simulation/physics.h>
 
 #include <doctest/doctest.h>
 
@@ -30,7 +30,7 @@
 #include <string_view>
 
 namespace {
-using lab::test::Fingerprint;
+using kinetra_lab::testing::Fingerprint;
 
 /// Elapsed time per frame in seconds; the Demo's fixed clock steps at the same rate.
 constexpr double frame_seconds = 1.0 / 120;
@@ -42,7 +42,7 @@ constexpr int overlap_interval_frames = 20;
 
 /// Checks the crowd invariants after one frame. The first violation stops the scenario,
 /// because later frames build on the broken state.
-void check_invariants(const sandbox::Sandbox &scene, int frame) {
+void check_invariants(const demo::Scene &scene, int frame) {
     const auto &world = scene.world;
     REQUIRE_MESSAGE(!world.sweep_budget_exhausted(), "Crowd contact exhausted the swept-event budget");
     const auto bodies = world.bodies();
@@ -50,7 +50,7 @@ void check_invariants(const sandbox::Sandbox &scene, int frame) {
     for (const auto &body : bodies)
         REQUIRE_MESSAGE((kinetra::finite(body.position) && kinetra::finite(body.velocity)),
                         "Nonfinite body motion");
-    REQUIRE_MESSAGE(scene.agents().size() <= sandbox::Sandbox::maximum_agents, "Population exceeded its cap");
+    REQUIRE_MESSAGE(scene.agents().size() <= demo::Scene::maximum_agents, "Population exceeded its cap");
     std::set<std::size_t> agent_bodies;
     for (const auto &agent : scene.agents()) {
         REQUIRE_MESSAGE(agent.body_id() < scene.moving_body_count,
@@ -73,15 +73,15 @@ struct Scenario {
     std::uint32_t seed;
     int frames;
     /// Intent for one frame; the default is an idle player with a following camera.
-    std::function<sandbox::FrameCommands(int frame)> commands;
+    std::function<demo::FrameCommands(int frame)> commands;
     /// How the agents wander for the whole run.
-    sandbox::WanderMode wander;
+    demo::WanderMode wander;
 };
 
 /// Runs `scenario` with the invariant checks after every frame and returns its summary:
 /// final population and body counts, the summed avoidance limits and the fingerprint.
 std::string run(const Scenario &scenario) {
-    sandbox::SandboxApplication application(scenario.agent_count, scenario.seed);
+    demo::Application application(scenario.agent_count, scenario.seed);
     application.tuning().wander.mode = scenario.wander;
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
@@ -111,17 +111,17 @@ std::string run(const Scenario &scenario) {
     return line.str();
 }
 
-sandbox::FrameCommands idle(int) {
+demo::FrameCommands idle(int) {
     return {};
 }
 
 /// The player walks east, then north, so new chunks stream in and get populated. Early on,
 /// the agents near a screen point get a commanded goal.
-sandbox::FrameCommands walk_through_chunks(int frame) {
-    sandbox::FrameCommands commands;
+demo::FrameCommands walk_through_chunks(int frame) {
+    demo::FrameCommands commands;
     commands.player.direction = frame < 600 ? kinetra::Vec2{1, 0} : kinetra::Vec2{0, 1};
     if (frame == 120)
-        commands.pointer = sandbox::PointerCommand{sandbox::PointerAction::target_agents, {900, 300}};
+        commands.pointer = demo::PointerCommand{demo::PointerAction::target_agents, {900, 300}};
     return commands;
 }
 
@@ -142,26 +142,26 @@ void check_scenario(std::string_view name, const Scenario &scenario, const std::
 
 TEST_CASE("a dense idle crowd that wanders by steering reproduces its recorded summary") {
     check_scenario(
-        "dense idle crowd, steering wander", {240, 123, 480, idle, sandbox::WanderMode::steering},
+        "dense idle crowd, steering wander", {240, 123, 480, idle, demo::WanderMode::steering},
         "agents=312 moving_bodies=319 bodies=681 avoidance_limited=3047 trajectory=25eff655f7a75f9e");
 }
 
 TEST_CASE("a dense idle crowd that wanders by route reproduces its recorded summary") {
     check_scenario(
-        "dense idle crowd, route wander", {240, 123, 480, idle, sandbox::WanderMode::route},
+        "dense idle crowd, route wander", {240, 123, 480, idle, demo::WanderMode::route},
         "agents=312 moving_bodies=319 bodies=681 avoidance_limited=722 trajectory=17080ac73d99bce9");
 }
 
 TEST_CASE("a player walking through streamed chunks of steering wanderers reproduces its recorded summary") {
     check_scenario(
         "player walks through streamed chunks, steering wander",
-        {40, 456, 1200, walk_through_chunks, sandbox::WanderMode::steering},
+        {40, 456, 1200, walk_through_chunks, demo::WanderMode::steering},
         "agents=208 moving_bodies=215 bodies=591 avoidance_limited=2623 trajectory=377eeb3999727f88");
 }
 
 TEST_CASE("a player walking through streamed chunks of route wanderers reproduces its recorded summary") {
     check_scenario(
         "player walks through streamed chunks, route wander",
-        {40, 456, 1200, walk_through_chunks, sandbox::WanderMode::route},
+        {40, 456, 1200, walk_through_chunks, demo::WanderMode::route},
         "agents=208 moving_bodies=215 bodies=591 avoidance_limited=2756 trajectory=37e262315f729cfb");
 }

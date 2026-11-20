@@ -23,7 +23,7 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 
 ```mermaid
 flowchart TD
-    Logic["kinetra_i4sim_application<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (61)<br/>simulation_tests.cpp"]
+    Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (61)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (8)"]
     Logic --> Controller["kinetra_i4sim_controller (31)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
@@ -42,7 +42,7 @@ flowchart TD
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) | The session with a real window and context |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
-Shared test code: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree). The four `pressure-*.json` files are the fixtures of the pressure suite.
+Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_testing` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite.
 
 ## Running
 
@@ -215,7 +215,7 @@ The CSV has one line per blueprint and seed:
 | `completed` | Completed products |
 | `contacts`, `contact_ticks` | Contact episodes, and pair/segment contact ticks |
 | `acceleration_change` | Summed changes in commanded acceleration: a diagnostic for steering activity, not a physical jerk measurement; contact impulses are not included |
-| `waiting_ticks` | Mover-ticks with an active goal, below 0.05 mm/tick and more than 10 mm from the destination ([FlowMetrics](../include/flow_metrics.h)) |
+| `waiting_ticks` | Mover-ticks with an active goal, below 0.05 mm/tick and more than 10 mm from the destination ([FlowMetrics](../include/i4sim/simulation/flow_metrics.h)) |
 | `stuck_movers`, `stuck_at_end` | Movers that went 2000 ticks without getting 10 mm closer to their destination at least once, and at the last tick |
 | `passing_plans`, `passing_cancelled`, `passing_contacts` | Predictive passing plans formed, plans that ended without completing, and contacts that started while a participant was in a plan (from the event log) |
 | `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |

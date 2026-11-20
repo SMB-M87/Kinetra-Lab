@@ -1,10 +1,10 @@
-#include "../../labs/demo/include/session.h"
-#include "../../labs/dotio/include/session.h"
-#include "../include/applications.h"
+#include "demo/presentation/session.h"
+#include "dotio/presentation/session.h"
+#include "launcher/applications.h"
 #include <cstdlib>
 #include <iostream>
-#include <kinetra/engine.h>
-#include <kinetra/launcher.h>
+#include <kinetra/runtime/engine.h>
+#include <kinetra/runtime/launcher.h>
 #include <random>
 #include <string>
 
@@ -22,7 +22,7 @@ int argument(const char *value, int minimum, int maximum) {
 
 int main(int argc, char **argv) {
     try {
-        launcher::Options options{sandbox::default_agent_count, 0, dotio::default_difficulty};
+        launcher::Options options{demo::default_agent_count, 0, dotio::default_difficulty};
         int frame_limit = 0;
         std::optional<launcher::Variant> initial_variant;
         for (int i = 1; i < argc; ++i) {

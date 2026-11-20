@@ -103,7 +103,7 @@ Start the launcher with `./build-windows-native/kinetra.exe`. MSYS2's SDL2 is a 
 | Toolchain file | [cmake/toolchains/x86_64-w64-mingw32.cmake](../cmake/toolchains/x86_64-w64-mingw32.cmake) | Selects `x86_64-w64-mingw32-gcc/g++`, searches libraries and packages only in the MinGW sysroot, and links the GCC runtime statically (`-static`) |
 | Dependencies | [cmake/WindowsDependencies.cmake](../cmake/WindowsDependencies.cmake), included from the root [CMakeLists.txt](../CMakeLists.txt) only when cross-compiling for Windows | Downloads SDL2-devel 2.32.10 (MinGW) and nlohmann_json 3.12.0, each pinned by SHA-256; copies `SDL2.dll` next to the executables |
 | Presets | [CMakePresets.json](../CMakePresets.json) | `windows`: cross build in `build-windows/`. `windows-native`: the `ci` settings for a native MSYS2 shell |
-| Executable path | `default_blueprint_directory()` in [blueprint.cpp](../labs/i4sim/src/blueprint.cpp) | Finds `i4sim-blueprints/` beside the executable through `/proc/self/exe` on Linux and `GetModuleFileNameW` on Windows |
+| Executable path | `default_blueprint_directory()` in [blueprint.cpp](../labs/i4sim/src/blueprint/blueprint.cpp) | Finds `i4sim-blueprints/` beside the executable through `/proc/self/exe` on Linux and `GetModuleFileNameW` on Windows |
 
 Two details of the dependency module that are easy to break:
 
@@ -112,7 +112,7 @@ Two details of the dependency module that are easy to break:
 
 Each executable imports only `SDL2.dll` and the Windows Universal C Runtime, which is part of Windows 10 and later.
 
-The five application executables (`kinetra`, `kinetra_sandbox`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) embed the Kinetra icon through Kinetra's `kinetra_executable_icon(<target>)` ([runtime guide](../external/Kinetra/docs/engine/runtime.md#lifecycle)), so Explorer and shortcuts show it. Every window also sets it at run time.
+The four application executables (`kinetra`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) embed the Kinetra icon through Kinetra's `kinetra_executable_icon(<target>)` ([runtime guide](../external/Kinetra/docs/engine/runtime.md#lifecycle)), so Explorer and shortcuts show it. Every window also sets it at run time.
 
 ## Tests
 

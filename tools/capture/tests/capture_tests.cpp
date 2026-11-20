@@ -1,23 +1,22 @@
-// Window-free tests for kinetra_capture: the PNG writer (tools/capture/src/png.h), the
-// scene list and the menu rows the scripts click (tools/capture/src/scenes.h), the showcase
-// cycle measurement (tools/capture/src/showcase.h), the busiest stretch of the captured
-// i4sim floor (tools/capture/src/busy_stretch.h), the scripted Dotio player
-// (tools/capture/src/dotio_player.h), and the tour's frame drawing (canvas.h), pointer
+// Window-free tests for kinetra_capture, whose headers are in tools/capture/include/capture/: the
+// PNG writer (png.h), the scene list and the menu rows the scripts click (scenes.h), the showcase
+// cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h),
+// the scripted Dotio player (dotio_player.h), and the tour's frame drawing (canvas.h), pointer
 // motion (pointer_path.h) and row lookup (tour.h). No Runtime or session is created.
-#include "busy_stretch.h"
-#include "canvas.h"
-#include "dotio_player.h"
-#include "png.h"
-#include "pointer_path.h"
-#include "scenes.h"
-#include "showcase.h"
-#include "stage.h"
-#include "tour.h"
+#include "capture/dotio_player.h"
+#include "capture/png.h"
+#include "capture/scenes/busy_stretch.h"
+#include "capture/scenes/scenes.h"
+#include "capture/scenes/showcase.h"
+#include "capture/stage.h"
+#include "capture/tour/canvas.h"
+#include "capture/tour/pointer_path.h"
+#include "capture/tour/tour.h"
 
-#include "../../../labs/demo/include/debug_panel.h"
-#include "../../../labs/demo/include/session.h"
-#include "../../../labs/i4sim/include/controller.h"
-#include "../../../labs/i4sim/include/simulation.h"
+#include "demo/debug_panel.h"
+#include "demo/presentation/session.h"
+#include "i4sim/controller.h"
+#include "i4sim/simulation/simulation.h"
 
 #include <zlib.h>
 
@@ -325,8 +324,8 @@ TEST_CASE("the Dotio debug clicks find their rows and turn on every layer but no
 }
 
 TEST_CASE("the Demo debug click opens the motion section of a new session's menu") {
-    sandbox::SandboxApplication application(sandbox::default_agent_count, capture::capture_seed);
-    sandbox::DebugPanel panel(application);
+    demo::Application application(demo::default_agent_count, capture::capture_seed);
+    demo::DebugPanel panel(application);
     const auto closed = panel.entries();
     REQUIRE_NOTHROW(capture::apply_menu_click(closed, capture::demo_motion_click, "Demo"));
     const auto open = panel.entries();
@@ -358,7 +357,7 @@ struct OpenDotioWorld {
     kinetra::Camera2D camera;
 
     OpenDotioWorld() {
-        for (auto &row : logic::Grid::Array)
+        for (auto &row : dotio::Grid::Array)
             for (auto &cell : row)
                 cell = 0;
         for (auto &enemy : world().GetEnemies())
@@ -367,10 +366,10 @@ struct OpenDotioWorld {
         camera.pixels_per_unit = 25;
         camera.position = dotio::to_world(player().Position);
     }
-    logic::World &world() { return application.world(); }
-    logic::Player &player() { return world().GetPlayer(); }
+    dotio::World &world() { return application.world(); }
+    dotio::Player &player() { return world().GetPlayer(); }
     /// Puts the enemy of pool slot `slot` at `offset` from the player, alive and simulated.
-    logic::Enemy &place(int slot, gmath::Vec2 offset, gmath::Vec2 velocity = {}) {
+    dotio::Enemy &place(int slot, dotio::math::Vec2 offset, dotio::math::Vec2 velocity = {}) {
         auto &enemy = world().GetEnemies()[slot];
         enemy.Reset();
         enemy.Frozen = false;
@@ -379,9 +378,9 @@ struct OpenDotioWorld {
         return enemy;
     }
     /// Blocks the grid cell that holds the point at `offset` from the player.
-    void wall(gmath::Vec2 offset) {
+    void wall(dotio::math::Vec2 offset) {
         const auto point = player().Position + offset;
-        logic::Grid::Array[int(point.Y / logic::Grid::CellSize)][int(point.X / logic::Grid::CellSize)] = 1;
+        dotio::Grid::Array[int(point.Y / dotio::Grid::CellSize)][int(point.X / dotio::Grid::CellSize)] = 1;
     }
 };
 } // namespace
@@ -394,7 +393,7 @@ TEST_CASE("lead_offset aims where a bolt meets a moving target, and at the targe
         CHECK(aim.Y == doctest::Approx(-40));
     }
     SUBCASE("a crossing target is led to the point both reach at the same time") {
-        const gmath::Vec2 offset{300, 0}, velocity{0, 2};
+        const dotio::math::Vec2 offset{300, 0}, velocity{0, 2};
         const auto aim = capture::lead_offset(offset, velocity, bolt);
         CHECK(aim.X == doctest::Approx(300));
         CHECK(aim.Y > 0);
@@ -437,7 +436,7 @@ TEST_CASE("the scripted Dotio player targets the nearest enemy it can see") {
     CHECK(capture::dotio_target(world.application, world.camera) == &far);
 
     // Without the wall the hidden enemy is the nearest in sight.
-    for (auto &row : logic::Grid::Array)
+    for (auto &row : dotio::Grid::Array)
         for (auto &cell : row)
             cell = 0;
     CHECK(capture::dotio_target(world.application, world.camera) == &hidden);
@@ -448,9 +447,9 @@ TEST_CASE("the scripted Dotio player does not shoot through a crate") {
     // Twice as wide a view as the game's own, so the room's crate and the cell behind it fit.
     world.camera.pixels_per_unit = 12.5f;
     const auto player = world.player().Position;
-    const logic::World &read_only = world.world();
+    const dotio::World &read_only = world.world();
     REQUIRE_FALSE(read_only.GetObjects().empty());
-    gmath::Vec2 crate{};
+    dotio::math::Vec2 crate{};
     float nearest = 400;
     for (const auto &object : read_only.GetObjects())
         if (const auto offset = dotio::legacy_vector(object.body.position) - player;
@@ -474,7 +473,7 @@ TEST_CASE("dotio_bolt_speed is the speed of the bolt the player fires") {
         player.Cooldown = 0;
         for (auto &bolt : world.world().GetBolts())
             bolt.IsActive = false;
-        player.Shoot(player.Position + gmath::Vec2{100, 0}, true);
+        player.Shoot(player.Position + dotio::math::Vec2{100, 0}, true);
         float fired = 0;
         for (auto &bolt : world.world().GetBolts())
             if (bolt.IsActive)
@@ -499,7 +498,7 @@ TEST_CASE("dotio_aim points at the target on screen, ahead of one that moves, in
     CHECK(aim->y > 270 + 50);
 
     // A lead that runs past the window's edge stops at the edge.
-    enemy.Position = world.player().Position + gmath::Vec2{460, 0};
+    enemy.Position = world.player().Position + dotio::math::Vec2{460, 0};
     enemy.Velocity = {0.5f, 0};
     aim = capture::dotio_aim(world.application, world.camera);
     REQUIRE(aim.has_value());
@@ -515,7 +514,7 @@ TEST_CASE("dotio_recovery_in_view finds a recovering enemy on screen, inside the
     // 180 pixels from the right edge of the 960-pixel window.
     CHECK(capture::dotio_recovery_in_view(world.application, world.camera, 170));
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 190));
-    enemy.Position = world.player().Position + gmath::Vec2{0, 400};
+    enemy.Position = world.player().Position + dotio::math::Vec2{0, 400};
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
 }
 
@@ -677,7 +676,7 @@ TEST_CASE("pointer paths repeat for a seed and bend otherwise for another") {
 }
 
 TEST_CASE("a row is found by its label and a missing label names the rows that are there") {
-    const std::vector<lab::DebugRow> rows{{"SIMULATION", 0}, {"RUNNING", 1}, {"ZOOM", 0}};
+    const std::vector<kinetra_lab::DebugRow> rows{{"SIMULATION", 0}, {"RUNNING", 1}, {"ZOOM", 0}};
     CHECK(capture::row_with_label(rows, "SIMULATION") == 0);
     CHECK(capture::row_with_label(rows, "ZOOM") == 2);
     try {

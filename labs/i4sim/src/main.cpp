@@ -1,7 +1,7 @@
-#include "scenario.h"
-#include "simulation.h"
+#include "i4sim/blueprint/scenario.h"
+#include "i4sim/simulation/simulation.h"
 #ifdef I4SIM_RUNTIME
-#include "session.h"
+#include "i4sim/presentation/session.h"
 #endif
 #include <iostream>
 

@@ -1,10 +1,10 @@
 // Graphics tests for the Demo presentation: help overlay placement, routes and the
 // renderer, read back from a real OpenGL context. Every check shares one Runtime,
 // because only one may exist at a time, so they form one case. CTest labels it `graphics`.
-#include "../include/help_overlay.h"
-#include "../include/sandbox_renderer.h"
+#include "demo/presentation/help_overlay.h"
+#include "demo/presentation/renderer.h"
 
-#include <kinetra/engine.h>
+#include <kinetra/runtime/engine.h>
 
 #include <SDL2/SDL.h>
 #include <doctest/doctest.h>
@@ -21,7 +21,7 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
     for (bool expanded : {true, false}) {
         CAPTURE(expanded);
         reopened.begin({1, 0, 0, 1});
-        sandbox::draw_help(reopened, expanded);
+        demo::draw_help(reopened, expanded);
         reopened.end();
         glFinish();
         unsigned char pixel[4]{};
@@ -47,20 +47,20 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
                       "Help overlay changed camera");
     }
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Help overlay rendering failed");
-    sandbox::SandboxApplication application(0, 42);
+    demo::Application application(0, 42);
     reopened.camera.position = {};
     application.advance(0, {}, reopened.camera);
-    sandbox::render(reopened, application);
-    sandbox::FrameCommands debug;
+    demo::render(reopened, application);
+    demo::FrameCommands debug;
     debug.toggle_paths = debug.toggle_vectors = debug.toggle_help = true;
     debug.pointer =
-        sandbox::PointerCommand{sandbox::PointerAction::walk, reopened.camera.world_to_screen({0, -17})};
+        demo::PointerCommand{demo::PointerAction::walk, reopened.camera.world_to_screen({0, -17})};
     application.advance(0, debug, reopened.camera);
-    REQUIRE_MESSAGE(application.last_action() == sandbox::ActionResult::walking,
+    REQUIRE_MESSAGE(application.last_action() == demo::ActionResult::walking,
                     "Missing route for renderer check");
-    sandbox::render(reopened, application);
-    CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Sandbox renderer reported an OpenGL error");
-    sandbox::FrameCommands probes;
+    demo::render(reopened, application);
+    CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Scene renderer reported an OpenGL error");
+    demo::FrameCommands probes;
     probes.probes = true;
     probes.toggle_paths = probes.toggle_vectors = true;
     application.advance(0, probes, reopened.camera);
@@ -69,7 +69,7 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
         CAPTURE(zoom);
         reopened.camera.pixels_per_unit = zoom;
         reopened.camera.position = player.position + rotated(Vec2{3, 0}, player.angle);
-        sandbox::render(reopened, application);
+        demo::render(reopened, application);
         glFinish();
         unsigned char pixel[4]{};
         int width, height;

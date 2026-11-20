@@ -103,7 +103,7 @@ The two statistics lines show ticks, ticks per second, contacts and contact dura
 | Term | Meaning |
 | --- | --- |
 | Blueprint | A JSON file with the floor size, the grid cell size, movers, producers and forbidden zones. Validated on load; a data format, so changing a field is a contract change |
-| Factory space | Millimeters from the floor's top-left corner, **Y down**. Blueprints, the simulation and every `Simulation` query use it. The camera's world has Y up; `flip_y` ([view.h](include/view.h)) converts either way |
+| Factory space | Millimeters from the floor's top-left corner, **Y down**. Blueprints, the simulation and every `Simulation` query use it. The camera's world has Y up; `flip_y` ([view.h](include/i4sim/simulation/view.h)) converts either way |
 | Tick, UPS | The simulation advances in fixed ticks. Speeds are millimeters per tick, so changing the ticks per second (UPS) changes only how fast the wall clock runs |
 | Mover | A rectangular transport vehicle. It has a parking place (its start), at most one goal, and at most one product |
 | Producer | A robot or manual station with a processing place where a mover stands while it works, and a bounded queue |
@@ -118,7 +118,7 @@ The two statistics lines show ticks, ticks per second, contacts and contact dura
 | Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
 | Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch, mover goals and a repeat mode; a showcase scene is a small blueprint with one |
 | Shuttle | Movers that drive back and forth between their start and a goal and turn together after `shuttle_pause_ticks` (`Simulation::shuttle`); how most showcase scenes repeat |
-| Event log, flow metrics | Opt-in observation: passing and contact events ([events.h](include/events.h)), and waiting and stuck movers ([flow_metrics.h](include/flow_metrics.h)). Neither changes a run |
+| Event log, flow metrics | Opt-in observation: passing and contact events ([events.h](include/i4sim/simulation/events.h)), and waiting and stuck movers ([flow_metrics.h](include/i4sim/simulation/flow_metrics.h)). Neither changes a run |
 
 ## Structure
 
@@ -137,7 +137,7 @@ flowchart TD
     Hud --> Simulation
     Simulation --> Core["SimulationCore<br/>components, tick order"]
     Flow["FlowMetrics"] --> Simulation
-    subgraph headless ["kinetra_i4sim_application: no window"]
+    subgraph headless ["kinetra_i4sim_logic: no window"]
         Controller
         Loaders
         Simulation
@@ -154,34 +154,49 @@ flowchart TD
 
 *Takeaway:* everything that decides something is in the headless library and is tested without a window: the simulation, the loaders and the controller that turns input into commands. The presentation only orders a frame, shows panels and draws; the world view and the HUD read the simulation and never change it.
 
-Public headers, in [include/](include/):
+The files follow the [directory layout](../../external/Kinetra/docs/conventions.md#directory-layout), by topic: `simulation/` is the rules and their components, `blueprint/` the file formats, `presentation/` the window side. Each topic keeps its private headers in `detail/`; `src/` mirrors the topics.
+
+```text
+include/i4sim/
+  controller.h
+  simulation/   simulation.h events.h flow_metrics.h view.h
+    detail/     simulation_core.h, the components (routing, traffic, goals, ...), constants
+  blueprint/    blueprint.h scenario.h
+    detail/     json_fields.h
+  presentation/ session.h
+    detail/     world_view.h hud.h blueprint_screen.h
+src/            controller.cpp main.cpp simulation/ blueprint/ presentation/
+tests/include/i4sim/testing/   recorder.h event_counts.h showcase.h
+```
+
+Public headers, in [include/i4sim/](include/i4sim/):
 
 | File | Responsibility |
 | --- | --- |
-| [blueprint.h](include/blueprint.h) | The validated layout types, the model tables, `load_blueprint`, catalog discovery |
-| [scenario.h](include/scenario.h) | The optional `scenario` section: `load_scenario`, `apply_scenario` |
-| [simulation.h](include/simulation.h) | `Simulation`: the facade with all state queries and commands, `MotionSettings`, the mover, producer and product types |
-| [events.h](include/events.h), [flow_metrics.h](include/flow_metrics.h) | The event log's types; waiting and stuck movers measured from outside |
-| [view.h](include/view.h) | `Layer`, `parent_layer` and `ViewLayers`, the zoom limits and `flip_y`: view state as plain data |
-| [controller.h](include/controller.h) | `FactoryController`: the loaded simulation, selection, messages, camera, keys, pointer and debug-menu entries |
-| [session.h](include/session.h) | `create_session`: the only entry to the graphical session |
+| [blueprint.h](include/i4sim/blueprint/blueprint.h) | The validated layout types, the model tables, `load_blueprint`, catalog discovery |
+| [scenario.h](include/i4sim/blueprint/scenario.h) | The optional `scenario` section: `load_scenario`, `apply_scenario` |
+| [simulation.h](include/i4sim/simulation/simulation.h) | `Simulation`: the facade with all state queries and commands, `MotionSettings`, the mover, producer and product types |
+| [events.h](include/i4sim/simulation/events.h), [flow_metrics.h](include/i4sim/simulation/flow_metrics.h) | The event log's types; waiting and stuck movers measured from outside |
+| [view.h](include/i4sim/simulation/view.h) | `Layer`, `parent_layer` and `ViewLayers`, the zoom limits and `flip_y`: view state as plain data |
+| [controller.h](include/i4sim/controller.h) | `FactoryController`: the loaded simulation, selection, messages, camera, keys, pointer and debug-menu entries |
+| [session.h](include/i4sim/presentation/session.h) | `create_session`: the only entry to the graphical session |
 
-Sources, in [src/](src/):
+Sources and private headers, in [src/](src/) and the `detail/` folders:
 
 | File | Responsibility |
 | --- | --- |
 | [main.cpp](src/main.cpp) | Command line; the batch loop, or a `Runtime` with the session |
-| [blueprint.cpp](src/blueprint.cpp), [scenario.cpp](src/scenario.cpp), [json_fields.h](src/json_fields.h) | The loaders and the case-insensitive JSON field readers they share |
-| [simulation.cpp](src/simulation.cpp), [simulation_core.cpp](src/simulation_core.cpp) | The facade, and the private core that owns the components and runs the tick |
-| [floor_plan.cpp](src/floor_plan.cpp), [routing.cpp](src/routing.cpp), [goals.cpp](src/goals.cpp), [traffic.cpp](src/traffic.cpp), [predictive_passing.cpp](src/predictive_passing.cpp), [production.cpp](src/production.cpp), [motion_step.cpp](src/motion_step.cpp), [shuttle.cpp](src/shuttle.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
-| [fleet.h](src/fleet.h), [event_log.h](src/event_log.h), [geometry.cpp](src/geometry.cpp), [simulation_constants.h](src/simulation_constants.h) | Shared mover data, the event log, geometry helpers and the named tuning values |
-| [flow_metrics.cpp](src/flow_metrics.cpp) | `FlowMetrics` |
+| [blueprint.cpp](src/blueprint/blueprint.cpp), [scenario.cpp](src/blueprint/scenario.cpp), [json_fields.h](include/i4sim/blueprint/detail/json_fields.h) | The loaders and the case-insensitive JSON field readers they share |
+| [simulation.cpp](src/simulation/simulation.cpp), [simulation_core.cpp](src/simulation/simulation_core.cpp) | The facade, and the private core that owns the components and runs the tick |
+| [floor_plan.cpp](src/simulation/floor_plan.cpp), [routing.cpp](src/simulation/routing.cpp), [goals.cpp](src/simulation/goals.cpp), [traffic.cpp](src/simulation/traffic.cpp), [predictive_passing.cpp](src/simulation/predictive_passing.cpp), [production.cpp](src/simulation/production.cpp), [motion_step.cpp](src/simulation/motion_step.cpp), [shuttle.cpp](src/simulation/shuttle.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
+| [fleet.h](include/i4sim/simulation/detail/fleet.h), [event_log.h](include/i4sim/simulation/detail/event_log.h), [geometry.cpp](src/simulation/geometry.cpp), [simulation_constants.h](include/i4sim/simulation/detail/simulation_constants.h) | Shared mover data, the event log, geometry helpers and the named tuning values |
+| [flow_metrics.cpp](src/simulation/flow_metrics.cpp) | `FlowMetrics` |
 | [controller.cpp](src/controller.cpp) | `FactoryController` |
-| [session.cpp](src/session.cpp) | `FactorySession`: the frame order, the settings overlay and the debug menu |
-| [blueprint_screen.cpp](src/blueprint_screen.cpp) | `BlueprintScreen`: the catalog on Kinetra's `LaunchMenu`, with the SHOWCASE page and the load-error screen |
-| [world_view.cpp](src/world_view.cpp), [hud.cpp](src/hud.cpp) | Drawing in the world, and the screen-space text |
+| [session.cpp](src/presentation/session.cpp) | `FactorySession`: the frame order, the settings overlay and the debug menu |
+| [blueprint_screen.cpp](src/presentation/blueprint_screen.cpp) | `BlueprintScreen`: the catalog on Kinetra's `LaunchMenu`, with the SHOWCASE page and the load-error screen |
+| [world_view.cpp](src/presentation/world_view.cpp), [hud.cpp](src/presentation/hud.cpp) | Drawing in the world, and the screen-space text |
 
-The component headers in `src/` are private. Callers, tests included, use the facade, so a component can change without touching them.
+The headers in `detail/` are private. Callers, tests included, use the facade, so a component can change without touching them.
 
 ## How it works
 
@@ -216,7 +231,7 @@ sequenceDiagram
 *Takeaway:* the panels see the input first. An open settings panel takes the whole frame; the debug menu takes the pointer while it is over the menu. Only then does the controller map what is left to commands and advance the simulation.
 
 - **Why the controller is separate.** Which key does what, when a click selects, how long a message stays and how the camera fits are rules, and rules need tests. In the controller they are tested from plain `kinetra::Input` values, without a window ([controller tests](tests/controller_tests.cpp)).
-- **Menu entries.** The controller describes each debug-menu row as a `kinetra::DebugEntry`: a label, a kind (button, check box, list choice or heading), a nesting depth, and optionally an action, a state, a value text, `[-]` / `[+]` functions and a swatch. A `kinetra::DebugFolds` keeps which section and which list are open, and a `lab::ZoomControl` collects the steps of the ZOOM row for the next camera update. The engine's menu draws marks, indentation and values, so the session passes the entries on unchanged. The colors stay with the drawing code: the session hands `layer_color` to `menu()`, which asks it for the swatch of every layer row. Every action changes the state where it lives, so no flag has to be mirrored between the menu and the simulation.
+- **Menu entries.** The controller describes each debug-menu row as a `kinetra::DebugEntry`: a label, a kind (button, check box, list choice or heading), a nesting depth, and optionally an action, a state, a value text, `[-]` / `[+]` functions and a swatch. A `kinetra::DebugFolds` keeps which section and which list are open, and a `kinetra_lab::ZoomControl` collects the steps of the ZOOM row for the next camera update. The engine's menu draws marks, indentation and values, so the session passes the entries on unchanged. The colors stay with the drawing code: the session hands `layer_color` to `menu()`, which asks it for the swatch of every layer row. Every action changes the state where it lives, so no flag has to be mirrored between the menu and the simulation.
 - **Deferred close.** BLUEPRINTS only sets a request. The frame that clicked it still finishes with its simulation; the next `begin_frame` closes it.
 - **Drawing between ticks.** Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
@@ -314,7 +329,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 - **Controller preconditions.** Every `FactoryController` call that reads or commands the simulation requires `loaded()`. `simulation()` returns a reference that a load, a restart or a close invalidates; the drawing code takes it anew each frame.
 - **Frame order.** `begin_frame`, `suspend`, menu actions, `handle_input`, and `update_camera` before drawing. Menu entries borrow the controller and are built anew for every update and every draw, because the open section, the open list and the selected layers decide which entries exist.
 - **Failed loads change nothing.** `load_blueprint` never loads partially, and `FactoryController::load` builds the new simulation aside, so a failure leaves the loaded blueprint as it was.
-- **Layers.** The headless library depends on `Kinetra::Simulation` and the headless `lab/input.h` only; the presentation adds `Kinetra::Runtime`, the Lab session helpers and `Kinetra::Launcher` for the blueprint screen ([Lab boundaries](../../AGENTS.md#lab-boundaries)).
+- **Layers.** The headless library depends on `Kinetra::Simulation` and the headless `kinetra_lab/input.h` only; the presentation adds `Kinetra::Runtime`, the Lab session helpers and `Kinetra::Launcher` for the blueprint screen ([Lab boundaries](../../AGENTS.md#lab-boundaries)).
 
 ## Changing this module
 
