@@ -70,8 +70,10 @@ void SimulationCore::configure_motion(MotionSettings settings) {
         m.body.velocity = limited(m.body.velocity, settings.speed);
         if (!settings.parking_traffic && m.goal == GoalKind::parking_staging)
             goals().set(m, m.parking);
-        else if (routes_change && m.moving()) {
-            // Setting the same goal again replans the route but keeps its origin.
+        else if (m.moving() && (routes_change || (m.detour && !settings.recovery))) {
+            // Setting the same goal again replans the route but keeps its origin. A recovery
+            // detour ends with recovery: a mover keeping one would skip its own obstruction
+            // replanning, and nothing else would free it.
             const auto goal = m.goal;
             goals().set(m, m.destination);
             m.goal = goal;

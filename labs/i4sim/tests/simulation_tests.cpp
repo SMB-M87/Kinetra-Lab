@@ -1086,6 +1086,28 @@ TEST_CASE("setting the same motion settings again changes nothing") {
     CHECK(reconfigured.completed() == plain.completed());
 }
 
+TEST_CASE("turning recovery off replans a mover on a recovery detour") {
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "3840x2400.json"), 915839214);
+    auto settings = simulation.motion_settings();
+    settings.recovery = true;
+    simulation.configure_motion(settings);
+    simulation.run();
+    const auto detouring = [&]() -> std::optional<std::size_t> {
+        for (std::size_t i = 0; i < simulation.movers().size(); ++i)
+            if (simulation.movers()[i].detour && simulation.movers()[i].moving())
+                return i;
+        return std::nullopt;
+    };
+    while (!detouring() && simulation.ticks() < 50000)
+        simulation.tick();
+    const auto mover = detouring();
+    REQUIRE_MESSAGE(mover.has_value(), "No mover took a recovery detour");
+    settings.recovery = false;
+    simulation.configure_motion(settings);
+    // A kept detour would also stop the mover's own replanning, with nothing left to free it.
+    CHECK_FALSE(simulation.movers()[*mover].detour);
+}
+
 TEST_CASE("a planner change replans every moving mover") {
     auto simulation = busy_demonstrator();
     auto settings = simulation.motion_settings();
