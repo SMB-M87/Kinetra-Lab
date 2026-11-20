@@ -12,12 +12,19 @@ set -euo pipefail
 
 repository=$(cd "$(dirname "$0")/../.." && pwd)
 video=${1:-$repository/docs/media/kinetra-lab-tour.mp4}
-output=${2:-${video%.*}-thumbnail.png}
+video_name=$(basename "$video")
+output=${2:-$(dirname "$video")/${video_name%.*}-thumbnail.png}
 
 # Seconds into the tour, one per tile, left to right and top to bottom: the launcher under the
 # opening caption, Demo's agents heading for one clicked goal (CLICK SETS GOAL), Dotio zoomed out
 # with its AI states, and the i4sim floor with its debug layers.
 moments=(4 94 158 276)
+
+# The filter graph below stacks exactly four tiles.
+if [[ ${#moments[@]} -ne 4 ]]; then
+    echo "tour_thumbnail: the mosaic needs four moments, not ${#moments[@]}" >&2
+    exit 1
+fi
 
 # Half the source's 1920 x 1080, so four tiles make a 1280 x 720 picture: sharp on high-density
 # screens at GitHub's README width, and still small as a PNG.
