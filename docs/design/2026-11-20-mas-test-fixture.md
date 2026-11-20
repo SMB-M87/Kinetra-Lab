@@ -1,6 +1,6 @@
 # MAS demonstrator as a test fixture
 
-Status: accepted · Branch: `fix/i4sim-mas-test-fixture` · Related: [i4sim tests](../../labs/i4sim/tests/README.md), [blueprint guide](../../labs/i4sim/blueprints/README.md)
+Status: implemented · Branch: `fix/i4sim-mas-test-fixture` · Related: [i4sim tests](../../labs/i4sim/tests/README.md), [blueprint guide](../../labs/i4sim/blueprints/README.md)
 
 Pull request #40 removed `MAS-demonstrator.json` from the i4sim catalog so it no longer shows on the blueprint screen. The i4sim and capture tests still loaded that file, so `main` fails in CI. This change keeps the file out of the catalog and moves it to `labs/i4sim/tests/` as a test fixture, so the tests and their recorded outcomes stay as they were.
 
@@ -98,16 +98,58 @@ The failing state is CI run 44657152391 on `main`; the branch must make the same
 
 ## Review
 
-To be filled after review.
+`/code-review` (high) on `9c46303...HEAD` found no correctness problems. Four cleanup findings, all left out to keep this fix small:
+
+| Finding | Resolution |
+| --- | --- |
+| `catalog_blueprint` exists only in `golden_tests.cpp`; the benchmark and the simulation suite spell the catalog path inline | Open point |
+| `pressure_tests.cpp` finds its fixtures in the same directory through `__FILE__` rather than `fixture_blueprint` | Open point |
+| `showcase.h` now also holds the path of a non-showcase fixture | Open point, together with the first: a rename to a header for test blueprint paths |
+| The sweep `every bundled blueprint expands its groups and starts paused` no longer includes MAS | Accepted: the MAS semantics, workload, parking and golden cases still load and run it |
 
 ## Verification
 
-To be filled after verification.
+Full level, locally on WSL2 (2026-11-20):
+
+| Command | Result |
+| --- | --- |
+| `cmake --build --preset graphics --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark kinetra_capture_tests kinetra_capture` | Built, no warnings |
+| `ctest --preset graphics -R '^kinetra_i4sim($\|:\|_golden\|_pressure\|_controller\|_relocation)\|^kinetra_capture' -E smoke` | 160/160 passed, including the 44 cases that failed on `main` |
+| `cmake --workflow --preset graphics` | 295/295 passed, 0 warnings |
+| `kinetra --variant demo\|i4sim\|dotio --frames 120`, `kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --run --ups 200 --frames 120` (offscreen, software Mesa) | All exit 0 |
+| `kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --ticks 50000 --seed 42 --output …` | 54 completed products, `summary.json` written |
+| `kinetra_i4sim --blueprint labs/i4sim/tests/MAS-demonstrator.json --ticks 50000 --output …` | 16 completed products, as recorded before the move |
+| `kinetra_i4sim_motion_benchmark --ticks 2000` | Six CSV lines; the MAS lines keep the name `MAS-demonstrator` |
+| `clang-format --dry-run --Werror` on the changed sources | Clean |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+
+The `ci`, `headless` and native Windows jobs come from the pull request's CI.
 
 ## Pull request
 
-To be filled before the pull request.
+Title: `fix(i4sim): keep the MAS demonstrator as a test fixture`
+
+**Summary.** Pull request #40 removed `MAS-demonstrator.json` from the i4sim catalog, but the tests still loaded it there, so `main` fails in CI (44 cases in `headless`, plus `kinetra_capture_tests` on Windows). The file returns, byte-identical, as a test fixture in `labs/i4sim/tests/`. It stays off the blueprint screen, and every test and recorded outcome stays as it was.
+
+**Changes.**
+- `labs/i4sim/tests/MAS-demonstrator.json`: the deleted file, unchanged (blob `517bfdb`).
+- `kinetra_i4sim_testing` passes `KINETRA_I4SIM_TEST_FIXTURE_DIR`; `i4sim::test::fixture_blueprint` replaces `original_blueprint`.
+- Controller, golden, simulation and graphics suites and the motion benchmark load MAS from the fixture.
+- The catalog case expects five originals (and `relocation_tests.cmake` runs it under its new name). The no-scenario case checks every original in the catalog. The capture test uses `3840x2400.json`.
+- READMEs: five originals in the catalog, MAS as a fixture, example commands on `3840x2400.json`.
+- The new `tickCap` values of the showcase scenes from #39 and #40 stay.
+
+**Design.** `docs/design/2026-11-20-mas-test-fixture.md` (this document)
+
+**Verification.** Locally `cmake --workflow --preset graphics`: 295/295 passed, 0 warnings; the 44 cases that fail on `main` pass. Smoke runs of the launcher (demo, i4sim, dotio), the README commands, and a MAS batch run (16 products, as before) exit 0. Format and docs checks are clean. `ci`, `headless` and Windows: this pull request's CI.
+
+**Review notes.** `/code-review` found no correctness problems; four cleanup findings are recorded in the design document. Two of them are an open point. No screenshot or tour refresh: MAS was on the second loadscreen page, and the captures show the first.
+
+**Dependencies and merge order.** Lab only; no Kinetra change. Merge with a merge commit once CI is green.
+
+**Follow-up.** Gather the test blueprint paths in one well-named test-support header. The administrator bypass of the `checks` requirement let #40 merge before CI finished; whether to keep it is the owner's choice.
 
 ## Open points
 
+- Gather the test blueprint paths (`catalog_blueprint`, `fixture_blueprint`, `showcase_blueprint`, the pressure fixtures) in one test-support header with a fitting name.
 - Pull request #40 was merged while its CI still ran. The ruleset "Protect main" requires the `checks` status, but the Admin role may bypass it in a pull request, and the merge used that bypass. Whether to drop the bypass is the user's decision.
