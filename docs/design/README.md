@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-20 | [Record Kinetra main after the navigation rebuild fix](2026-11-20-record-kinetra-navigation-rebuild.md): `7d3e586` instead of `92db1b6` | implemented |
 | 2026-11-20 | [MAS demonstrator as a test fixture](2026-11-20-mas-test-fixture.md): out of the catalog, into `labs/i4sim/tests/`, so `main` passes again | implemented |
 | 2026-11-20 | [Record Kinetra main after the include layout](2026-11-20-record-kinetra-include-layout.md): `92db1b6` instead of its branch commit | implemented |
 | 2026-11-20 | [Include layout](2026-11-20-include-layout.md): every module on one `include/<name>/` and `src/`, topic folders, namespaces equal to include roots | implemented |
