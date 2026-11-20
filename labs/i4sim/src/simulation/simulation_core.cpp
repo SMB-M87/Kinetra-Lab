@@ -42,6 +42,12 @@ void SimulationCore::configure_motion(MotionSettings settings) {
         !std::isfinite(settings.horizon) || settings.horizon <= 0 ||
         settings.horizon > longest_motion_horizon)
         throw std::invalid_argument("Invalid motion settings");
+    // Only these two settings change what a route is. Replanning for any other change sent
+    // movers onto routes planned from mid-aisle with the heatmap of that moment, sometimes
+    // head-on into others, and reset the progress that lets a stuck mover replan.
+    const bool heatmap_changes = settings.heatmap != motion_.heatmap;
+    const bool routes_change = heatmap_changes || settings.path_planning != motion_.path_planning;
+    const bool passing_ends = PredictivePassing::enabled(motion_) && !PredictivePassing::enabled(settings);
     traffic_.configure(floor_, settings);
     for (auto &m : fleet_.movers) {
         auto &coordination = m.coordination;
@@ -54,13 +60,20 @@ void SimulationCore::configure_motion(MotionSettings settings) {
     }
     fleet_.stops.clear();
     motion_ = settings;
-    floor_.update_heatmap(fleet_.movers, motion_.heatmap);
+    // The tick refreshes the heatmap every heatmap_period_ticks; only switching it on or off
+    // needs the new weights now.
+    if (heatmap_changes)
+        floor_.update_heatmap(fleet_.movers, motion_.heatmap);
+    if (passing_ends)
+        passing_.disable(floor_, fleet_, motion_, ticks_, log_);
     for (auto &m : fleet_.movers) {
         m.body.velocity = limited(m.body.velocity, settings.speed);
         if (!settings.parking_traffic && m.goal == GoalKind::parking_staging)
             goals().set(m, m.parking);
-        else if (m.moving()) {
-            // Setting the same goal again replans the route but keeps its origin.
+        else if (m.moving() && (routes_change || (m.detour && !settings.recovery))) {
+            // Setting the same goal again replans the route but keeps its origin. A recovery
+            // detour ends with recovery: a mover keeping one would skip its own obstruction
+            // replanning, and nothing else would free it.
             const auto goal = m.goal;
             goals().set(m, m.destination);
             m.goal = goal;

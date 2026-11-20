@@ -38,6 +38,11 @@ class PredictivePassing {
     void cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion, std::size_t mover,
                 std::uint64_t tick, EventLog &log);
 
+    /// Ends every plan with `PassingEnd::disabled`; called when `motion` turns passing off.
+    /// The routes of all participants are planned again under `motion`.
+    void disable(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
+                 EventLog &log);
+
     /// Advances and ends existing plans, forms new ones when passing is enabled, and sets
     /// the controls and `Coordination::passing` of every participant. Call after corridor
     /// recovery has set its controls, so movers under traffic control are left out.

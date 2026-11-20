@@ -85,6 +85,12 @@ void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, const Motio
     }
 }
 
+void PredictivePassing::disable(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
+                                std::uint64_t tick, EventLog &log) {
+    while (!plans_.empty())
+        end(0, PassingEnd::disabled, floor, fleet, motion, tick, log);
+}
+
 void PredictivePassing::coordinate(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
                                    std::uint64_t tick, const SpatialGrid &index, EventLog &log) {
     retry_.resize(fleet.movers.size());
