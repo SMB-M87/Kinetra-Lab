@@ -1,4 +1,4 @@
-# Checks every pull request and every push to main. See
+# Checks every pull request. See
 # external/Kinetra/docs/testing.md#continuous-integration for the shared design.
 #
 # Same pinned toolchain as Kinetra's CI (dated Arch Linux image plus Arch Linux
@@ -16,8 +16,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
