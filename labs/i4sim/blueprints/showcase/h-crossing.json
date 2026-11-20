@@ -1,6 +1,6 @@
 {
   "name": "H-shaped hall",
-  "tickCap": 100000,
+  "tickCap": 3600000,
   "dimension": {
     "X": 1440,
     "Y": 960
