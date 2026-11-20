@@ -1,6 +1,6 @@
 # Media capture
 
-`kinetra_capture` renders every screenshot and clip in [docs/media](../../docs/media/README.md) from the current code: it runs the real Demo, Dotio and i4sim sessions offscreen with a fixed seed and scripted input. `capture_media.sh` turns the clips into looping GIFs with ffmpeg and copies everything into `docs/media`. `capture_tour.sh` renders the tour video: the launcher and all three applications played by a scripted user, with a visible pointer, keycaps and captions. Maintainers run both when visible behavior changes.
+`kinetra_capture` renders every screenshot and clip in [docs/media](../../docs/media/README.md) from the current code: it runs the real Demo, Dotio and i4sim sessions offscreen with a fixed seed and scripted input. `capture_media.sh` turns the clips into looping GIFs with ffmpeg and copies everything into `docs/media`. `capture_tour.sh` renders the tour video: the launcher and all three applications played by a scripted user, with a visible pointer, keycaps and captions, and `tour_thumbnail.sh` makes the README's thumbnail of it. Maintainers run both when visible behavior changes.
 
 ## Table of contents
 
@@ -24,7 +24,8 @@ cmake --preset graphics
 cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh                # all scenes, into docs/media
 tools/capture/capture_media.sh build-graphics dotio dotio-clip   # only these
-tools/capture/capture_tour.sh                 # the tour video, into docs/media
+tools/capture/capture_tour.sh                 # the tour video and its thumbnail, into docs/media
+tools/capture/tour_thumbnail.sh               # only the thumbnail, from the current video
 ```
 
 It does not record from a running application, and it changes nothing an application or the launcher does: it calls the same `Session::advance` and `render` the launcher calls. The one thing an application offers it is `dotio::Session::application`, through which the scripted player sees Dotio's world. It is a Linux developer tool; it builds wherever zlib is found, and the script needs bash and ffmpeg.
@@ -81,7 +82,8 @@ flowchart LR
 | [src/canvas.h](src/canvas.h), [src/canvas.cpp](src/canvas.cpp) | `Canvas` and its drawing: blended rectangles, bitmap text, ring, pointer, keycap, dimming |
 | [src/pointer_path.h](src/pointer_path.h), [src/pointer_path.cpp](src/pointer_path.cpp) | `plan_pointer_path`, `PointerPath::at`, `minimum_jerk` |
 | [capture_media.sh](capture_media.sh) | Runs the tool offscreen into a temporary directory, makes the GIFs, copies into `docs/media` |
-| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `docs/media/kinetra-lab-tour.mp4` |
+| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `docs/media/kinetra-lab-tour.mp4`, then runs `tour_thumbnail.sh` |
+| [tour_thumbnail.sh](tour_thumbnail.sh) | Four frames of the tour video in a 2 × 2 mosaic with a play button: `docs/media/kinetra-lab-tour-thumbnail.png`, which the README links to the YouTube copy |
 | [tests/](tests/) | Window-free tests and the graphics smoke test |
 
 ## How it works
@@ -137,6 +139,8 @@ sequenceDiagram
         end
     end
     F->>Sh: kinetra-lab-tour.mp4 (H.264, yuv420p, fast start)
+    Sh->>F: tour_thumbnail.sh: four moments of the video
+    F->>Sh: kinetra-lab-tour-thumbnail.png (2 × 2 mosaic, play button)
 ```
 
 *Takeaway:* the script names what a viewer should see; the tour gives the input a person would give and draws on each frame what a screen recording would show.
@@ -147,6 +151,7 @@ sequenceDiagram
 - **Rows by label.** `click_row("WANDER")` and `step_row("MAX SPEED", true, 3)` ask the session for its rows (`lab::Session::debug_rows()`), find the label and click its place in the engine's public menu layout. A missing label stops the tour and names the rows that were there. Settings rows are found through a mirror panel that takes the same clicks, so an opened help section moves the rows below it in both.
 - **Overlays** are drawn on the frame after it was read back (`Canvas`): rings where a button went down, a caption at the top, a row of caps for the keys that are down or were a moment ago, the pointer, and a fade at the start and the end. The applications draw nothing of this and do not know they are filmed.
 - **Frames.** 1920 × 1080 at 60 per second, about a hundred megabytes per second as raw RGB, so they go through a pipe and never to disk. The tool switches the frame limit off; rendering takes about as long as the video lasts.
+- **The thumbnail.** GitHub plays a video in a README only when it is uploaded as an attachment of at most 10 MB on a free plan, and the tour is 93 MB, so the README shows a picture that links to the YouTube copy. `tour_thumbnail.sh` takes four fixed moments of the video (`moments`: the launcher, Demo, Dotio and i4sim), scales each to 640 × 360, stacks them 2 × 2 and draws a play button in the middle with ffmpeg's `geq` filter. It checks the moments against the video's length first and replaces the PNG only when ffmpeg wrote one.
 
 ## Invariants and contracts
 
@@ -165,7 +170,8 @@ sequenceDiagram
 | Change what a capture shows | Its script in `scenes.cpp` | Run the scene and inspect the PNG or the frames |
 | Change what the Dotio player does | `dotio_player.cpp` for target and aim, `dotio_shoot` and the movement functions in `scenes.cpp` for fire and steps | The player cases in `capture_tests.cpp`, which place enemies by hand in a world without walls; then look at a clip |
 | Change the i4sim floor or motion settings | `i4sim_capture_blueprint` and `i4sim_motion_clicks` in `scenes.h`; the busiest stretch follows by itself | The menu-click cases; look at the clips |
-| Show something new in the tour, or follow a renamed row | The chapter in `tour_script.cpp`; rows are named by label there | `ctest --preset graphics -R kinetra_capture_smoke` plays the first seconds; then `capture_tour.sh` and a look at frames of every chapter |
+| Show something new in the tour, or follow a renamed row | The chapter in `tour_script.cpp`; rows are named by label there | `ctest --preset graphics -R kinetra_capture_smoke` plays the first seconds; then `capture_tour.sh` and a look at frames of every chapter and at the thumbnail |
+| Show other moments in the thumbnail | `moments` in `tour_thumbnail.sh`, in seconds | Run `tour_thumbnail.sh` and look at the PNG |
 | Follow a changed menu or settings layout | The rows in `scenes.h` (`demo_motion_click`, `dotio_debug_clicks`, `i4sim_motion_clicks`, `i4sim_layers_click`), or `SettingsRow` in `stage.h` | The menu cases in `capture_tests.cpp` name the row that moved; then the smoke test and a full refresh |
 
 Pitfalls: a script clicks rows by number. The debug-menu rows are checked by tests, but the settings rows are not, and no test sees a picture, so look at every refreshed capture. A pointer left on a menu highlights a row; scripts park it in the bottom-right corner before a shot. A Dotio capture differs per run: render the debug clip a few times and keep a take in which the enemies stay around the player.
@@ -188,5 +194,6 @@ cmake --build --preset graphics --target kinetra_capture && ctest --preset graph
 - Dotio captures are not reproducible until Dotio's randomness is seeded. Until then the debug clip waits for a recovery instead of a fixed time, and its take is chosen by eye.
 - The tour is only checked in full by looking at it: its smoke test plays seven seconds, and a wrong click later on shows as a scene that does not match its caption. A missing row stops it.
 - Dotio's part of the tour differs per run, like its captures.
+- The thumbnail's moments are fixed times. When a tour change moves a chapter, a tile can show another scene than intended; only a look at the thumbnail catches that.
 - The clip and screenshot scripts click rows by number, unlike the tour. Tests check the debug-menu clicks against the applications' own rows, and the i4sim clicks are checked again at capture time; the settings rows still follow `lab::settings_rows` by hand.
 - The two i4sim measurements repeat the session's frame order (`begin_frame`, `suspend`, `handle_input`) by hand. A helper in the i4sim logic that runs one session frame would serve both.

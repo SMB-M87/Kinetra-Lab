@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Renders docs/media/kinetra-lab-tour.mp4: kinetra_capture plays the tour through the
-# launcher and the three applications, and ffmpeg encodes its frames as H.264.
+# launcher and the three applications, and ffmpeg encodes its frames as H.264. Then
+# tour_thumbnail.sh makes the README thumbnail next to the video.
 #
 # Usage: tools/capture/capture_tour.sh [build-directory] [output-file]
 #   build-directory  a configured build with the runtime, relative to the current directory
@@ -39,3 +40,6 @@ trap 'rm -rf "$work"' EXIT
 
 mv "$work/tour.mp4" "$output"
 echo "$output $(du -h "$output" | cut -f1)"
+
+# A new video gets a matching thumbnail, so the README never shows frames of an older tour.
+"$repository/tools/capture/tour_thumbnail.sh" "$output"
