@@ -132,6 +132,7 @@ The `windows` job in [ci.yml](../.github/workflows/ci.yml) runs on `windows-late
 ## Limits
 
 - **Frame rate.** The Windows build presents with VSync, so it runs at the monitor's refresh rate. WSLg does not apply VSync, which makes a frame count look higher there even though the compositor shows fewer frames. Simulation rates (i4sim UPS) do not depend on either.
+- **Smooth motion.** In WSLg, motion can stutter on screen while the Windows build of the same commit runs smoothly: the frames pass XWayland, WSLg's compositor and RDP, each with its own clock. The measurements, the cause and the options are in [frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md); the choice is still open.
 - **Console window.** The executables use the console subsystem, so starting one from Explorer also opens a console. It shows the messages the applications print (seed, errors).
 - **Warnings.** Windows is LLP64 (`long` is 32-bit), so `-Wconversion` reports more Lab warnings there than on Linux. They are reported, not errors, like on Linux; the engine has none on either platform.
 - **Not covered.** MSVC and clang-cl builds are not supported: the warning flags and `-static` are GCC-specific.
