@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-20 | [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md): only PLANNER changes replan; SPEED, FORCE and HORIZON steps no longer strand movers | draft |
+| 2026-11-20 | [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md): only PLANNER changes replan; SPEED, FORCE and HORIZON steps no longer strand movers | implemented |
 | 2026-11-20 | [Record Kinetra main after the include layout](2026-11-20-record-kinetra-include-layout.md): `92db1b6` instead of its branch commit | implemented |
 | 2026-11-20 | [Include layout](2026-11-20-include-layout.md): every module on one `include/<name>/` and `src/`, topic folders, namespaces equal to include roots | implemented |
 | 2026-11-20 | [Local verification runs only graphics](2026-11-20-verify-locally-graphics.md): `ci`, `headless` and Windows from the pull request's CI | implemented |
