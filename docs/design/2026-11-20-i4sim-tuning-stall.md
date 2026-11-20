@@ -104,7 +104,7 @@ flowchart TD
 
 | Behavior | Test | Level |
 | --- | --- | --- |
-| A SPEED, FORCE, HORIZON or PROFILE change keeps every mover's route, lifecycle and stall state | `kinetra_i4sim:a motion change that does not shape routes keeps every route and its progress` (fails before the fix) | Targeted |
+| A SPEED, FORCE, HORIZON, PROFILE, RECOVERY or traffic change keeps every mover's route, lifecycle and stall state on the 3840x2400 factory after 3000 ticks | `kinetra_i4sim:a motion change that does not shape routes keeps every route and its progress` (fails before the fix) | Targeted |
 | Setting the same motion settings again every 250 ticks leaves the run identical to one without the calls | `kinetra_i4sim:setting the same motion settings again changes nothing` (fails before the fix) | Targeted |
 | Switching path planning off still replans: every moving mover then heads straight for its destination | `kinetra_i4sim:a planner change replans every moving mover` | Targeted |
 | Turning predictive passing off ends a plan at once as `disabled` | `kinetra_i4sim:turning predictive passing off ends a plan as disabled` (fails before the fix, with `goal_changed`) | Targeted |
@@ -136,7 +136,7 @@ Only i4sim logic changes, which is the Targeted level of the [i4sim row](../../A
 | `clang-format --dry-run --Werror` on the changed sources, `check_docs.py` | Clean |
 | CI (format, docs, `headless`, `ci`, native Windows) | On the pull request |
 
-Not verified: how the change feels on screen. Stepping SPEED, FORCE or HORIZON in the debug menu should no longer reroute movers; deadlocks that need no change can still appear.
+The new tests use the 3840x2400 factory, not MAS-demonstrator: `main` deleted `MAS-demonstrator.json` (#39, #40) while this branch was built, and the measurements above were taken before that. Not verified: how the change feels on screen. Stepping SPEED, FORCE or HORIZON in the debug menu should no longer reroute movers; deadlocks that need no change can still appear.
 
 ## Pull request
 

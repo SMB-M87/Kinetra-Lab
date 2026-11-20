@@ -1015,16 +1015,17 @@ TEST_CASE("turning predictive passing off ends a plan as disabled") {
 }
 
 namespace {
-/// The MAS demonstrator with its workload, run until at least three movers are on their way
-/// somewhere (at most 20,000 ticks).
-Simulation busy_demonstrator() {
-    Simulation simulation(load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json"));
+/// The 3840x2400 factory with its workload, run for 3000 ticks and then until at least three
+/// movers are on their way somewhere (at most 20,000 ticks), so routes are partly driven
+/// and the heatmap has moved since they were planned.
+Simulation busy_factory() {
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "3840x2400.json"));
     simulation.run();
     const auto moving = [&] {
         return std::count_if(simulation.movers().begin(), simulation.movers().end(),
                              [](const Mover &m) { return m.moving(); });
     };
-    while (moving() < 3 && simulation.ticks() < 20000)
+    while ((simulation.ticks() < 3000 || moving() < 3) && simulation.ticks() < 20000)
         simulation.tick();
     REQUIRE_MESSAGE(moving() >= 3, "Fewer than three movers are moving");
     return simulation;
@@ -1038,7 +1039,7 @@ bool same_route(const std::vector<Vec2> &a, const std::vector<Vec2> &b) {
 } // namespace
 
 TEST_CASE("a motion change that does not shape routes keeps every route and its progress") {
-    const auto reference = busy_demonstrator();
+    const auto reference = busy_factory();
     using Change = void (*)(MotionSettings &);
     const std::array<std::pair<const char *, Change>, 6> changes{{
         {"speed", [](MotionSettings &m) { m.speed *= 1.25f; }},
@@ -1068,7 +1069,7 @@ TEST_CASE("a motion change that does not shape routes keeps every route and its 
 }
 
 TEST_CASE("setting the same motion settings again changes nothing") {
-    const auto blueprint = load_blueprint(default_blueprint_directory() / "MAS-demonstrator.json");
+    const auto blueprint = load_blueprint(default_blueprint_directory() / "3840x2400.json");
     Simulation plain(blueprint), reconfigured(blueprint);
     plain.run();
     reconfigured.run();
@@ -1109,7 +1110,7 @@ TEST_CASE("turning recovery off replans a mover on a recovery detour") {
 }
 
 TEST_CASE("a planner change replans every moving mover") {
-    auto simulation = busy_demonstrator();
+    auto simulation = busy_factory();
     auto settings = simulation.motion_settings();
     settings.path_planning = false;
     simulation.configure_motion(settings);
