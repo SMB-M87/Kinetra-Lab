@@ -160,11 +160,11 @@ Historical design documents keep their text; only link targets moved.
 
 | Check | Result |
 | --- | --- |
-| `cmake --workflow --preset ci` | 268/268 passed |
-| `cmake --workflow --preset headless` (`KINETRA_LAB_BUILD_RUNTIME=OFF`) | 241/241 passed |
-| `cmake --workflow --preset graphics` | 283/283 passed |
+| `cmake --workflow --preset ci` | 279/279 passed (after merging main and renaming) |
+| `cmake --workflow --preset headless` (`KINETRA_LAB_BUILD_RUNTIME=OFF`) | 241/241 passed (after merging main and renaming) |
+| `cmake --workflow --preset graphics` | 295/295 passed (after merging main and renaming) |
 | Smoke runs: `kinetra --variant demo\|dotio\|i4sim --frames 120` and `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim --frames 120`, offscreen | All six exit 0 |
-| `cmake --workflow --preset windows` | 257/257 passed (MinGW-w64 cross build; the tests run on Windows through WSL interop) |
+| `cmake --workflow --preset windows` | 258/258 passed after merging main (MinGW-w64 cross build; the tests run on Windows through WSL interop). The renaming commit is left to the CI `windows` job |
 | Warnings under `KINETRA_LAB_WARNINGS` | 46 distinct Lab warnings, the same as `main` built with the `ci` preset |
 | `clang-format --dry-run --Werror` on every changed file | Clean |
 | No header in `src/`, none loose in `tests/`, no `#include "../` | All three searches empty |
