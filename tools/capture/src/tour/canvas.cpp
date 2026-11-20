@@ -1,4 +1,4 @@
-#include "capture/canvas.h"
+#include "capture/tour/canvas.h"
 
 #include <kinetra/runtime/bitmap_text.h>
 

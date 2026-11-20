@@ -3,7 +3,7 @@
 // Captions use only the characters of the engine's bitmap font: letters, digits and
 // `/ + [ ] : - _ . , *`.
 #include "capture/dotio_player.h"
-#include "capture/tour.h"
+#include "capture/tour/tour.h"
 
 #include "demo/application.h"
 #include "demo/presentation/session.h"

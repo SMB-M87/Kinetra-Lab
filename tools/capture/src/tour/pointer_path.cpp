@@ -1,4 +1,4 @@
-#include "capture/pointer_path.h"
+#include "capture/tour/pointer_path.h"
 
 #include <algorithm>
 #include <cmath>

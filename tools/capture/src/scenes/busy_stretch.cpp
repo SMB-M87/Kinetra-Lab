@@ -1,4 +1,4 @@
-#include "capture/busy_stretch.h"
+#include "capture/scenes/busy_stretch.h"
 
 #include "capture/stage.h"
 

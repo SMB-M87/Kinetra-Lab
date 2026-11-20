@@ -1,8 +1,8 @@
-#include "capture/scenes.h"
+#include "capture/scenes/scenes.h"
 
-#include "capture/busy_stretch.h"
 #include "capture/dotio_player.h"
-#include "capture/showcase.h"
+#include "capture/scenes/busy_stretch.h"
+#include "capture/scenes/showcase.h"
 #include "capture/stage.h"
 
 #include "i4sim/blueprint/blueprint.h"

@@ -3,15 +3,15 @@
 // cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h),
 // the scripted Dotio player (dotio_player.h), and the tour's frame drawing (canvas.h), pointer
 // motion (pointer_path.h) and row lookup (tour.h). No Runtime or session is created.
-#include "capture/busy_stretch.h"
-#include "capture/canvas.h"
 #include "capture/dotio_player.h"
 #include "capture/png.h"
-#include "capture/pointer_path.h"
-#include "capture/scenes.h"
-#include "capture/showcase.h"
+#include "capture/scenes/busy_stretch.h"
+#include "capture/scenes/scenes.h"
+#include "capture/scenes/showcase.h"
 #include "capture/stage.h"
-#include "capture/tour.h"
+#include "capture/tour/canvas.h"
+#include "capture/tour/pointer_path.h"
+#include "capture/tour/tour.h"
 
 #include "demo/debug_panel.h"
 #include "demo/presentation/session.h"

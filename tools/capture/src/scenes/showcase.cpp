@@ -1,4 +1,4 @@
-#include "capture/showcase.h"
+#include "capture/scenes/showcase.h"
 
 #include "capture/stage.h"
 

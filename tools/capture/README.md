@@ -68,19 +68,21 @@ flowchart LR
 
 *Takeaway:* the scripts know the applications' controls; the stage knows how to drive a session and save a frame; the two i4sim measurements replay a scene without a window; the scripted player only reads Dotio's world; only `png.cpp` touches zlib.
 
+The files follow the [directory layout](../../external/Kinetra/docs/conventions.md#directory-layout). At the top of `include/capture/` are what both topics use: `stage.h` (and the `png.h` it writes with) and `dotio_player.h`. `scenes/` holds the screenshot and clip scripts and their i4sim measurements; `tour/` holds the tour, its drawing and its pointer motion. `src/` mirrors both folders.
+
 | File | Responsibility |
 | --- | --- |
 | [src/main.cpp](src/main.cpp) | `kinetra_capture <output-directory> [scene...]`: one `Runtime` per scene, at the scene's size. `--tour <file \| ->` writes the tour's raw frames, `--tour-check <frames>` plays its start without writing, `--tour-format` prints frame size and rate |
-| [include/capture/scenes.h](include/capture/scenes.h), [src/scenes.cpp](src/scenes.cpp) | `Scene`, `scenes()`, `select_scenes()`, the script of every scene, and the menu rows the scripts click (`MenuClick`, `apply_menu_click`, `demo_motion_click`, `dotio_debug_clicks`, `i4sim_motion_clicks`) |
+| [include/capture/scenes/scenes.h](include/capture/scenes/scenes.h), [src/scenes/scenes.cpp](src/scenes/scenes.cpp) | `Scene`, `scenes()`, `select_scenes()`, the script of every scene, and the menu rows the scripts click (`MenuClick`, `apply_menu_click`, `demo_motion_click`, `dotio_debug_clicks`, `i4sim_motion_clicks`) |
 | [include/capture/dotio_player.h](include/capture/dotio_player.h), [src/dotio_player.cpp](src/dotio_player.cpp) | The scripted Dotio player: `dotio_target`, `dotio_bolt_speed`, `lead_offset`, `dotio_aim`, `dotio_recovery_in_view` |
-| [include/capture/showcase.h](include/capture/showcase.h), [src/showcase.cpp](src/showcase.cpp) | `showcase_cycle_steps`: the steps of one showcase cycle, measured in a headless `FactoryController` |
-| [include/capture/busy_stretch.h](include/capture/busy_stretch.h), [src/busy_stretch.cpp](src/busy_stretch.cpp) | Where the busiest stretch of the captured i4sim floor begins: `apply_menu_clicks`, `driving_movers`, `busiest_window_start` |
+| [include/capture/scenes/showcase.h](include/capture/scenes/showcase.h), [src/scenes/showcase.cpp](src/scenes/showcase.cpp) | `showcase_cycle_steps`: the steps of one showcase cycle, measured in a headless `FactoryController` |
+| [include/capture/scenes/busy_stretch.h](include/capture/scenes/busy_stretch.h), [src/scenes/busy_stretch.cpp](src/scenes/busy_stretch.cpp) | Where the busiest stretch of the captured i4sim floor begins: `apply_menu_clicks`, `driving_movers`, `busiest_window_start` |
 | [include/capture/stage.h](include/capture/stage.h), [src/stage.cpp](src/stage.cpp) | `Stage`: starting sessions as the launcher does, steps, `play_until()` a condition, the Ctrl and Shift+Ctrl shortcuts, clicks on settings and debug rows, `shot()`, `record()` |
 | [include/capture/png.h](include/capture/png.h), [src/png.cpp](src/png.cpp) | `write_png`: eight-bit RGB, rows filtered "none" or "up", one zlib stream |
-| [include/capture/tour.h](include/capture/tour.h), [src/tour.cpp](src/tour.cpp) | `Tour`: the launcher host and menu driven frame by frame, the verbs of the tour script (`move_to`, `click_at`, `hold`, `scroll`, `caption`, `click_row`, `step_row`, `click_setting`), and the overlays; `row_with_label` |
-| [src/tour_script.cpp](src/tour_script.cpp) | `play_tour`: what the tour shows, one function per chapter |
-| [include/capture/canvas.h](include/capture/canvas.h), [src/canvas.cpp](src/canvas.cpp) | `Canvas` and its drawing: blended rectangles, bitmap text, ring, pointer, keycap, dimming |
-| [include/capture/pointer_path.h](include/capture/pointer_path.h), [src/pointer_path.cpp](src/pointer_path.cpp) | `plan_pointer_path`, `PointerPath::at`, `minimum_jerk` |
+| [include/capture/tour/tour.h](include/capture/tour/tour.h), [src/tour/tour.cpp](src/tour/tour.cpp) | `Tour`: the launcher host and menu driven frame by frame, the verbs of the tour script (`move_to`, `click_at`, `hold`, `scroll`, `caption`, `click_row`, `step_row`, `click_setting`), and the overlays; `row_with_label` |
+| [src/tour/tour_script.cpp](src/tour/tour_script.cpp) | `play_tour`: what the tour shows, one function per chapter |
+| [include/capture/tour/canvas.h](include/capture/tour/canvas.h), [src/tour/canvas.cpp](src/tour/canvas.cpp) | `Canvas` and its drawing: blended rectangles, bitmap text, ring, pointer, keycap, dimming |
+| [include/capture/tour/pointer_path.h](include/capture/tour/pointer_path.h), [src/tour/pointer_path.cpp](src/tour/pointer_path.cpp) | `plan_pointer_path`, `PointerPath::at`, `minimum_jerk` |
 | [capture_media.sh](capture_media.sh) | Runs the tool offscreen into a temporary directory, makes the GIFs, copies into `docs/media` |
 | [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `docs/media/kinetra-lab-tour.mp4`, then runs `tour_thumbnail.sh` |
 | [tour_thumbnail.sh](tour_thumbnail.sh) | Four frames of the tour video in a 2 × 2 mosaic with a play button: `docs/media/kinetra-lab-tour-thumbnail.png`, which the README links to the YouTube copy |

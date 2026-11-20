@@ -1,9 +1,9 @@
 #pragma once
 // The tour: the launcher and its sessions played by a scripted user, written as video
 // frames with a visible pointer, click rings, keycaps and captions.
-#include "capture/canvas.h"
-#include "capture/pointer_path.h"
 #include "capture/stage.h"
+#include "capture/tour/canvas.h"
+#include "capture/tour/pointer_path.h"
 
 #include <kinetra/runtime/engine.h>
 #include <kinetra/runtime/launcher.h>

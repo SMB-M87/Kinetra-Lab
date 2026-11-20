@@ -24,7 +24,7 @@ Lab's modules each grew their own layout: 17 headers in `labs/i4sim/src/`, 7 in 
 - **Headers in `src/`:** `labs/i4sim/src/` (17), `tools/capture/src/` (7; its include directory *is* `src/`).
 - **Headers loose in `tests/`:** `labs/i4sim/tests/{event_counts,recorder,showcase}.h`, `labs/test_support/test_support.h`.
 - **Folders for one file:** `labs/dotio/gmath/{include,src}/` for `gmath.h` and `gmath.cpp`, next to `labs/dotio/include/` and `labs/dotio/logic/{include,src}/`.
-- **Unnamed include roots:** `#include "session.h"` resolves by include-path order. [applications.cpp:2](../../launcher/src/applications.cpp) uses `../../labs/demo/include/session.h`, [scenes.cpp:8](../../tools/capture/src/scenes.cpp) `../../../labs/i4sim/include/blueprint.h`; the conventions ask for target include directories instead.
+- **Unnamed include roots:** `#include "session.h"` resolves by include-path order. [applications.cpp:2](../../launcher/src/applications.cpp) uses `../../labs/demo/include/session.h`, [scenes.cpp:8](../../tools/capture/src/scenes/scenes.cpp) `../../../labs/i4sim/include/blueprint.h`; the conventions ask for target include directories instead.
 - **Vague shared name:** `labs/common/include/lab/` with namespace `lab`.
 - **Namespaces differ from module names:** Demo uses `sandbox`; Dotio `logic`, `gmath` and `dotio`.
 
@@ -56,6 +56,7 @@ Settled with the user in three grilling rounds; choices that differ from the fir
 | Engine | Moves in the same round to `simulation/`, `view/`, `runtime/` *(differs: recommended was Lab only)* | User's choice; [Kinetra design](../../external/Kinetra/docs/design/2026-11-20-include-layout.md) |
 | Dotio topics | `entities/`, `ai/`, `navigation/`, `math/`, `presentation/` *(differs: recommended was flat)* | User's choice; `gmath` folds into `math/` |
 | Demo topics | `world/`, `input/`, `presentation/` *(differs: recommended was flat)* | User's choice; topics chosen so no folder holds one file |
+| Topic folders as a rule *(after the first review)* | Every header that is not an entry of its module sits in a topic folder of at least two files; the capture tool therefore gets `scenes/` and `tour/`, with `stage.h`, `png.h` and `dotio_player.h`, which both use, at the top | User's choice; the first text of the rule ("past about twelve headers") did not match Demo |
 | Compatibility | Hard break, Kinetra merges first | User's choice; no forwarding headers |
 | Start | After Kinetra-Lab #31 and #32 are merged | They touch files that move |
 | Commits | One `git mv` commit for all modules, include and CMake fixes in the same commit, then one commit per namespace *(changed while building: planned was one commit per module)* | The modules include each other and the engine, so a commit per module would not build on its own |
@@ -110,7 +111,10 @@ labs/i4sim/
   blueprints/                                       (unchanged)
 
 launcher/include/launcher/applications.h
-tools/capture/include/capture/  busy_stretch.h dotio_player.h png.h scenes.h showcase.h stage.h
+tools/capture/include/capture/  stage.h png.h dotio_player.h
+  scenes/   scenes.h showcase.h busy_stretch.h
+  tour/     tour.h canvas.h pointer_path.h
+tools/capture/src/  stage.cpp png.cpp dotio_player.cpp main.cpp  scenes/  tour/
 ```
 
 - Every target's `target_include_directories` points at its module's `include/`; test targets add `tests/include/`. The launcher and capture link the presentation targets and include `"demo/presentation/session.h"` and friends instead of `../../`.

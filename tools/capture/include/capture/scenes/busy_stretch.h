@@ -1,7 +1,7 @@
 #pragma once
 // Where the busiest stretch of the captured i4sim floor begins, measured headless, so the
 // i4sim captures show its movers driving whatever the simulation's timing is.
-#include "capture/scenes.h"
+#include "capture/scenes/scenes.h"
 
 #include <filesystem>
 #include <span>
