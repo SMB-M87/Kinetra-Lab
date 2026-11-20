@@ -195,8 +195,9 @@ Goal: predictive passing that stays safe and keeps traffic flowing under pressur
 1. **Cause of Improved's extra contacts.** Replay the contacts from the baseline with the event log and establish the cause before changing parameters or behavior.
 2. **Guarded maneuvers.** Recheck during the maneuver that it stays feasible, not only when the plan starts, so a third mover entering a lane is handled. Wait or abort under a fixed priority, so movers do not keep switching decisions. Respect braking distance and acceleration limits.
 3. **Measured result.** Compare identical seeds, layouts and settings with passing on and off: contacts, completed products, waiting time and stuck movers, including the `MAS-demonstrator` seed-42 throughput gap. The phase 4 scenarios turn from recorded outcomes into required outcomes.
+4. **Standstills near a destination.** Added on 2026-11-20. Without passing and without any setting change, two movers can block each other for good about 120 mm from a destination, the other mover 130 to 150 mm away: 2 of 48 seeded runs, almost all under Reciprocal and mostly on 4320x2400. A SPEED, FORCE or HORIZON change in the debug menu can steer a run into one, which is how the user met it. RECOVERY does not free them; with it on, 7 of 48 runs end stuck. First establish the cause from a recorded run (which mover holds the place the other needs, and why avoidance keeps both still), then choose a remedy. Measurements and the harness that reproduces them: [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md#measurement-harness).
 
-**Done when:** the pressure scenarios end without contacts and with arrival, the benchmark shows no regression with passing on for Reciprocal, and the Improved contacts are either explained and fixed or documented as a profile limit.
+**Done when:** the pressure scenarios end without contacts and with arrival, the benchmark shows no regression with passing on for Reciprocal, the Improved contacts are either explained and fixed or documented as a profile limit, and the standstills near a destination are explained and resolved or documented as a limit.
 
 ## Phase 8: shared passing mechanism
 

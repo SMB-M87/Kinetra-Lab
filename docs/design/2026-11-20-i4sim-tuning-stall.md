@@ -15,6 +15,7 @@ The user reported that changing a mover parameter in the i4sim debug menu someti
 - [Review](#review)
 - [Verification](#verification)
 - [Pull request](#pull-request)
+- [Measurement harness](#measurement-harness)
 - [Open points](#open-points)
 
 [Directory guide](README.md) · [Project overview](../../README.md) · [Documentation index](../README.md)
@@ -136,7 +137,7 @@ Only i4sim logic changes, which is the Targeted level of the [i4sim row](../../A
 | `clang-format --dry-run --Werror` on the changed sources, `check_docs.py` | Clean |
 | CI (format, docs, `headless`, `ci`, native Windows) | On the pull request |
 
-The new tests use the 3840x2400 factory, not MAS-demonstrator: `main` deleted `MAS-demonstrator.json` (#39, #40) while this branch was built, and the measurements above were taken before that. Not verified: how the change feels on screen. Stepping SPEED, FORCE or HORIZON in the debug menu should no longer reroute movers; deadlocks that need no change can still appear.
+The new tests use the 3840x2400 factory: while this branch was built, `MAS-demonstrator.json` left the catalog and became a test fixture ([MAS demonstrator as a test fixture](2026-11-20-mas-test-fixture.md)). The measurements above were taken with it in the catalog. Not verified: how the change feels on screen. Stepping SPEED, FORCE or HORIZON in the debug menu should no longer reroute movers; deadlocks that need no change can still appear.
 
 ## Pull request
 
@@ -160,6 +161,59 @@ Title: `fix(i4sim): keep routes when a motion change does not shape them`
 
 **Follow-up.** Roadmap phase 7, or a separate analysis of the Reciprocal standstills near destinations.
 
+## Measurement harness
+
+The table in [Problem](#problem) comes from this doctest case. It was not committed as a test, because its outcome depends on chaotic runs rather than on a contract; to measure again, append it to `labs/i4sim/tests/simulation_tests.cpp`, build `kinetra_i4sim_tests` in the `release` preset and run `./build-release/kinetra_i4sim_tests -tc="SCRATCH*"` (about 45 seconds). For RECOVERY on, add `motion.recovery = true;` after the profile is set. `MAS-demonstrator` now comes from the test fixtures, the others from the catalog.
+
+```cpp
+#include <functional>
+#include <iostream>
+#include <map>
+TEST_CASE("SCRATCH motion change strands movers") {
+    using Change = std::function<void(MotionSettings &, int)>;
+    const std::vector<std::pair<const char *, Change>> variants{
+        {"none", nullptr},
+        {"same", [](MotionSettings &, int) {}},
+        {"speed", [](MotionSettings &m, int r) { m.speed = r % 4 < 2 ? m.speed * 1.25f : m.speed / 1.25f; }},
+        {"force", [](MotionSettings &m, int r) { m.force = r % 4 < 2 ? m.force * 1.25f : m.force / 1.25f; }},
+        {"horizon", [](MotionSettings &m, int r) { m.horizon = r % 2 ? 32.f : 16.f; }},
+    };
+    const auto blueprint = [](std::string_view name) {
+        return load_blueprint(name == "MAS-demonstrator"
+                                  ? i4sim::test::fixture_blueprint(name)
+                                  : default_blueprint_directory() / (std::string(name) + ".json"));
+    };
+    std::map<std::string, std::pair<int, int>> totals; // runs with a stuck mover, stuck movers
+    for (const char *name : {"1680x960+", "MAS-demonstrator", "3840x2400", "4320x2400"})
+        for (std::uint32_t seed : {42u, 915839214u, 7u, 1234u, 99u, 2026u})
+            for (int profile = 0; profile < 2; ++profile)
+                for (const auto &[label, change] : variants) {
+                    Simulation s(blueprint(name), seed);
+                    auto motion = s.motion_settings();
+                    motion.profile = profile ? SteeringProfile::reciprocal : SteeringProfile::improved;
+                    s.configure_motion(motion);
+                    s.run();
+                    FlowMetrics flow;
+                    for (int t = 0; t < 12000; ++t) {
+                        if (change && t >= 2000 && t < 8000 && t % 250 == 0) {
+                            auto m = s.motion_settings();
+                            change(m, t / 250);
+                            s.configure_motion(m);
+                        }
+                        s.tick();
+                        flow.observe(s);
+                    }
+                    auto &total = totals[label];
+                    total.first += flow.stuck_now() > 0;
+                    total.second += int(flow.stuck_now());
+                }
+    for (const auto &[label, total] : totals)
+        std::cout << label << ": runs_with_stuck=" << total.first << "/48 stuck_movers=" << total.second << "\n";
+}
+```
+
+A run counts as stuck when `FlowMetrics::stuck_now()` is nonzero after 12,000 ticks: a mover with an active goal whose distance to it did not shrink for 2000 ticks. Leave out blueprints whose tick cap is below 12,000; a finished simulation looks stuck to this harness.
+
 ## Open points
 
-- Deadlocks without any change remain (2 of 48 runs in the sample above), mostly two Reciprocal movers near a destination. RECOVERY does not resolve them; roadmap phase 7 or its own analysis.
+- Deadlocks without any change remain (2 of 48 runs in the sample above), mostly two Reciprocal movers near a destination. RECOVERY does not resolve them. Planned as [roadmap phase 7, step 4](2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure).
