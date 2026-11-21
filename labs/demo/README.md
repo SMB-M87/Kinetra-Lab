@@ -1,95 +1,26 @@
 # Demo
 
-Reference application for public Kinetra physics, navigation, camera, runtime and UI APIs. [Setup and commands](../../README.md#quick-start) are maintained in the root README.
+The Demo is Kinetra-Lab's reference application for the public Kinetra engine: a player and a crowd of agents in endless, seeded terrain, with physics, route planning, local avoidance, a streaming camera and the shared overlays. It shows how an application composes the engine, and serves as a test bed for crowd motion. It is started from the bundled launcher (`kinetra --variant demo`) or as `kinetra_demo`; [setup and commands](../../README.md#quick-start) are in the root README.
 
 ## Table of contents
 
-- [Visual overview](#visual-overview)
-- [Layout](#layout)
+- [Purpose and scope](#purpose-and-scope)
 - [Controls](#controls)
-- [Scene ownership and streaming](#scene-ownership-and-streaming)
-- [Navigation and agents](#navigation-and-agents)
-- [Verification and limits](#verification-and-limits)
+- [Concepts](#concepts)
+- [Structure](#structure)
+- [How it works](#how-it-works)
+- [Invariants and contracts](#invariants-and-contracts)
+- [Changing this module](#changing-this-module)
+- [Tests](#tests)
+- [Open points](#open-points)
 
 [Parent guide](../README.md) · [Project overview](../../README.md) · [Documentation index](../../docs/README.md)
 
-## Visual overview
+## Purpose and scope
 
-The session adapts input and rendering; the headless application owns simulation policy.
+The Demo owns its policy: world generation, the population and where it spawns, agent decisions (wander, commands, sleep), the player's controls, the tuning values and the debug menu's content. The mechanisms come from Kinetra: physics and contacts, `Navigation` (A*, swept clearance, route shortening), `steer` and reciprocal `avoid_collisions`, the spatial grid, the fixed clock, the camera, and the runtime with its overlays.
 
-```mermaid
-flowchart LR
-    Input["Input and modal capture"] --> Session["Demo session"]
-    Session --> Commands["FrameCommands"]
-    Commands --> App["Application"]
-    App --> Scene["Scene: terrain, agents, physics"]
-    Scene --> Engine["Kinetra navigation and simulation"]
-    Scene --> Renderer["Demo renderer"]
-    Renderer --> Runtime["Kinetra Runtime and overlays"]
-```
-
-## Layout
-
-```text
-labs/demo/
-  include/demo/
-    application.h  debug_panel.h  zoom.h
-    world/          agent.h  terrain.h  scene.h  tuning.h
-    input/          mapping.h  commands.h  player_control.h
-    presentation/   session.h  renderer.h  help_overlay.h
-  src/              application.cpp  debug_panel.cpp  main.cpp
-    presentation/   renderer.cpp  session.cpp
-  tests/            one doctest suite per behavior area
-```
-
-Headers are included by their path below `include/`, for example `"demo/world/agent.h"`. These are Lab-owned interfaces, not part of the public Kinetra engine API.
-
-| Folder | Holds | Target |
-| --- | --- | --- |
-| `include/demo/`, `src/` | The headless application coordinator and the debug menu rows | `kinetra_demo_logic` |
-| `world/` | Headless scene state: the physics world, streamed terrain, agents and their tuning | `kinetra_demo_logic` |
-| `input/` | Window-free input mapping and the per-frame commands it produces | `kinetra_demo_logic` |
-| `presentation/` | Session and drawing; needs `Kinetra::Runtime` | `kinetra_demo_presentation` |
-| `src/main.cpp` | The direct executable | `kinetra_demo` |
-
-The application owns the scene and the fixed clock; the scene owns the world, terrain and navigation and drives the agents. Solid diamonds denote owned values; dashed arrows show supplied commands and lifecycle control.
-
-```mermaid
-classDiagram
-    Application *-- Scene : scene_
-    Application *-- FixedClock : clock_
-    Application ..> FrameCommands : consumes
-    Scene *-- World : world
-    Scene *-- Terrain : terrain and preview
-    Scene *-- Navigation : navigation
-    Scene ..> Agent : lifecycle and routes
-```
-
-| Header | Responsibility |
-| --- | --- |
-| [application.h](include/demo/application.h) | Headless application coordinator and fixed clock; the caller supplies elapsed time, intent and the camera viewport |
-| [debug_panel.h](include/demo/debug_panel.h) | The debug menu rows and the state they change, the debug-layer colors and the `tuning_step` limits |
-| [world/scene.h](include/demo/world/scene.h) | World, terrain residency, mixed population, immutable avoidance snapshots and body-index remapping |
-| [world/agent.h](include/demo/world/agent.h) | Seeded wandering, commanded routes and lifecycle state |
-| [world/terrain.h](include/demo/world/terrain.h) | Seeded chunk generation and preview cache |
-| [world/tuning.h](include/demo/world/tuning.h) | Motion and wander values that change while the scene runs; the defaults reproduce the former constants |
-| [input/commands.h](include/demo/input/commands.h) | One frame of commands and presentation options |
-| [input/mapping.h](include/demo/input/mapping.h) | Input mapping and debug capture adapter |
-| [input/player_control.h](include/demo/input/player_control.h) | Player movement intent |
-| [presentation/session.h](include/demo/presentation/session.h) | Demo Session factory and default initial population |
-| [presentation/renderer.h](include/demo/presentation/renderer.h) | Scene rendering interface |
-| [presentation/help_overlay.h](include/demo/presentation/help_overlay.h) | Application help content |
-| [zoom.h](include/demo/zoom.h) | Zoom limits in and outside Debug Mode, apart from the scene headers so the launcher can start a Demo without compiling the scene |
-
-| Source | Responsibility |
-| --- | --- |
-| [application.cpp](src/application.cpp) | Command, camera, pointer and fixed-update ordering |
-| [debug_panel.cpp](src/debug_panel.cpp) | The menu sections, their rows and the commands the rows produce |
-| [presentation/session.cpp](src/presentation/session.cpp) | Session adapter, bindings, enabled-by-default debug layers and reciprocal/legacy avoidance selection |
-| [presentation/renderer.cpp](src/presentation/renderer.cpp) | World rendering with matching convex polygon fills/outlines, culling and application overlays; path and steering-probe strokes are three logical pixels at every zoom |
-| [main.cpp](src/main.cpp) | Direct executable and argument handling |
-
-`main.cpp` and the bundled launcher's factory create the same session from `session.h`, so a direct launch and a launch from the menu behave alike.
+It is not a collision-free crowd simulation. Steering and navigation use conservative envelopes; agents can still touch, and a dense crowd can keep an agent from arriving. Shared passing, which phase 8 of the [quality roadmap](../../docs/design/2026-11-18-quality-roadmap.md) plans, is not here.
 
 ## Controls
 
@@ -129,15 +60,115 @@ The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuni
 
 The camera follows the player by default. Ghost moves only the camera; clicking teleports the player and clears momentum/routes after validating destination clearance. No swept teleport path is required. A yellow outline identifies the selected agent. Overlay pointer capture precedes gameplay mapping.
 
-## Scene ownership and streaming
+## Concepts
 
-See [Demo architecture](../../docs/demo-architecture.md) for component ownership, lifecycle and the engine boundary.
+| Term | Meaning |
+| --- | --- |
+| World unit | The Demo's length unit. The player is 1.3 by 0.8 units, an agent about 0.64; a terrain chunk is 32 units square |
+| Tick | One fixed simulation step of 1/120 simulated second, from `kinetra::FixedClock`; a frame runs as many as its elapsed time (times the time scale) is worth, at most 16 |
+| Mover | A moving body: an agent, the player or one of six passive props. Movers occupy the world's first body ids, before the terrain |
+| Terrain chunk | A 32-unit square of fixed circles and rotated boxes, generated from the seed and its coordinate alone, so it is the same on every visit |
+| Resident area | Around the player, 1.25 times the view at the widest debug zoom (5 px/unit): the terrain physics uses, and the agents the scene keeps |
+| Active area | Around the player, 1.75 times the view at the widest normal zoom (17 px/unit): agents inside it are awake, chunks inside it get populated once |
+| Awake / dormant agent | An awake agent steers, plans and takes commands. A dormant one stands as a fixed obstacle, keeps its goal and timers, and has no route |
+| Home and home range | Where an agent was placed, and the distance (12 units, tunable) beyond which it turns back |
+| Wander | What an agent without a command does: steer toward a drifting point ahead (steering wander, the default) or plan short routes (route wander) |
+| Commanded travel | Travel to a clicked goal, always along a planned route, for at most 20 active seconds |
+| Ghost camera | A debug camera that moves free of the player. It streams only a preview of terrain for drawing; physics and the population stay around the player |
+| Reciprocal avoidance / legacy steering | The two local avoidance models: Kinetra's velocity-obstacle `avoid_collisions` with shared responsibility, or `steer` with obstacle probes and personal-space separation |
 
-Drawing runs between fixed ticks: `Application` keeps every body's pose before and after the last 120 Hz tick, and the renderer draws moving bodies at `presented_pose(id)`, with the camera on the drawn player for that frame ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+## Structure
 
-Moving bodies now include circles, boxes, triangles, pentagons and hexagons. Polygon rendering and collision outlines use the same convex vertices. Circle and nonrotating box/polygon pairs use continuous contact detection on a shared timeline, including moving/moving pairs. Pairs containing rotating boxes/polygons still use discrete contacts. Steering and navigation remain conservative envelope-based; this is not yet a collision-free multi-agent or vehicle simulation.
+```mermaid
+classDiagram
+    class DemoSession {
+        frame order, panels
+    }
+    class DebugPanel {
+        menu rows, layers, time scale
+    }
+    class Application {
+        pause, clock, camera, pointer
+        presented_pose()
+    }
+    class Scene {
+        stream(), update()
+        arrange(), moving_body()
+    }
+    DemoSession *-- Application
+    DemoSession *-- DebugPanel
+    DebugPanel ..> Application : borrows
+    Application *-- Scene
+    Application *-- FixedClock
+    Scene *-- World
+    Scene *-- Terrain : terrain and preview
+    Scene *-- Navigation
+    Scene *-- "0..1200" Agent
+    Agent ..> World : body id
+```
 
-Terrain uses 32-world-unit chunks with seeded static circles/rotated rectangles. Independent seed/coordinate streams regenerate identical geometry, including negative coordinates and revisits. Each process chooses and prints a new seed. Generation reserves the initial spawn area and rejects local overlaps; global navigability is not guaranteed.
+*Takeaway:* ownership runs one way, from the session down to the scene; agents refer to their bodies by id, which the scene renumbers when it evicts movers. Only `DemoSession` and the renderer need a window.
+
+The logic library `kinetra_demo_logic` builds without the runtime and holds everything that decides something; `kinetra_demo_presentation` adds the session and the drawing; `kinetra_demo` is the direct executable. Headers are included by their path below `include/`, for example `"demo/world/agent.h"`; they are Lab interfaces, not part of the Kinetra API.
+
+| File | Target | Responsibility |
+| --- | --- | --- |
+| [application.h](include/demo/application.h) | logic | Orders a frame's commands, camera, pointer and fixed ticks; keeps the poses for drawing between ticks |
+| [debug_panel.h](include/demo/debug_panel.h) | logic | The debug menu's rows, what they set, the layer colors and the `tuning_step` limits |
+| [zoom.h](include/demo/zoom.h) | logic | Zoom limits in and outside Debug Mode, apart from the scene so the launcher can start a Demo without compiling it |
+| [world/scene.h](include/demo/world/scene.h) | logic | World, terrain residency, population, the tick, body renumbering |
+| [world/agent.h](include/demo/world/agent.h) | logic | One agent's lifecycle, wander, commands and route |
+| [world/terrain.h](include/demo/world/terrain.h) | logic | Seeded chunk generation and loading |
+| [world/tuning.h](include/demo/world/tuning.h) | logic | Motion and wander values that change while the scene runs, and their validation |
+| [input/commands.h](include/demo/input/commands.h), [input/player_control.h](include/demo/input/player_control.h) | logic | One frame of intent, the presentation options and action results |
+| [input/mapping.h](include/demo/input/mapping.h) | logic | Keys, wheel and clicks to commands, without a window |
+| [presentation/session.h](include/demo/presentation/session.h) | presentation | `create_session`, the default population, and the session interface the capture tool reads |
+| [presentation/renderer.h](include/demo/presentation/renderer.h) | presentation | Drawing the scene, its debug layers and the overlays; the status text |
+| [presentation/help_overlay.h](include/demo/presentation/help_overlay.h) | presentation | The help legend (see [open points](#open-points)) |
+| [src/main.cpp](src/main.cpp) | `kinetra_demo` | Arguments (`--frames`), a fresh seed per process, the session loop |
+
+The sources mirror the headers in `src/`, `src/world/`, `src/input/` and `src/presentation/`. `main.cpp` and the launcher's factory create the same session from `session.h`, so a direct launch and a launch from the menu behave alike.
+
+## How it works
+
+### A frame
+
+```mermaid
+sequenceDiagram
+    participant S as DemoSession
+    participant P as DebugPanel
+    participant A as Application
+    participant Sc as Scene
+    S->>S: settings overlay, debug menu (pointer capture)
+    S->>S: read_commands(input), modal pause
+    S->>P: apply(commands)
+    S->>A: advance(elapsed, commands, camera)
+    A->>A: toggles, zoom, ghost pan
+    A->>Sc: follow, stream(camera)
+    A->>Sc: pointer action, then follow and stream again
+    loop each fixed tick
+        A->>Sc: update(1/120 s, player control)
+    end
+    A->>Sc: follow(camera)
+    S->>P: observe(camera)
+```
+
+*Takeaway:* everything that changes the scene happens before its ticks, in a fixed order, so a click resolves against this frame's camera and the ticks see the frame's settings.
+
+The overlays come first: an open settings panel takes the whole frame and pauses the scene (`kinetra_lab::ModalPause`), and the debug menu takes the pointer while it is over the menu. `DebugPanel::apply` then completes the commands with what the menu decides: layers, the ghost camera, gravity, avoidance model, time scale, a single tick, zoom steps. `Application::advance` consumes clock time even while paused, so resuming never replays paused time; only the simulation runs on scaled time, the camera keeps real time.
+
+Drawing runs between ticks: `Application` keeps every body's pose before and after the last tick, and `presented_pose(id)` blends them by how much of the next tick has accumulated. A body that changed outside the last tick (a teleport, renumbering) or a paused scene shows its exact state. The renderer moves the camera onto the drawn player for that frame only, so the player does not jitter ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+
+### Streaming
+
+`Scene::stream(camera)` runs every frame, and again after a pointer action. Its areas are centered on the player and scale with the viewport, not with zoom or ghost position, so zooming or a ghost camera never wakes distant simulation:
+
+1. **Evict.** Movers outside the resident area, except the player, are removed. The rest are compacted, and every agent's body id and the player's id are remapped in one step.
+2. **Forget chunks.** Chunks that left the resident area are forgotten as populated, so a revisit can populate them afresh.
+3. **Load terrain.** `Terrain::update` loads the chunks in the resident area and drops the others. If terrain or movers changed, the world is rebuilt as movers followed by the resident terrain.
+4. **Populate.** Each chunk that overlaps the active area for the first time gets up to 12 agents from 160 seeded attempts; the seed is the terrain seed plus the chunk coordinate, so the result does not depend on the order of exploration.
+5. **Rebuild indexes.** After a change: the terrain index for agents that avoid terrain, and the navigation over the active area plus a 24-unit margin for wander goals. Every route is replanned.
+6. **Wake and sleep.** Agents whose body overlaps the active area wake up; the others sleep.
 
 | Region / bound | Policy |
 | --- | --- |
@@ -148,13 +179,35 @@ Terrain uses 32-world-unit chunks with seeded static circles/rotated rectangles.
 | Navigation | Activation area plus 24-unit wander margin |
 | Population | 48 initial agents near the player; new activation chunks attempt 12 safe spawns; cap 1,200 |
 
-The launcher’s `--agents 0..300` overrides the default initial population. The standalone Demo also starts with 48 agents. Initial agents sample a 72×48-unit region centered on the initial player, with reserved player/prop clearances. Zoom and Ghost position do not affect player-centered lifecycle bounds; viewport size does. Dormant agents discard paths, ignore new goals and freeze timers. During physics they temporarily become fixed obstacles; full body state is restored afterward. Distant-agent eviction compacts movers and remaps surviving agent/player indices. Terrain rebuilding preserves movers before appending static obstacles.
+A ghost camera additionally samples `preview()` terrain around the view, which only the renderer reads. The launcher's `--agents 0..300` sets the initial population; the standalone Demo starts with 48. Initial agents sample a 72 by 48 unit region around the player's start, clear of the player and the props. Terrain validates finite, ordered views within ±200,000 units and at most 4,096 chunks; the camera center is clamped to ±100,000. Neither agent state nor terrain edits survive eviction.
 
-Terrain validates finite ordered views, ±200,000-unit bounds and a maximum 4,096 chunks. Camera centers are clamped to ±100,000. Neither agent state nor world edits persist after eviction; revisits can create fresh agents. Physics outside resident terrain is inactive.
+Terrain uses 32-unit chunks of seeded circles and rotated boxes. The same seed and coordinate always give the same geometry, also for negative coordinates and revisits. Each process picks and prints a new seed. Generation keeps the start area free and rejects overlaps within a chunk; it does not guarantee that the world is connected.
 
-## Navigation and agents
+### A tick
 
-The reusable [planner](../../external/Kinetra/docs/engine/navigation.md) owns A*, swept clearance and route shortening. Demo selects one-unit spacing and a conservative 0.85-unit circular envelope. Exact free clicks stay exact; occupied clicks project to the closest reachable free node. Outside/disconnected free goals fail. Outward recovery can leave conservative clearance margins without crossing a surface.
+`Scene::update(dt, control)` validates the tuning, then:
+
+1. **Snapshot.** `prepare_tick` copies the movers. In the copy, sleeping agents are fixed and still, and every awake agent is marked cooperative. Every mover's steering reads this one snapshot, so the order in which agents steer cannot matter.
+2. **Agents.** Each awake agent advances its navigation (below), which yields a target point, and `local_acceleration` turns that into an acceleration. Reciprocal avoidance asks `avoid_collisions` for a velocity that keeps the predicted horizon (1.5 s) free of the snapshot's neighbors. Legacy steering uses `steer` with the neighbors as obstacles and personal-space separation. Sleeping agents become fixed bodies for the tick.
+3. **Player.** Keyboard input drives the player directly and cancels a walk. A walk follows its route, replanned every two seconds, and steers around neighboring movers with `steer`; the player never uses reciprocal avoidance. Agents treat the player and the props as non-cooperative, so they take the whole avoidance effort themselves.
+4. **Physics.** `World::step` integrates and resolves contacts. Afterwards the sleeping agents get back their exact state, so gravity, impulses and timers cannot move them.
+
+Neighbor reach covers the horizon, the largest mover and the fastest current speed. A route keeps its own clearance from terrain, so an agent on a route avoids only movers. An agent that wanders by steering has no route, so it also avoids nearby terrain. For legacy steering terrain counts as bodies. For reciprocal avoidance it counts as non-cooperative circles: a rotated box becomes a row of up to six circles along its long side, because one bounding circle would block the free space beside a long wall. `AVOID LIMIT` in the statistics counts awake agents whose avoidance could not meet every constraint in the last tick; it does not count contacts.
+
+### Agent lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Dormant
+    Dormant --> Wandering : body enters the active area (route replanned)
+    Wandering --> Commanded : retarget() (click on a selected agent, CLICK SETS GOAL)
+    Commanded --> Wandering : within 0.6 units of the goal, or 20 active seconds passed
+    Wandering --> Dormant : body leaves the active area (route dropped)
+    Commanded --> Dormant : body leaves the active area (goal and timer kept)
+    Dormant --> Commanded : enters again with a command left
+```
+
+*Takeaway:* sleep freezes an agent: it keeps its goal and timers and only loses its route, which it replans on waking.
 
 | Decision | Demo policy |
 | --- | --- |
@@ -169,15 +222,29 @@ The reusable [planner](../../external/Kinetra/docs/engine/navigation.md) owns A*
 | Arrival / expired command | Resume wandering from the current/arrival location; the home range then brings the agent back |
 | Failed route | Hold position and retry while the relevant policy permits |
 
-Commanded travel (a click on a selected agent, or CLICK SETS GOAL) always plans a route, because its goal can lie behind obstacles. Route following looks ahead around visible corners and brakes only at the final endpoint. Agents use the shared [reciprocal local avoidance](../../external/Kinetra/docs/engine/navigation.md#reciprocal-local-avoidance) with, by default, a 1.5-second horizon, speed limit 4, acceleration limit 12 and 0.05-unit clearance. All active agents read the same neighbor snapshot. Sleeping agents are stationary noncooperative neighbors; the manually controlled player and passive props also receive full avoidance responsibility from agents. Keyboard player control remains direct. The legacy comparison mode retains its personal-space separation.
+Commanded travel always plans a route, because its goal can lie behind obstacles. Route following looks ahead around visible corners and brakes only at the final endpoint. Navigation is Kinetra's [planner](../../external/Kinetra/docs/engine/navigation.md) with one-unit spacing and a conservative 0.85-unit circular envelope. An exact free click stays exact, an occupied click goes to the nearest reachable free node, and a goal outside the area or not connected to it fails. Outward recovery lets a body that a contact pushed into the planning margin leave it without crossing a surface.
 
-Avoidance considers moving-body envelopes. A route keeps its own clearance from terrain, so an agent on a route looks at movers only. An agent that wanders by steering has no route and also avoids the terrain near it: as bodies for the legacy steering, and for the reciprocal avoidance as noncooperative circles, a rotated box as a row of up to six circles along its long side. The scene keeps a spatial index of the loaded terrain for this and rebuilds it only when terrain changes. Neighbor reach includes the horizon, the largest actor footprint and current actor speeds. `AVOID LIMIT` in statistics counts active agents whose requested avoidance constraints could not all be met in the last fixed tick; it does not count physical collisions. Headings turn gradually. Global pause consumes elapsed clock time without advancing simulation, commands or wander timers; a single tick runs one tick of a paused scene.
+## Invariants and contracts
 
-## Verification and limits
+- **Mover-first layout.** World body ids `0` to `moving_body_count() - 1` are movers, the rest is loaded terrain. Every agent's body id is a mover other than the player. `stream` and `arrange` keep this, and `moving_body` refuses terrain ids.
+- **Renumbering.** Eviction renumbers movers. Hold an agent by its `Agent` value or its home (as the selection does), never by a stored body id across frames.
+- **Determinism.** A seed fixes the terrain, the initial population, each chunk's population and each agent's random sequence. A run with the same seed, viewport and commands repeats exactly; the characterization tests rely on that. Nothing uses `std::rand` or global state.
+- **Units.** World units, simulated seconds and radians in the logic. Logical window pixels for pointer positions and the zoom (pixels per unit).
+- **Tuning.** `Scene::update` throws `std::invalid_argument`, before anything moves, for tuning that `validate` rejects. The debug menu's `tuning_step` limits keep every value valid.
+- **Ghost isolation.** A ghost camera changes what is drawn, never what is simulated: lifecycle areas follow the player.
+- **Pause.** A paused scene consumes clock time, streams and follows the camera, but runs no tick except a requested single one.
 
-### Tests
+## Changing this module
 
-Every test program is a doctest suite: each `TEST_CASE` is one behavior, named after its expected outcome, and CTest registers it as `<suite>:<case>`. How to write cases is in [Kinetra testing](../../external/Kinetra/docs/testing.md#writing-a-doctest-suite). All suites except the presentation one run without a window; that one needs an OpenGL context.
+- **A new tunable value.** Add it to `MotionTuning` or `WanderTuning` with a default equal to today's literal, and check it in `validate`. Give it a `tuning_step` and a row in `DebugPanel`, and have `prepare_tick` or `Agent` read it. Test the default and the limits in `application_tests.cpp`; the characterization lines must stay unchanged.
+- **A new debug layer.** Add a flag to `DebugLayers` and a color to `layer_color`, a row in `DebugPanel::add_layer_entries`, and the drawing in `render`. `debug_panel_tests.cpp` checks the rows.
+- **A test with exact geometry.** Build a `Scene`, then `arrange` the movers, the player and the obstacles, rather than relying on seeded terrain; `terrain_tests.cpp` has examples.
+- **A deliberate behavior change.** The crowd characterization lines will change. Print the new lines with `KINETRA_PRINT_GOLDEN=1` on the CI toolchain (the recorded lines depend on the compiler and its math library), copy them into `crowd_characterization_tests.cpp`, and explain the change in the commit message.
+- **Pitfalls.** Changing the order of floating-point operations in `update` or `stream` changes the characterization lines even when the change looks equivalent. Streaming renumbers bodies, so a reference from `world()` or `moving_body()` is only valid until the next `stream`.
+
+## Tests
+
+Every test program is a doctest suite: each `TEST_CASE` is one behavior, named after its expected outcome, and CTest registers it as `<suite>:<case>` ([writing a doctest suite](../../external/Kinetra/docs/testing.md#writing-a-doctest-suite)). All suites except the presentation one run without a window.
 
 | Source | CTest suite (cases) | Coverage |
 | --- | --- | --- |
@@ -191,21 +258,21 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 Run the suites that need no window from the repository root:
 
 ```sh
-cmake --preset headless
-cmake --build --preset headless --target kinetra_demo_terrain_tests kinetra_demo_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
-ctest --preset headless -R '^kinetra_demo(|_terrain|_contacts|_crowd|_crowd_characterization):'
+cmake --preset release
+cmake --build --preset release --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
+ctest --test-dir build-release -R '^kinetra_demo' -LE soak
 ```
 
-Add `-LE soak` to skip the five 60-second crowd runs. One case runs on its own through CTest (`-R 'kinetra_demo_terrain:a ghost camera'`) or the executable (`./build-headless/kinetra_demo_terrain_tests --test-case='a ghost camera*'`).
+`-LE soak` skips the five 60-second crowd runs; with CMake 3.28 it works with `--test-dir` but not with `--preset`. In the Debug `dev` preset the soak cases take minutes. One case runs on its own through CTest (`-R 'kinetra_demo_terrain:a ghost camera'`) or the executable (`./build-release/kinetra_demo_terrain_tests --test-case='a ghost camera*'`).
 
-After a deliberate change to crowd behavior, print the new characterization lines, copy them into `crowd_characterization_tests.cpp` and explain the change in the commit message:
+The characterization lines are recorded with CI's pinned Arch Linux toolchain; another compiler or math library produces other lines, which is why the `windows` presets exclude these cases. To prove locally that a refactor keeps behavior, compare the lines a branch prints with those `main` prints on the same machine.
 
-```sh
-KINETRA_PRINT_GOLDEN=1 ./build-headless/kinetra_demo_crowd_characterization_tests
-```
+For `kinetra_demo_graphics`, use the `graphics` preset ([tests and resources](../../README.md#tests-and-resources)): `cmake --workflow --preset graphics` builds everything and runs every suite with a software OpenGL context.
 
-For `kinetra_demo_graphics`, use the `graphics` preset, which needs an OpenGL context as described in [Tests and resources](../../README.md#tests-and-resources): `cmake --preset graphics`, `cmake --build --preset graphics --target kinetra_demo_presentation_tests`, then `ctest --preset graphics -R '^kinetra_demo_graphics:'`.
+Not covered: the session's frame order and the drawing beyond the one graphics case; desktop feel and performance, which need manual checks.
 
-### Limits
+## Open points
 
-The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. An agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there, and in a dense crowd agents stray up to about ten units beyond their range for moments. The fixed clock runs at most 16 ticks per frame, so at the fastest time scale of 4 simulated time falls behind below 30 frames per second. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks. Decisions behind this design: [terrain](../../external/Kinetra/docs/decisions/0002-camera-driven-terrain.md), [application boundary](../../external/Kinetra/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](../../external/Kinetra/docs/decisions/0005-sandbox-agent-lifecycle.md).
+- **The help overlay is reachable only from tests.** No input sets `FrameCommands::toggle_help`, and the renderer never calls `draw_help`; the help lines a user sees come from the settings panel. To decide: remove `draw_help`, `toggle_help` and `PresentationOptions::help`, or draw the legend.
+- The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. An agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there, and in a dense crowd agents stray up to about ten units beyond their range for moments. The fixed clock runs at most 16 ticks per frame, so at the fastest time scale of 4 simulated time falls behind below 30 frames per second. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks.
+- Decisions behind this design: [camera-driven terrain](../../external/Kinetra/docs/decisions/0002-camera-driven-terrain.md), [application boundary](../../external/Kinetra/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](../../external/Kinetra/docs/decisions/0005-sandbox-agent-lifecycle.md).

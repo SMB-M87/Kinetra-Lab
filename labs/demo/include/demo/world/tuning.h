@@ -1,9 +1,5 @@
 #pragma once
 
-#include <cmath>
-#include <initializer_list>
-#include <stdexcept>
-
 /// Values of the Demo scene that can change while it runs: how movers accelerate and avoid
 /// each other, and how agents wander. The defaults are the scene's former literals, so an
 /// untouched Tuning reproduces the scene as it was before the values became adjustable.
@@ -73,21 +69,6 @@ struct Tuning {
 /// Throws std::invalid_argument unless every value is finite, `max_speed`,
 /// `max_acceleration`, `response_time`, `horizon`, `range` and `reach` are positive, the
 /// other values are not negative, and `mode` is one of the WanderMode enumerators.
-inline void validate(const Tuning &tuning) {
-    const MotionTuning &motion = tuning.motion;
-    const WanderTuning &wander = tuning.wander;
-    for (const float value : {motion.max_speed, motion.max_acceleration, motion.response_time, motion.horizon,
-                              wander.range, wander.reach})
-        if (!std::isfinite(value) || value <= 0)
-            throw std::invalid_argument("Demo tuning: speed, acceleration, response time, horizon, home "
-                                        "range and wander reach must be finite and positive");
-    for (const float value : {motion.lookahead, motion.clearance, motion.separation_radius,
-                              motion.separation_weight, motion.passing_bias, wander.jitter})
-        if (!std::isfinite(value) || value < 0)
-            throw std::invalid_argument("Demo tuning: lookahead, clearance, separation, passing bias and "
-                                        "wander jitter must be finite and not negative");
-    if (wander.mode != WanderMode::steering && wander.mode != WanderMode::route)
-        throw std::invalid_argument("Demo tuning: unknown wander mode");
-}
+void validate(const Tuning &tuning);
 
 } // namespace demo

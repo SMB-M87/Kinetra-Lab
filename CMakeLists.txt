@@ -41,6 +41,7 @@ if(KINETRA_LAB_WARNINGS)
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs RECURSE ${lab_warning_mode})
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/launcher RECURSE ${lab_warning_mode})
     # Modules that a roadmap phase made warning-free keep it that way.
+    kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/demo RECURSE AS_ERRORS)
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/i4sim RECURSE AS_ERRORS)
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/dotio RECURSE AS_ERRORS)
     if(KINETRA_LAB_BUILD_RUNTIME)
