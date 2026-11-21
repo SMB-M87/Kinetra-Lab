@@ -84,4 +84,4 @@ Checked that every item links its source, and that the phase items repeat no sco
 
 ## Open points
 
-- After the Kinetra merge, the pointer moves to Kinetra's merge commit before this pull request merges.
+- Resolved: after Kinetra #18 merged, the pointer moved to its merge commit `d2d4a54`, whose tree equals the verified branch commit `ebe5d9f`.
