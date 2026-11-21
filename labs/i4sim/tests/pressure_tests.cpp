@@ -222,7 +222,7 @@ TEST_CASE(
     check_lane_intrusion(
         SteeringProfile::reciprocal,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=3/3 waiting_ticks=330 stuck=0 fingerprint=20c7a2344dd4588e");
+        "arrived=3/3 waiting_ticks=300 stuck=0 fingerprint=214f1f48dcdf3a6e");
 }
 
 TEST_CASE(
@@ -230,7 +230,7 @@ TEST_CASE(
     check_lane_intrusion(
         SteeringProfile::improved,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=3/3 waiting_ticks=331 stuck=0 fingerprint=870ca5f9dd02efd8");
+        "arrived=3/3 waiting_ticks=300 stuck=0 fingerprint=ec56c7b6381530e6");
 }
 
 TEST_CASE("a mover stopping on a passing target under reciprocal steering ends with every mover arrived and "
@@ -238,7 +238,7 @@ TEST_CASE("a mover stopping on a passing target under reciprocal steering ends w
     check_lane_stop(
         SteeringProfile::reciprocal,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=obstructed:1 "
-        "arrived=3/3 waiting_ticks=129 stuck=0 fingerprint=d483ef8c8052f9f4");
+        "arrived=3/3 waiting_ticks=176 stuck=0 fingerprint=a994bcc2beb86f6e");
 }
 
 TEST_CASE("a mover stopping on a passing target under improved steering ends with every mover arrived and no "
@@ -246,7 +246,7 @@ TEST_CASE("a mover stopping on a passing target under improved steering ends wit
     check_lane_stop(
         SteeringProfile::improved,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=obstructed:1 "
-        "arrived=3/3 waiting_ticks=131 stuck=0 fingerprint=ddc7367ab50a4b48");
+        "arrived=3/3 waiting_ticks=100 stuck=0 fingerprint=2befd81c05b28b8c");
 }
 
 TEST_CASE(

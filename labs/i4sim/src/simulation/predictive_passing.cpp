@@ -243,39 +243,41 @@ std::optional<PassingEnd> PredictivePassing::guard(Plan &plan, const Fleet &flee
         const auto extent = m.body.half_extents + clearance;
         const auto legs = remaining_legs(m.body.position, plan.entry[side], plan.exit[side], plan.crossing);
         const auto near = ahead(legs, reach);
-        // The direction the participant drives in next; none once it stands at its exit.
-        Vec2 heading{};
-        for (const auto &leg : near)
-            if (distance(leg.start, leg.end) > same_point_mm) {
-                heading = normalized(leg.end - leg.start);
-                break;
-            }
+        // Ahead, behind and oncoming are judged along the lane, from entry to exit: the
+        // first leg to the entry target runs mostly sideways.
+        const auto axis = normalized(plan.exit[side] - plan.entry[side]);
         const float margin = length(fleet.max_half) + motion.speed * float(horizon);
         bool intruded = false;
         for (auto other : index.query(legs_bounds(legs, extent, margin))) {
             if (other == plan.movers[0] || other == plan.movers[1])
                 continue;
             const auto &o = fleet.movers[other];
+            // A mover behind the participant follows it or has been passed: it neither blocks
+            // the lane ahead nor clears by waiting.
+            if (dot(o.body.position - m.body.position, axis) <= 0)
+                continue;
             if (!o.moving() || o.held) {
                 // A stationary mover does not clear the lane by itself.
                 if (on_legs(legs, extent, o.body))
                     result = PassingEnd::obstructed;
                 continue;
             }
-            // A mover behind the participant follows it: waiting would only hold it up.
-            if (intruded || !yields_to(plan, other) || dot(o.body.position - m.body.position, heading) <= 0)
+            if (!yields_to(plan, other))
                 continue;
             auto predicted = o.body;
             bool in_lane = false;
-            for (int t = 0; t <= horizon && !in_lane; t += prediction_step_ticks) {
+            // Every prediction step, and the horizon itself when it is not a multiple of one.
+            for (int t = 0; !in_lane; t = std::min(t + prediction_step_ticks, horizon)) {
                 predicted.position = o.body.position + o.body.velocity * float(t);
                 in_lane = on_legs(near, extent, predicted);
+                if (t == horizon)
+                    break;
             }
             if (!in_lane)
                 continue;
             // A mover that drives toward the participant along its lane does not clear it by
             // waiting; the plan ends so both can resolve the encounter on their routes.
-            if (dot(o.body.velocity, heading) < -oncoming_speed_fraction * motion.speed)
+            if (dot(o.body.velocity, axis) < -oncoming_speed_fraction * motion.speed)
                 result = PassingEnd::obstructed;
             else
                 intruded = true;
@@ -285,9 +287,11 @@ std::optional<PassingEnd> PredictivePassing::guard(Plan &plan, const Fleet &flee
             if (!plan.waiting[side]) {
                 plan.waiting[side] = true;
                 plan.waiting_since[side] = tick;
-                // Stopping at full deceleration from the current velocity ends here.
+                // Within the braking distance the lane ahead reserves, so the stop needs no more
+                // than the acceleration limit and the participant does not overshoot and back up.
                 const float speed = length(m.body.velocity);
-                plan.hold[side] = m.body.position + m.body.velocity * (speed / (2 * motion.force));
+                plan.hold[side] =
+                    m.body.position + normalized(m.body.velocity) * braking_distance(speed, motion.force);
             }
         } else if (plan.waiting[side] && tick - plan.intruded_at[side] >= passing_resume_ticks) {
             plan.waiting[side] = false;

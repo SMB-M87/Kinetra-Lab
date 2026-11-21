@@ -997,7 +997,9 @@ TEST_CASE("a passing plan never forms with a lane across a parked mover") {
     REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800})));
     const auto &parked = run.movers()[2].body;
     for (std::size_t seen = 0; run.ticks() < 5000;) {
-        const auto positions = std::array{run.movers()[0].body.position, run.movers()[1].body.position};
+        std::vector<Vec2> positions;
+        for (const auto &mover : run.movers())
+            positions.push_back(mover.body.position);
         run.tick();
         for (const auto events = run.events(); seen < events.size(); ++seen) {
             const auto &formed = events[seen];
@@ -1123,20 +1125,28 @@ TEST_CASE("a mover crossing a passing lane makes the participant wait and the pl
 }
 
 TEST_CASE("a mover driving toward a participant along its lane ends the plan as obstructed") {
-    // Mover 2 starts east of the pair on the line of mover 0's lane (y = 636) and drives
-    // west along it, toward mover 0, while the pair passes.
+    // Without path planning every mover steers straight at its goal, so the pair meets on
+    // y = 800 and mover 0's lane lies at y = 735.5. Mover 2 starts at the east wall on that
+    // line and drives west along it, past mover 1 in its own lane and toward mover 0.
     auto blueprint = load_blueprint(i4sim::test::fixture_blueprint("pressure-lane-intrusion"));
-    blueprint.movers[2].position = {2043.5, 579.5};
+    blueprint.movers[2].position = {2273.5, 679};
     Simulation run(blueprint);
     run.set_workload(false);
-    run.configure_motion(passing_motion(SteeringProfile::reciprocal));
+    auto motion = passing_motion(SteeringProfile::reciprocal);
+    motion.path_planning = false;
+    run.configure_motion(motion);
     run.record_events(true);
-    REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800}) && run.move_to(2, {300, 636})));
+    // Mover 2 leaves 80 ticks before the pair, so it reaches mover 0's lane while the
+    // pair still passes.
+    REQUIRE(run.move_to(2, {300, 735.5}));
     run.run();
+    for (int tick = 0; tick < 80; ++tick)
+        run.tick();
+    REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800})));
     run_until_pair(run);
     const auto formed = *first_event(run, EventKind::passing_formed);
     REQUIRE(formed.movers == std::array<std::size_t, 2>{0, 1});
-    REQUIRE(std::abs(formed.exit[0].y - 636) < 2);
+    REQUIRE(std::abs(formed.exit[0].y - 735.5f) < 2);
     while (!first_event(run, EventKind::passing_ended) && run.ticks() < 3000)
         run.tick();
     const auto end = first_event(run, EventKind::passing_ended);
