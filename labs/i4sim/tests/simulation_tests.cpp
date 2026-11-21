@@ -979,6 +979,48 @@ TEST_CASE("the event log records a passing plan from formation to completion") {
     }
 }
 
+TEST_CASE("a passing plan never forms with a lane across a parked mover") {
+    // Mover 2 parks on the lane mover 0 would take on its first choice of side, before the
+    // pair meets. Every plan that forms must keep each leg clear of it; with the parked
+    // mover in the way the pair may also pass without a plan.
+    Simulation run(load_blueprint(i4sim::test::fixture_blueprint("pressure-lane-intrusion")));
+    run.set_workload(false);
+    run.configure_motion(passing_motion(SteeringProfile::reciprocal));
+    run.record_events(true);
+    REQUIRE(run.move_to(2, {1100, 636}));
+    run.run();
+    while (run.movers()[2].moving() && run.ticks() < 2000)
+        run.tick();
+    REQUIRE(!run.movers()[2].moving());
+    REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800})));
+    const auto &parked = run.movers()[2].body;
+    for (std::size_t seen = 0; run.ticks() < 5000;) {
+        const auto positions = std::array{run.movers()[0].body.position, run.movers()[1].body.position};
+        run.tick();
+        for (const auto events = run.events(); seen < events.size(); ++seen) {
+            const auto &formed = events[seen];
+            if (formed.kind != EventKind::passing_formed)
+                continue;
+            for (std::size_t side = 0; side < 2; ++side) {
+                CAPTURE(side);
+                const auto extent = run.movers()[formed.movers[side]].body.half_extents;
+                const auto crosses = [&](Vec2 from, Vec2 to) {
+                    for (float f = 0; f <= 1; f += 0.01f) {
+                        const auto p = from + (to - from) * f;
+                        if (std::abs(p.x - parked.position.x) < extent.x + parked.half_extents.x &&
+                            std::abs(p.y - parked.position.y) < extent.y + parked.half_extents.y)
+                            return true;
+                    }
+                    return false;
+                };
+                CHECK(!crosses(positions[formed.movers[side]], formed.entry[side]));
+                CHECK(!crosses(formed.entry[side], formed.exit[side]));
+            }
+        }
+    }
+    CHECK(run.collisions() == 0);
+}
+
 TEST_CASE("the event log records why a passing plan ends") {
     auto pair = passing_pair(SteeringProfile::reciprocal);
     run_until_pair(pair);

@@ -274,7 +274,7 @@ bool PredictivePassing::lanes_clear(Plan &plan, const FloorPlan &floor, const Fl
             const auto area = travel_bounds(from, to, moving.half_extents);
             for (auto other : index.query(area))
                 if (other != plan.movers[0] && other != plan.movers[1] &&
-                    sweep_translation(moving, to - from, fleet.movers[other].body))
+                    sweep_translation(moving, to, fleet.movers[other].body))
                     clear = false;
             for (const auto &zone : floor.zones()) {
                 Body obstacle;
@@ -282,7 +282,7 @@ bool PredictivePassing::lanes_clear(Plan &plan, const FloorPlan &floor, const Fl
                 obstacle.motion = Motion::fixed;
                 obstacle.position = zone.center;
                 obstacle.half_extents = zone.half_extents + clearance;
-                if (sweep_translation(moving, to - from, obstacle))
+                if (sweep_translation(moving, to, obstacle))
                     clear = false;
             }
             for (const auto &other : plans_)
