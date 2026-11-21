@@ -1,6 +1,6 @@
 # i4sim passing under pressure
 
-Status: accepted · Branches: `test/i4sim-passing-causes` (step 1, Lab #49), `fix/i4sim-guarded-passing` (steps 2 and 3, Lab #58), `docs/i4sim-destination-standstill` (step 4) · Related: [quality roadmap, phase 7](2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure), [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md), [i4sim restructuring](2026-11-19-i4sim-restructuring.md), [i4sim tests](../../labs/i4sim/tests/README.md), [factory simulation architecture](../factory-simulation-architecture.md#predictive-passing)
+Status: implemented · Branches: `test/i4sim-passing-causes` (step 1, Lab #49), `fix/i4sim-guarded-passing` (steps 2 and 3, Lab #58), `docs/i4sim-destination-standstill` (step 4) · Related: [quality roadmap, phase 7](2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure), [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md), [i4sim restructuring](2026-11-19-i4sim-restructuring.md), [i4sim tests](../../labs/i4sim/tests/README.md), [factory simulation architecture](../factory-simulation-architecture.md#predictive-passing)
 
 Roadmap phase 7. Predictive passing in i4sim must stay safe and keep traffic flowing under pressure, with Reciprocal as the reference profile, and the standstills near a destination found on 2026-11-20 must be explained. This document first establishes the causes from recorded runs, then changes passing on its own branch, and finally records the standstill as a limit with a proposed remedy, each step in its own pull request, stacked in that order.
 
@@ -285,6 +285,14 @@ Open questions for that decision: whether a mover waiting for a producer may lea
 | `/code-review` (medium) | See [Review](#review) |
 | CI | On the pull request |
 
+### Step 4
+
+| Check | Result |
+| --- | --- |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve (Docs level: this branch changes only Markdown) |
+| Replays | `4320x2400` seed 2026 and `MAS-demonstrator` seed 42, Reciprocal, as described in [Problem](#step-4-why-two-movers-stand-still-near-a-destination); 48-run harness with no change (2 stuck runs), PARKING TRAFFIC (4) and RECOVERY (7) |
+| CI | On the pull request |
+
 ## Pull requests
 
 ### Step 1
@@ -334,6 +342,24 @@ Title: `fix(i4sim): guard predictive passing while a maneuver runs`
 **Dependencies and merge order.** Stacked on #49 (`test/i4sim-passing-causes`); merge that first. `fix/i4sim-destination-standstill` is stacked on this branch.
 
 **Follow-up.** Step 4, the standstill near a destination.
+
+### Step 4
+
+Title: `docs(i4sim): explain the standstill near a destination`
+
+**Summary.** Roadmap phase 7, step 4. Replays show why two movers stand still about 120 mm from a destination on `4320x2400`, and that the same mechanism explains the `MAS-demonstrator` seed-42 throughput gap under Reciprocal: a mover sealed in by neighbors that stay parked, often idle while holding a product, and never make way. No route exists while they stay, so no routing or steering change frees it; PARKING TRAFFIC and RECOVERY do not resolve it. Documented as a limit, with a MAKE WAY policy proposed for the user's decision. No code change.
+
+**Changes.** Design document (cause with seeds and ticks, the proposed remedy and its open questions, status `implemented`), i4sim README open point, roadmap Status row.
+
+**Design.** `docs/design/2026-11-21-i4sim-passing-under-pressure.md`
+
+**Verification.** Docs check; the replays and the 48-run harness are described in the design document.
+
+**Review notes.** The remedy is a new traffic policy that would move parked movers, including ones waiting with a product, so it is proposed rather than built. The unexplained acceptance of mover 25's departure route is an open point.
+
+**Dependencies and merge order.** Stacked on #58, which is stacked on #49. Merge #49, then #58, then this one.
+
+**Follow-up.** The user's decision on MAKE WAY; then a branch of its own.
 
 ## Measurement harness
 
