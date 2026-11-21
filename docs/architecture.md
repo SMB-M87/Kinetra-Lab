@@ -89,7 +89,7 @@ Runtime outlives every session; sessions own application state. Applications cho
 | Demo | Every world body's position and angle before and after the last tick, in `Application` | `presented_pose(id)`; the renderer draws moving bodies, routes and markers there and moves the camera with the drawn player for that frame only |
 | Dotio | Positions of the player and every enemy, arrow and bolt slot, with the world offset added so a streaming shift cancels out | The ported logic draws itself from `Position`, so the presentation swaps the blended positions in for one frame and restores them afterwards |
 
-[Launcher and overlays](launcher-overlays.md) details factory failure and transition isolation. [Demo architecture](demo-architecture.md) and [Dotio architecture](dotio-architecture.md) describe their different simulation ownership and coordinate policies.
+[Launcher and overlays](launcher-overlays.md) details factory failure and transition isolation. [Demo architecture](demo-architecture.md) and the [Dotio guide](../labs/dotio/README.md#structure) describe their different simulation ownership and coordinate policies.
 
 ## Verification boundaries
 

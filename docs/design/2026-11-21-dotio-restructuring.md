@@ -1,6 +1,6 @@
 # Dotio restructuring
 
-Status: accepted · Branches: `test/dotio-baseline` (step 1), `refactor/dotio-grid-rng` (step 2), Kinetra `feat/weighted-grid-search` (step 3), `refactor/dotio-navigation` (step 4), `refactor/dotio-layers` (step 5), `refactor/dotio-conventions` (step 6), `docs/dotio-module` (step 7) · Related: [quality roadmap, phase 6](2026-11-18-quality-roadmap.md#phase-6-dotio), [Dotio](../../labs/dotio/README.md), [Dotio architecture](../dotio-architecture.md), [Kinetra navigation](../../external/Kinetra/docs/engine/navigation.md)
+Status: accepted · Branches: `test/dotio-baseline` (step 1), `refactor/dotio-grid-rng` (step 2), Kinetra `feat/weighted-grid-search` (step 3), `refactor/dotio-navigation` (step 4), `refactor/dotio-layers` (step 5), `refactor/dotio-conventions` (step 6), `docs/dotio-module` (step 7) · Related: [quality roadmap, phase 6](2026-11-18-quality-roadmap.md#phase-6-dotio), [Dotio](../../labs/dotio/README.md), [Kinetra navigation](../../external/Kinetra/docs/engine/navigation.md)
 
 Roadmap phase 6. Dotio still runs on the code it was ported with: a static occupancy grid, randomness that no seed controls, its own A*, priority queue, stack and graph, a logic header that includes a runtime header, and the naming of the original game. This phase first records how enemies behave today, then makes runs reproducible, moves route planning onto Kinetra's weighted grid, fixes the layers and names, and documents the module.
 
