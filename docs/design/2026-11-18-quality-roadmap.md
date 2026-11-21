@@ -103,7 +103,8 @@ Updated on 2026-11-19, after phase 4.
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
 | 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
-| 5–8 | Not started | This page |
+| 5, 7, 8 | Not started | This page |
+| 6 Dotio | In progress: step 1 (statistics baseline) on `test/dotio-baseline` | [Dotio restructuring](2026-11-21-dotio-restructuring.md) |
 
 ## Phase 2: tooling and CI
 
