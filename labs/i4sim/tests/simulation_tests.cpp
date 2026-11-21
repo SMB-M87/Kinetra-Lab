@@ -8,6 +8,7 @@
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/flow_metrics.h"
 #include "i4sim/simulation/simulation.h"
+#include "i4sim/testing/event_counts.h"
 #include "i4sim/testing/recorder.h"
 #include "i4sim/testing/showcase.h"
 
@@ -1155,6 +1156,28 @@ TEST_CASE("the event log records each contact once with its tick and participant
     CHECK(border.border);
     CHECK(border.movers[0] == 0);
     CHECK(border.movers[1] < wall.borders().size());
+}
+
+TEST_CASE("contact episodes group the repeated contacts of one pair") {
+    const auto contact = [](std::uint64_t tick, std::size_t a, std::size_t b, bool border = false) {
+        SimulationEvent event{.tick = tick, .kind = EventKind::contact, .movers = {a, b}};
+        event.border = border;
+        return event;
+    };
+    // Pair 0-1 touches three times within 500 ticks of each other, then again after 500;
+    // pair 0-2 and mover 0 against border 1 are separate episodes, and passing events
+    // do not count.
+    const std::vector<SimulationEvent> events{
+        contact(10, 0, 1),
+        contact(300, 0, 1),
+        contact(799, 0, 1),
+        contact(1299, 0, 1),
+        contact(310, 0, 2),
+        contact(320, 0, 1, true),
+        {.tick = 330, .kind = EventKind::passing_formed, .plan = 1, .movers = {0, 1}}};
+    CHECK(i4sim::test::contact_episodes(events) == 4);
+    CHECK(i4sim::test::contact_episodes(events, 100) == 6);
+    CHECK(i4sim::test::contact_episodes({}) == 0);
 }
 
 TEST_CASE("recording events is opt-in and does not change the run") {
