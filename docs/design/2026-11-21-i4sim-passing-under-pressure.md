@@ -244,7 +244,19 @@ Open questions for that decision: whether a mover waiting for a producer may lea
 
 ## Review
 
-To be filled per step.
+### Steps 2 and 3
+
+`/code-review` (medium) on the branch diff against `test/i4sim-passing-causes`:
+
+| Finding | Resolution |
+| --- | --- |
+| A crossing intruder found first hid an oncoming mover found later in the same tick | Fixed: every mover is classified |
+| The heading came from the first leg, which runs mostly sideways before crossing, so an oncoming mover could be taken for a crossing one | Fixed: ahead, behind and oncoming are judged along the lane axis (entry to exit); the oncoming test was rebuilt so it fails without the rule |
+| The hold point assumed full deceleration over half the braking distance the lane reserves; the participant could overshoot and back up | Fixed: the hold point lies `braking_distance` ahead along the velocity |
+| A stationary mover behind a participant, within clearance, ended the plan | Fixed: movers behind are ignored, stationary or not |
+| Predictions skipped the last ticks of a horizon that is not a multiple of four | Fixed: the horizon itself is always checked |
+| The parked-mover test indexed a two-element array with any mover id | Fixed: positions of all movers |
+| `obstructed` documents "240 ticks" instead of the constant's name | Kept: the neighboring `no_progress` documents its 240 ticks the same way, and the header is public while the constant is internal |
 
 ## Verification
 
@@ -253,8 +265,10 @@ To be filled per step.
 | Check | Result |
 | --- | --- |
 | `cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_pressure_tests kinetra_i4sim_motion_benchmark` | Built, no warning |
-| `ctest --preset release -R '^kinetra_i4sim'` | See the pull request |
+| `ctest --preset release -R '^kinetra_i4sim'` | All pass except the RVO golden line, which also fails on `main` on this machine (Ubuntu GCC 13 instead of CI's pinned Arch toolchain) |
 | Benchmark with `contact_episodes` | Every count of the baseline unchanged |
+| `cmake --workflow --preset graphics` (Mesa llvmpipe, offscreen) | 297/302; the five failures (four Demo crowd characterization lines, the i4sim RVO golden line) also fail on `main` here and pass in CI. No compiler warning |
+| CI (format, docs, `headless`, `ci`, native Windows) | Green on Lab #49 |
 
 ### Steps 2 and 3
 
@@ -266,7 +280,10 @@ To be filled per step.
 | Pressure lines | Changed deliberately in three scenarios (three oncoming, lane intrusion, lane stop); all ten cases now require no contact, every mover arrived and no stuck mover |
 | `cmake --build --preset dev` with `KINETRA_LAB_WARNINGS` for the changed targets | No warning |
 | Benchmark | [Step 3](#step-3-measured-result); passing off identical to the baseline |
-| `cmake --workflow --preset graphics` | See the pull request |
+| `cmake --workflow --preset graphics` (Mesa llvmpipe, offscreen) | 305/310. The five failures also fail on `main` on this machine and pass in CI: four Demo crowd characterization lines and the i4sim RVO golden line, all exact floating-point fingerprints of code this branch does not touch (Ubuntu GCC 13 instead of CI's pinned Arch toolchain). No compiler warning |
+| Smoke runs, offscreen, 120 frames: `kinetra --variant demo/dotio/i4sim`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim` | All exit 0 |
+| `/code-review` (medium) | See [Review](#review) |
+| CI | On the pull request |
 
 ## Pull requests
 
