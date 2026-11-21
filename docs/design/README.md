@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-21 | [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md): roadmap phase 7, causes from replayed runs first, then guarded passing and the standstill near a destination | accepted |
 | 2026-11-20 | [Run Lab CI on pull requests](2026-11-20-pr-only-ci.md) | implemented |
 | 2026-11-20 | [Agent terminology in Lab documentation](2026-11-20-agent-terminology.md) | implemented |
 | 2026-11-20 | [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md): only PLANNER changes replan; SPEED, FORCE and HORIZON steps no longer strand movers | implemented |
