@@ -154,7 +154,7 @@ Demo has no navigation-only sub-READMEs left: the include layout change already 
 
 **Step 1.** Self-review of `git diff main...refactor/demo-headers`: every moved body compared with its old text; only indentation, `inline` and the `Class::` prefix changed. `mapping.h` now includes `kinetra/view/input.h`; `kinetra_lab/input.h`, which `mapping.cpp` uses, includes the runtime's `engine.h`, but that header has no SDL or OpenGL dependency, so the headless build still links. No findings.
 
-**Step 2.** Self-review of `git diff refactor/demo-headers...refactor/demo-scene-operations`. Each extracted function was compared with the code it replaces for the order of its floating-point operations and side effects; the lambda's captures became `Tick` fields or members with the same values. One finding, resolved before the commit: `arrange` first validated, then changed the world, then rebuilt the navigation, so an area that `Navigation::rebuild` rejects would leave a half-arranged scene. It now rebuilds the navigation before it changes anything, because the navigation keeps its old snapshot when it rejects one.
+**Step 2.** Self-review of `git diff refactor/demo-headers...refactor/demo-scene-operations`. Each extracted function was compared with the code it replaces for the order of its floating-point operations and side effects; the lambda's captures became `Tick` fields or members with the same values. Checked that `arrange` keeps its "before changing anything" promise: it rebuilds the navigation before it touches the world, and the navigation keeps its old snapshot when it rejects an area. No findings.
 
 ## Verification
 
