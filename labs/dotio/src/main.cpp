@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
         runtime.camera.pixels_per_unit = dotio::initial_zoom;
         // The same seed replays the same world and enemies; print it so a run can be repeated.
         const auto chosen = seed ? *seed : std::random_device{}();
-        std::cout << "Dotio seed " << chosen << '\n';
+        std::cout << "World seed: " << chosen << '\n';
         auto session = dotio::create_session(chosen, difficulty);
         kinetra::run_session(runtime, *session, frames);
     } catch (const std::exception &error) {
