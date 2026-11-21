@@ -1,0 +1,107 @@
+# Publishes a ready-to-run Windows zip (launcher, applications, SDL2.dll,
+# i4sim blueprints, licenses) as a GitHub Release asset, so trying Kinetra-Lab
+# needs no compiler. See tools/release/README.md.
+#
+# - Every push to main refreshes the pre-release "main-build"; its zip has a
+#   fixed download URL that the README links to.
+# - A tag v* publishes a release of its own with the same zip.
+#
+# The zip comes from the MinGW-w64 cross build (the "windows" preset), on the
+# same pinned Arch toolchain as ci.yml: it links the GCC runtime statically and
+# needs only SDL2.dll beside the executables. Tests are not run here; the
+# pull request's CI ran them, natively on Windows included. Bump ARCH_SNAPSHOT
+# and the image tag together with ci.yml.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ARCH_SNAPSHOT: "2026/11/17"
+  PACKAGE: Kinetra-Lab-windows-x64
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel-20261108.0.623074
+    steps:
+      - name: Install pinned toolchain and the MinGW-w64 cross compiler
+        run: |
+          echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm --needed git cmake ninja ccache mingw-w64-gcc
+          x86_64-w64-mingw32-g++ --version | head -1; cmake --version | head -1
+
+      - uses: actions/checkout@v7
+
+      - name: Trust the workspace and fetch the Kinetra submodule
+        run: |
+          git config --global --add safe.directory '*'
+          git submodule update --init --recursive
+          git submodule status
+
+      - name: Cross-build the launcher and the applications for Windows
+        run: |
+          cmake --preset windows
+          cmake --build --preset windows --target kinetra kinetra_demo kinetra_dotio kinetra_i4sim
+
+      - name: Check that the executables import only Windows libraries and SDL2.dll
+        run: |
+          for exe in build-windows/kinetra*.exe; do
+            case "$exe" in *_tests.exe) continue ;; esac
+            imports="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^\s*DLL Name: //p' | tr 'A-Z' 'a-z' | sort -u)"
+            echo "$exe: $(echo $imports)"
+            unexpected="$(echo "$imports" | grep -Ev '^(sdl2\.dll|kernel32\.dll|user32\.dll|gdi32\.dll|shell32\.dll|advapi32\.dll|ole32\.dll|opengl32\.dll|msvcrt\.dll|api-ms-win-.*\.dll)$' || true)"
+            if [ -n "$unexpected" ]; then echo "unexpected DLL imports in $exe: $unexpected"; exit 1; fi
+          done
+
+      - name: Package the zip
+        run: tools/release/package_windows.sh build-windows "dist/${PACKAGE}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE }}
+          path: dist/${{ env.PACKAGE }}.zip
+          if-no-files-found: error
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PACKAGE }}
+
+      - name: Publish a tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" "${PACKAGE}.zip" --clobber
+          else
+            gh release create "$tag" "${PACKAGE}.zip" --title "Kinetra-Lab $tag" --generate-notes
+          fi
+
+      - name: Refresh the main-build pre-release
+        if: github.ref == 'refs/heads/main'
+        run: |
+          gh release delete main-build --cleanup-tag --yes || true
+          gh release create main-build "${PACKAGE}.zip" \
+            --prerelease \
+            --target "${GITHUB_SHA}" \
+            --title "Kinetra-Lab main build" \
+            --notes "Windows build of main at ${GITHUB_SHA::7}, refreshed on every merge. Unzip and start kinetra.exe; see README.txt in the zip. For a fixed version, use a release tagged v*."

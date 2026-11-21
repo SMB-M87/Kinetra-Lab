@@ -50,7 +50,7 @@ Run from WSL; interop starts the `.exe` as a Windows process:
 ./build-windows/kinetra.exe --variant i4sim
 ```
 
-From Windows, open `\\wsl.localhost\<distribution>\<path to Kinetra-Lab>\build-windows\kinetra.exe` in Explorer. To run without WSL, copy the executable together with `SDL2.dll` and `i4sim-blueprints/`; nothing else is needed.
+From Windows, open `\\wsl.localhost\<distribution>\<path to Kinetra-Lab>\build-windows\kinetra.exe` in Explorer. To run without WSL, copy the executable together with `SDL2.dll` and `i4sim-blueprints/`; nothing else is needed. The [release workflow](../tools/release/README.md) publishes exactly that set as a ready-to-run zip.
 
 ## Building on Windows
 

@@ -107,7 +107,7 @@ Updated on 2026-11-19, after phase 4.
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
 | 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
 | 5–8 | Not started | This page |
-| 9 Easier try-out | In progress: HTTPS submodule on `build/https-submodule`; Windows zip next, on `build/windows-release` | [HTTPS submodule](2026-11-21-https-submodule.md) |
+| 9 Easier try-out | In review: HTTPS submodule on `build/https-submodule`, Windows zip on `build/windows-release` (stacked); the desktop check on Windows is the user's | [HTTPS submodule](2026-11-21-https-submodule.md), [Windows release zip](2026-11-21-windows-release-zip.md) |
 
 ## Phase 2: tooling and CI
 
