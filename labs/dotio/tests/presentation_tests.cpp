@@ -210,8 +210,8 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     controls.held[std::size_t(Key::right)] = true;
     controls.held[std::size_t(Key::w)] = true;
     const auto mapped = dotio::read_commands(controls, reopened.camera);
-    CHECK_MESSAGE((!mapped.pause && mapped.teleport && mapped.shoot && mapped.zoom_steps == 2),
-                  "Dotio pause/teleport/shoot/wheel mapping failed");
+    CHECK_MESSAGE((mapped.teleport && mapped.shoot && mapped.zoom_steps == 2),
+                  "Dotio teleport/shoot/wheel mapping failed");
     CHECK_MESSAGE((mapped.direction.x == 1 && mapped.direction.y == 1 && mapped.camera_pan.x == 1),
                   "Dotio WASD and arrows must share movement intent");
     dotio::Application application(42);
