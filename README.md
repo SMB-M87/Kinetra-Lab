@@ -85,7 +85,9 @@ Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps 
 
 ## Quick start
 
-Requires a C++20 compiler, CMake 3.16+ and a build tool, SDL2 and OpenGL development files with an OpenGL 3.3 context, and the header-only nlohmann JSON package 3.11+ (i4sim needs it in every build, headless included). The [CMake presets](CMakePresets.json) also need CMake 3.25+, Ninja and ccache. Linux is supported, and Windows through a MinGW-w64 cross build from WSL or Linux, or natively in an MSYS2 shell ([Windows](docs/windows.md)). On Artix/Arch: `pacman -S --needed base-devel cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json`, the same set CI uses (`clang` provides clang-format). On Debian, the JSON package is `nlohmann-json3-dev`.
+**Try it on Windows without building:** download [Kinetra-Lab-windows-x64.zip](https://github.com/SMB-M87/Kinetra-Lab/releases/download/main-build/Kinetra-Lab-windows-x64.zip) (built from the latest `main`), unzip it and start `kinetra.exe`. It needs Windows 10 or later with an OpenGL 3.3 driver and nothing else; the i4sim blueprints are included. Fixed versions are on the [releases page](https://github.com/SMB-M87/Kinetra-Lab/releases); how the zip is made is in the [release tool](tools/release/README.md).
+
+**Build from source.** Requires a C++20 compiler, CMake 3.16+ and a build tool, SDL2 and OpenGL development files with an OpenGL 3.3 context, and the header-only nlohmann JSON package 3.11+ (i4sim needs it in every build, headless included). The [CMake presets](CMakePresets.json) also need CMake 3.25+, Ninja and ccache. Linux is supported, and Windows through a MinGW-w64 cross build from WSL or Linux, or natively in an MSYS2 shell ([Windows](docs/windows.md)). On Artix/Arch: `pacman -S --needed base-devel cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json`, the same set CI uses (`clang` provides clang-format). On Debian, the JSON package is `nlohmann-json3-dev`.
 
 Repository layout (every module follows the [directory layout](external/Kinetra/docs/conventions.md#directory-layout)):
 
@@ -117,12 +119,7 @@ git submodule update --init --recursive
 ls external/Kinetra/CMakeLists.txt   # must exist
 ```
 
-While the directory is empty, `git -C external/Kinetra ...` acts on the Lab repository itself, not the engine; initialize the submodule first. If the update asks for SSH authentication (`.gitmodules` uses a `git@github.com:` URL), switch this clone to HTTPS:
-
-```sh
-git config submodule.external/Kinetra.url https://github.com/SMB-M87/Kinetra.git
-git submodule update --init --recursive
-```
+While the directory is empty, `git -C external/Kinetra ...` acts on the Lab repository itself, not the engine; initialize the submodule first. The submodule URL is HTTPS, so no SSH key is needed. A clone made while `.gitmodules` still had an SSH URL picks up the HTTPS URL with `git submodule sync --recursive`.
 
 If an earlier configure failed, remove `build/` before rebuilding. No separate Kinetra installation or build is needed.
 
