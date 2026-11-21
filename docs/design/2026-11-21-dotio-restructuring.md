@@ -72,7 +72,7 @@ Checked against `main` at `2cd2c8a` on 2026-11-21. The roadmap's relevance check
 | Route length | Whole routes; the 50-cell cap goes | *Agent.* The cap stopped long pursuits short and made them replan every decision tick |
 | Footprint | Routes for a point (zero half extents), as the old cell graph | *Agent.* Contact leaves an enemy touching a wall; a footprint test at its start point would then reject every route |
 | Random streams | Per purpose, each seeded from the world seed and a fixed tag: population (spawn placement, exists), wander (steering heading, exists), behavior (fear, path-wander target and jitter), placement (player respawn, ghost start). Values from raw generator bits, not standard distributions | *Agent.* Separate streams keep one feature from shifting another's sequence; standard distributions differ between standard libraries, raw bits do not (as `wander.cpp` already does) |
-| Seeds at the edge | `World` and `Application` take a seed without a default. `kinetra_dotio` gains `--seed`, and draws one from `std::random_device` only when it is absent; the bundled launcher already passes its `--seed` | *Agent.* The executables are composition roots, not simulation logic; a printed seed lets the user replay a playtest |
+| Seeds at the edge | `World` and `Application` take a seed without a default. `kinetra_dotio` gains `--seed`, and draws one from `std::random_device` only when it is absent; both it and the bundled launcher print the seed they play | *Agent.* The executables are composition roots, not simulation logic; a printed seed lets the user replay a playtest |
 | Golden fingerprint | From step 4 on, a doctest case pins a seeded run (positions, states, kills) to one value. Steps 5 and 6 keep it unchanged | *Agent.* The strongest safety net for the renames; the same pattern as i4sim's golden test |
 | Debug panel | `kinetra::DebugMenu` moves from `Application` to the session; the rows (`debug_entries()`) stay in logic | *Agent.* AGENTS.md puts debug rows in logic; the panel that draws them is presentation |
 | Naming | Lab conventions throughout Dotio, `gmath` included: `snake_case` members and functions, `x_` private members, `#pragma once`, no field aliases | *Agent.* The roadmap asks for it; renames are mechanical and compiler-checked, with the fingerprint as proof |
@@ -216,6 +216,21 @@ Reading the baseline:
 - About 5–6% of route-following ticks have no route: the tick that enters a state clears the route, and the plan follows at the next decision tick (20 Hz).
 - Nothing overlaps walls; stuck episodes are rare (at most one per 50 enemy-minutes).
 
+### After step 2
+
+Same command, at `refactor/dotio-grid-rng`. Runs are now reproducible: the fingerprints repeat (steering: `ad3797a3279b4837 8eef746b9f417f93 da172c588d995951`). The statistics stay within the baseline's run-to-run spread, as a change of where random values come from should; the largest move is path wander on Medium, a tenth fewer sightings and pursuits, from one seeded sample of a chaotic game.
+
+| Statistic | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Damage to player / min, steering / path | 51.5 / 54.1 | 288.8 / 285.0 | 470.3 / 464.5 |
+| Player deaths / 10 min, steering / path | 0.00 / 0.00 | 14.92 / 13.33 | 35.08 / 34.92 |
+| Pursuits / enemy-min, steering / path | 0.39 / 0.35 | 2.16 / 1.86 | 3.48 / 3.40 |
+| Pursuits that find the player (%), steering / path | 70.9 / 69.0 | 91.9 / 91.1 | 98.4 / 98.9 |
+| Kamikaze entries / enemy-min, steering / path | 0.08 / 0.08 | 0.33 / 0.34 | 0.40 / 0.42 |
+| Route-following ticks without a route (%), steering / path | 5.2 / 5.2 | 6.0 / 5.9 | 6.1 / 6.2 |
+| Stuck episodes / enemy-min, steering / path | 0.000 / 0.017 | 0.003 / 0.004 | 0.003 / 0.002 |
+| Ticks overlapping a wall (%) | 0.00 | 0.00 | 0.00 |
+
 ## Affected areas
 
 - `labs/dotio/` (all of it), `labs/dotio/CMakeLists.txt`, the root `CMakeLists.txt` (warnings as errors).
@@ -244,11 +259,26 @@ Reading the baseline:
 
 ## Review
 
-Filled in per step.
+### Step 2
+
+- `Grid::TerrainCell` kept a `static thread_local` district cache; it is now a member of the grid (a memo of a pure function, but still shared state across worlds).
+- `GridEntry::operator!=` is still the buggy `&&` form; it has no caller (`grep`), and step 5 fixes it.
+- `wander.cpp`'s `signed_unit` now uses the shared `math::unit`; `unit * 2 - 1` and the old `bits / 2^23 - 1` give the same float for every 24-bit value, so steering wander is unchanged (its tests pass unchanged).
 
 ## Verification
 
-Filled in per step.
+### Step 2
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset dev` (everything, warnings on) | passed; no new warnings in changed files |
+| `ctest --preset dev -R 'capture\|dotio\|menu'` | 82/82 passed (two new cases) |
+| `kinetra_dotio --seed 7 --frames 30` (offscreen) | exit 0, prints `World seed: 7` |
+| Benchmark twice with the same seeds | identical fingerprints |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
+| Pull request CI | see the pull request |
+
+Local Full (`cmake --workflow --preset graphics`) runs once on the top of the stack, after step 7.
 
 ## Pull request
 
