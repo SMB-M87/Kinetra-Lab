@@ -10,7 +10,7 @@ class World;
 /// Stateful game enemy; embedded state objects share one stable owning enemy.
 class Enemy final : public PhysicsObject {
     float cooldown_{};
-    float maxCooldown_{1.0f};
+    float max_cooldown_{1.0f};
     int ammo_{1};
     int countdown_{0};
     static constexpr int ammo_capacity = 10;
@@ -32,21 +32,21 @@ class Enemy final : public PhysicsObject {
     /// Largest Fear after a reload: a reloaded enemy is bolder than a fresh one.
     static constexpr float reloaded_fear_max = 6.0f;
 
-    dotio::math::Vec2 Target{};
-    dotio::math::Vec2 TargetVelocity{};
+    dotio::math::Vec2 target{};
+    dotio::math::Vec2 target_velocity{};
     /// The route the current state follows; empty while it needs none or found none.
-    dotio::Route Path;
-    float Fear{};
-    int HitsRemaining{1};
-    bool LineOfSight{false}, Debug{false}, Frozen{};
+    dotio::Route path;
+    float fear{};
+    int hits_remaining{1};
+    bool line_of_sight{false}, debug{false}, frozen{};
     /// Direction this enemy wanders in under WanderMode::steering, in radians in legacy
     /// coordinates: it points along (cos, sin), and +Y is down the screen. Kept in
     /// [-pi, pi]; Initialize() and Reset() draw a new one from World::wander_random().
-    float WanderHeading{};
+    float wander_heading{};
     /// Side this enemy turns to first when a wall blocks its wander heading: +1 adds to
     /// WanderHeading, -1 subtracts. It changes only when the other side is the free one, so
     /// the enemy does not turn back and forth in front of a wall.
-    float WanderSide{1.f};
+    float wander_side{1.f};
 
     Enemy();
 

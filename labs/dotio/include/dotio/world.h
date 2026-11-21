@@ -21,7 +21,7 @@ namespace dotio {
 /// Own the streamed-world game population, projectiles and grid.
 /// Addresses stay stable because enemies and their state objects reference this world.
 class World {
-    float tickRate_{1.0f / 20.0f};
+    float tick_rate_{1.0f / 20.0f};
     dotio::Player player_;
     dotio::Player ghost_;
     TrackerData<Enemy, 666> enemies_;
@@ -62,7 +62,8 @@ class World {
         : difficulty_(difficulty), settings_(settings_for(difficulty)) {}
     World(const World &) = delete;
     World &operator=(const World &) = delete;
-    std::unordered_map<dotio::math::GridEntry, std::unordered_set<dotio::PhysicsObject *>> EnemyPartitionMap;
+    std::unordered_map<dotio::math::GridEntry, std::unordered_set<dotio::PhysicsObject *>>
+        enemy_partition_map;
 
     /// Starts a new world for `seed` at `difficulty`: terrain, player, a dormant enemy pool,
     /// the preset of the difficulty as settings() and a default enemy_tuning(). The seed also
@@ -106,8 +107,8 @@ class World {
     dotio::math::Vec2 spawn_half(dotio::math::Vec2 normal_half, dotio::math::Vec2 active_half) const {
         const float progress = float(std::clamp(survival_seconds_ / 300.0, 0.0, 1.0));
         const auto initial = normal_half * 1.75f;
-        return {std::min(active_half.X, initial.X + (active_half.X - initial.X) * progress),
-                std::min(active_half.Y, initial.Y + (active_half.Y - initial.Y) * progress)};
+        return {std::min(active_half.x, initial.x + (active_half.x - initial.x) * progress),
+                std::min(active_half.y, initial.y + (active_half.y - initial.y) * progress)};
     }
     /// Shift the local navigation/physics window before the player reaches its edge.
     dotio::math::Vec2 stream_around_player();

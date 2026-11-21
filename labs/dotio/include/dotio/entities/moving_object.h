@@ -5,8 +5,8 @@
 namespace dotio {
 class MovingObject : public StaticObject {
   public:
-    dotio::math::Vector2 Velocity{};
-    float AngularVelocity{};
+    dotio::math::Vector2 velocity{};
+    float angular_velocity{};
 
     explicit MovingObject(dotio::math::Position position, float direction, bool active);
 
@@ -15,10 +15,5 @@ class MovingObject : public StaticObject {
     virtual void update(float delta);
 
     virtual void tick();
-
-    [[nodiscard]] dotio::math::Vector2 get_velocity() const;
-    void set_velocity(dotio::math::Vec2 velocity);
-
-    [[nodiscard]] dotio::math::Vector2 get_next_position() const;
 };
 } // namespace dotio

@@ -7,13 +7,13 @@
 namespace dotio {
 class PhysicsObject : public MovingObject {
   protected:
-    float _mass;
-    float _friction;
-    float _angularFriction;
+    float mass_;
+    float friction_;
+    float angular_friction_;
 
   public:
-    float Radius;
-    dotio::math::GridEntry LastPartition[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
+    float radius;
+    dotio::math::GridEntry last_partition[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
     PhysicsObject();
 

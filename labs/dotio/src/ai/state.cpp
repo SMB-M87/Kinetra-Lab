@@ -24,11 +24,11 @@ constexpr float shelter_reach_cells = 0.1f;
 /// closer than `reach` legacy pixels is passed and the next one taken; after the last one
 /// is passed, the enemy still steers toward it for this update.
 std::optional<dotio::math::Vec2> steering_point(Enemy &enemy, float reach) {
-    auto &route = enemy.Path;
+    auto &route = enemy.path;
     if (route.empty())
         return std::nullopt;
     auto point = route.next();
-    if ((point - enemy.Position) < reach) {
+    if ((point - enemy.position) < reach) {
         route.advance();
         if (!route.empty())
             point = route.next();
@@ -39,9 +39,9 @@ std::optional<dotio::math::Vec2> steering_point(Enemy &enemy, float reach) {
 /// Accelerates `enemy` toward `point` by `force` legacy pixels per update, over `delta`
 /// updates and scaled by the difficulty's movement multiplier, as every state does.
 void accelerate_toward(Enemy &enemy, dotio::math::Vec2 point, float force, float delta) {
-    if (point == enemy.Position)
+    if (point == enemy.position)
         return;
-    const dotio::math::Vec2 acceleration = (point - enemy.Position).get_normalized() * force;
+    const dotio::math::Vec2 acceleration = (point - enemy.position).get_normalized() * force;
     enemy.apply_force(acceleration * (delta * enemy.get_world().difficulty_settings().movement_multiplier),
                       0.5f * enemy.get_mass());
 }
@@ -58,198 +58,198 @@ dotio::math::GridEntry cell_of(dotio::math::Vec2 point) {
 /// cell than the target's: the target moved since the route was planned. A failed plan keeps
 /// the old route, as the original game did.
 void follow_target(Enemy &enemy) {
-    if (!enemy.Path.empty() && cell_of(enemy.Path.destination()) == cell_of(enemy.Target))
+    if (!enemy.path.empty() && cell_of(enemy.path.destination()) == cell_of(enemy.target))
         return;
-    if (auto route = plan_route(enemy.get_world().grid(), enemy.Position, enemy.Target); !route.empty())
-        enemy.Path = std::move(route);
+    if (auto route = plan_route(enemy.get_world().grid(), enemy.position, enemy.target); !route.empty())
+        enemy.path = std::move(route);
 }
 
 /// Center of `cell` in legacy pixels.
 dotio::math::Vec2 center_of(dotio::math::GridEntry cell) {
-    return {(float(cell.Column) + 0.5f) * Grid::cell_size, (float(cell.Row) + 0.5f) * Grid::cell_size};
+    return {(float(cell.column) + 0.5f) * Grid::cell_size, (float(cell.row) + 0.5f) * Grid::cell_size};
 }
 } // namespace
 
 void WanderState::execute(const float delta) {
-    if (_enemy->get_world().enemy_tuning().wander == WanderMode::steering) {
-        steer_wander(*_enemy, delta);
+    if (enemy_->get_world().enemy_tuning().wander == WanderMode::steering) {
+        steer_wander(*enemy_, delta);
         return;
     }
-    const auto point = steering_point(*_enemy, Grid::cell_size * waypoint_reach_cells);
+    const auto point = steering_point(*enemy_, Grid::cell_size * waypoint_reach_cells);
     if (!point)
         return;
     // The original game aims at a random point around the waypoint, wider than tall, every
     // update, so path wanderers sway along their route.
     const float angle =
-        dotio::math::unit(_enemy->get_world().behavior_random()) * 2 * std::numbers::pi_v<float>;
+        dotio::math::unit(enemy_->get_world().behavior_random()) * 2 * std::numbers::pi_v<float>;
     const dotio::math::Vec2 displacement(Grid::cell_size * std::cos(angle),
                                          Grid::cell_size * 0.4f * std::sin(angle));
-    const dotio::math::Vec2 force = (*point + displacement - _enemy->Position).get_normalized() *
-                                    _enemy->get_world().enemy_tuning().wander_force;
-    _enemy->apply_force(force * (delta * _enemy->get_world().difficulty_settings().movement_multiplier),
-                        0.5f * _enemy->get_mass());
+    const dotio::math::Vec2 force = (*point + displacement - enemy_->position).get_normalized() *
+                                    enemy_->get_world().enemy_tuning().wander_force;
+    enemy_->apply_force(force * (delta * enemy_->get_world().difficulty_settings().movement_multiplier),
+                        0.5f * enemy_->get_mass());
 }
 
 void WanderState::update() {
-    if (_enemy->LineOfSight) {
-        _enemy->Path.clear();
-        _enemy->set_state(_enemy->get_attack_state());
+    if (enemy_->line_of_sight) {
+        enemy_->path.clear();
+        enemy_->set_state(enemy_->get_attack_state());
         return;
     }
 
-    if (_enemy->get_world().enemy_tuning().wander == WanderMode::steering) {
-        drift_wander_heading(*_enemy);
+    if (enemy_->get_world().enemy_tuning().wander == WanderMode::steering) {
+        drift_wander_heading(*enemy_);
         return;
     }
 
-    if (_enemy->Path.empty()) {
-        if (const auto cell = cell_of(_enemy->Position); cell.Row >= 0) {
-            auto &world = _enemy->get_world();
+    if (enemy_->path.empty()) {
+        if (const auto cell = cell_of(enemy_->position); cell.row >= 0) {
+            auto &world = enemy_->get_world();
             const auto goal = world.grid().generate_grid_entry(cell, world.behavior_random());
-            _enemy->Path = plan_route(world.grid(), _enemy->Position, center_of(goal));
+            enemy_->path = plan_route(world.grid(), enemy_->position, center_of(goal));
         }
     }
 }
 
 void AttackState::execute(const float delta) {
     bool boundary =
-        sqrt(pow(_enemy->Position.X - _enemy->Target.X, 2) + pow(_enemy->Position.Y - _enemy->Target.Y, 2)) <
-        (dotio::Grid::cell_size * (_enemy->Fear * (_enemy->ammo_used_ratio())) +
+        sqrt(pow(enemy_->position.x - enemy_->target.x, 2) + pow(enemy_->position.y - enemy_->target.y, 2)) <
+        (dotio::Grid::cell_size * (enemy_->fear * (enemy_->ammo_used_ratio())) +
          dotio::Grid::cell_size * 0.5f);
 
     dotio::math::Vec2 force = {
-        (boundary ? _enemy->Position - _enemy->Target : _enemy->Target - _enemy->Position).get_normalized() *
-        _enemy->get_world().enemy_tuning().attack_force};
+        (boundary ? enemy_->position - enemy_->target : enemy_->target - enemy_->position).get_normalized() *
+        enemy_->get_world().enemy_tuning().attack_force};
 
-    _enemy->apply_force(force * (delta * _enemy->get_world().difficulty_settings().movement_multiplier),
-                        0.5f * _enemy->get_mass());
+    enemy_->apply_force(force * (delta * enemy_->get_world().difficulty_settings().movement_multiplier),
+                        0.5f * enemy_->get_mass());
 }
 
 void AttackState::update() {
     // Kamikaze is a last-health behavior; fuzzy combat rules still choose when to commit.
-    if (_enemy->HitsRemaining == 1 &&
-        dotio::Fuzzy::evaluate(_enemy->distance(), _enemy->Fear, _enemy->get_ammo())) {
-        _enemy->set_state(_enemy->get_kamikaze_state());
+    if (enemy_->hits_remaining == 1 &&
+        dotio::Fuzzy::evaluate(enemy_->distance(), enemy_->fear, enemy_->get_ammo())) {
+        enemy_->set_state(enemy_->get_kamikaze_state());
         return;
     }
-    if (_enemy->is_out_of_ammo()) {
-        _enemy->set_state(_enemy->get_recover_state());
+    if (enemy_->is_out_of_ammo()) {
+        enemy_->set_state(enemy_->get_recover_state());
         return;
     }
-    if (!_enemy->LineOfSight) {
-        _enemy->reset_pursue();
-        _enemy->set_state(_enemy->get_pursue_state());
+    if (!enemy_->line_of_sight) {
+        enemy_->reset_pursue();
+        enemy_->set_state(enemy_->get_pursue_state());
         return;
     }
 
-    if (_enemy->get_cooldown() <= 0.0f) {
-        _enemy->reset_cooldown();
-        _enemy->ammo_fired();
-        const auto &settings = _enemy->get_world().difficulty_settings();
+    if (enemy_->get_cooldown() <= 0.0f) {
+        enemy_->reset_cooldown();
+        enemy_->ammo_fired();
+        const auto &settings = enemy_->get_world().difficulty_settings();
         const float arrow_speed = settings.projectile_speed;
         dotio::math::Vector2 shoot = {arrow_speed, 0.0f};
-        shoot.rotate(_enemy->Position.signed_angle_difference(shoot, _enemy->Target) +
+        shoot.rotate(enemy_->position.signed_angle_difference(shoot, enemy_->target) +
                      settings.prediction *
-                         dotio::math::Vec2::intercept(_enemy->TargetVelocity.get_length(), arrow_speed,
-                                                      _enemy->Target.signed_angle_difference(
-                                                          _enemy->TargetVelocity, _enemy->Position)));
-        _enemy->get_world().add_arrow(_enemy->Position, shoot);
+                         dotio::math::Vec2::intercept(enemy_->target_velocity.get_length(), arrow_speed,
+                                                      enemy_->target.signed_angle_difference(
+                                                          enemy_->target_velocity, enemy_->position)));
+        enemy_->get_world().add_arrow(enemy_->position, shoot);
     }
 }
 
 void PursueState::execute(const float delta) {
-    if (const auto point = steering_point(*_enemy, Grid::cell_size * waypoint_reach_cells))
-        accelerate_toward(*_enemy, *point, _enemy->get_world().enemy_tuning().pursue_force, delta);
+    if (const auto point = steering_point(*enemy_, Grid::cell_size * waypoint_reach_cells))
+        accelerate_toward(*enemy_, *point, enemy_->get_world().enemy_tuning().pursue_force, delta);
 }
 
 void PursueState::update() {
-    if (_enemy->LineOfSight) {
-        _enemy->Path.clear();
-        _enemy->set_state(_enemy->get_attack_state());
+    if (enemy_->line_of_sight) {
+        enemy_->path.clear();
+        enemy_->set_state(enemy_->get_attack_state());
         return;
     }
-    if (_enemy->pursue_countdown_passed()) {
-        _enemy->Path.clear();
-        _enemy->set_state(_enemy->get_wander_state());
+    if (enemy_->pursue_countdown_passed()) {
+        enemy_->path.clear();
+        enemy_->set_state(enemy_->get_wander_state());
         return;
     }
 
-    if (_enemy->get_cooldown() <= 0.0f) {
-        _enemy->reset_cooldown();
-        _enemy->pursue_countdown();
-        if (_enemy->get_ammo() > 6)
-            _enemy->ammo_recovered();
+    if (enemy_->get_cooldown() <= 0.0f) {
+        enemy_->reset_cooldown();
+        enemy_->pursue_countdown();
+        if (enemy_->get_ammo() > 6)
+            enemy_->ammo_recovered();
     }
-    follow_target(*_enemy);
+    follow_target(*enemy_);
 }
 
 void RecoverState::execute(const float delta) {
     // The last waypoint is the shelter itself: the enemy goes all the way to its center.
     const float reach =
-        (_enemy->Path.size() > 1 ? waypoint_reach_cells : shelter_reach_cells) * Grid::cell_size;
-    if (const auto point = steering_point(*_enemy, reach))
-        accelerate_toward(*_enemy, *point, _enemy->get_world().enemy_tuning().recover_force, delta);
+        (enemy_->path.size() > 1 ? waypoint_reach_cells : shelter_reach_cells) * Grid::cell_size;
+    if (const auto point = steering_point(*enemy_, reach))
+        accelerate_toward(*enemy_, *point, enemy_->get_world().enemy_tuning().recover_force, delta);
 }
 
 void RecoverState::update() {
-    if (_enemy->has_reloaded_ammo()) {
-        _enemy->Fear = dotio::math::uniform(_enemy->get_world().behavior_random(), Enemy::spawn_fear_min,
+    if (enemy_->has_reloaded_ammo()) {
+        enemy_->fear = dotio::math::uniform(enemy_->get_world().behavior_random(), Enemy::spawn_fear_min,
                                             Enemy::reloaded_fear_max);
-        _enemy->Path.clear();
-        _enemy->reset_pursue();
-        _enemy->set_state(_enemy->get_pursue_state());
+        enemy_->path.clear();
+        enemy_->reset_pursue();
+        enemy_->set_state(enemy_->get_pursue_state());
         return;
     }
 
-    if (!_enemy->LineOfSight && _enemy->get_cooldown() <= 0.0f) {
-        _enemy->reset_cooldown();
-        _enemy->ammo_recovered();
+    if (!enemy_->line_of_sight && enemy_->get_cooldown() <= 0.0f) {
+        enemy_->reset_cooldown();
+        enemy_->ammo_recovered();
     }
 
     // Seen without a shelter to go to, or caught near the player: look for a (new) shelter.
-    const bool seen_without_route = _enemy->LineOfSight && _enemy->Path.empty();
-    const bool player_close = std::abs(_enemy->Position.X - _enemy->Target.X) <= Grid::cell_size * 2.5f &&
-                              std::abs(_enemy->Position.Y - _enemy->Target.Y) <= Grid::cell_size * 2.5f;
+    const bool seen_without_route = enemy_->line_of_sight && enemy_->path.empty();
+    const bool player_close = std::abs(enemy_->position.x - enemy_->target.x) <= Grid::cell_size * 2.5f &&
+                              std::abs(enemy_->position.y - enemy_->target.y) <= Grid::cell_size * 2.5f;
     if (!seen_without_route && !player_close)
         return;
-    if (cell_of(_enemy->Position).Row < 0)
+    if (cell_of(enemy_->position).row < 0)
         return;
     if (auto shelter =
-            plan_shelter(_enemy->get_world().grid(), _enemy->Position, _enemy->Target, _enemy->Fear);
+            plan_shelter(enemy_->get_world().grid(), enemy_->position, enemy_->target, enemy_->fear);
         !shelter.empty())
-        _enemy->Path = std::move(shelter);
-    else if (_enemy->HitsRemaining == 1)
-        _enemy->set_state(_enemy->get_kamikaze_state());
+        enemy_->path = std::move(shelter);
+    else if (enemy_->hits_remaining == 1)
+        enemy_->set_state(enemy_->get_kamikaze_state());
 }
 
 void KamikazeState::execute(const float delta) {
-    const float force = _enemy->get_world().enemy_tuning().kamikaze_force;
-    if (_enemy->LineOfSight) {
-        accelerate_toward(*_enemy, _enemy->Target, force, delta);
-        _enemy->Path.clear();
+    const float force = enemy_->get_world().enemy_tuning().kamikaze_force;
+    if (enemy_->line_of_sight) {
+        accelerate_toward(*enemy_, enemy_->target, force, delta);
+        enemy_->path.clear();
         return;
     }
-    if (const auto point = steering_point(*_enemy, Grid::cell_size * waypoint_reach_cells))
-        accelerate_toward(*_enemy, *point, force, delta);
+    if (const auto point = steering_point(*enemy_, Grid::cell_size * waypoint_reach_cells))
+        accelerate_toward(*enemy_, *point, force, delta);
 }
 
 void KamikazeState::update() {
-    if (_enemy->LineOfSight && !_enemy->is_out_of_ammo() && _enemy->get_cooldown() <= 0.0f) {
-        _enemy->reset_cooldown();
-        _enemy->ammo_fired();
-        const auto &settings = _enemy->get_world().difficulty_settings();
+    if (enemy_->line_of_sight && !enemy_->is_out_of_ammo() && enemy_->get_cooldown() <= 0.0f) {
+        enemy_->reset_cooldown();
+        enemy_->ammo_fired();
+        const auto &settings = enemy_->get_world().difficulty_settings();
         const float arrow_speed = settings.projectile_speed;
         dotio::math::Vector2 shoot = {arrow_speed, 0.0f};
-        shoot.rotate(_enemy->Position.signed_angle_difference(shoot, _enemy->Target) +
+        shoot.rotate(enemy_->position.signed_angle_difference(shoot, enemy_->target) +
                      settings.prediction *
-                         dotio::math::Vec2::intercept(_enemy->TargetVelocity.get_length(), arrow_speed,
-                                                      _enemy->Target.signed_angle_difference(
-                                                          _enemy->TargetVelocity, _enemy->Position)));
-        _enemy->get_world().add_arrow(_enemy->Position, shoot);
-    } else if (!_enemy->LineOfSight && _enemy->get_ammo() > 5 && _enemy->get_cooldown() <= 0.0f) {
-        _enemy->ammo_recovered();
+                         dotio::math::Vec2::intercept(enemy_->target_velocity.get_length(), arrow_speed,
+                                                      enemy_->target.signed_angle_difference(
+                                                          enemy_->target_velocity, enemy_->position)));
+        enemy_->get_world().add_arrow(enemy_->position, shoot);
+    } else if (!enemy_->line_of_sight && enemy_->get_ammo() > 5 && enemy_->get_cooldown() <= 0.0f) {
+        enemy_->ammo_recovered();
     }
-    if (!_enemy->LineOfSight)
-        follow_target(*_enemy);
+    if (!enemy_->line_of_sight)
+        follow_target(*enemy_);
 }
 } // namespace dotio

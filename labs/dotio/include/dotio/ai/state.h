@@ -5,10 +5,10 @@ class Enemy;
 
 class State {
   protected:
-    Enemy *_enemy{};
+    Enemy *enemy_{};
 
   public:
-    void set_enemy(Enemy &enemy) { _enemy = &enemy; }
+    void set_enemy(Enemy &enemy) { enemy_ = &enemy; }
     virtual void execute(const float delta) = 0;
     virtual void update() {};
 };

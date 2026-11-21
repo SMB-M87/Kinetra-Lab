@@ -27,7 +27,7 @@ void Grid::fill(int value) {
 }
 
 kinetra::CollisionGrid Grid::collision_view() const {
-    return {{&cells_[0][0], std::size_t(rows * columns)}, rows, columns, cell_size, {origin.X, origin.Y}};
+    return {{&cells_[0][0], std::size_t(rows * columns)}, rows, columns, cell_size, {origin.x, origin.y}};
 }
 
 // Seeded depth-first mazes reproduce the narrow, irregular passages of the original
@@ -161,7 +161,7 @@ bool Grid::segment_is_intersecing_circle(const dotio::math::Segment &segment,
 uint8_t Grid::segement_circle_intersection(const dotio::math::Segment &segment,
                                            const dotio::math::Point2 center, const float radius,
                                            dotio::math::Point2 &intersection) {
-    const auto start = dotio::physics_vector(segment.Start), end = dotio::physics_vector(segment.End);
+    const auto start = dotio::physics_vector(segment.start), end = dotio::physics_vector(segment.end);
     const auto c = dotio::physics_vector(center);
     const uint8_t flags =
         (kinetra::length(start - c) <= radius ? 2 : 0) | (kinetra::length(end - c) <= radius ? 4 : 0);
@@ -173,17 +173,17 @@ uint8_t Grid::segement_circle_intersection(const dotio::math::Segment &segment,
 }
 
 bool Grid::is_intersecting_any_cell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const {
-    if (const auto fraction = kinetra::segment_grid(dotio::physics_vector(segment.Start),
-                                                    dotio::physics_vector(segment.End), collision_view())) {
-        intersection = segment.Start + (segment.End - segment.Start) * *fraction;
+    if (const auto fraction = kinetra::segment_grid(dotio::physics_vector(segment.start),
+                                                    dotio::physics_vector(segment.end), collision_view())) {
+        intersection = segment.start + (segment.end - segment.start) * *fraction;
         return true;
     }
     return false;
 }
 
-dotio::math::GridEntry Grid::generate_grid_entry(dotio::math::GridEntry origin, std::mt19937 &random) const {
-    const int center_row = std::clamp(origin.Row, 0, rows - 1);
-    const int center_col = std::clamp(origin.Column, 0, columns - 1);
+dotio::math::GridEntry Grid::generate_grid_entry(dotio::math::GridEntry around, std::mt19937 &random) const {
+    const int center_row = std::clamp(around.row, 0, rows - 1);
+    const int center_col = std::clamp(around.column, 0, columns - 1);
     std::vector<dotio::math::GridEntry> candidates;
     // Enumerate once: unlike rejection sampling, sealed neighborhoods cannot hang.
     for (int row = std::max(0, center_row - 5); row <= std::min(rows - 1, center_row + 5); ++row)

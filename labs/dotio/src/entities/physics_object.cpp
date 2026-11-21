@@ -7,11 +7,11 @@ PhysicsObject::~PhysicsObject() = default;
 PhysicsObject::PhysicsObject() {
 }
 
-PhysicsObject::PhysicsObject(const float mass, const float radius, const float friction,
-                             const float rotational_friction, const dotio::math::Position position,
-                             const float direction, bool active)
-    : MovingObject(position, direction, active), _mass(mass), _friction(friction),
-      _angularFriction(rotational_friction), Radius(radius) {
+PhysicsObject::PhysicsObject(const float mass, const float body_radius, const float friction,
+                             const float rotational_friction, const dotio::math::Position start,
+                             const float start_direction, bool active)
+    : MovingObject(start, start_direction, active), mass_(mass), friction_(friction),
+      angular_friction_(rotational_friction), radius(body_radius) {
 }
 
 void PhysicsObject::apply_force(const dotio::math::Vector2 &force, const float) {
@@ -23,7 +23,7 @@ void PhysicsObject::apply_force(const dotio::math::Vector2 &force, const float) 
 
 void PhysicsObject::update(const float delta) {
     auto body = dotio::physics_body(*this);
-    kinetra::integrate(body, delta, _friction);
+    kinetra::integrate(body, delta, friction_);
     dotio::apply_body(*this, body);
 }
 
@@ -32,13 +32,13 @@ void PhysicsObject::tick() {
 }
 
 float PhysicsObject::get_diameter() const {
-    return 2.0f * Radius;
+    return 2.0f * radius;
 }
 
 float PhysicsObject::get_friction() const {
-    return _friction;
+    return friction_;
 }
 float PhysicsObject::get_mass() const {
-    return _mass;
+    return mass_;
 }
 } // namespace dotio

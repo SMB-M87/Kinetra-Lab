@@ -13,14 +13,14 @@ namespace dotio {
 Enemy::Enemy() : PhysicsObject() {
 }
 
-Enemy::Enemy(World *world, dotio::math::Position position, dotio::math::Position target,
-             const float direction, const float fear)
-    : PhysicsObject(60.0f, dotio::Grid::cell_size * 0.2, 0.2f, 0.2f, position, direction, true),
-      world_(world), Target(target), Path{}, Fear(fear) {
+Enemy::Enemy(World *world, dotio::math::Position start, dotio::math::Position first_target,
+             const float start_direction, const float start_fear)
+    : PhysicsObject(60.0f, dotio::Grid::cell_size * 0.2, 0.2f, 0.2f, start, start_direction, true),
+      world_(world), target(first_target), path{}, fear(start_fear) {
 }
 
 void Enemy::update(const float delta) {
-    if (Frozen || Target == Position)
+    if (frozen || target == position)
         return;
 
     state_->execute(delta);
@@ -28,7 +28,7 @@ void Enemy::update(const float delta) {
 }
 
 void Enemy::tick() {
-    if (Frozen || Target == Position)
+    if (frozen || target == position)
         return;
 
     if (cooldown_ > 0.0f)
@@ -37,9 +37,9 @@ void Enemy::tick() {
         cooldown_ = 0.0f;
 
     player_bumped_into_enemy();
-    if (!IsActive || Frozen)
+    if (!is_active || frozen)
         return;
-    LineOfSight = is_in_line_of_sight();
+    line_of_sight = is_in_line_of_sight();
     state_->update();
 }
 
@@ -49,9 +49,9 @@ void Enemy::draw(dotio::Renderer &renderer) {
     dotio::math::RGBA kamikaze = {1.0f, 0.3f, 0.3f, 1.0f};
     dotio::math::RGBA green = {0.0f, 1.0f, 0.0f, 1.0f};
     dotio::math::RGBA blue = {0.0f, 0.5f, 1.0f, 1.0f};
-    renderer.draw_circle(Position, Radius,
+    renderer.draw_circle(position, radius,
                          is_kamikazing()   ? kamikaze
-                         : !Debug          ? red
+                         : !debug          ? red
                          : is_recovering() ? green
                          : is_attacking()  ? red
                          : is_pursueing()  ? orange
@@ -59,39 +59,39 @@ void Enemy::draw(dotio::Renderer &renderer) {
 }
 
 void Enemy::player_bumped_into_enemy() {
-    if (sqrt(pow(Position.X - world_->get_player().Position.X, 2) +
-             pow(Position.Y - world_->get_player().Position.Y, 2)) < (Radius * 2)) {
+    if (sqrt(pow(position.x - world_->get_player().position.x, 2) +
+             pow(position.y - world_->get_player().position.y, 2)) < (radius * 2)) {
         if (is_kamikazing()) {
-            if (!Debug)
-                world_->get_player().Health -= 30.0f;
-            if (Debug && world_->get_player().Health <= 0.0f)
-                world_->get_player().Health = 0.1f;
-            else if (world_->get_player().Health <= 0.0f)
+            if (!debug)
+                world_->get_player().health -= 30.0f;
+            if (debug && world_->get_player().health <= 0.0f)
+                world_->get_player().health = 0.1f;
+            else if (world_->get_player().health <= 0.0f)
                 world_->reset();
         } else {
-            if (world_->get_player().Mana < world_->get_player().MaxMana)
-                world_->get_player().Mana += is_recovering() ? 40.0f : 20.0f;
-            if (is_recovering() && world_->get_player().Health < world_->get_player().MaxHealth)
-                world_->get_player().Health += 40.0f;
+            if (world_->get_player().mana < world_->get_player().max_mana)
+                world_->get_player().mana += is_recovering() ? 40.0f : 20.0f;
+            if (is_recovering() && world_->get_player().health < world_->get_player().max_health)
+                world_->get_player().health += 40.0f;
         }
-        IsActive = false;
+        is_active = false;
     }
 
-    if (!IsActive) {
+    if (!is_active) {
         // All replacements go through timed offscreen spawning, including contact kills.
-        Frozen = true;
-        Path.clear();
-        Velocity = {};
+        frozen = true;
+        path.clear();
+        velocity = {};
     }
 }
 
 void Enemy::spatial_partitioning(const float delta) {
     auto motion = dotio::physics_body(*this);
-    kinetra::integrate(motion, delta, _friction);
-    Velocity = dotio::legacy_vector(motion.velocity);
+    kinetra::integrate(motion, delta, friction_);
+    velocity = dotio::legacy_vector(motion.velocity);
 
-    dotio::math::Vector2 next{Position + Velocity};
-    uint8_t p = dotio::math::GridEntry::get_square_partition(next, Radius, dotio::Grid::origin,
+    dotio::math::Vector2 next{position + velocity};
+    uint8_t p = dotio::math::GridEntry::get_square_partition(next, radius, dotio::Grid::origin,
                                                              dotio::Grid::cell_size);
     dotio::math::GridEntry partitions[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
@@ -103,10 +103,10 @@ void Enemy::spatial_partitioning(const float delta) {
     for (int i = 0; i < 4; i++) {
         dotio::math::GridEntry *np = &partitions[i];
 
-        if (world_->EnemyPartitionMap.contains(*np))
-            for (auto o : world_->EnemyPartitionMap[*np]) {
+        if (world_->enemy_partition_map.contains(*np))
+            for (auto o : world_->enemy_partition_map[*np]) {
                 dotio::Enemy &other = *(dotio::Enemy *)o;
-                if (!other.IsActive || other.Frozen)
+                if (!other.is_active || other.frozen)
                     continue;
 
                 if (&other == this)
@@ -123,20 +123,20 @@ void Enemy::spatial_partitioning(const float delta) {
             }
     }
 
-    Velocity = next - Position;
+    velocity = next - position;
 
     motion = dotio::physics_body(*this);
     kinetra::integrate(motion, delta);
     dotio::apply_body(*this, motion);
 
-    p = dotio::math::GridEntry::get_square_partition(Position, Radius, dotio::Grid::origin,
+    p = dotio::math::GridEntry::get_square_partition(position, radius, dotio::Grid::origin,
                                                      dotio::Grid::cell_size);
     partitions[0] = {-1, -1};
     partitions[1] = {-1, -1};
     partitions[2] = {-1, -1};
     partitions[3] = {-1, -1};
 
-    dotio::math::GridEntry::get_partitions(p, Position, dotio::Grid::origin, dotio::Grid::cell_size,
+    dotio::math::GridEntry::get_partitions(p, position, dotio::Grid::origin, dotio::Grid::cell_size,
                                            dotio::Grid::grid_size, partitions);
 
     keep[0] = false;
@@ -147,37 +147,37 @@ void Enemy::spatial_partitioning(const float delta) {
     for (int i = 0; i < 4; i++) {
         dotio::math::GridEntry *np = &partitions[i];
 
-        if (np->Row == -1)
+        if (np->row == -1)
             continue;
 
-        if (world_->EnemyPartitionMap[*np].contains(this))
+        if (world_->enemy_partition_map[*np].contains(this))
             keep[i] = true;
     }
 
     for (int i = 0; i < 4; i++) {
         dotio::math::GridEntry *np = &partitions[i];
-        dotio::math::GridEntry *lp = &LastPartition[i];
+        dotio::math::GridEntry *lp = &last_partition[i];
 
-        if (np->Row != lp->Row || np->Column != lp->Column) {
-            if (np->Row == -1 || np->Column == -1) {
-                if (world_->EnemyPartitionMap.contains(*lp))
-                    world_->EnemyPartitionMap[*lp].erase(this);
+        if (np->row != lp->row || np->column != lp->column) {
+            if (np->row == -1 || np->column == -1) {
+                if (world_->enemy_partition_map.contains(*lp))
+                    world_->enemy_partition_map[*lp].erase(this);
 
-                if (world_->EnemyPartitionMap[*lp].empty())
-                    world_->EnemyPartitionMap.erase(*lp);
+                if (world_->enemy_partition_map[*lp].empty())
+                    world_->enemy_partition_map.erase(*lp);
 
                 *lp = *np;
                 continue;
             }
 
             if (!keep[i]) {
-                if (world_->EnemyPartitionMap.contains(*lp))
-                    world_->EnemyPartitionMap[*lp].erase(this);
+                if (world_->enemy_partition_map.contains(*lp))
+                    world_->enemy_partition_map[*lp].erase(this);
 
-                world_->EnemyPartitionMap[*np].insert(this);
+                world_->enemy_partition_map[*np].insert(this);
 
-                if (world_->EnemyPartitionMap[*lp].empty())
-                    world_->EnemyPartitionMap.erase(*lp);
+                if (world_->enemy_partition_map[*lp].empty())
+                    world_->enemy_partition_map.erase(*lp);
             }
 
             *lp = *np;
@@ -186,7 +186,7 @@ void Enemy::spatial_partitioning(const float delta) {
 }
 
 void Enemy::initialize() {
-    HitsRemaining = world_->difficulty_settings().enemy_hits;
+    hits_remaining = world_->difficulty_settings().enemy_hits;
     randomize_wander(*this);
     if (state_ == nullptr) {
         state_ = &wander_;
@@ -242,7 +242,7 @@ bool Enemy::is_kamikazing() {
 }
 bool Enemy::is_in_line_of_sight() {
     if (dotio::math::Point2 _;
-        world_->grid().is_intersecting_any_cell({Position, world_->get_player().Position}, _))
+        world_->grid().is_intersecting_any_cell({position, world_->get_player().position}, _))
         return false;
     else {
         return true;
@@ -268,7 +268,7 @@ float Enemy::ammo_used_ratio() const {
     return ammo_ / static_cast<float>(ammo_capacity);
 }
 float Enemy::distance() const {
-    return std::max(std::abs(Position.X - Target.X), std::abs(Position.Y - Target.Y));
+    return std::max(std::abs(position.x - target.x), std::abs(position.y - target.y));
 }
 
 void Enemy::ammo_fired() {
@@ -281,20 +281,20 @@ void Enemy::pursue_countdown() {
     countdown_ += 1;
 }
 void Enemy::reset_cooldown() {
-    cooldown_ = maxCooldown_ * world_->difficulty_settings().fire_interval_multiplier;
+    cooldown_ = max_cooldown_ * world_->difficulty_settings().fire_interval_multiplier;
 }
 void Enemy::reset_pursue() {
     countdown_ = 0;
 }
 void Enemy::reset() {
-    HitsRemaining = world_->difficulty_settings().enemy_hits;
-    Fear = dotio::math::uniform(world_->behavior_random(), spawn_fear_min, spawn_fear_max);
+    hits_remaining = world_->difficulty_settings().enemy_hits;
+    fear = dotio::math::uniform(world_->behavior_random(), spawn_fear_min, spawn_fear_max);
     state_ = &wander_;
     randomize_wander(*this);
-    IsActive = true;
+    is_active = true;
     reset_cooldown();
     ammo_ = 1;
     countdown_ = 0;
-    Path.clear();
+    path.clear();
 }
 } // namespace dotio

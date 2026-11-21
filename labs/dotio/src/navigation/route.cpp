@@ -11,7 +11,7 @@
 namespace dotio {
 namespace {
 kinetra::Vec2 planner_point(dotio::math::Vec2 point) {
-    return {point.X, point.Y};
+    return {point.x, point.y};
 }
 
 Route route_of(const std::vector<kinetra::Vec2> &points) {
@@ -84,12 +84,12 @@ Route plan_route(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 to)
 Route plan_shelter(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 player, float fear) {
     const auto start = cell_of(from);
     const auto hunter = cell_of(player);
-    if (start.Row < 0 || hunter.Row < 0)
+    if (start.row < 0 || hunter.row < 0)
         return {};
-    const int rows = start.Row - hunter.Row, columns = start.Column - hunter.Column;
+    const int rows = start.row - hunter.row, columns = start.column - hunter.column;
     const Sides sides{rows <= 0, rows >= 0, columns <= 0, columns >= 0};
     const auto enter = [&](int id) {
-        const int row = id / Grid::columns - hunter.Row, column = id % Grid::columns - hunter.Column;
+        const int row = id / Grid::columns - hunter.row, column = id % Grid::columns - hunter.column;
         // Next to the player is no shelter, and no way past it either.
         return sides.admit(row, column) && (std::abs(row) > 1 || std::abs(column) > 1);
     };

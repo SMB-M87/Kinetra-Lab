@@ -41,7 +41,7 @@ inline constexpr std::size_t wander_forward_feeler = 0, wander_positive_feeler =
 /// wander_forward_feeler, wander_positive_feeler and wander_negative_feeler. A feeler is
 /// blocked when its world's Grid::IsIntersectingAnyCell reports a hit for it. SteerWander() tests exactly
 /// these segments, so a drawing of them shows what the logic sees. Reads the enemy's
-/// position and heading and Grid::CellSize; changes nothing.
+/// position and heading and Grid::cell_size; changes nothing.
 std::array<dotio::math::Segment, 3> wander_feelers(const Enemy &enemy);
 
 /// Gives `enemy` a random wander heading and preferred turning side from its world's

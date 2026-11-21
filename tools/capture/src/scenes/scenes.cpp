@@ -213,7 +213,7 @@ bool dotio_fight_in_view(Stage &stage) {
     if (!dotio_target(stage.dotio(), stage.runtime().camera))
         return false;
     for (auto &bolt : stage.dotio().world().get_bolts())
-        if (bolt.IsActive)
+        if (bolt.is_active)
             return true;
     return false;
 }

@@ -81,8 +81,8 @@ std::vector<unsigned char> frame_pixels() {
 // centered label of fixed screen size with fixed clearance above the body, at every zoom.
 void ai_label_placement(Runtime &runtime, dotio::Application &application) {
     auto &enemy = application.world().get_enemies()[0];
-    enemy.IsActive = true;
-    enemy.Position = dotio::from_world(runtime.camera.position);
+    enemy.is_active = true;
+    enemy.position = dotio::from_world(runtime.camera.position);
     application.debug = true;
     for (const float zoom : {2.5f, 25.f, 60.f}) {
         runtime.camera.pixels_per_unit = zoom;
@@ -120,12 +120,12 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
                 "AI label is missing or not centered above the agent");
             CHECK_MESSAGE((bottom - top == 6 && right - left == (kamikaze ? 46 : 34)),
                           "AI label size changed with camera zoom");
-            const float body_top = float(height) / 2.f - enemy.Radius / 25 * zoom;
+            const float body_top = float(height) / 2.f - enemy.radius / 25 * zoom;
             CHECK_MESSAGE(std::abs(body_top - float(bottom + 1) - 6) <= 1,
                           "AI label lost its screen-pixel clearance above the projected body");
         }
     }
-    enemy.IsActive = false;
+    enemy.is_active = false;
     application.debug = application.ai = false;
     runtime.camera.pixels_per_unit = 25;
 }
@@ -154,28 +154,28 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
     const auto objects = application.moving_objects().size();
     REQUIRE((application.before_tick().size() == objects && application.after_tick().size() == objects));
     auto &player = application.world().get_player();
-    const auto simulated = player.Position;
+    const auto simulated = player.position;
     const auto offset = application.world().world_offset();
     REQUIRE(application.after_tick()[0]);
-    CHECK_MESSAGE((application.after_tick()[0]->X == simulated.X + offset.X &&
-                   application.after_tick()[0]->Y == simulated.Y + offset.Y),
+    CHECK_MESSAGE((application.after_tick()[0]->x == simulated.x + offset.x &&
+                   application.after_tick()[0]->y == simulated.y + offset.y),
                   "The snapshot after the last tick must match the simulated player");
-    CHECK_MESSAGE(application.before_tick()[0]->X != application.after_tick()[0]->X,
+    CHECK_MESSAGE(application.before_tick()[0]->x != application.after_tick()[0]->x,
                   "The moving player did not move during the last tick");
     {
         const dotio::PresentedPositions presented(application);
         const auto &before = *application.before_tick()[0], &after = *application.after_tick()[0];
         const float blend = float(application.interpolation());
         CHECK_MESSAGE(
-            (std::abs(player.Position.X + offset.X - (before.X + (after.X - before.X) * blend)) < 1e-3f &&
-             std::abs(player.Position.Y + offset.Y - (before.Y + (after.Y - before.Y) * blend)) < 1e-3f),
+            (std::abs(player.position.x + offset.x - (before.x + (after.x - before.x) * blend)) < 1e-3f &&
+             std::abs(player.position.y + offset.y - (before.y + (after.y - before.y) * blend)) < 1e-3f),
             "While drawing, the player must sit between its last two ticks");
     }
-    CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
+    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
                   "PresentedPositions did not restore the simulated position");
     const auto camera = reopened.camera.position;
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
+    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
                   "Drawing left the interpolated position in the simulation");
     CHECK_MESSAGE((reopened.camera.position.x == camera.x && reopened.camera.position.y == camera.y),
                   "Drawing left the camera on the interpolated player");
@@ -227,21 +227,21 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     };
     const auto baseline_bytes = geometry_bytes();
     auto &enemy = application.world().get_enemies()[0];
-    enemy.IsActive = true;
-    enemy.Position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
+    enemy.is_active = true;
+    enemy.position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
     CHECK_MESSAGE(geometry_bytes() == baseline_bytes, "Offscreen enemy still submits circle geometry");
     const float half_width = reopened.camera.viewport.x / (2 * reopened.camera.pixels_per_unit);
-    enemy.Position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
+    enemy.position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
     CHECK_MESSAGE(geometry_bytes() > baseline_bytes, "Culling removed an edge-crossing enemy circle");
-    enemy.IsActive = false;
+    enemy.is_active = false;
     auto &arrow = application.world().get_arrows()[0];
-    arrow.IsActive = true;
-    arrow.Velocity = {1, 0};
-    arrow.Position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
+    arrow.is_active = true;
+    arrow.velocity = {1, 0};
+    arrow.position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
     CHECK_MESSAGE(geometry_bytes() == baseline_bytes, "Offscreen arrow still submits segment geometry");
-    arrow.Position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
+    arrow.position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
     CHECK_MESSAGE(geometry_bytes() > baseline_bytes, "Culling removed an edge-crossing arrow segment");
-    arrow.IsActive = false;
+    arrow.is_active = false;
 
     ai_label_placement(reopened, application);
 
@@ -265,9 +265,9 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Dotio debug rendering failed");
     application.debug = application.ghost = true;
-    application.world().get_ghost().Position = application.world().get_player().Position;
-    application.world().get_ghost().Position.X += 1000;
-    reopened.camera.position = dotio::to_world(application.world().get_ghost().Position);
+    application.world().get_ghost().position = application.world().get_player().position;
+    application.world().get_ghost().position.x += 1000;
+    reopened.camera.position = dotio::to_world(application.world().get_ghost().position);
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(ghost_marker_pixels() == 0, "Ghost camera still draws a purple player marker");

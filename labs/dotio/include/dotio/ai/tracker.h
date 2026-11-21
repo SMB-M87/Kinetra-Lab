@@ -9,8 +9,8 @@
 
 namespace dotio {
 template <typename T>
-concept IsActive = requires(T t) {
-    { t.IsActive } -> std::convertible_to<bool>;
+concept Activatable = requires(T t) {
+    { t.is_active } -> std::convertible_to<bool>;
 };
 
 template <typename T>
@@ -30,10 +30,10 @@ struct Tracker {
     T &operator[](const int index) { return get_instances()[index % size_]; }
 
     void add_instance(T instance)
-        requires IsActive<T>
+        requires Activatable<T>
     {
         T &i = instances_[index_++] = instance;
-        i.IsActive = true;
+        i.is_active = true;
 
         if (index_ == size_)
             index_ = 0;

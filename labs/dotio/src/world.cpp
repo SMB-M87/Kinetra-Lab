@@ -14,7 +14,7 @@
 
 namespace dotio {
 float World::get_tick_rate() const {
-    return tickRate_;
+    return tick_rate_;
 }
 
 namespace {
@@ -51,11 +51,11 @@ void World::initialize(std::uint32_t seed, Difficulty difficulty) {
     for (std::size_t i = 0; i < get_enemies().get_capacity(); i++) {
         const float fear =
             dotio::math::uniform(behavior_random_, Enemy::spawn_fear_min, Enemy::spawn_fear_max);
-        add_enemy(grid_.generate_position(placement_random_), get_player().Position, fear);
+        add_enemy(grid_.generate_position(placement_random_), get_player().position, fear);
         enemies_[i].initialize();
         // Slots start dormant; player-centered streaming alone chooses spawn density.
-        enemies_[i].IsActive = false;
-        enemies_[i].Frozen = true;
+        enemies_[i].is_active = false;
+        enemies_[i].frozen = true;
     }
 }
 
@@ -63,8 +63,8 @@ std::optional<std::pair<std::size_t, float>> World::first_object_hit(dotio::math
                                                                      float radius) const {
     std::optional<std::pair<std::size_t, float>> nearest;
     for (std::size_t i = 0; i < props_.size(); ++i)
-        if (const auto hit = kinetra::segment_circle(dotio::physics_vector(segment.Start),
-                                                     dotio::physics_vector(segment.End),
+        if (const auto hit = kinetra::segment_circle(dotio::physics_vector(segment.start),
+                                                     dotio::physics_vector(segment.end),
                                                      props_[i].body.position, props_[i].body.radius + radius);
             hit && (!nearest || *hit < nearest->second))
             nearest = {{i, *hit}};
@@ -99,7 +99,7 @@ dotio::math::Vec2 World::stream_around_player() {
         const int cell = int(std::floor(position / Grid::cell_size));
         return cell < 48 || cell > 106 ? int(std::floor((cell - 77) / 16.f)) * 16 : 0;
     };
-    const int columns = shift_axis(player_.Position.X), rows = shift_axis(player_.Position.Y);
+    const int columns = shift_axis(player_.position.x), rows = shift_axis(player_.position.y);
     if (!columns && !rows)
         return {};
     const dotio::math::Vec2 shift{columns * Grid::cell_size, rows * Grid::cell_size};
@@ -107,26 +107,26 @@ dotio::math::Vec2 World::stream_around_player() {
     offset_row_ += rows;
     grid_.generate(seed_, offset_row_, offset_column_);
     resident_cells_ = {-1, -1, -1, -1};
-    player_.Position -= shift;
-    ghost_.Position -= shift;
-    EnemyPartitionMap.clear();
+    player_.position -= shift;
+    ghost_.position -= shift;
+    enemy_partition_map.clear();
     for (auto &enemy : get_enemies()) {
-        enemy.Position -= shift;
-        enemy.Target -= shift;
-        enemy.Path.clear();
-        for (auto &partition : enemy.LastPartition)
+        enemy.position -= shift;
+        enemy.target -= shift;
+        enemy.path.clear();
+        for (auto &partition : enemy.last_partition)
             partition = {-1, -1};
-        if (enemy.Position.X < Grid::cell_size * 3 || enemy.Position.Y < Grid::cell_size * 3 ||
-            enemy.Position.X > Grid::cell_size * (Grid::columns - 3) ||
-            enemy.Position.Y > Grid::cell_size * (Grid::rows - 3)) {
-            enemy.IsActive = false;
-            enemy.Path.clear();
+        if (enemy.position.x < Grid::cell_size * 3 || enemy.position.y < Grid::cell_size * 3 ||
+            enemy.position.x > Grid::cell_size * (Grid::columns - 3) ||
+            enemy.position.y > Grid::cell_size * (Grid::rows - 3)) {
+            enemy.is_active = false;
+            enemy.path.clear();
         }
     }
     for (auto &arrow : get_arrows())
-        arrow.Position -= shift;
+        arrow.position -= shift;
     for (auto &bolt : get_bolts())
-        bolt.Position -= shift;
+        bolt.position -= shift;
     for (auto &prop : props_)
         prop.body.position -= dotio::physics_vector(shift);
     std::erase_if(props_, [](const Prop &prop) {
@@ -144,15 +144,15 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Spawn elapsed time must be finite and nonnegative");
     const auto outside = [&](dotio::math::Position position, dotio::math::Vec2 half) {
-        return std::abs(position.X - center.X) > half.X || std::abs(position.Y - center.Y) > half.Y;
+        return std::abs(position.x - center.x) > half.x || std::abs(position.y - center.y) > half.y;
     };
     // Trim residency at cell boundaries, independently of camera pan/zoom.
     const auto limit = [](float value, int maximum) {
         return std::clamp(int(std::floor(value / Grid::cell_size)), 0, maximum - 1);
     };
     const std::array<int, 4> region{
-        limit(center.Y - retained_half.Y, Grid::rows), limit(center.X - retained_half.X, Grid::columns),
-        limit(center.Y + retained_half.Y, Grid::rows), limit(center.X + retained_half.X, Grid::columns)};
+        limit(center.y - retained_half.y, Grid::rows), limit(center.x - retained_half.x, Grid::columns),
+        limit(center.y + retained_half.y, Grid::rows), limit(center.x + retained_half.x, Grid::columns)};
     if (region != resident_cells_) {
         // Only the entering and leaving strips change occupancy; SetCell() keeps the route
         // planner in step, and routes planned on the old cells are dropped.
@@ -170,7 +170,7 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
             }
         resident_cells_ = region;
         for (auto &enemy : get_enemies())
-            enemy.Path.clear();
+            enemy.path.clear();
     }
     std::erase_if(props_, [&](const Prop &prop) {
         return outside(dotio::legacy_vector(prop.body.position), retained_half);
@@ -185,9 +185,9 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
     int nearby_count = 0;
     float nearby_load = 0;
     for (const auto &enemy : get_enemies())
-        if (enemy.IsActive && !outside(enemy.Position, retained_half)) {
-            nearby_count += !outside(enemy.Position, admission_half);
-            const float distance = (enemy.Position - player_.Position).get_length();
+        if (enemy.is_active && !outside(enemy.position, retained_half)) {
+            nearby_count += !outside(enemy.position, admission_half);
+            const float distance = (enemy.position - player_.position).get_length();
             nearby_load += std::clamp((1200 - distance) / 700, 0.f, 1.f);
         }
     const float spawn_rate =
@@ -200,59 +200,59 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
         spawn_credit_ = 0; // No catch-up burst after pauses, blocked attempts or crowded periods.
     int attempts = 0;
     for (auto &enemy : get_enemies()) {
-        if (enemy.IsActive && outside(enemy.Position, retained_half)) {
-            for (auto cell : enemy.LastPartition)
-                if (auto found = EnemyPartitionMap.find(cell); found != EnemyPartitionMap.end())
+        if (enemy.is_active && outside(enemy.position, retained_half)) {
+            for (auto cell : enemy.last_partition)
+                if (auto found = enemy_partition_map.find(cell); found != enemy_partition_map.end())
                     found->second.erase(&enemy);
-            enemy.IsActive = false;
-            enemy.Path.clear();
-            enemy.Frozen = true;
+            enemy.is_active = false;
+            enemy.path.clear();
+            enemy.frozen = true;
             continue;
         }
-        if (!enemy.IsActive && spawn_due && attempts++ < 8) {
+        if (!enemy.is_active && spawn_due && attempts++ < 8) {
             const auto unit = [&]() { return dotio::math::unit(population_random_); };
-            const dotio::math::Vec2 position{center.X + (unit() * 2 - 1) * placement_half.X,
-                                             center.Y + (unit() * 2 - 1) * placement_half.Y};
+            const dotio::math::Vec2 position{center.x + (unit() * 2 - 1) * placement_half.x,
+                                             center.y + (unit() * 2 - 1) * placement_half.y};
             dotio::math::GridEntry cell;
             if (!dotio::math::GridEntry::from_world(position, Grid::origin, Grid::cell_size, Grid::grid_size,
                                                     cell) ||
-                grid_.cell(cell.Row, cell.Column))
+                grid_.cell(cell.row, cell.column))
                 continue;
-            const dotio::math::Vec2 spawn{(cell.Column + 0.5f) * Grid::cell_size,
-                                          (cell.Row + 0.5f) * Grid::cell_size};
+            const dotio::math::Vec2 spawn{(cell.column + 0.5f) * Grid::cell_size,
+                                          (cell.row + 0.5f) * Grid::cell_size};
             const bool occupied =
                 std::any_of(get_enemies().get_instances(),
                             get_enemies().get_instances() + get_enemies().get_capacity(),
                             [&](const Enemy &other) {
-                                return other.IsActive &&
-                                       (other.Position - spawn).get_length() < settings.spawn_spacing;
+                                return other.is_active &&
+                                       (other.position - spawn).get_length() < settings.spawn_spacing;
                             }) ||
                 std::any_of(props_.begin(), props_.end(), [&](const Prop &prop) {
                     return (dotio::legacy_vector(prop.body.position) - spawn).get_length() < 50;
                 });
-            const auto delta = spawn - player_.Position;
+            const auto delta = spawn - player_.position;
             // Keep the complete body outside 1.1x maximum normal view, at every zoom.
             const auto excluded_half = normal_half * 1.1f;
-            const bool offscreen = std::abs(delta.X) - enemy.Radius > excluded_half.X ||
-                                   std::abs(delta.Y) - enemy.Radius > excluded_half.Y;
+            const bool offscreen = std::abs(delta.x) - enemy.radius > excluded_half.x ||
+                                   std::abs(delta.y) - enemy.radius > excluded_half.y;
             if (!occupied && !outside(spawn, placement_half) && !outside(spawn, active_half) && offscreen) {
                 spawn_due = false;
-                enemy.Position = spawn;
-                enemy.Target = player_.Position;
-                enemy.Velocity = {};
-                enemy.IsActive = true;
+                enemy.position = spawn;
+                enemy.target = player_.position;
+                enemy.velocity = {};
+                enemy.is_active = true;
                 enemy.reset();
-                for (auto &cell : enemy.LastPartition) {
-                    if (auto found = EnemyPartitionMap.find(cell); found != EnemyPartitionMap.end())
+                for (auto &cell : enemy.last_partition) {
+                    if (auto found = enemy_partition_map.find(cell); found != enemy_partition_map.end())
                         found->second.erase(&enemy);
                     cell = {-1, -1};
                 }
             }
         }
-        enemy.Frozen = outside(enemy.Position, active_half);
-        if (enemy.Frozen) {
-            enemy.Path.clear();
-            enemy.Velocity = {};
+        enemy.frozen = outside(enemy.position, active_half);
+        if (enemy.frozen) {
+            enemy.path.clear();
+            enemy.velocity = {};
         }
     }
 }
@@ -270,8 +270,8 @@ void World::update_objects(float delta) {
                 dotio::apply_body(player_, player);
             }
             for (auto &enemy : get_enemies()) {
-                if (!enemy.IsActive || enemy.Frozen ||
-                    (enemy.Position - dotio::legacy_vector(body.position)).get_length() > 60)
+                if (!enemy.is_active || enemy.frozen ||
+                    (enemy.position - dotio::legacy_vector(body.position)).get_length() > 60)
                     continue;
                 auto actor = dotio::physics_body(enemy);
                 if (const auto hit = kinetra::collide(actor, body)) {
@@ -298,28 +298,28 @@ void World::reset() {
     spawn_credit_ = 0;
     survival_seconds_ = 0;
     enemies_moved_ = false;
-    EnemyPartitionMap.clear();
+    enemy_partition_map.clear();
     for (auto &arrow : get_arrows())
-        arrow.IsActive = false;
+        arrow.is_active = false;
     for (auto &bolt : get_bolts())
-        bolt.IsActive = false;
-    get_player().Velocity = {};
-    get_player().Cooldown = 0;
+        bolt.is_active = false;
+    get_player().velocity = {};
+    get_player().cooldown = 0;
 
-    get_player().Position = grid_.generate_position(placement_random_);
-    get_player().Health = get_player().MaxHealth;
-    get_player().Mana = get_player().MaxMana;
-    get_player().Kills = 1;
+    get_player().position = grid_.generate_position(placement_random_);
+    get_player().health = get_player().max_health;
+    get_player().mana = get_player().max_mana;
+    get_player().kills = 1;
     // Restart through the same offscreen population controller; resetting the
     // whole fixed pool must not materialize hundreds of enemies near the player.
     for (auto &enemy : get_enemies()) {
-        if (enemy.IsActive)
+        if (enemy.is_active)
             enemy.reset();
-        enemy.IsActive = false;
-        enemy.Frozen = true;
-        enemy.Path.clear();
-        enemy.Velocity = {};
-        for (auto &partition : enemy.LastPartition)
+        enemy.is_active = false;
+        enemy.frozen = true;
+        enemy.path.clear();
+        enemy.velocity = {};
+        for (auto &partition : enemy.last_partition)
             partition = {-1, -1};
     }
 }
@@ -358,14 +358,14 @@ void World::update_enemies(const float delta, const bool debug) {
     // Snapshot the entire population first: neighbor separation may move another
     // enemy before its own update, and that displacement also belongs to the sweep.
     for (const auto &enemy : get_enemies())
-        previous_enemy_positions_[index++] = enemy.Position;
+        previous_enemy_positions_[index++] = enemy.position;
     for (auto &enemy : get_enemies()) {
-        if (!enemy.IsActive || enemy.Frozen)
+        if (!enemy.is_active || enemy.frozen)
             continue;
-        enemy.Target = get_player().Position;
-        enemy.TargetVelocity = get_player().Velocity;
+        enemy.target = get_player().position;
+        enemy.target_velocity = get_player().velocity;
         enemy.update(delta);
-        enemy.Debug = debug;
+        enemy.debug = debug;
         grid_.handle_grid_collision(enemy);
     }
 }
@@ -374,34 +374,34 @@ void World::update_enemies(const float delta, const bool debug) {
 // This prevents vertical shots tunneling and bolts damaging enemies behind walls.
 void World::update_arrows(const float delta, const bool debug) {
     for (auto &arrow : get_arrows()) {
-        if (!arrow.IsActive)
+        if (!arrow.is_active)
             continue;
-        const dotio::math::Segment segment{arrow.Position, arrow.Position + arrow.Velocity * delta};
+        const dotio::math::Segment segment{arrow.position, arrow.position + arrow.velocity * delta};
         dotio::math::Point2 wall{}, hit{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         const bool hits_player =
-            Grid::segement_circle_intersection(segment, get_player().Position, get_player().Radius, hit) & 1;
+            Grid::segement_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
         const auto object = first_object_hit(segment, 0);
-        const float object_distance = object ? object->second * (segment.End - segment.Start).get_length()
+        const float object_distance = object ? object->second * (segment.end - segment.start).get_length()
                                              : std::numeric_limits<float>::infinity();
-        if (object && (!blocked || object_distance < (wall - segment.Start).get_length()) &&
-            (!hits_player || object_distance < (hit - segment.Start).get_length())) {
-            const auto point = segment.Start + (segment.End - segment.Start) * object->second;
+        if (object && (!blocked || object_distance < (wall - segment.start).get_length()) &&
+            (!hits_player || object_distance < (hit - segment.start).get_length())) {
+            const auto point = segment.start + (segment.end - segment.start) * object->second;
             kinetra::apply_body_impulse(props_[object->first].body,
-                                        dotio::physics_vector(arrow.Velocity) * 0.2f,
+                                        dotio::physics_vector(arrow.velocity) * 0.2f,
                                         dotio::physics_vector(point));
-            arrow.IsActive = false;
+            arrow.is_active = false;
         } else if (hits_player &&
-                   (!blocked || (hit - segment.Start).get_length() < (wall - segment.Start).get_length())) {
-            arrow.IsActive = false;
+                   (!blocked || (hit - segment.start).get_length() < (wall - segment.start).get_length())) {
+            arrow.is_active = false;
             if (!debug)
-                get_player().Health -= 10;
-            if (get_player().Health <= 0) {
+                get_player().health -= 10;
+            if (get_player().health <= 0) {
                 reset();
                 return;
             }
         } else if (blocked) {
-            arrow.IsActive = false;
+            arrow.is_active = false;
         } else {
             arrow.update(delta);
         }
@@ -410,54 +410,54 @@ void World::update_arrows(const float delta, const bool debug) {
 
 void World::update_bolts(const float delta) {
     for (auto &bolt : get_bolts()) {
-        if (!bolt.IsActive)
+        if (!bolt.is_active)
             continue;
-        const dotio::math::Segment segment{bolt.Position, bolt.Position + bolt.Velocity * delta};
+        const dotio::math::Segment segment{bolt.position, bolt.position + bolt.velocity * delta};
         dotio::math::Point2 wall{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         float nearest =
-            blocked ? (wall - segment.Start).get_length() : std::numeric_limits<float>::infinity();
+            blocked ? (wall - segment.start).get_length() : std::numeric_limits<float>::infinity();
         Enemy *victim = nullptr;
         std::size_t index = 0;
         for (auto &enemy : get_enemies()) {
-            const auto previous = enemies_moved_ ? previous_enemy_positions_[index] : enemy.Position;
+            const auto previous = enemies_moved_ ? previous_enemy_positions_[index] : enemy.position;
             ++index;
             // Sweep relative motion, including the visible projectile radius. Convert
             // the relative hit parameter back to world distance for wall ordering.
-            const dotio::math::Segment relative{segment.Start, segment.End - (enemy.Position - previous)};
-            if (!enemy.IsActive)
+            const dotio::math::Segment relative{segment.start, segment.end - (enemy.position - previous)};
+            if (!enemy.is_active)
                 continue;
             const auto fraction = kinetra::segment_circle(
-                dotio::physics_vector(relative.Start), dotio::physics_vector(relative.End),
-                dotio::physics_vector(previous), enemy.Radius + Bolt::radius);
+                dotio::physics_vector(relative.start), dotio::physics_vector(relative.end),
+                dotio::physics_vector(previous), enemy.radius + Bolt::radius);
             if (!fraction)
                 continue;
-            const float distance = *fraction * (segment.End - segment.Start).get_length();
+            const float distance = *fraction * (segment.end - segment.start).get_length();
             if (distance < nearest) {
                 nearest = distance;
                 victim = &enemy;
             }
         }
         const auto object = first_object_hit(segment, Bolt::radius);
-        if (object && object->second * (segment.End - segment.Start).get_length() < nearest) {
-            const auto point = segment.Start + (segment.End - segment.Start) * object->second;
+        if (object && object->second * (segment.end - segment.start).get_length() < nearest) {
+            const auto point = segment.start + (segment.end - segment.start) * object->second;
             kinetra::apply_body_impulse(props_[object->first].body,
-                                        dotio::physics_vector(bolt.Velocity) * 0.5f,
+                                        dotio::physics_vector(bolt.velocity) * 0.5f,
                                         dotio::physics_vector(point));
-            bolt.IsActive = false;
+            bolt.is_active = false;
         } else if (victim) {
-            bolt.IsActive = false;
-            if (--victim->HitsRemaining > 0)
+            bolt.is_active = false;
+            if (--victim->hits_remaining > 0)
                 continue;
             auto &player = get_player();
             const float health = victim->is_recovering() ? 40.f : victim->is_kamikazing() ? 20.f : 10.f;
-            player.Health = std::min(player.MaxHealth, player.Health + health);
+            player.health = std::min(player.max_health, player.health + health);
             if (victim->is_recovering() || victim->is_kamikazing())
-                player.Mana = std::min(player.MaxMana, player.Mana + health);
-            player.Kills = std::min(int(player.MaxBulletKills) + 1, player.Kills + 1);
-            victim->IsActive = false;
+                player.mana = std::min(player.max_mana, player.mana + health);
+            player.kills = std::min(int(player.max_bullet_kills) + 1, player.kills + 1);
+            victim->is_active = false;
         } else if (blocked) {
-            bolt.IsActive = false;
+            bolt.is_active = false;
         } else {
             bolt.update(delta);
         }
@@ -467,19 +467,19 @@ void World::update_bolts(const float delta) {
 
 void World::draw(dotio::Renderer &renderer) {
     for (auto &enemy : get_enemies()) {
-        if (!enemy.IsActive)
+        if (!enemy.is_active)
             continue;
         enemy.draw(renderer);
     }
 
     for (auto &arrow : get_arrows()) {
-        if (!arrow.IsActive)
+        if (!arrow.is_active)
             continue;
         arrow.draw(renderer);
     }
 
     for (auto &bolt : get_bolts()) {
-        if (!bolt.IsActive)
+        if (!bolt.is_active)
             continue;
         bolt.draw(renderer);
     }

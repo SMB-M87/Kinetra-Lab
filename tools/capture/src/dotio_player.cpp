@@ -9,9 +9,9 @@ namespace {
 /// Whether `enemy` is alive, simulated and with its center on screen for `camera`, at least
 /// `margin` logical pixels away from every edge of the window.
 bool on_screen(const dotio::Enemy &enemy, const kinetra::Camera2D &camera, float margin = 0) {
-    if (!enemy.IsActive || enemy.Frozen)
+    if (!enemy.is_active || enemy.frozen)
         return false;
-    const auto point = camera.world_to_screen(dotio::to_world(enemy.Position));
+    const auto point = camera.world_to_screen(dotio::to_world(enemy.position));
     return point.x >= margin && point.y >= margin && point.x <= camera.viewport.x - margin &&
            point.y <= camera.viewport.y - margin;
 }
@@ -31,19 +31,19 @@ bool clear_shot(const dotio::World &world, dotio::math::Vec2 from, dotio::math::
 } // namespace
 
 float dotio_bolt_speed(const dotio::Player &player) {
-    return 6.0f + player.BoltSpeed * (float(player.Kills) / player.MaxBulletKills);
+    return 6.0f + player.bolt_speed * (float(player.kills) / player.max_bullet_kills);
 }
 
 dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera) {
     auto &world = application.world();
-    const auto player = world.get_player().Position;
+    const auto player = world.get_player().position;
     dotio::Enemy *nearest = nullptr;
     float nearest_distance = std::numeric_limits<float>::infinity();
     for (auto &enemy : world.get_enemies()) {
         if (!on_screen(enemy, camera))
             continue;
-        const float distance = (enemy.Position - player).get_length();
-        if (distance < nearest_distance && clear_shot(world, player, enemy.Position)) {
+        const float distance = (enemy.position - player).get_length();
+        if (distance < nearest_distance && clear_shot(world, player, enemy.position)) {
             nearest = &enemy;
             nearest_distance = distance;
         }
@@ -53,9 +53,9 @@ dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
 
 dotio::math::Vec2 lead_offset(dotio::math::Vec2 offset, dotio::math::Vec2 velocity, float bolt_speed) {
     // |offset + velocity t| = bolt_speed t, solved for the earliest t > 0.
-    const float a = velocity.X * velocity.X + velocity.Y * velocity.Y - bolt_speed * bolt_speed;
-    const float b = 2 * (offset.X * velocity.X + offset.Y * velocity.Y);
-    const float c = offset.X * offset.X + offset.Y * offset.Y;
+    const float a = velocity.x * velocity.x + velocity.y * velocity.y - bolt_speed * bolt_speed;
+    const float b = 2 * (offset.x * velocity.x + offset.y * velocity.y);
+    const float c = offset.x * offset.x + offset.y * offset.y;
     float time = -1;
     if (std::abs(a) < 1e-4f) {
         // Equal speeds: the quadratic term vanishes and the equation is linear.
@@ -76,7 +76,7 @@ std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const ki
     if (!enemy)
         return std::nullopt;
     const auto &player = application.world().get_player();
-    const auto point = player.Position + lead_offset(enemy->Position - player.Position, enemy->Velocity,
+    const auto point = player.position + lead_offset(enemy->position - player.position, enemy->velocity,
                                                      dotio_bolt_speed(player));
     const auto screen = camera.world_to_screen(dotio::to_world(point));
     // A pointer stays inside its window, also when the lead runs off screen.

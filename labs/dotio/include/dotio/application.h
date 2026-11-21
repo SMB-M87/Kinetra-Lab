@@ -19,7 +19,7 @@
 namespace dotio {
 
 inline kinetra::Vec2 to_world(dotio::math::Vec2 point) {
-    return {point.X / 25, -point.Y / 25};
+    return {point.x / 25, -point.y / 25};
 }
 inline dotio::math::Vec2 from_world(kinetra::Vec2 point) {
     return {point.x * 25, -point.y * 25};
@@ -242,7 +242,7 @@ class Application {
         const auto offset = world_->world_offset();
         std::vector<std::optional<dotio::math::Vec2>> result;
         for (const auto *object : moving_objects())
-            result.push_back(object->IsActive ? std::optional{object->Position + offset} : std::nullopt);
+            result.push_back(object->is_active ? std::optional{object->position + offset} : std::nullopt);
         return result;
     }
     /// moving_positions() before and after the last tick, for drawing between them.
@@ -263,17 +263,17 @@ class Application {
     AgentCounts agent_counts() const {
         AgentCounts counts;
         for (const auto &enemy : world_->get_enemies())
-            if (enemy.IsActive) {
+            if (enemy.is_active) {
                 ++counts.loaded;
-                counts.active += !enemy.Frozen;
+                counts.active += !enemy.frozen;
             }
         return counts;
     }
     dotio::World &world() { return *world_; }
     /// Reject destinations overlapping terrain, physical props or active enemies.
     bool teleport_clear(dotio::math::Position point, float radius) {
-        if (!std::isfinite(point.X) || !std::isfinite(point.Y) || std::abs(point.X) > 10000000 ||
-            std::abs(point.Y) > 10000000)
+        if (!std::isfinite(point.x) || !std::isfinite(point.y) || std::abs(point.x) > 10000000 ||
+            std::abs(point.y) > 10000000)
             return false;
         auto candidate = physics_body(world_->get_player());
         candidate.position = physics_vector(point);
@@ -296,7 +296,7 @@ class Application {
                     return false;
             }
         for (const auto &enemy : world_->get_enemies())
-            if (enemy.IsActive && kinetra::collide(candidate, physics_body(enemy)))
+            if (enemy.is_active && kinetra::collide(candidate, physics_body(enemy)))
                 return false;
         for (const auto &object : world_->get_objects())
             if (kinetra::collide(candidate, object.body))
@@ -308,9 +308,9 @@ class Application {
         if (debug && ghost && commands.teleport) {
             auto &player = world_->get_player();
             const auto candidate = from_world(commands.teleport_target);
-            if (teleport_clear(candidate, player.Radius)) {
-                player.Position = candidate;
-                player.Velocity = {};
+            if (teleport_clear(candidate, player.radius)) {
+                player.position = candidate;
+                player.velocity = {};
             }
         }
         if (!debug)
@@ -322,11 +322,11 @@ class Application {
         zoom.observe(camera);
         if (ghost) {
             const auto pan = kinetra::normalized(commands.camera_pan + commands.direction);
-            world_->get_ghost().Position +=
+            world_->get_ghost().position +=
                 from_world(pan * (float(std::min(elapsed, 0.1)) * 400.f / camera.pixels_per_unit));
         }
         const auto initial_shift = world_->stream_around_player();
-        const auto center = world_->get_player().Position;
+        const auto center = world_->get_player().position;
         // A single tick runs in a paused world: exactly one, whatever time has passed.
         const bool single_tick = paused && std::exchange(step_requested_, false);
         const bool running = !paused || single_tick;
@@ -348,7 +348,7 @@ class Application {
         std::uint64_t resets_before_tick = 0;
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->get_player();
-            player.Heading =
+            player.heading =
                 ghost ? dotio::math::Vec2{} : dotio::math::Vec2{commands.direction.x, -commands.direction.y};
             if (!running)
                 continue;
@@ -356,7 +356,7 @@ class Application {
                 before_tick_ = moving_positions();
                 resets_before_tick = world_->reset_count();
             }
-            player.Speed = 1;
+            player.speed = 1;
             player.update(1);
             update_rate.count();
             aim -= world_->stream_around_player();
@@ -367,8 +367,8 @@ class Application {
                 tick_ = 0;
                 decision_rate.count();
                 for (auto &enemy : world_->get_enemies())
-                    if (enemy.IsActive && !enemy.Frozen) {
-                        enemy.Debug = debug && invulnerable;
+                    if (enemy.is_active && !enemy.frozen) {
+                        enemy.debug = debug && invulnerable;
                         enemy.tick();
                     }
             }
@@ -377,8 +377,8 @@ class Application {
             world_->update_bolts(1);
             world_->update_arrows(1, debug && invulnerable);
             // Clamp rewards from contact kills as well as projectile kills.
-            player.Health = std::clamp(player.Health, 0.f, player.MaxHealth);
-            player.Mana = std::clamp(player.Mana, 0.f, player.MaxMana);
+            player.health = std::clamp(player.health, 0.f, player.max_health);
+            player.mana = std::clamp(player.mana, 0.f, player.max_mana);
             if (step == steps - 1) {
                 after_tick_ = moving_positions();
                 // A death respawned the player and cleared the projectiles: nothing to blend.
@@ -389,7 +389,7 @@ class Application {
         frame_rate.advance(elapsed);
         update_rate.advance(elapsed);
         decision_rate.advance(elapsed);
-        camera.position = to_world(ghost ? world_->get_ghost().Position : world_->get_player().Position);
+        camera.position = to_world(ghost ? world_->get_ghost().position : world_->get_player().position);
     }
 };
 } // namespace dotio

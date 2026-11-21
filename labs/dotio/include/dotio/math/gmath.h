@@ -8,17 +8,17 @@ namespace dotio::math {
 /// Legacy field/coordinate compatibility facade; shared vector calculations use kinetra::Vec2.
 typedef struct Vec2 {
     /// Horizontal coordinate; in legacy coordinates it grows to the right.
-    float X;
+    float x;
     /// Vertical coordinate; in legacy coordinates it grows down the screen.
-    float Y;
+    float y;
 
-    Vec2(float x, float y);
+    Vec2(float x_value, float y_value);
 
     explicit Vec2(float s);
 
     Vec2();
 
-    void set(float x, float y);
+    void set(float x_value, float y_value);
     void set(const Vec2 &&vector);
     void set(const Vec2 &vector);
 
@@ -104,13 +104,13 @@ typedef struct Vec2 {
 
 /// A color: red, green, blue and opacity, each in [0, 1].
 struct RGBA {
-    float R, G, B, A;
+    float r, g, b, a;
 };
 
 /// A line segment from Start to End.
 struct Segment {
-    Point2 Start;
-    Point2 End;
+    Point2 start;
+    Point2 end;
 
     Segment();
     Segment(Point2 from, Point2 to);
@@ -120,8 +120,8 @@ struct Segment {
 
 typedef struct GridEntry {
   public:
-    int Row;
-    int Column;
+    int row;
+    int column;
 
     GridEntry();
     explicit GridEntry(const int size);
@@ -147,8 +147,8 @@ template <> struct hash<dotio::math::GridEntry> {
     std::size_t operator()(const dotio::math::GridEntry &entry) const noexcept {
         std::hash<float> hasher;
         std::size_t hash_value = 0;
-        hash_value ^= hasher(float(entry.Row)) + 0x9e3779b9 + (hash_value << 6) + (hash_value >> 2);
-        hash_value ^= hasher(float(entry.Column)) + 0x9e3779b9 + (hash_value << 6) + (hash_value >> 2);
+        hash_value ^= hasher(float(entry.row)) + 0x9e3779b9 + (hash_value << 6) + (hash_value >> 2);
+        hash_value ^= hasher(float(entry.column)) + 0x9e3779b9 + (hash_value << 6) + (hash_value >> 2);
         return hash_value;
     }
 };

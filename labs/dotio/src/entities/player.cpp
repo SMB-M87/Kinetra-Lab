@@ -6,46 +6,46 @@ namespace dotio {
 Player::Player() : PhysicsObject() {
 }
 
-Player::Player(World *world, dotio::math::Position position, const float direction)
-    : PhysicsObject(80.0f, dotio::Grid::cell_size * 0.2, 0.2f, 0.2f, position, direction, true),
+Player::Player(World *world, dotio::math::Position start, const float start_direction)
+    : PhysicsObject(80.0f, dotio::Grid::cell_size * 0.2, 0.2f, 0.2f, start, start_direction, true),
       world_(world) {
 }
 
 void Player::update(const float delta) {
-    Mana += 0.10f * delta;
-    if (Mana > MaxMana)
-        Mana = MaxMana;
+    mana += 0.10f * delta;
+    if (mana > max_mana)
+        mana = max_mana;
 
-    Health += 0.01f * delta;
-    if (Health > MaxHealth)
-        Health = MaxHealth;
+    health += 0.01f * delta;
+    if (health > max_health)
+        health = max_health;
 
-    Cooldown -= 1.0f * delta;
-    if (Cooldown <= 0.0f)
-        Cooldown = 0.0f;
+    cooldown -= 1.0f * delta;
+    if (cooldown <= 0.0f)
+        cooldown = 0.0f;
 
-    dotio::math::Vec2 normal_heading = Heading;
+    dotio::math::Vec2 normal_heading = heading;
 
-    normal_heading.X = Heading.X * sqrtf(1.0f - 0.5f * (Heading.Y * Heading.Y));
-    normal_heading.Y = Heading.Y * sqrtf(1.0f - 0.5f * (Heading.X * Heading.X));
+    normal_heading.x = heading.x * sqrtf(1.0f - 0.5f * (heading.y * heading.y));
+    normal_heading.y = heading.y * sqrtf(1.0f - 0.5f * (heading.x * heading.x));
 
-    apply_force(normal_heading * Speed * delta, 0.5f * get_mass());
+    apply_force(normal_heading * speed * delta, 0.5f * get_mass());
     PhysicsObject::update(delta);
 }
 
 void Player::draw(dotio::Renderer &renderer) {
-    renderer.draw_circle(Position, Radius, {0.4, 0.0, 1.0, 1.0});
+    renderer.draw_circle(position, radius, {0.4, 0.0, 1.0, 1.0});
 }
 
 void Player::shoot(const dotio::math::Coordinates mouse, const bool debug) {
-    if (Mana < 10.0f || Cooldown > 0.0f)
+    if (mana < 10.0f || cooldown > 0.0f)
         return;
 
-    dotio::math::Vector2 force{(6.0f + (BoltSpeed * (Kills / MaxBulletKills))), 0.0f};
-    force.rotate((mouse - Position).get_direction());
-    world_->add_bolt(Position, force);
+    dotio::math::Vector2 force{(6.0f + (bolt_speed * (kills / max_bullet_kills))), 0.0f};
+    force.rotate((mouse - position).get_direction());
+    world_->add_bolt(position, force);
     if (!debug)
-        Mana -= 10.0f;
-    Cooldown = MaxCooldown;
+        mana -= 10.0f;
+    cooldown = max_cooldown;
 }
 } // namespace dotio

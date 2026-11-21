@@ -14,7 +14,7 @@ namespace dotio {
 /// Occupancy raster of a world's resident window: wall cells for collision, sight lines,
 /// projectile sweeps and routes. One instance per World; nonzero cells are walls.
 ///
-/// Cell (row, column) covers `Origin + (column, row) * CellSize` to one cell further, in
+/// Cell (row, column) covers `origin + (column, row) * cell_size` to one cell further, in
 /// legacy pixels; +Y points down the screen.
 ///
 /// The grid also owns the route planner, a kinetra::WeightedGrid with one planning cell per
@@ -39,7 +39,7 @@ class Grid {
     void set_cell(int row, int column, int value);
     /// Writes every cell, as SetCell() does.
     void fill(int value);
-    /// The route planner: cell id `row * Columns + column`, positions in legacy pixels.
+    /// The route planner: cell id `row * columns + column`, positions in legacy pixels.
     const kinetra::WeightedGrid &navigation() const { return navigation_; }
 
     /// A borrowed view of the raster for Kinetra's grid queries; valid while this grid lives.
@@ -65,9 +65,9 @@ class Grid {
     /// first point it does.
     bool is_intersecting_any_cell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const;
 
-    /// A free cell at most five cells from `origin` in each direction, drawn from `random`.
+    /// A free cell at most five cells from `around` in each direction, drawn from `random`.
     /// Throws std::runtime_error when there is none.
-    dotio::math::GridEntry generate_grid_entry(dotio::math::GridEntry origin, std::mt19937 &random) const;
+    dotio::math::GridEntry generate_grid_entry(dotio::math::GridEntry around, std::mt19937 &random) const;
 
     /// Center of a free cell at least three cells inside the window, drawn from `random`.
     /// Draws until it finds one; the window must have a free cell there.
