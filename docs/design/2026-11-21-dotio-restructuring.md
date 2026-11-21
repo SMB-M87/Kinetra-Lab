@@ -1,6 +1,6 @@
 # Dotio restructuring
 
-Status: accepted · Branches: `test/dotio-baseline` (step 1), `refactor/dotio-grid-rng` (step 2), Kinetra `feat/weighted-grid-search` (step 3), `refactor/dotio-navigation` (step 4), `refactor/dotio-layers` (step 5), `refactor/dotio-conventions` (step 6), `docs/dotio-module` (step 7) · Related: [quality roadmap, phase 6](2026-11-18-quality-roadmap.md#phase-6-dotio), [Dotio](../../labs/dotio/README.md), [Dotio architecture](../dotio-architecture.md), [Kinetra navigation](../../external/Kinetra/docs/engine/navigation.md)
+Status: implemented · Branches: `test/dotio-baseline` (step 1), `refactor/dotio-grid-rng` (step 2), Kinetra `feat/weighted-grid-search` (step 3), `refactor/dotio-navigation` (step 4), `refactor/dotio-layers` (step 5), `refactor/dotio-conventions` (step 6), `docs/dotio-module` (step 7) · Related: [quality roadmap, phase 6](2026-11-18-quality-roadmap.md#phase-6-dotio), [Dotio](../../labs/dotio/README.md), [Kinetra navigation](../../external/Kinetra/docs/engine/navigation.md)
 
 Roadmap phase 6. Dotio still runs on the code it was ported with: a static occupancy grid, randomness that no seed controls, its own A*, priority queue, stack and graph, a logic header that includes a runtime header, and the naming of the original game. This phase first records how enemies behave today, then makes runs reproducible, moves route planning onto Kinetra's weighted grid, fixes the layers and names, and documents the module.
 
@@ -72,7 +72,7 @@ Checked against `main` at `2cd2c8a` on 2026-11-21. The roadmap's relevance check
 | Route length | Whole routes; the 50-cell cap goes | *Agent.* The cap stopped long pursuits short and made them replan every decision tick |
 | Footprint | Routes for a point (zero half extents), as the old cell graph | *Agent.* Contact leaves an enemy touching a wall; a footprint test at its start point would then reject every route |
 | Random streams | Per purpose, each seeded from the world seed and a fixed tag: population (spawn placement, exists), wander (steering heading, exists), behavior (fear, path-wander target and jitter), placement (player respawn, ghost start). Values from raw generator bits, not standard distributions | *Agent.* Separate streams keep one feature from shifting another's sequence; standard distributions differ between standard libraries, raw bits do not (as `wander.cpp` already does) |
-| Seeds at the edge | `World` and `Application` take a seed without a default. `kinetra_dotio` gains `--seed`, and draws one from `std::random_device` only when it is absent; the bundled launcher already passes its `--seed` | *Agent.* The executables are composition roots, not simulation logic; a printed seed lets the user replay a playtest |
+| Seeds at the edge | `World` and `Application` take a seed without a default. `kinetra_dotio` gains `--seed`, and draws one from `std::random_device` only when it is absent; both it and the bundled launcher print the seed they play | *Agent.* The executables are composition roots, not simulation logic; a printed seed lets the user replay a playtest |
 | Golden fingerprint | From step 4 on, a doctest case pins a seeded run (positions, states, kills) to one value. Steps 5 and 6 keep it unchanged | *Agent.* The strongest safety net for the renames; the same pattern as i4sim's golden test |
 | Debug panel | `kinetra::DebugMenu` moves from `Application` to the session; the rows (`debug_entries()`) stay in logic | *Agent.* AGENTS.md puts debug rows in logic; the panel that draws them is presentation |
 | Naming | Lab conventions throughout Dotio, `gmath` included: `snake_case` members and functions, `x_` private members, `#pragma once`, no field aliases | *Agent.* The roadmap asks for it; renames are mechanical and compiler-checked, with the fingerprint as proof |
@@ -114,7 +114,7 @@ The access to the world sits in three small functions at the top of the file, so
 
 ### Step 3: goal search in Kinetra's weighted grid
 
-Kinetra branch `feat/weighted-grid-search` with its own design document, `docs/design/2026-11-21-weighted-grid-search.md` in Kinetra:
+Kinetra branch `feat/weighted-grid-search` with its own [design document](../../external/Kinetra/docs/design/2026-11-21-weighted-grid-search.md) and pull request SMB-M87/Kinetra#17:
 
 ```cpp
 /// Cheapest route from `start` to the first cell `accept` takes, offering cells in order of
@@ -216,6 +216,61 @@ Reading the baseline:
 - About 5–6% of route-following ticks have no route: the tick that enters a state clears the route, and the plan follows at the next decision tick (20 Hz).
 - Nothing overlaps walls; stuck episodes are rare (at most one per 50 enemy-minutes).
 
+### After step 2
+
+Same command, at `refactor/dotio-grid-rng`. Runs are now reproducible: the fingerprints repeat (steering: `ad3797a3279b4837 8eef746b9f417f93 da172c588d995951`). The statistics stay within the baseline's run-to-run spread, as a change of where random values come from should; the largest move is path wander on Medium, a tenth fewer sightings and pursuits, from one seeded sample of a chaotic game.
+
+| Statistic | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Damage to player / min, steering / path | 51.5 / 54.1 | 288.8 / 285.0 | 470.3 / 464.5 |
+| Player deaths / 10 min, steering / path | 0.00 / 0.00 | 14.92 / 13.33 | 35.08 / 34.92 |
+| Pursuits / enemy-min, steering / path | 0.39 / 0.35 | 2.16 / 1.86 | 3.48 / 3.40 |
+| Pursuits that find the player (%), steering / path | 70.9 / 69.0 | 91.9 / 91.1 | 98.4 / 98.9 |
+| Kamikaze entries / enemy-min, steering / path | 0.08 / 0.08 | 0.33 / 0.34 | 0.40 / 0.42 |
+| Route-following ticks without a route (%), steering / path | 5.2 / 5.2 | 6.0 / 5.9 | 6.1 / 6.2 |
+| Stuck episodes / enemy-min, steering / path | 0.000 / 0.017 | 0.003 / 0.004 | 0.003 / 0.002 |
+| Ticks overlapping a wall (%) | 0.00 | 0.00 | 0.00 |
+
+### After step 4
+
+Same command, at `refactor/dotio-navigation`; both baseline runs, then the new value in bold. Steering-wander fingerprints `3755ca3a6a2422e7 06c7e8afcc466887 7cca05806d2ffdb7`.
+
+| Statistic | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Damage to player / min | 59.1 / 50.3 → **51.9** | 294.3 / 292.0 → **293.6** | 467.6 / 480.5 → **474.5** |
+| Player deaths / 10 min | 0.00 / 0.00 → **0.00** | 15.83 / 15.58 → **15.17** | 34.67 / 35.75 → **35.50** |
+| Time in pursue (%) | 1.9 / 2.1 → **2.1** | 9.1 / 8.9 → **9.3** | 12.5 / 12.0 → **13.0** |
+| Pursuits / enemy-min | 0.38 / 0.39 → **0.37** | 2.12 / 2.11 → **2.19** | 3.59 / 3.59 → **3.74** |
+| Pursuits that find the player (%) | 73.0 / 69.0 → **69.2** | 91.8 / 92.0 → **91.7** | 98.7 / 98.6 → **98.8** |
+| Pursuit duration (s) | 3.84 / 4.09 → **4.25** | 2.86 / 2.85 → **2.79** | 2.11 / 2.02 → **2.05** |
+| Recoveries / enemy-min | 0.00 / 0.00 → **0.00** | 0.01 / 0.00 → **0.00** | 0.02 / 0.02 → **0.01** |
+| Kamikaze entries / enemy-min | 0.08 / 0.08 → **0.07** | 0.36 / 0.32 → **0.33** | 0.45 / 0.43 → **0.38** |
+| Route-following ticks without a route (%) | 5.3 / 5.2 → **5.2** | 5.8 / 5.7 → **5.8** | 6.2 / 6.2 → **6.1** |
+| Stuck episodes / enemy-min | 0.000 / 0.000 → **0.000** | 0.004 / 0.002 → **0.002** | 0.006 / 0.002 → **0.003** |
+| Ticks overlapping a wall (%) | 0.00 / 0.00 → **0.00** | 0.00 / 0.00 → **0.00** | 0.00 / 0.00 → **0.00** |
+| Attack distance (cells) | 8.19 / 8.31 → **8.39** | 5.19 / 5.08 → **5.25** | 4.78 / 4.70 → **4.73** |
+
+Path wander, baseline run 1 → after step 4:
+
+| Statistic | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Damage to player / min | 52.7 → **52.9** | 292.6 → **288.6** | 482.3 → **466.8** |
+| Pursuits / enemy-min | 0.34 → **0.34** | 2.26 → **2.07** | 3.42 → **3.59** |
+| Pursuits that find the player (%) | 72.1 → **71.6** | 93.2 → **92.2** | 99.1 → **99.2** |
+| Route-following ticks without a route (%) | 5.2 → **5.3** | 5.8 → **6.1** | 6.4 → **6.2** |
+| Stuck episodes / enemy-min | 0.017 → **0.012** | 0.001 → **0.006** | 0.003 → **0.001** |
+| Ticks overlapping a wall (%) | 0.00 → **0.00** | 0.00 → **0.00** | 0.00 → **0.00** |
+
+Reading it:
+- The new planner keeps every statistic within, or within a few percent of, the baseline's run-to-run spread: difficulty separates as before, pursuits find the player as often, and no enemy overlaps a wall.
+- Whole routes did not make pursuits find the player more often in the benchmark: its player walks only 6 to 16 cells, so few pursuits needed more than 50 cells. The [pursuit case](#test-plan) shows the difference directly: a far pursuer now follows one route instead of replanning every decision tick.
+- Route-following ticks without a route stay at 5–6%: they are the decision tick between entering a state and its first plan, not failed plans.
+- Stuck episodes stay rare and inside the baseline's range in both wander modes.
+
+### After step 7
+
+Steps 5 to 7 change no behavior: the golden fingerprint stayed the same through every commit, so the statistics *after step 4* are the final ones. In short, against the baseline: every statistic stays within, or a few percent from, the baseline's run-to-run spread; nothing overlaps a wall; stuck episodes stay at most one per 300 enemy-minutes; and runs are now reproducible from their seed.
+
 ## Affected areas
 
 - `labs/dotio/` (all of it), `labs/dotio/CMakeLists.txt`, the root `CMakeLists.txt` (warnings as errors).
@@ -244,22 +299,130 @@ Reading the baseline:
 
 ## Review
 
-Filled in per step.
+### Step 7
+
+- Making Dotio warning-free needed only explicit casts with the same values and one renamed loop variable; the golden fingerprint did not move.
+- The README's old state diagram said an attacker recovers on a "fuzzy recovery decision"; the code recovers when the enemy runs out of ammunition. The new diagram follows the code.
+- `docs/dotio-architecture.md` is absorbed into the README (structure, lifecycle, engine boundary); the documentation index, the system architecture page and AGENTS.md point there.
+- The Dotio captures were refreshed and looked at (both screenshots, first, middle and last frames of both clips). Two refreshes give byte-identical files, so the media and capture guides no longer call Dotio's captures irreproducible. The settings screenshot did not change. The tour video is not re-rendered (user decision).
+
+### Step 6
+
+- The renames ran through clang-tidy's `readability-identifier-naming` in two passes (functions and private suffixes with the repository's configuration, then members and class constants with extra options), exported per translation unit and merged with `clang-apply-replacements`, so declarations and uses change together. Grid's and Bolt's class constants, two capture files and the member accesses of the capture tool's tests were renamed by hand afterwards.
+- The golden fingerprint caught one real regression on the way: `Bolt` and `Arrow` constructors assigned `velocity = velocity` once parameter and member had the same name. Every constructor parameter that matched a member is renamed now, and `-Wshadow` reports none of them.
+- Kept PascalCase on purpose: type names and the type aliases of `Vec2` (`Position`, `Point2`, …). Folding those aliases into one type is part of the `kinetra::Vec2` open point.
+- The fuzzy classifiers became `classify_distance`, `classify_fear` and `classify_ammo`; under the new names they clashed with their parameters.
+
+### Step 5
+
+- The menu-click case (`the debug menu toggles a row once per click at every size`) keeps using the header-only panel; it now includes `<kinetra/runtime/debug_view.h>` itself, with a comment, instead of getting it through `application.h`.
+- Pause and Ghost are now driven in the tests the way the session drives them: the RUNNING and GHOST CAMERA rows set `paused` and `ghost`.
+- Removing `GridEntry::operator!=` changes no result: nothing compared cells with `!=`, and the golden fingerprint is unchanged.
+
+### Step 4
+
+- `plan_shelter` reduces the old 20-line quadrant condition to its two factors (same side along one axis including the player's line, strictly along the other) and keeps "more than one cell from the player".
+- A failed replan keeps the old route, as `Graph::AStar` failing left `Path` untouched before.
+- Kinetra's route starts after the enemy's own cell, so a pursuer no longer first returns to its cell center; the pursuit case checks routes stay clear of walls from the exact start.
+- The golden fingerprint is skipped on Windows like the other trajectory fingerprints (`CMakePresets.json`), and recorded only after the behavior change.
+
+### Step 2
+
+- `Grid::TerrainCell` kept a `static thread_local` district cache; it is now a member of the grid (a memo of a pure function, but still shared state across worlds).
+- `GridEntry::operator!=` is still the buggy `&&` form; it has no caller (`grep`), and step 5 fixes it.
+- `wander.cpp`'s `signed_unit` now uses the shared `math::unit`; `unit * 2 - 1` and the old `bits / 2^23 - 1` give the same float for every 24-bit value, so steering wander is unchanged (its tests pass unchanged).
 
 ## Verification
 
-Filled in per step.
+### Step 7: Full
+
+At the top of the stack (`docs/dotio-module`), Kinetra at `feat/weighted-grid-search` (3622849):
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset dev` with `labs/dotio` warnings as errors | passed, no warnings |
+| `cmake --workflow --preset graphics` (SDL offscreen, software Mesa) | 302/307 passed. The 5 failures are trajectory fingerprints of other modules: four `kinetra_demo_crowd_characterization` cases and i4sim's RVO golden case. They fail identically with Kinetra `main` (7d3e586) on this Ubuntu GCC 13 toolchain, pass on CI's pinned Arch toolchain (PR #53 is green), and are the same cases CMakePresets.json already excludes on Windows. Pre-existing, not caused by this phase |
+| Smoke: `kinetra --frames 120`; `kinetra --variant demo\|dotio\|i4sim --frames 120` (Dotio on hard); `kinetra_demo`, `kinetra_dotio --seed 42`, `kinetra_i4sim`, each `--frames 120` | all exit 0 |
+| `tools/capture/capture_media.sh build-graphics dotio dotio-debug dotio-settings dotio-clip dotio-debug-clip`, twice | identical files |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
+| Kinetra `cmake --workflow --preset graphics` (step 3) | passed |
+| Pull request CI | #51, #53 and Kinetra #17 green; the rest see their pull requests |
+
+### Step 6
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset graphics` (everything) | passed |
+| `ctest --test-dir build-graphics -R 'dotio\|capture\|menu\|kinetra_graphics'` (offscreen) | 101/101 passed, golden fingerprint unchanged |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
+
+### Step 5
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset release` (everything) | passed |
+| `ctest --test-dir build-release -R 'dotio\|capture\|menu'` | 87/87 passed, golden fingerprint unchanged |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
+
+### Step 4
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset dev` (everything, Kinetra branch pointer) | passed |
+| `ctest --preset dev -R 'capture\|dotio\|menu'` | 83/83 passed before the fingerprint case; then `ctest --test-dir build-release -R '^kinetra_dotio'` 45/45 |
+| Golden fingerprint, Debug and Release | identical (`0x9d126f5dc5068339`) |
+| `ctest --preset dev -R '^kinetra_i4sim_(golden\|pressure)'` | 17/18; the RVO golden case fails identically with Kinetra `main` in this Debug build (pre-existing, platform-sensitive, already excluded on Windows) |
+| Kinetra `cmake --workflow --preset graphics` on `feat/weighted-grid-search` | passed |
+| Benchmark | see [after step 4](#after-step-4) |
+
+### Step 2
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset dev` (everything, warnings on) | passed; no new warnings in changed files |
+| `ctest --preset dev -R 'capture\|dotio\|menu'` | 82/82 passed (two new cases) |
+| `kinetra_dotio --seed 7 --frames 30` (offscreen) | exit 0, prints `World seed: 7` |
+| Benchmark twice with the same seeds | identical fingerprints |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
+| Pull request CI | see the pull request |
+
+Local Full (`cmake --workflow --preset graphics`) runs once on the top of the stack, after step 7.
 
 ## Pull request
 
-Filled in per step.
+One pull request per step, stacked; each description has Summary, Changes, Verification, Review notes, Dependencies and Follow-up.
+
+| Step | Pull request | Branch | Base |
+| --- | --- | --- | --- |
+| 1 Baseline | Lab #50, `test(dotio): seeded behavior baseline and phase 6 plan` (merged) | `test/dotio-baseline` | `main` |
+| 2 Grid and seeds | Lab #51, `refactor(dotio): one grid per world and every random value from the seed` | `refactor/dotio-grid-rng` | `main` |
+| 3 Kinetra search | Kinetra #17, `feat(navigation): search a weighted grid for the nearest accepted cell` | `feat/weighted-grid-search` | `main` |
+| 4 Routes | Lab #53, `feat(dotio): plan enemy routes on Kinetra's weighted grid` | `refactor/dotio-navigation` | `refactor/dotio-grid-rng` |
+| 5 Layers | Lab #56, `refactor(dotio): runtime headers out of the logic, global usings and dead code gone` | `refactor/dotio-layers` | `refactor/dotio-navigation` |
+| 6 Names | Lab #57, `refactor(dotio): Lab naming, #pragma once and one name per field` | `refactor/dotio-conventions` | `refactor/dotio-layers` |
+| 7 Docs | `docs(dotio): module README, header contracts, warnings as errors, fresh captures` | `docs/dotio-module` | `refactor/dotio-conventions` |
+
+**Merge order:** #51; Kinetra #17 with a merge commit, then move the pointer on `refactor/dotio-navigation` to the Kinetra merge commit (the trees are identical, `git -C external/Kinetra diff --stat 3622849 <merge>` empty, so verification stands); then #53, #56, #57 and step 7, each after the one it is stacked on.
 
 ## Playtest checklist
 
-Filled in at the end of the phase.
+For the user, against the tour video's Dotio chapter (the old behavior). Play each difficulty for a few minutes, with `kinetra_dotio --seed N` so a run can be repeated:
+
+1. **Pursuit.** Break sight around a corner and run a long way. Pursuers should follow through the maze without stopping short or twitching between routes, and give up after the difficulty's pursuit cycles (Easy soonest).
+2. **Corners.** Pursuers no longer step back to the center of their own cell first; they head for the next cell at once. Check that they do not scrape or stick on wall corners.
+3. **Recovery.** An enemy out of arrows should run out of your sight, deeper for a fearful one, reload and come back. With one hit left and no shelter it turns kamikaze. Debug Mode → LAYERS → PATHS → RECOVERY and HIDING HITS show the shelter routes.
+4. **Kamikaze.** Close, bold enemies at one hit left charge and explode; out of sight they route to you.
+5. **Path wander.** ENEMIES → WANDER → PATH: wanderers sway along routes to nearby cells, as in the original game; STEERING (default) is unchanged.
+6. **Difficulty feel.** Easy, Medium, Hard should feel like before: damage per minute roughly 50 / 290 / 470 in the benchmark.
+7. **Reproducibility.** The same `--seed` and the same moves give the same game; the launcher prints its seed at start.
+8. **Debug menu.** Every row as before; the debug panel still opens with Shift+Ctrl and the DEBUG button, and takes the pointer while it is over it.
+9. **Windows build**, if you use it: the same checks there (its trajectory fingerprints are not tested in CI).
 
 ## Open points
 
-- **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, and the four random streams.
+- **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, the four random streams, the golden fingerprint (skipped on Windows), and refreshing the Dotio captures in step 7.
+- The Demo crowd characterization and i4sim RVO golden cases fail on Ubuntu's GCC 13 (locally, before and after this phase) and pass on CI's Arch toolchain. Trajectory fingerprints are compiler-sensitive; the Dotio golden fingerprint may become one too on another compiler.
+- Route following passes waypoints by distance and does not cut corners that are already in sight; a raster version of Kinetra's `route_target` would make pursuers smoother (module README, open points).
+- Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly, and the playtest should look at it.
 - `<kinetra/runtime/timing.h>` (`FixedClock`, `RateCounter`) is header-only and headless but sits under `runtime/`; Demo, Dotio and i4sim logic include it. Moving it to `view/` or `simulation/` is a Kinetra include-layout change for later.
 - `dotio::math::Vec2` duplicates `kinetra::Vec2` with extra operators (length comparisons, component products). Replacing it is a larger change than renaming and is left for later.

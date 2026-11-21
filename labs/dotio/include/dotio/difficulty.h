@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <stdexcept>
 #include <string_view>
 
@@ -117,7 +118,7 @@ struct EnemyTuning {
 /// Every number must be finite. The limits follow from how World and Enemy read each value:
 /// - `active_spawn_limit` >= 0: spawning stops while that many enemies are near the player.
 /// - `spawn_rate_multiplier`, `crowd_load_multiplier` >= 0: they scale the spawn rate and
-///   the load Fuzzy::SpawnRate accepts, which rejects a negative load.
+///   the load Fuzzy::spawn_rate accepts, which rejects a negative load.
 /// - `spawn_spacing` >= 0: a distance in legacy pixels between a spawn and other enemies.
 /// - `movement_multiplier` in [0, max_movement_multiplier]: zero stops the enemies, a
 ///   negative value would make them steer backwards.

@@ -2,22 +2,24 @@
 // Created by vpack on 2024-04-04.
 //
 
-#ifndef MAIN_BOLT_H
-#define MAIN_BOLT_H
+#pragma once
 
 #include "dotio/entities/moving_object.h"
 
 namespace dotio {
+/// The player's bolt: flies at constant velocity until World::update_bolts stops it at a wall,
+/// a crate or an enemy.
 struct Bolt : MovingObject {
-    static constexpr float Radius = 5.f;
+    /// Radius of the visible bolt, in legacy pixels; hits count from its edge.
+    static constexpr float radius = 5.f;
+    /// A bolt at `position` flying at `velocity` legacy pixels per update; inactive until its
+    /// pool slot activates it.
     explicit Bolt(dotio::math::Position position, dotio::math::Vector2 velocity);
 
     Bolt();
 
-    void Update(float delta) override;
+    void update(float delta) override;
 
-    void Draw(dotio::Renderer &renderer) override;
+    void draw(dotio::Renderer &renderer) override;
 };
 } // namespace dotio
-
-#endif // MAIN_BOLT_H

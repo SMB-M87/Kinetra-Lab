@@ -232,7 +232,7 @@ void demo_chapter(Tour &tour) {
     tour.wait(0.9);
 }
 
-// Dotio. Its AI is not seeded, so the player is steered by what the world shows.
+// Dotio. The player is steered by what the world shows, so it reacts to the enemies it meets.
 
 dotio::Application &dotio_application(Tour &tour) {
     return dynamic_cast<dotio::Session &>(tour.session()).application();
@@ -264,7 +264,7 @@ void dotio_fight(Tour &tour, double seconds, bool roam) {
 /// window; the middle itself when none is free.
 Vec2 free_teleport_point(Tour &tour) {
     auto &application = dotio_application(tour);
-    const float radius = application.world().GetPlayer().Radius;
+    const float radius = application.world().get_player().radius;
     for (const Vec2 fraction : {Vec2{.56f, .46f}, Vec2{.44f, .56f}, Vec2{.62f, .60f}, Vec2{.38f, .40f},
                                 Vec2{.50f, .34f}, Vec2{.50f, .66f}, Vec2{.68f, .44f}, Vec2{.32f, .56f}}) {
         const Vec2 point = at(tour, fraction.x, fraction.y);

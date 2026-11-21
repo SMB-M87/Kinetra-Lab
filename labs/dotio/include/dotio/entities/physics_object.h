@@ -1,40 +1,51 @@
-#ifndef PHYSICS_OBJECT_H
-#define PHYSICS_OBJECT_H
+#pragma once
 
-#include "dotio/math/gmath.h"
+#include "dotio/math/cell.h"
 
 #include "dotio/entities/moving_object.h"
 
 namespace dotio {
+/// A circular body with mass and friction: the player and the enemies. It reaches Kinetra's
+/// physics through physics_adapter.h.
 class PhysicsObject : public MovingObject {
   protected:
-    float _mass;
-    float _friction;
-    float _angularFriction;
+    /// Mass for contact response between bodies; no unit beyond its ratio to other masses.
+    float mass_;
+    /// Fraction of its speed the body loses per update: 0.2 settles a constant push at five
+    /// times the speed it adds per update.
+    float friction_;
+    /// Kept from the original game; nothing reads it.
+    float angular_friction_;
 
   public:
-    float Radius;
-    dotio::math::GridEntry LastPartition[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
+    /// Radius of the body, in legacy pixels.
+    float radius;
+    /// Cells of World::enemy_partition_map this body is registered in, {-1, -1} for none.
+    /// Only enemies use them, to find the neighbors they push apart from.
+    dotio::math::GridEntry last_partition[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
     PhysicsObject();
 
-    explicit PhysicsObject(float mass, float radius, float friction, float rotationalFriction,
+    explicit PhysicsObject(float mass, float radius, float friction, float rotational_friction,
                            dotio::math::Position position, float direction, bool active);
 
     virtual ~PhysicsObject();
 
-    void ApplyForce(const dotio::math::Vector2 &force, float mass);
+    /// Adds `force` to the velocity: despite the name it is a change of speed, in legacy
+    /// pixels per update. The second argument is ignored; the original game passed half the
+    /// mass.
+    void apply_force(const dotio::math::Vector2 &force, float mass);
 
-    void Update(float delta) override;
+    /// Moves over `delta` updates and then loses `friction_` of its speed per update.
+    void update(float delta) override;
 
-    void Tick() override;
+    void tick() override;
 
-    float GetDiameter() const;
+    /// Twice the radius, in legacy pixels.
+    float get_diameter() const;
 
-    [[nodiscard]] float GetFriction() const;
+    [[nodiscard]] float get_friction() const;
 
-    [[nodiscard]] float GetMass() const;
+    [[nodiscard]] float get_mass() const;
 };
 } // namespace dotio
-
-#endif // PHYSICS_OBJECT_H
