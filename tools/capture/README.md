@@ -17,7 +17,7 @@
 
 ## Purpose and scope
 
-The gallery used to be hand-made window captures from different days, with seeds and options nobody recorded. This tool makes a refresh one command and, apart from Dotio, the same pixels every run:
+The gallery used to be hand-made window captures from different days, with seeds and options nobody recorded. This tool makes a refresh one command and the same pixels every run:
 
 ```sh
 cmake --preset graphics
@@ -39,7 +39,7 @@ It does not record from a running application, and it changes nothing an applica
 | Clip | A scene that writes `<scene>/frame-0001.png` onwards, at 960 × 540; the script makes `<scene>.gif` of it |
 | Step | One `advance` of the session by 1/60 s, as one frame of a 60 Hz display, so the statistics show real rates |
 | Clip frame | Four steps; clips play at 15 frames per second. Demo's clips and Dotio's gameplay clip last four seconds (60 frames), the Dotio debug clip and the i4sim clips twelve (180), a showcase clip one cycle |
-| Scripted player | Dotio's player in the captures. It reads the world of the running session between frames and answers with a pointer position and the fire button, because Dotio's AI is not seeded and no timeline could aim for it |
+| Scripted player | Dotio's player in the captures. It reads the world of the running session between frames and answers with a pointer position and the fire button, because a timeline written in advance would have to know where every enemy goes |
 | Menu click | A debug-menu row a script clicks, by number, with the label the row must have at that moment (`MenuClick`). `apply_menu_click` runs it on an application's rows without a window, so a test and the headless measurement can replay it |
 | Busiest stretch | The twelve seconds of the captured i4sim floor in which most movers drive; the i4sim clips record them |
 | Showcase cycle | One round of an i4sim showcase scene: out, pause, back and pause for a shuttle; run, pause and restart for corridor recovery. A showcase clip lasts exactly one |

@@ -79,29 +79,29 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     // jitter on screen. Only for this frame's drawing: the session keeps its camera.
     const kinetra_lab::ScopedCameraShift follow_drawn_player(
         runtime.camera,
-        scene.following ? position(scene.player) - scene.world.body(scene.player).position : Vec2{});
+        scene.following() ? position(scene.player()) - scene.world().body(scene.player()).position : Vec2{});
     runtime.begin();
     // Distant Ghost terrain is sampled for presentation only; it owns no physics or agents.
-    if (!scene.following) {
-        const auto center = scene.world.body(scene.player).position;
+    if (!scene.following()) {
+        const auto center = scene.world().body(scene.player()).position;
         const auto half = runtime.camera.viewport * (1.25f / 10.f);
         const Aabb resident{center - half, center + half};
-        if (scene.view.min.x < resident.min.x || scene.view.min.y < resident.min.y ||
-            scene.view.max.x > resident.max.x || scene.view.max.y > resident.max.y) {
-            for (const auto &[coordinate, bodies] : scene.preview.chunks())
+        if (scene.view().min.x < resident.min.x || scene.view().min.y < resident.min.y ||
+            scene.view().max.x > resident.max.x || scene.view().max.y > resident.max.y) {
+            for (const auto &[coordinate, bodies] : scene.preview().chunks())
                 for (const auto &body : bodies)
-                    if (scene.view.overlaps(bounds(body)) && !resident.overlaps(bounds(body)))
+                    if (scene.view().overlaps(bounds(body)) && !resident.overlaps(bounds(body)))
                         draw_body(runtime, body, false, options);
         }
     }
     std::size_t id = 0;
-    for (const auto &simulated : scene.world.bodies()) {
-        if (!scene.view.overlaps(bounds(simulated))) {
+    for (const auto &simulated : scene.world().bodies()) {
+        if (!scene.view().overlaps(bounds(simulated))) {
             ++id;
             continue;
         }
         const Body body = presented(id, simulated);
-        draw_body(runtime, body, id == scene.player, options);
+        draw_body(runtime, body, id == scene.player(), options);
         if (layers.collisions) {
             if (body.shape == Shape::circle)
                 draw_debug_circle(runtime, body.position, body.radius, layer_color::collisions);
@@ -119,9 +119,9 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     }
     // Draw probes after every body so later terrain cannot overwrite the debug strokes.
     if (options.probes)
-        for (std::size_t probe = 0; probe < scene.world.bodies().size(); ++probe) {
-            const auto &simulated = scene.world.body(probe);
-            if (simulated.motion == Motion::fixed || !scene.view.overlaps(bounds(simulated)))
+        for (std::size_t probe = 0; probe < scene.world().bodies().size(); ++probe) {
+            const auto &simulated = scene.world().body(probe);
+            if (simulated.motion == Motion::fixed || !scene.view().overlaps(bounds(simulated)))
                 continue;
             const Body body = presented(probe, simulated);
             const auto direction =
@@ -132,7 +132,7 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
                              3.f / runtime.camera.pixels_per_unit, layer_color::probes);
         }
     if (options.paths) {
-        draw_route(runtime, position(scene.player), scene.player_path, {0.6f, 1, 0.3f});
+        draw_route(runtime, position(scene.player()), scene.player_path(), {0.6f, 1, 0.3f});
         for (const auto &agent : scene.agents())
             if (agent.active())
                 draw_route(runtime, position(agent.body_id()), agent.route(), layer_color::paths);
@@ -146,14 +146,14 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
                 continue;
             runtime.line(position(agent.body_id()), agent.home(), width, layer_color::home_range);
             runtime.circle(agent.home(), 3 * width, layer_color::home_range);
-            if (scene.selected_agent && length(agent.home() - *scene.selected_agent) < 0.001f)
+            if (scene.selected_agent() && length(agent.home() - *scene.selected_agent()) < 0.001f)
                 draw_debug_circle(runtime, agent.home(), application.tuning().wander.range,
                                   layer_color::home_range);
         }
     }
-    if (scene.selected_agent)
+    if (scene.selected_agent())
         for (const auto &agent : scene.agents())
-            if (length(agent.home() - *scene.selected_agent) < 0.001f)
+            if (length(agent.home() - *scene.selected_agent()) < 0.001f)
                 draw_debug_circle(runtime, position(agent.body_id()), 0.8f, {1, 1, 0});
     if (layers.active_agents)
         for (const auto &agent : scene.agents())
@@ -163,11 +163,12 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     if (overlays.statistics) {
         const auto active = std::count_if(scene.agents().begin(), scene.agents().end(),
                                           [](const auto &agent) { return agent.active(); });
-        auto text = "FPS " + std::to_string(int(overlays.fps)) + " AGENTS " + std::to_string(active) + "/" +
-                    std::to_string(scene.agents().size()) + " CHUNKS " +
-                    std::to_string(scene.terrain.chunks().size()) +
-                    (scene.reciprocal_avoidance ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited)
-                                                : " AVOID LEGACY");
+        auto text =
+            "FPS " + std::to_string(int(overlays.fps)) + " AGENTS " + std::to_string(active) + "/" +
+            std::to_string(scene.agents().size()) + " CHUNKS " +
+            std::to_string(scene.terrain().chunks().size()) +
+            (scene.reciprocal_avoidance() ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited())
+                                          : " AVOID LEGACY");
         // What the debug menu's SIMULATION rows did to time is not visible in the scene itself.
         if (application.paused())
             text += " PAUSED";
@@ -191,10 +192,10 @@ std::string status_text(const Application &application) {
     const auto &scene = application.scene();
     return std::to_string(scene.agents().size()) + " agents | " +
            (application.paused() ? "PAUSED" : "running") + " | " +
-           std::to_string(scene.terrain.chunks().size()) + " chunks | " +
-           (scene.following ? "camera FOLLOW" : "camera FREE") + " | paths " +
+           std::to_string(scene.terrain().chunks().size()) + " chunks | " +
+           (scene.following() ? "camera FOLLOW" : "camera FREE") + " | paths " +
            (application.presentation().paths ? "ON" : "OFF") +
-           (scene.reciprocal_avoidance ? " | avoidance RECIPROCAL | " : " | avoidance LEGACY | ") +
+           (scene.reciprocal_avoidance() ? " | avoidance RECIPROCAL | " : " | avoidance LEGACY | ") +
            std::string(action_text(application.last_action()));
 }
 

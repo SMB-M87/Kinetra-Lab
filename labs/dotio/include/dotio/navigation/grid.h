@@ -1,41 +1,86 @@
-#ifndef GRID_H
-#define GRID_H
+#pragma once
 
 #include "dotio/entities/physics_object.h"
 #include <kinetra/simulation/collision_grid.h>
+#include <kinetra/simulation/weighted_grid.h>
+
+#include <array>
+#include <cstdint>
+#include <map>
+#include <random>
+#include <tuple>
 
 namespace dotio {
-/// Streamed local world window, character clearance, visibility and swept projectile geometry.
+/// Occupancy raster of a world's resident window: wall cells for collision, sight lines,
+/// projectile sweeps and routes. One instance per World; nonzero cells are walls.
+///
+/// Cell (row, column) covers `origin + (column, row) * cell_size` to one cell further, in
+/// legacy pixels; +Y points down the screen.
+///
+/// The grid also owns the route planner, a kinetra::WeightedGrid with one planning cell per
+/// raster cell in the same legacy coordinates. Every write goes through set_cell(), which
+/// blocks or frees the planning cell too, so routes and collision always see the same walls.
 class Grid {
   public:
-    static const int Rows = 155;
-    static const int Columns = 155;
-    static const dotio::math::GridSize GridSize;
-    static dotio::math::Coordinates Origin;
-    static float CellSize;
-    static int Array[Rows][Columns];
-    static kinetra::CollisionGrid CollisionView(const int *cells = &Array[0][0]);
-    static void Generate(std::uint32_t seed, int offset_row = 0, int offset_column = 0);
-    static int TerrainCell(std::uint32_t seed, int row, int column);
+    static constexpr int rows = 155;
+    static constexpr int columns = 155;
+    /// Edge length of one square cell, in legacy pixels.
+    static constexpr float cell_size = 100.0f;
+    static inline const dotio::math::GridSize grid_size{rows, columns};
+    /// Legacy position of the corner of cell (0, 0).
+    static inline const dotio::math::Coordinates origin{0.0f, 0.0f};
+    /// A floor-only grid: every cell 0.
+    Grid();
 
-    static void HandleGridCollision(dotio::PhysicsObject &object, const float delta, const int *Array);
+    /// Value of cell (row, column): nonzero for a wall. Both must lie inside the grid.
+    int cell(int row, int column) const { return cells_[row][column]; }
+    /// Writes cell (row, column), nonzero for a wall, and blocks or frees its planning cell.
+    /// Both must lie inside the grid.
+    void set_cell(int row, int column, int value);
+    /// Writes every cell, as set_cell() does.
+    void fill(int value);
+    /// The route planner: cell id `row * columns + column`, positions in legacy pixels.
+    const kinetra::WeightedGrid &navigation() const { return navigation_; }
 
-    static bool GridIntersection(const dotio::math::Segment &segment, const int *Array,
-                                 dotio::math::Point2 &intersection);
+    /// A borrowed view of the raster for Kinetra's grid queries; valid while this grid lives.
+    kinetra::CollisionGrid collision_view() const;
+    /// Fills the raster with the seeded terrain whose cell (offset_row, offset_column) is cell
+    /// (0, 0) of the window.
+    void generate(std::uint32_t seed, int offset_row = 0, int offset_column = 0);
+    /// Terrain of the absolute cell (row, column) for `seed`: 1 for a wall, 0 for floor.
+    /// Independent of the raster; remembers recently generated districts.
+    int terrain_cell(std::uint32_t seed, int row, int column) const;
 
-    static bool SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
-                                           const float r);
+    /// Pushes `object` out of every wall cell it overlaps.
+    void handle_grid_collision(dotio::PhysicsObject &object) const;
 
-    static uint8_t SegementCircleIntersection(const dotio::math::Segment &segment,
-                                              const dotio::math::Point2 c, const float r,
-                                              dotio::math::Point2 &outIntersection);
+    /// Whether `segment` meets the circle around `c` of radius `r`, in legacy pixels.
+    static bool segment_intersects_circle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
+                                          const float r);
 
-    static bool IsIntersectingAnyCell(dotio::math::Segment segment, const int *Array,
-                                      dotio::math::Point2 &intersection);
+    /// Where `segment` first meets the circle around `c` of radius `r`: bit 1 set when it
+    /// does (with the point in `out_intersection`), bit 2 when the start lies inside the
+    /// circle, bit 4 when the end does.
+    static uint8_t segment_circle_intersection(const dotio::math::Segment &segment,
+                                               const dotio::math::Point2 c, const float r,
+                                               dotio::math::Point2 &out_intersection);
 
-    static dotio::math::GridEntry GenerateGridEntry(dotio::math::GridEntry origin);
+    /// Whether `segment` meets a wall cell or leaves the window; `intersection` receives the
+    /// first point it does.
+    bool is_intersecting_any_cell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const;
 
-    static dotio::math::Position GeneratePosition();
+    /// A free cell at most five cells from `around` in each direction, drawn from `random`.
+    /// Throws std::runtime_error when there is none.
+    dotio::math::GridEntry generate_grid_entry(dotio::math::GridEntry around, std::mt19937 &random) const;
+
+    /// Center of a free cell at least three cells inside the window, drawn from `random`.
+    /// Draws until it finds one; the window must have a free cell there.
+    dotio::math::Position generate_position(std::mt19937 &random) const;
+
+  private:
+    int cells_[rows][columns]{};
+    kinetra::WeightedGrid navigation_;
+    /// Generated 32-cell districts by (seed, district row, district column).
+    mutable std::map<std::tuple<std::uint32_t, int, int>, std::array<int, 32 * 32>> terrain_cache_;
 };
 } // namespace dotio
-#endif

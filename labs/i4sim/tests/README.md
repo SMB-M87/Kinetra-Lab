@@ -23,9 +23,9 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 
 ```mermaid
 flowchart TD
-    Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (61)<br/>simulation_tests.cpp"]
-    Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (8)"]
-    Logic --> Controller["kinetra_i4sim_controller (31)<br/>controller_tests.cpp"]
+    Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (74)<br/>simulation_tests.cpp"]
+    Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
+    Logic --> Controller["kinetra_i4sim_controller (42)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (1)<br/>needs an OpenGL context"]
     Logic --> Presentation
@@ -35,14 +35,14 @@ flowchart TD
 
 | Source | CTest suite (cases) | Purpose |
 | --- | --- | --- |
-| `simulation_tests.cpp` | `kinetra_i4sim` (61) | Required behavior of the loaders and the simulation |
+| `simulation_tests.cpp` | `kinetra_i4sim` (74) | Required behavior of the loaders and the simulation |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
-| `pressure_tests.cpp` | `kinetra_i4sim_pressure` (8: four scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
-| `controller_tests.cpp` | `kinetra_i4sim_controller` (30) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (42) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (1, because every check shares one `Runtime`; label `graphics`) | The session with a real window and context |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
-Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_testing` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree: `showcase_blueprint` in the catalog, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`, and `fixture_blueprint` in this directory, passed as `KINETRA_I4SIM_TEST_FIXTURE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite. `MAS-demonstrator.json` is the original MAS blueprint of the C# reference, unchanged; it left the catalog, but the controller, golden and simulation suites, the graphics suite and the benchmark still run it.
+Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_testing` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, among them contact episodes, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree: `showcase_blueprint` in the catalog, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`, and `fixture_blueprint` in this directory, passed as `KINETRA_I4SIM_TEST_FIXTURE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite. `MAS-demonstrator.json` is the original MAS blueprint of the C# reference, unchanged; it left the catalog, but the controller, golden and simulation suites, the graphics suite and the benchmark still run it.
 
 ## Running
 
@@ -79,7 +79,7 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 | Corridor recovery | All four directions after late activation: reverse movement, deterministic replay, bounded acceleration, no contact. Also cancellation by a manual goal, switching off, holding and releasing a participant, the longer APM4350 body, and all four refuges occupied with a retry after one is freed |
 | Predictive passing | Eight encounter directions with square and long footprints under Improved and Reciprocal: deterministic replay, early commitment, unchanged goals, bounded acceleration, no contact, completion, cancellation, the switch-off and hold life cycle, shifted lanes near a wall, and no plan where no space exists. Original and RVO form no pairs. Heatmap costs are off in these cases, so A* does not resolve the conflict first |
 | Path planning off | A mover's route is its destination alone, a goal without a grid route is still rejected, and a mover crosses the H past its convex corners without stopping |
-| Event log | A plan's formation, crossing and completion; the `goal_changed` and `participant_held` reasons; mover and border contacts with tick and pair; recording changes no pose |
+| Event log | A plan's formation, crossing and completion; the `goal_changed` and `participant_held` reasons; mover and border contacts with tick and pair; recording changes no pose; contact episodes group the repeated contacts of one pair |
 | Flow metrics | A free trip, a corridor standstill, a held mover, invalid limits |
 | Scenarios | The five showcase scenes load and apply; each runs tick for tick like the same setup built by hand, past its first turn; invalid scenario sections, including wrong path-planning flags and out-of-range speed, force or horizon, are rejected with their cause |
 | Shuttle and restart | Shuttling movers wait for each other, stand `shuttle_pause_ticks` and turn together; a manual goal ends shuttling for that mover only; every shuttling scene completes four legs in a row without contacts, and each scene with a coordination feature shows it on every leg; the h-crossing scene completes its legs without contacts when any one mover starts up to 300 ticks late; corridor recovery shows its retreat and its restart is due exactly one pause after its movers settle |
@@ -95,16 +95,17 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 - The fingerprint needs exact floating-point results; Release and Debug builds without fast-math reproduce it.
 - The scenarios do not reach every path: heatmap refresh timing and the stalled-pair cancellation of predictive passing leave the values unchanged.
 
-`pressure_tests.cpp` records how predictive passing behaves under pressure. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved:
+`pressure_tests.cpp` requires that predictive passing stays safe under pressure. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved; the lane-intrusion fixture serves two scenarios:
 
 | Fixture | Situation | The case first checks |
 | --- | --- | --- |
 | `pressure-three-oncoming.json` | One mover meets two oncoming movers in a column on its line | it forms a plan with the first one |
 | `pressure-lane-intrusion.json` | A third mover crosses a passing pair at right angles | it comes within 250 mm of a participant while their plan is active |
+| `pressure-lane-intrusion.json`, other goals | A third mover drives to a participant's exit target and stops there after the plan formed | it stands within 130 mm of an active passing target |
 | `pressure-simultaneous.json` | Two head-on pairs on parallel lines 400 mm apart | both pairs hold plans at the same time |
 | `pressure-narrow-aisle.json` | A 113 mm and a 155 by 235 mm mover meet in a 400 mm aisle | both are in the aisle at the same time |
 
-Each case then compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The lines are today's behavior, not requirements: under Reciprocal, the three-oncoming case leaves two movers shuffling in front of each other without a plan. Phase 7 turns the lines into required outcomes.
+Each case then requires the outcome (no contact, every mover at its goal, no stuck mover) and compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The requirements date from roadmap phase 7 ([design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md)): before it, under Reciprocal the three-oncoming case left two movers in front of each other until the end, and the stopping case pushed the stopped mover ahead for about 2000 ticks. A deliberate behavior change updates the lines with `KINETRA_PRINT_GOLDEN=1`, as in the golden suite.
 
 ## Controller suite
 
@@ -203,11 +204,12 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic > /tmp/i4sim-parking-traffic.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic > /tmp/i4sim-junction-traffic.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic --corridor-traffic > /tmp/i4sim-corridor-traffic.csv
+./build/kinetra_i4sim_motion_benchmark --predictive-passing --events /tmp/i4sim-events > /tmp/i4sim-passing.csv
 ```
 
 The `MAS-demonstrator` fixture and the catalog's `3840x2400` and `8640x4800` run for 50000 ticks each with seeds 42 and 915839214.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
-`--ticks` accepts 1 through 1000000. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
+`--ticks` accepts 1 through 1000000; `--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv` (tick, kind, plan, both movers, end reason, border and passing flags), so a contact or plan can be replayed from its seed and tick. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
 The CSV has one line per blueprint and seed:
 
 | Column | Meaning |
@@ -218,6 +220,7 @@ The CSV has one line per blueprint and seed:
 | `waiting_ticks` | Mover-ticks with an active goal, below 0.05 mm/tick and more than 10 mm from the destination ([FlowMetrics](../include/i4sim/simulation/flow_metrics.h)) |
 | `stuck_movers`, `stuck_at_end` | Movers that went 2000 ticks without getting 10 mm closer to their destination at least once, and at the last tick |
 | `passing_plans`, `passing_cancelled`, `passing_contacts` | Predictive passing plans formed, plans that ended without completing, and contacts that started while a participant was in a plan (from the event log) |
+| `contact_episodes` | Contacts grouped per mover pair (or mover and border) while less than 500 ticks lie between two of them: a pair that keeps touching counts once |
 | `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |
 
 The benchmark is deliberately outside CTest: comparisons are useful, but too slow for every test run. `--predictive-passing` and `--no-predictive-passing` (the default) switch the passing policy; compare runs with the same profile, seeds and policy flags.
@@ -245,6 +248,27 @@ On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s wit
 - With passing on, Improved waits 11–13 times longer on `8640x4800`, but only 17 and 5 of its 767 and 823 contacts start while a participant is in a plan.
 - On `8640x4800`, about 35–40% of the plans end without completing.
 - Under Reciprocal, passing raises the completed products on `8640x4800` from 95 and 93 to 99 and 103 without a contact; the other four runs complete the same number. Under Improved the results are mixed and contacts increase. That is why the policy stays optional.
+
+**After roadmap phase 7** (guarded passing), measured on 2026-11-21 with the same runs. Passing off is unchanged tick for tick; each cell shows passing **off / on** with the guard. The phase 7 [design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result) compares them with passing on before the guard.
+
+| Profile | Blueprint | Seed | Completed | Contacts (episodes) | Waiting ticks | Stuck movers | Plans (cancelled) | Contacts in a plan |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Reciprocal | MAS-demonstrator | 42 | 10 / 10 | 0 / 0 | 24006 / 23983 | 1 (1) / 1 (1) | 3 (1) | 0 |
+| Reciprocal | MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 | 12872 / 10663 | 2 (1) / 1 (1) | 3 (0) | 0 |
+| Reciprocal | 3840x2400 | 42 | 59 / 60 | 0 / 0 | 1583 / 1358 | 0 / 0 | 6 (1) | 0 |
+| Reciprocal | 3840x2400 | 915839214 | 61 / 63 | 0 / 0 | 651 / 1811 | 0 / 0 | 6 (1) | 0 |
+| Reciprocal | 8640x4800 | 42 | 95 / 100 | 0 / 0 | 48187 / 41273 | 6 (0) / 11 (1) | 236 (127) | 0 |
+| Reciprocal | 8640x4800 | 915839214 | 93 / 104 | 0 / 0 | 64702 / 33500 | 15 (1) / 11 (0) | 220 (93) | 0 |
+| Improved | MAS-demonstrator | 42 | 16 / 16 | 53 (9) / 134 (11) | 278 / 633 | 0 / 0 | 2 (2) | 0 |
+| Improved | MAS-demonstrator | 915839214 | 16 / 16 | 204 (12) / 203 (11) | 288 / 872 | 0 / 0 | 3 (2) | 0 |
+| Improved | 3840x2400 | 42 | 54 / 59 | 1 (1) / 2 (1) | 853 / 1042 | 1 (0) / 1 (0) | 7 (2) | 0 |
+| Improved | 3840x2400 | 915839214 | 60 / 55 | 18 (4) / 1 (1) | 1055 / 1402 | 1 (0) / 2 (0) | 5 (4) | 0 |
+| Improved | 8640x4800 | 42 | 98 / 99 | 384 (71) / 350 (55) | 2595 / 18281 | 2 (0) / 3 (0) | 212 (116) | 0 |
+| Improved | 8640x4800 | 915839214 | 99 / 102 | 726 (78) / 355 (43) | 2953 / 16117 | 4 (1) / 3 (0) | 197 (108) | 0 |
+
+- Reciprocal with passing on completes as many products as without, or more, in all six runs, without a contact, and waits less on `8640x4800`; with seed 42 more movers are stuck at some point (11 against 6).
+- Improved has no contact in a plan any more; on `8640x4800` it touches less than without passing (350 and 355 against 384 and 726). Its contacts elsewhere come in episodes of one pair beside a parked mover, which also occur without passing, so Improved stays mixed.
+- About half of the plans on `8640x4800` end without completing, mostly as `obstructed`: the guard gives up a maneuver that traffic around it no longer allows.
 
 **Parking traffic**, Reciprocal, the same 50000-tick runs, parking traffic **off / on**:
 

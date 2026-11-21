@@ -1,6 +1,7 @@
 #pragma once
 #include "dotio/application.h"
 #include <kinetra/runtime/bitmap_text.h>
+#include <kinetra/runtime/debug_view.h>
 #include <kinetra/runtime/settings_view.h>
 #include <utility>
 #include <vector>
@@ -25,9 +26,11 @@ class PresentedPositions {
   private:
     std::vector<std::pair<dotio::StaticObject *, dotio::math::Vec2>> simulated_;
 };
-/// Draws the world, the HUD, the debug menu and, last, the settings overlay. Moving objects
-/// are drawn between their last two ticks (PresentedPositions).
-void render(kinetra::Runtime &runtime, Application &application, const kinetra::SettingsOverlay &settings);
+/// Draws the world, the HUD, `menu` with the application's debug rows while it is visible,
+/// and, last, the settings overlay. Moving objects are drawn between their last two ticks
+/// (PresentedPositions).
+void render(kinetra::Runtime &runtime, Application &application, const kinetra::SettingsOverlay &settings,
+            const kinetra::DebugMenu &menu);
 /// State summary for DotioSession::status(): difficulty, pause, health, mana, kills and
 /// the debug and ghost modes.
 std::string status_text(Application &application);

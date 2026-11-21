@@ -80,9 +80,9 @@ std::vector<unsigned char> frame_pixels() {
 // Toggles AI labels on an enemy at the camera center and checks the changed pixels: a
 // centered label of fixed screen size with fixed clearance above the body, at every zoom.
 void ai_label_placement(Runtime &runtime, dotio::Application &application) {
-    auto &enemy = application.world().GetEnemies()[0];
-    enemy.IsActive = true;
-    enemy.Position = dotio::from_world(runtime.camera.position);
+    auto &enemy = application.world().get_enemies()[0];
+    enemy.is_active = true;
+    enemy.position = dotio::from_world(runtime.camera.position);
     application.debug = true;
     for (const float zoom : {2.5f, 25.f, 60.f}) {
         runtime.camera.pixels_per_unit = zoom;
@@ -90,16 +90,16 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
         for (const bool kamikaze : {false, true}) {
             CAPTURE(kamikaze);
             if (kamikaze)
-                enemy.SetState(enemy.GetKamikazeState());
+                enemy.set_state(enemy.get_kamikaze_state());
             else
-                enemy.SetState(enemy.GetWanderState());
+                enemy.set_state(enemy.get_wander_state());
             application.ai = false;
-            dotio::render(runtime, application, settings_for(application));
-            dotio::render(runtime, application, settings_for(application));
+            dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+            dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
             const auto without_label = frame_pixels();
             application.ai = true;
-            dotio::render(runtime, application, settings_for(application));
-            dotio::render(runtime, application, settings_for(application));
+            dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+            dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
             const auto with_label = frame_pixels();
             const int width = int(runtime.camera.viewport.x), height = int(runtime.camera.viewport.y);
             int left = width, right = -1, top = height, bottom = -1;
@@ -120,12 +120,12 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
                 "AI label is missing or not centered above the agent");
             CHECK_MESSAGE((bottom - top == 6 && right - left == (kamikaze ? 46 : 34)),
                           "AI label size changed with camera zoom");
-            const float body_top = float(height) / 2.f - enemy.Radius / 25 * zoom;
+            const float body_top = float(height) / 2.f - enemy.radius / 25 * zoom;
             CHECK_MESSAGE(std::abs(body_top - float(bottom + 1) - 6) <= 1,
                           "AI label lost its screen-pixel clearance above the projected body");
         }
     }
-    enemy.IsActive = false;
+    enemy.is_active = false;
     application.debug = application.ai = false;
     runtime.camera.pixels_per_unit = 25;
 }
@@ -153,29 +153,29 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
     CHECK(application.interpolation() == doctest::Approx(0.5).epsilon(0.01));
     const auto objects = application.moving_objects().size();
     REQUIRE((application.before_tick().size() == objects && application.after_tick().size() == objects));
-    auto &player = application.world().GetPlayer();
-    const auto simulated = player.Position;
-    const auto offset = application.world().WorldOffset();
+    auto &player = application.world().get_player();
+    const auto simulated = player.position;
+    const auto offset = application.world().world_offset();
     REQUIRE(application.after_tick()[0]);
-    CHECK_MESSAGE((application.after_tick()[0]->X == simulated.X + offset.X &&
-                   application.after_tick()[0]->Y == simulated.Y + offset.Y),
+    CHECK_MESSAGE((application.after_tick()[0]->x == simulated.x + offset.x &&
+                   application.after_tick()[0]->y == simulated.y + offset.y),
                   "The snapshot after the last tick must match the simulated player");
-    CHECK_MESSAGE(application.before_tick()[0]->X != application.after_tick()[0]->X,
+    CHECK_MESSAGE(application.before_tick()[0]->x != application.after_tick()[0]->x,
                   "The moving player did not move during the last tick");
     {
         const dotio::PresentedPositions presented(application);
         const auto &before = *application.before_tick()[0], &after = *application.after_tick()[0];
         const float blend = float(application.interpolation());
         CHECK_MESSAGE(
-            (std::abs(player.Position.X + offset.X - (before.X + (after.X - before.X) * blend)) < 1e-3f &&
-             std::abs(player.Position.Y + offset.Y - (before.Y + (after.Y - before.Y) * blend)) < 1e-3f),
+            (std::abs(player.position.x + offset.x - (before.x + (after.x - before.x) * blend)) < 1e-3f &&
+             std::abs(player.position.y + offset.y - (before.y + (after.y - before.y) * blend)) < 1e-3f),
             "While drawing, the player must sit between its last two ticks");
     }
-    CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
+    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
                   "PresentedPositions did not restore the simulated position");
     const auto camera = reopened.camera.position;
-    dotio::render(reopened, application, settings_for(application));
-    CHECK_MESSAGE((player.Position.X == simulated.X && player.Position.Y == simulated.Y),
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
+    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
                   "Drawing left the interpolated position in the simulation");
     CHECK_MESSAGE((reopened.camera.position.x == camera.x && reopened.camera.position.y == camera.y),
                   "Drawing left the camera on the interpolated player");
@@ -210,65 +210,65 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     controls.held[std::size_t(Key::right)] = true;
     controls.held[std::size_t(Key::w)] = true;
     const auto mapped = dotio::read_commands(controls, reopened.camera);
-    CHECK_MESSAGE((!mapped.pause && mapped.teleport && mapped.shoot && mapped.zoom_steps == 2),
-                  "Dotio pause/teleport/shoot/wheel mapping failed");
+    CHECK_MESSAGE((mapped.teleport && mapped.shoot && mapped.zoom_steps == 2),
+                  "Dotio teleport/shoot/wheel mapping failed");
     CHECK_MESSAGE((mapped.direction.x == 1 && mapped.direction.y == 1 && mapped.camera_pan.x == 1),
                   "Dotio WASD and arrows must share movement intent");
     dotio::Application application(42);
     application.advance(0, {}, reopened.camera);
-    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(statistics_pixels() == 0, "Disabled statistics rendered outside debug mode");
     // Submitted geometry must stay independent of the offscreen resident population.
     const auto geometry_bytes = [&]() {
-        dotio::render(reopened, application, settings_for(application));
+        dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
         GLint bytes = 0;
         glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bytes);
         return bytes;
     };
     const auto baseline_bytes = geometry_bytes();
-    auto &enemy = application.world().GetEnemies()[0];
-    enemy.IsActive = true;
-    enemy.Position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
+    auto &enemy = application.world().get_enemies()[0];
+    enemy.is_active = true;
+    enemy.position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
     CHECK_MESSAGE(geometry_bytes() == baseline_bytes, "Offscreen enemy still submits circle geometry");
     const float half_width = reopened.camera.viewport.x / (2 * reopened.camera.pixels_per_unit);
-    enemy.Position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
+    enemy.position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
     CHECK_MESSAGE(geometry_bytes() > baseline_bytes, "Culling removed an edge-crossing enemy circle");
-    enemy.IsActive = false;
-    auto &arrow = application.world().GetArrows()[0];
-    arrow.IsActive = true;
-    arrow.Velocity = {1, 0};
-    arrow.Position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
+    enemy.is_active = false;
+    auto &arrow = application.world().get_arrows()[0];
+    arrow.is_active = true;
+    arrow.velocity = {1, 0};
+    arrow.position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
     CHECK_MESSAGE(geometry_bytes() == baseline_bytes, "Offscreen arrow still submits segment geometry");
-    arrow.Position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
+    arrow.position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
     CHECK_MESSAGE(geometry_bytes() > baseline_bytes, "Culling removed an edge-crossing arrow segment");
-    arrow.IsActive = false;
+    arrow.is_active = false;
 
     ai_label_placement(reopened, application);
 
     application.statistics = true;
-    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE((!application.debug && statistics_pixels() > 0),
                   "Enabled statistics are hidden outside debug mode");
     CHECK_MESSAGE(statistics_bands() == 1, "Normal statistics is not a single row");
     application.debug = true;
-    dotio::render(reopened, application, settings_for(application));
-    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(statistics_bands() == 2, "Agent counts are not on a separate row above timing statistics");
     application.debug = false;
     application.statistics = false;
-    dotio::render(reopened, application, settings_for(application));
-    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(statistics_pixels() == 0, "Statistics toggle did not hide the overlay");
     application.debug = application.vectors = application.collisions = application.ai = true;
     application.probes = application.statistics = true;
     application.paths.fill(true);
-    dotio::render(reopened, application, settings_for(application));
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Dotio debug rendering failed");
     application.debug = application.ghost = true;
-    application.world().GetGhost().Position = application.world().GetPlayer().Position;
-    application.world().GetGhost().Position.X += 1000;
-    reopened.camera.position = dotio::to_world(application.world().GetGhost().Position);
-    dotio::render(reopened, application, settings_for(application));
-    dotio::render(reopened, application, settings_for(application));
+    application.world().get_ghost().position = application.world().get_player().position;
+    application.world().get_ghost().position.x += 1000;
+    reopened.camera.position = dotio::to_world(application.world().get_ghost().position);
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
+    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(ghost_marker_pixels() == 0, "Ghost camera still draws a purple player marker");
 }

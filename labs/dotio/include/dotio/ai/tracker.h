@@ -2,85 +2,89 @@
 // Created by Priory on 3/9/2024.
 //
 
-#ifndef TRACKER_H
-#define TRACKER_H
+#pragma once
 
 #include <concepts>
 #include <cstddef>
 
 namespace dotio {
+/// A pooled object: it has an `is_active` flag that marks a slot in use.
 template <typename T>
-concept IsActive = requires(T t) {
-    { t.IsActive } -> std::convertible_to<bool>;
+concept Activatable = requires(T t) {
+    { t.is_active } -> std::convertible_to<bool>;
 };
 
 template <typename T>
-/// Fixed-pool view with circular slot reuse; instances must not outlive their owning pool.
+/// A view of a fixed pool with circular slot reuse, and an iterator over all of its slots,
+/// active or not. Borrowed: it must not outlive the TrackerData that owns the slots.
 struct Tracker {
   private:
-    T *_instances{};
-    size_t _size{};
-    size_t _index{};
-    T *_instance;
-    explicit Tracker(T *instance) : _instance(instance) {}
+    T *instances_{};
+    size_t size_{};
+    size_t index_{};
+    T *instance_;
+    explicit Tracker(T *instance) : instance_(instance) {}
 
   public:
     explicit Tracker(T *instances, const size_t size, const size_t index)
-        : _instances(instances), _size(size), _index(index), _instance(&_instances[0]) {}
+        : instances_(instances), size_(size), index_(index), instance_(&instances_[0]) {}
 
-    T &operator[](const int index) { return GetInstances()[index % _size]; }
+    /// Slot `index`, wrapped around the pool size.
+    T &operator[](const std::size_t index) { return get_instances()[index % size_]; }
 
-    void AddInstance(T instance)
-        requires IsActive<T>
+    /// Copies `instance` into the next slot in circular order, whether that slot is in use or
+    /// not, and activates it.
+    void add_instance(T instance)
+        requires Activatable<T>
     {
-        T &i = _instances[_index++] = instance;
-        i.IsActive = true;
+        T &i = instances_[index_++] = instance;
+        i.is_active = true;
 
-        if (_index == _size)
-            _index = 0;
+        if (index_ == size_)
+            index_ = 0;
     }
 
-    T *GetInstances() const { return _instances; }
+    T *get_instances() const { return instances_; }
 
-    [[nodiscard]] size_t GetSize() const { return _size; }
+    [[nodiscard]] size_t get_size() const { return size_; }
 
-    T &operator*() { return *_instance; }
+    T &operator*() { return *instance_; }
 
     Tracker &operator++() {
-        ++_instance;
+        ++instance_;
         return *this;
     }
 
-    bool operator!=(const Tracker &other) const { return _instance != other._instance; }
+    bool operator!=(const Tracker &other) const { return instance_ != other.instance_; }
 
-    Tracker begin() { return Tracker(&_instances[0]); }
-    Tracker end() { return Tracker(&_instances[_size]); }
+    Tracker begin() { return Tracker(&instances_[0]); }
+    Tracker end() { return Tracker(&instances_[size_]); }
 
-    [[nodiscard]] size_t GetCapacity() const { return _size; };
+    [[nodiscard]] size_t get_capacity() const { return size_; };
 };
 
+/// Owns a fixed pool of `size` slots and the Tracker that views it. Slot addresses never
+/// change, so other objects may keep pointers to them.
 template <typename T, size_t size> struct TrackerData {
   private:
-    size_t _capacity{size};
-    T _objects[size]{};
-    size_t _index{};
-    Tracker<T> _tracker;
+    size_t capacity_{size};
+    T objects_[size]{};
+    size_t index_{};
+    Tracker<T> tracker_;
 
   public:
-    T &operator[](const int index) { return _tracker[index % size]; }
+    T &operator[](const std::size_t index) { return tracker_[index % size]; }
 
-    void operator+=(T instance) { return _tracker.AddInstance(instance); }
+    void operator+=(T instance) { return tracker_.add_instance(instance); }
 
-    TrackerData() : _tracker(_objects, size, 0) {}
+    TrackerData() : tracker_(objects_, size, 0) {}
 
-    [[nodiscard]] Tracker<T> &GetTracker() { return _tracker; }
+    [[nodiscard]] Tracker<T> &get_tracker() { return tracker_; }
 
-    void AddInstance(T instance) { _tracker.AddInstance(instance); };
+    void add_instance(T instance) { tracker_.AddInstance(instance); };
 
-    [[nodiscard]] T *GetInstances() const { return _tracker.GetInstances(); }
+    [[nodiscard]] T *get_instances() const { return tracker_.GetInstances(); }
 
-    [[nodiscard]] size_t GetCapacity() const { return _tracker.GetCapacity(); }
+    [[nodiscard]] size_t get_capacity() const { return tracker_.GetCapacity(); }
 };
 } // namespace dotio
-
-#endif

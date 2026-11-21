@@ -219,7 +219,7 @@
       "inherits": "base",
       "filter": {
         "exclude": {
-          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary|dotio:a seeded game reproduces its recorded fingerprint)$"
         }
       }
     },
@@ -230,7 +230,7 @@
       "filter": {
         "exclude": {
           "label": "graphics",
-          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary|dotio:a seeded game reproduces its recorded fingerprint)$"
         }
       }
     }

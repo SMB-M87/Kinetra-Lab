@@ -18,8 +18,8 @@ Follow the system guide first, then the application or interaction contract you 
 
 ```mermaid
 flowchart TD
-    System["System architecture"] --> Demo["Demo architecture"]
-    System --> Dotio["Dotio architecture"]
+    System["System architecture"] --> Demo["Demo README"]
+    System --> Dotio["Dotio module guide"]
     System --> Factory["Factory simulation architecture"]
     System --> Launcher["Launcher and overlays"]
     Demo --> Sources["Lab source and test guides"]
@@ -34,8 +34,8 @@ flowchart TD
 | Question | Guide |
 | --- | --- |
 | How do Lab, the engine and build targets fit together? | [System architecture](architecture.md) |
-| Who owns Demo state, simulation and streamed terrain? | [Demo architecture](demo-architecture.md) |
-| How does the Dotio port isolate legacy coordinates and game rules? | [Dotio architecture](dotio-architecture.md) |
+| Who owns Demo state, simulation and streamed terrain? | [Demo](../labs/demo/README.md#how-it-works) |
+| How does the Dotio port isolate legacy coordinates and game rules, and how do its enemies use navigation? | [Dotio](../labs/dotio/README.md#structure) |
 | How does the local C++ factory simulation divide engine and application responsibilities? | [Factory simulation architecture](factory-simulation-architecture.md) |
 | How do registration, session transitions and overlay capture work? | [Launcher and overlays](launcher-overlays.md) |
 | How do I build and run the applications on Windows? | [Windows](windows.md): MinGW-w64 cross build from WSL, native MSYS2 build, tests through interop, CI job |

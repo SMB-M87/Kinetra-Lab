@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dotio/math/gmath.h"
+#include "dotio/math/vector.h"
 
 #include <array>
 #include <cstddef>
@@ -9,7 +9,7 @@ namespace dotio {
 class Enemy;
 
 // Steering wander: how an enemy roams in its WANDER state under WanderMode::steering.
-// It follows Enemy::WanderHeading, which drifts at random on every decision tick, and turns
+// It follows Enemy::wander_heading, which drifts at random on every decision tick, and turns
 // away from walls that its three feelers touch on every update. No path is planned.
 // Angles are radians in legacy coordinates: a heading h points along (cos h, sin h), and
 // because +Y points down the screen, a positive turn is clockwise on screen.
@@ -30,7 +30,7 @@ inline constexpr float wander_side_turn_rad_per_update = 0.15f;
 /// preferred side first and then to the other, in radians. A half turn comes last.
 inline constexpr std::array<float, 3> wander_fan_rad{0.8f, 1.6f, 2.4f};
 
-/// Positions in the array WanderFeelers() returns: the forward feeler, and the side feelers
+/// Positions in the array wander_feelers() returns: the forward feeler, and the side feelers
 /// at the heading plus and minus wander_side_feeler_angle_rad.
 inline constexpr std::size_t wander_forward_feeler = 0, wander_positive_feeler = 1,
                              wander_negative_feeler = 2;
@@ -39,19 +39,19 @@ inline constexpr std::size_t wander_forward_feeler = 0, wander_positive_feeler =
 ///
 /// Each starts at the enemy's position and follows its wander heading; the order is given by
 /// wander_forward_feeler, wander_positive_feeler and wander_negative_feeler. A feeler is
-/// blocked when Grid::IsIntersectingAnyCell reports a hit for it. SteerWander() tests exactly
+/// blocked when its world's Grid::is_intersecting_any_cell reports a hit for it. steer_wander() tests exactly
 /// these segments, so a drawing of them shows what the logic sees. Reads the enemy's
-/// position and heading and Grid::CellSize; changes nothing.
-std::array<dotio::math::Segment, 3> WanderFeelers(const Enemy &enemy);
+/// position and heading and Grid::cell_size; changes nothing.
+std::array<dotio::math::Segment, 3> wander_feelers(const Enemy &enemy);
 
 /// Gives `enemy` a random wander heading and preferred turning side from its world's
-/// World::wander_random(). Enemy::Initialize() and Enemy::Reset() call it; the enemy must
+/// World::wander_random(). Enemy::initialize() and Enemy::reset() call it; the enemy must
 /// belong to a world.
-void RandomizeWander(Enemy &enemy);
+void randomize_wander(Enemy &enemy);
 
 /// Decision tick of steering wander: turns the heading of `enemy` by a random amount within
 /// wander_drift_limit_rad, drawn from its world's World::wander_random().
-void DriftWanderHeading(Enemy &enemy);
+void drift_wander_heading(Enemy &enemy);
 
 /// Update of steering wander for `enemy` over `delta` updates (1 at the 60 Hz step).
 ///
@@ -60,6 +60,6 @@ void DriftWanderHeading(Enemy &enemy);
 /// direction is blocked the heading stays. Otherwise one blocked side feeler turns the
 /// heading away from it and prefers that side; two blocked side feelers change nothing.
 /// The enemy then gains speed along its heading: EnemyTuning::wander_force scaled by `delta`
-/// and DifficultySettings::movement_multiplier. Clears Enemy::Path.
-void SteerWander(Enemy &enemy, float delta);
+/// and DifficultySettings::movement_multiplier. Clears Enemy::path.
+void steer_wander(Enemy &enemy, float delta);
 } // namespace dotio

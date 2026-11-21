@@ -4,6 +4,7 @@
 #include "i4sim/simulation/detail/simulation_constants.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -21,6 +22,56 @@ constexpr float formation_room_mm = 32;
 constexpr float oncoming_cosine = -0.8f;
 /// Share of the maximum speed per tick that counts as progress toward the targets.
 constexpr float progress_speed_fraction = 0.05f;
+/// Ticks the lane ahead of a waiting participant must stay clear before it drives on, so
+/// a mover passing close by does not make it start and stop in turn.
+constexpr std::uint64_t passing_resume_ticks = 20;
+/// Share of the maximum speed against a participant's heading above which another mover in
+/// its lane ahead counts as oncoming.
+constexpr float oncoming_speed_fraction = 0.25f;
+/// Ticks between two predicted positions of another mover in the lane check; at the
+/// default 2 mm/tick a mover moves 8 mm, far less than any footprint.
+constexpr int prediction_step_ticks = 4;
+
+/// The remaining legs of a participant from `position`: to its entry and exit targets
+/// before crossing, to its exit target while crossing.
+std::vector<Segment> remaining_legs(Vec2 position, Vec2 entry, Vec2 exit, bool crossing) {
+    if (crossing)
+        return {{position, exit}};
+    return {{position, entry}, {entry, exit}};
+}
+
+/// The first `reach` millimeters of `legs`.
+std::vector<Segment> ahead(const std::vector<Segment> &legs, float reach) {
+    std::vector<Segment> result;
+    for (const auto &leg : legs) {
+        const float length = distance(leg.start, leg.end);
+        if (length >= reach) {
+            result.push_back(
+                {leg.start, leg.start + (leg.end - leg.start) * (reach / std::max(length, 0.0001f))});
+            break;
+        }
+        result.push_back(leg);
+        reach -= length;
+    }
+    return result;
+}
+
+/// True when a box of `extent`, swept along `legs`, overlaps `other`.
+bool on_legs(const std::vector<Segment> &legs, Vec2 extent, const Body &other) {
+    return std::any_of(legs.begin(), legs.end(),
+                       [&](const Segment &leg) { return crosses_mover(leg.start, leg.end, extent, other); });
+}
+
+/// Bounds of `legs` swept with `extent`, grown by `margin` on every side.
+Aabb legs_bounds(const std::vector<Segment> &legs, Vec2 extent, float margin) {
+    auto area = travel_bounds(legs.front().start, legs.front().end, extent);
+    for (const auto &leg : legs) {
+        const auto box = travel_bounds(leg.start, leg.end, extent);
+        area.min = {std::min(area.min.x, box.min.x), std::min(area.min.y, box.min.y)};
+        area.max = {std::max(area.max.x, box.max.x), std::max(area.max.y, box.max.y)};
+    }
+    return {area.min - Vec2{margin, margin}, area.max + Vec2{margin, margin}};
+}
 } // namespace
 
 bool PredictivePassing::enabled(const MotionSettings &motion) {
@@ -31,12 +82,14 @@ std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {
     for (const auto &plan : plans_)
         for (std::size_t side = 0; side < 2; ++side)
             if (plan.movers[side] == mover)
-                return plan.crossing ? plan.exit[side] : plan.entry[side];
+                return plan.waiting[side] ? plan.hold[side]
+                       : plan.crossing    ? plan.exit[side]
+                                          : plan.entry[side];
     return std::nullopt;
 }
 
 void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const FloorPlan &floor, Fleet &fleet,
-                                       const MotionSettings &motion, std::uint64_t tick) {
+                                       const MotionSettings &motion, std::uint64_t tick, bool retry_later) {
     for (auto id : ids) {
         auto &m = fleet.movers[id];
         m.coordination.passing = false;
@@ -47,8 +100,11 @@ void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const Flo
         tracking.best_remaining = route_remaining(m.body.position, m.route);
         if (id < fleet.controls.size())
             fleet.controls[id].reset();
+        // After a failed plan the movers wait before they try again, so they do not thrash.
+        // After a completed one they may pass the next oncoming mover at once: waiting only
+        // lets it come too close for a plan.
         if (id < retry_.size())
-            retry_[id] = tick + passing_retry_ticks;
+            retry_[id] = retry_later ? tick + passing_retry_ticks : tick;
     }
 }
 
@@ -70,7 +126,7 @@ void PredictivePassing::end(std::size_t index, PassingEnd reason, const FloorPla
     record(EventKind::passing_ended, plans_[index], tick, log, reason);
     const auto ids = plans_[index].movers;
     plans_.erase(plans_.begin() + std::ptrdiff_t(index));
-    restore_routes(ids, floor, fleet, motion, tick);
+    restore_routes(ids, floor, fleet, motion, tick, reason != PassingEnd::completed);
 }
 
 void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
@@ -94,7 +150,7 @@ void PredictivePassing::disable(const FloorPlan &floor, Fleet &fleet, const Moti
 void PredictivePassing::coordinate(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
                                    std::uint64_t tick, const SpatialGrid &index, EventLog &log) {
     retry_.resize(fleet.movers.size());
-    advance_plans(floor, fleet, motion, tick, log);
+    advance_plans(floor, fleet, motion, tick, index, log);
     if (!enabled(motion))
         return;
     form_plans(floor, fleet, motion, tick, index, log);
@@ -102,13 +158,15 @@ void PredictivePassing::coordinate(const FloorPlan &floor, Fleet &fleet, const M
         for (std::size_t side = 0; side < 2; ++side) {
             const auto id = plan.movers[side];
             fleet.movers[id].coordination.passing = true;
-            fleet.controls[id] =
-                TrafficControl{passing_control, plan.crossing ? plan.exit[side] : plan.entry[side], false};
+            const auto target = plan.waiting[side] ? plan.hold[side]
+                                : plan.crossing    ? plan.exit[side]
+                                                   : plan.entry[side];
+            fleet.controls[id] = TrafficControl{passing_control, target, plan.waiting[side]};
         }
 }
 
 void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
-                                      std::uint64_t tick, EventLog &log) {
+                                      std::uint64_t tick, const SpatialGrid &index, EventLog &log) {
     for (std::size_t i = 0; i < plans_.size();) {
         auto &plan = plans_[i];
         // The first reason found ends the plan; the event log reports it.
@@ -116,14 +174,12 @@ void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, cons
         if (!enabled(motion))
             end_reason = PassingEnd::disabled;
         bool arrived = true;
-        float remaining = 0;
         for (std::size_t side = 0; side < 2; ++side) {
             const auto id = plan.movers[side];
             const auto &m = fleet.movers[id];
             const auto target = plan.crossing ? plan.exit[side] : plan.entry[side];
-            const float d = distance(m.body.position, target);
-            remaining += d;
-            arrived = arrived && d < arrival_distance_mm && length(m.body.velocity) < stop_speed;
+            arrived = arrived && distance(m.body.position, target) < arrival_distance_mm &&
+                      length(m.body.velocity) < stop_speed;
             if (end_reason)
                 continue;
             if (!m.moving())
@@ -133,11 +189,9 @@ void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, cons
             else if (fleet.controls[id].has_value())
                 end_reason = PassingEnd::traffic_control;
         }
-        if (remaining + std::max(0.0001f, motion.speed * progress_speed_fraction) < plan.best_remaining) {
-            plan.best_remaining = remaining;
-            plan.progress_at = tick;
-        }
-        if (!end_reason && tick - plan.progress_at >= passing_timeout_ticks)
+        if (!end_reason)
+            end_reason = guard(plan, fleet, motion, tick, index);
+        if (stalled(plan, fleet, motion, tick) && !end_reason)
             end_reason = PassingEnd::no_progress;
         if (!end_reason && arrived && plan.crossing)
             end_reason = PassingEnd::completed;
@@ -153,6 +207,99 @@ void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, cons
         }
         ++i;
     }
+}
+
+bool PredictivePassing::stalled(Plan &plan, const Fleet &fleet, const MotionSettings &motion,
+                                std::uint64_t tick) {
+    float remaining = 0;
+    for (std::size_t side = 0; side < 2; ++side)
+        remaining += distance(fleet.movers[plan.movers[side]].body.position,
+                              plan.crossing ? plan.exit[side] : plan.entry[side]);
+    if (remaining + std::max(0.0001f, motion.speed * progress_speed_fraction) < plan.best_remaining) {
+        plan.best_remaining = remaining;
+        plan.progress_at = tick;
+    }
+    return tick - plan.progress_at >= passing_timeout_ticks;
+}
+
+bool PredictivePassing::yields_to(const Plan &plan, std::size_t other) const {
+    for (const auto &candidate : plans_)
+        if (candidate.movers[0] == other || candidate.movers[1] == other)
+            return candidate.id < plan.id;
+    return true;
+}
+
+std::optional<PassingEnd> PredictivePassing::guard(Plan &plan, const Fleet &fleet,
+                                                   const MotionSettings &motion, std::uint64_t tick,
+                                                   const SpatialGrid &index) const {
+    const int horizon = int(std::ceil(motion.horizon));
+    // The lane ahead covers what the participant can reach within the steering horizon
+    // plus the distance it needs to stop, so it stops before a predicted conflict.
+    const float reach = motion.speed * float(horizon) + braking_distance(motion.speed, motion.force);
+    std::optional<PassingEnd> result;
+    for (std::size_t side = 0; side < 2; ++side) {
+        const auto id = plan.movers[side];
+        const auto &m = fleet.movers[id];
+        const auto extent = m.body.half_extents + clearance;
+        const auto legs = remaining_legs(m.body.position, plan.entry[side], plan.exit[side], plan.crossing);
+        const auto near = ahead(legs, reach);
+        // Ahead, behind and oncoming are judged along the lane, from entry to exit: the
+        // first leg to the entry target runs mostly sideways.
+        const auto axis = normalized(plan.exit[side] - plan.entry[side]);
+        const float margin = length(fleet.max_half) + motion.speed * float(horizon);
+        bool intruded = false;
+        for (auto other : index.query(legs_bounds(legs, extent, margin))) {
+            if (other == plan.movers[0] || other == plan.movers[1])
+                continue;
+            const auto &o = fleet.movers[other];
+            // A mover behind the participant follows it or has been passed: it neither blocks
+            // the lane ahead nor clears by waiting.
+            if (dot(o.body.position - m.body.position, axis) <= 0)
+                continue;
+            if (!o.moving() || o.held) {
+                // A stationary mover does not clear the lane by itself.
+                if (on_legs(legs, extent, o.body))
+                    result = PassingEnd::obstructed;
+                continue;
+            }
+            if (!yields_to(plan, other))
+                continue;
+            auto predicted = o.body;
+            bool in_lane = false;
+            // Every prediction step, and the horizon itself when it is not a multiple of one.
+            for (int t = 0; !in_lane; t = std::min(t + prediction_step_ticks, horizon)) {
+                predicted.position = o.body.position + o.body.velocity * float(t);
+                in_lane = on_legs(near, extent, predicted);
+                if (t == horizon)
+                    break;
+            }
+            if (!in_lane)
+                continue;
+            // A mover that drives toward the participant along its lane does not clear it by
+            // waiting; the plan ends so both can resolve the encounter on their routes.
+            if (dot(o.body.velocity, axis) < -oncoming_speed_fraction * motion.speed)
+                result = PassingEnd::obstructed;
+            else
+                intruded = true;
+        }
+        if (intruded) {
+            plan.intruded_at[side] = tick;
+            if (!plan.waiting[side]) {
+                plan.waiting[side] = true;
+                plan.waiting_since[side] = tick;
+                // Within the braking distance the lane ahead reserves, so the stop needs no more
+                // than the acceleration limit and the participant does not overshoot and back up.
+                const float speed = length(m.body.velocity);
+                plan.hold[side] =
+                    m.body.position + normalized(m.body.velocity) * braking_distance(speed, motion.force);
+            }
+        } else if (plan.waiting[side] && tick - plan.intruded_at[side] >= passing_resume_ticks) {
+            plan.waiting[side] = false;
+        }
+        if (plan.waiting[side] && tick - plan.waiting_since[side] >= passing_timeout_ticks)
+            result = PassingEnd::obstructed;
+    }
+    return result;
 }
 
 void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
@@ -274,7 +421,7 @@ bool PredictivePassing::lanes_clear(Plan &plan, const FloorPlan &floor, const Fl
             const auto area = travel_bounds(from, to, moving.half_extents);
             for (auto other : index.query(area))
                 if (other != plan.movers[0] && other != plan.movers[1] &&
-                    sweep_translation(moving, to - from, fleet.movers[other].body))
+                    sweep_translation(moving, to, fleet.movers[other].body))
                     clear = false;
             for (const auto &zone : floor.zones()) {
                 Body obstacle;
@@ -282,7 +429,7 @@ bool PredictivePassing::lanes_clear(Plan &plan, const FloorPlan &floor, const Fl
                 obstacle.motion = Motion::fixed;
                 obstacle.position = zone.center;
                 obstacle.half_extents = zone.half_extents + clearance;
-                if (sweep_translation(moving, to - from, obstacle))
+                if (sweep_translation(moving, to, obstacle))
                     clear = false;
             }
             for (const auto &other : plans_)
