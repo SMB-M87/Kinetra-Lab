@@ -73,6 +73,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`) | `^kinetra_capture` |
 | Any `presentation/` folder, launcher loop, `main.cpp` | Full level with graphics | |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks | |
+| `tools/release/`, `.github/workflows/release.yml` | Docs level, plus the local cross build and `package_windows.sh` from the [release tool](tools/release/README.md#build-the-zip-locally); the workflow itself runs only after a merge on `main` or a tag | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level; CI's `windows` job builds natively. Only a change to the WSL cross build itself (`cmake/toolchains/`, the `windows` preset) also needs `cmake --workflow --preset windows` from WSL, which CI does not run ([Windows](docs/windows.md)) | |
 
 The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the five 60-second Demo crowd cases.
@@ -111,4 +112,5 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 | i4sim | [labs/i4sim](labs/i4sim/) | [labs/i4sim/tests](labs/i4sim/tests/) | [i4sim](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md) |
 | Shared Lab policy (settings rows, debug rows, input, pause, session base) | [labs/shared](labs/shared/include/kinetra_lab/) | [shared tests](labs/shared/tests/shared_tests.cpp); the overlay itself in Kinetra | [launcher and overlays](docs/launcher-overlays.md) |
 | Build | [CMakeLists.txt](CMakeLists.txt), [build.sh](build.sh) | `ctest --test-dir build` | [README](README.md#quick-start) |
+| Windows release zip | [tools/release](tools/release/), [release.yml](.github/workflows/release.yml) | the workflow's DLL import check | [release tool](tools/release/README.md) |
 | Media capture (screenshots and GIF clips) | [tools/capture](tools/capture/) | [capture tests](tools/capture/tests/) | [capture tool](tools/capture/README.md), [media guide](docs/media/README.md) |
