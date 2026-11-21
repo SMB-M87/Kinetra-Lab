@@ -48,6 +48,12 @@ The submodule normally sits on a detached HEAD. Create a Kinetra branch before e
 git -C external/Kinetra switch -c <type>/<topic>
 ```
 
+The submodule fetches over HTTPS. To push engine branches with an SSH key, let Git rewrite only the push URL, once per machine:
+
+```sh
+git config --global url."git@github.com:".pushInsteadOf "https://github.com/"
+```
+
 Edit `external/Kinetra`, then test the engine on its own and Lab against the same sources. `./build.sh` runs both (`build-core/` and `build/`); the Lab presets give the [verification level](../AGENTS.md#verification-in-lab) that the change needs:
 
 ```sh
@@ -141,7 +147,7 @@ git -C external/Kinetra pull --ff-only
 git submodule status
 ```
 
-If the pull asks for SSH authentication, switch the submodule to HTTPS as in the [quick start](../README.md#quick-start).
+If the pull asks for SSH authentication, the clone still has the old SSH URL: run `git submodule sync --recursive` once to take the HTTPS URL from `.gitmodules`.
 
 In lazygit: in the Lab repository, open the *Submodules* tab of the Files panel (`]` cycles the tabs) and press Enter on `external/Kinetra`. In its Branches panel (`3`), select `main`, check it out with space and pull with `p`. Esc returns to Lab.
 
