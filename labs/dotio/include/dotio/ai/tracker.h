@@ -2,8 +2,7 @@
 // Created by Priory on 3/9/2024.
 //
 
-#ifndef TRACKER_H
-#define TRACKER_H
+#pragma once
 
 #include <concepts>
 #include <cstddef>
@@ -82,5 +81,3 @@ template <typename T, size_t size> struct TrackerData {
     [[nodiscard]] size_t GetCapacity() const { return _tracker.GetCapacity(); }
 };
 } // namespace dotio
-
-#endif

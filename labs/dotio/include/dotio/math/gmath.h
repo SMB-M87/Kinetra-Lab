@@ -1,5 +1,4 @@
-#ifndef GMATH_H
-#define GMATH_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -8,25 +7,10 @@
 namespace dotio::math {
 /// Legacy field/coordinate compatibility facade; shared vector calculations use kinetra::Vec2.
 typedef struct Vec2 {
-    union {
-        float X;
-        float Width;
-        float U;
-
-        float Left;
-        float Top;
-        float Start;
-    };
-
-    union {
-        float Y;
-        float Height;
-        float V;
-
-        float Right;
-        float Bottom;
-        float End;
-    };
+    /// Horizontal coordinate; in legacy coordinates it grows to the right.
+    float X;
+    /// Vertical coordinate; in legacy coordinates it grows down the screen.
+    float Y;
 
     Vec2(float x, float y);
 
@@ -118,42 +102,15 @@ typedef struct Vec2 {
     Vec2 &Rotate(float radians);
 } Vector2, Size2, Point2, Coord, Coordinates, Pos, Position;
 
-typedef struct Vec4 {
-    union {
-        float X;
-        float R;
-        float Red;
-    };
+/// A color: red, green, blue and opacity, each in [0, 1].
+struct RGBA {
+    float R, G, B, A;
+};
 
-    union {
-        float Y;
-        float G;
-        float Green;
-    };
-
-    union {
-        float Z;
-        float B;
-        float Blue;
-    };
-
-    union {
-        float W;
-        float A;
-        float Alpha;
-    };
-} Vector4, RGBA;
-
+/// A line segment from Start to End.
 struct Segment {
-    union {
-        Point2 From;
-        Point2 Start;
-    };
-
-    union {
-        Point2 To;
-        Point2 End;
-    };
+    Point2 Start;
+    Point2 End;
 
     Segment();
     Segment(Point2 from, Point2 to);
@@ -163,15 +120,8 @@ struct Segment {
 
 typedef struct GridEntry {
   public:
-    union {
-        int Row;
-        int Rows;
-    };
-
-    union {
-        int Column;
-        int Columns;
-    };
+    int Row;
+    int Column;
 
     GridEntry();
     explicit GridEntry(const int size);
@@ -203,5 +153,3 @@ template <> struct hash<dotio::math::GridEntry> {
     }
 };
 } // namespace std
-
-#endif // GMATH_H

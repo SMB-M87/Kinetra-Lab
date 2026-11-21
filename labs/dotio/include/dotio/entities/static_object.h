@@ -1,5 +1,4 @@
-#ifndef OBJECT_H
-#define OBJECT_H
+#pragma once
 
 #include "dotio/renderer.h"
 
@@ -17,4 +16,3 @@ class StaticObject {
     virtual void Draw(dotio::Renderer &renderer);
 };
 } // namespace dotio
-#endif // OBJECT_H

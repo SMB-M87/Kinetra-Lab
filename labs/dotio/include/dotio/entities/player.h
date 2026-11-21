@@ -1,5 +1,4 @@
-#ifndef PLAYER_H
-#define PLAYER_H
+#pragma once
 
 #include "dotio/entities/physics_object.h"
 #include "dotio/navigation/grid.h"
@@ -37,5 +36,3 @@ class Player final : public PhysicsObject {
     void Shoot(const dotio::math::Coordinates mouse, const bool debug);
 };
 } // namespace dotio
-
-#endif // PLAYER_H

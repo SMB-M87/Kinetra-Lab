@@ -1,5 +1,4 @@
-#ifndef WORLD_H
-#define WORLD_H
+#pragma once
 
 #include "dotio/ai/tracker.h"
 #include "dotio/difficulty.h"
@@ -168,5 +167,3 @@ class World {
     const dotio::Grid &grid() const { return grid_; }
 };
 } // namespace dotio
-
-#endif

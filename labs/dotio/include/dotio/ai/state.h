@@ -1,5 +1,4 @@
-#ifndef STATE_H
-#define STATE_H
+#pragma once
 
 namespace dotio {
 class Enemy;
@@ -41,5 +40,3 @@ struct KamikazeState : State {
     void Update() override;
 };
 } // namespace dotio
-
-#endif // STATE_H

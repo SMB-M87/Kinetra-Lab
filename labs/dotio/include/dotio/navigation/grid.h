@@ -1,5 +1,4 @@
-#ifndef GRID_H
-#define GRID_H
+#pragma once
 
 #include "dotio/entities/physics_object.h"
 #include <kinetra/simulation/collision_grid.h>
@@ -81,4 +80,3 @@ class Grid {
     mutable std::map<std::tuple<std::uint32_t, int, int>, std::array<int, 32 * 32>> terrain_cache_;
 };
 } // namespace dotio
-#endif

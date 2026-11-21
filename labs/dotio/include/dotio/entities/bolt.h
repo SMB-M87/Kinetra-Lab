@@ -2,8 +2,7 @@
 // Created by vpack on 2024-04-04.
 //
 
-#ifndef MAIN_BOLT_H
-#define MAIN_BOLT_H
+#pragma once
 
 #include "dotio/entities/moving_object.h"
 
@@ -19,5 +18,3 @@ struct Bolt : MovingObject {
     void Draw(dotio::Renderer &renderer) override;
 };
 } // namespace dotio
-
-#endif // MAIN_BOLT_H

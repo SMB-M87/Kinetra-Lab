@@ -1,5 +1,4 @@
-#ifndef PHYSICS_OBJECT_H
-#define PHYSICS_OBJECT_H
+#pragma once
 
 #include "dotio/math/gmath.h"
 
@@ -36,5 +35,3 @@ class PhysicsObject : public MovingObject {
     [[nodiscard]] float GetMass() const;
 };
 } // namespace dotio
-
-#endif // PHYSICS_OBJECT_H

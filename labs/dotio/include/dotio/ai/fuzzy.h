@@ -1,5 +1,4 @@
-#ifndef FUZZY_H
-#define FUZZY_H
+#pragma once
 
 namespace dotio {
 enum class Distance { Close, Average, Far };
@@ -22,4 +21,3 @@ class Fuzzy {
     static float Ammo(int ammo, Ammo &result);
 };
 } // namespace dotio
-#endif

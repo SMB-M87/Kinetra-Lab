@@ -244,9 +244,9 @@ float Vec2::GetDistance(const Vec2 &other) const {
     return kinetra::distance(canonical(*this), canonical(other));
 }
 
-Segment::Segment() : From({}), To({}) {
+Segment::Segment() : Start({}), End({}) {
 }
-Segment::Segment(Point2 from, Point2 to) : From(from), To(to) {
+Segment::Segment(Point2 from, Point2 to) : Start(from), End(to) {
 }
 float Segment::GetSlope() const {
     return (End.Y - Start.Y) / (End.X - Start.X);
@@ -265,7 +265,7 @@ Coordinates GridEntry::ToWorld(const int row, const int column, const float cell
 }
 
 bool GridEntry::InBounds(const GridEntry &entry, const GridEntry &size) {
-    return !(entry.Row >= size.Rows || entry.Column >= size.Columns || entry.Row < 0 || entry.Column < 0);
+    return !(entry.Row >= size.Row || entry.Column >= size.Column || entry.Row < 0 || entry.Column < 0);
 }
 
 bool GridEntry::FromWorld(const Position &position, const Coordinates &origin, const float cellSize,

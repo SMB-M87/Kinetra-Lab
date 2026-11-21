@@ -1,5 +1,4 @@
-#ifndef MOVING_OBJECT_H
-#define MOVING_OBJECT_H
+#pragma once
 
 #include "dotio/entities/static_object.h"
 
@@ -23,5 +22,3 @@ class MovingObject : public StaticObject {
     [[nodiscard]] dotio::math::Vector2 GetNextPosition() const;
 };
 } // namespace dotio
-
-#endif // MOVING_OBJECT_H

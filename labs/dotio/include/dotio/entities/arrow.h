@@ -2,8 +2,7 @@
 // Created by Priory on 3/8/2024.
 //
 
-#ifndef ARROW_H
-#define ARROW_H
+#pragma once
 
 #include "dotio/entities/moving_object.h"
 
@@ -18,5 +17,3 @@ struct Arrow : MovingObject {
     void Draw(dotio::Renderer &renderer) override;
 };
 } // namespace dotio
-
-#endif // ARROW_H

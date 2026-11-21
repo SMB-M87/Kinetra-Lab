@@ -1,5 +1,4 @@
-#ifndef ENEMY_H
-#define ENEMY_H
+#pragma once
 
 #include "dotio/ai/state.h"
 #include "dotio/entities/physics_object.h"
@@ -98,5 +97,3 @@ class Enemy final : public PhysicsObject {
     void Reset();
 };
 } // namespace dotio
-
-#endif // ENEMY_H
