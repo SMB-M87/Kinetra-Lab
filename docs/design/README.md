@@ -13,6 +13,8 @@ One design document per Lab branch, written before the code and kept after mergi
 | Date | Document | Status |
 | --- | --- | --- |
 | 2026-11-21 | [Dotio restructuring](2026-11-21-dotio-restructuring.md): roadmap phase 6, seeded statistics baseline first, routes on Kinetra's weighted grid | accepted |
+| 2026-11-21 | [Windows release zip](2026-11-21-windows-release-zip.md): a ready-to-run zip with the i4sim blueprints on every merge on `main` and every tag `v*` | implemented |
+| 2026-11-21 | [HTTPS submodule by default](2026-11-21-https-submodule.md): clone without an SSH key; `pushInsteadOf` for SSH pushes | implemented |
 | 2026-11-20 | [Run Lab CI on pull requests](2026-11-20-pr-only-ci.md) | implemented |
 | 2026-11-20 | [Agent terminology in Lab documentation](2026-11-20-agent-terminology.md) | implemented |
 | 2026-11-20 | [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md): only PLANNER changes replan; SPEED, FORCE and HORIZON steps no longer strand movers | implemented |
