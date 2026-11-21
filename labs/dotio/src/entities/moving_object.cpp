@@ -1,6 +1,5 @@
 #include "dotio/entities/moving_object.h"
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/math/portable.h"
 
 namespace dotio {
 MovingObject::MovingObject(const dotio::math::Position position, const float direction, bool active)

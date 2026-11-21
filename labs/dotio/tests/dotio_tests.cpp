@@ -7,6 +7,9 @@
 #include "dotio/ai/wander.h"
 #include "dotio/application.h"
 
+// The header-only panel, to click the rows the way the session does; it needs no window.
+#include <kinetra/runtime/debug_view.h>
+
 #include <doctest/doctest.h>
 
 #include <algorithm>
@@ -1037,35 +1040,27 @@ TEST_CASE("the debug camera detaches from the player while WASD keeps moving the
                   "Disabling debug did not restore player camera");
 }
 
-TEST_CASE("help pause and Ghost commands work and long play keeps finite state") {
+TEST_CASE("pause and Ghost work and long play keeps finite state") {
     dotio::Application application{42};
     kinetra::Camera2D camera;
     auto &player = application.world().GetPlayer();
     const auto start = player.Position;
     dotio::Commands commands;
-    CHECK_MESSAGE((!application.help && !application.menu.visible), "Dotio menus must start hidden");
-    commands.help = true;
-    application.advance(0, commands, camera);
-    CHECK_MESSAGE(application.help, "H did not show Dotio help");
-    application.advance(0, commands, camera);
-    CHECK_MESSAGE(!application.help, "H did not hide Dotio help");
-    commands = {};
-    commands.pause = true;
+    // The session pauses through the RUNNING row or an open settings panel: both set paused.
+    application.paused = true;
     commands.direction = {1, 0};
     application.advance(1, commands, camera);
-    CHECK_MESSAGE((application.paused && player.Position == start), "Pause advanced game");
+    CHECK_MESSAGE(player.Position == start, "Pause advanced game");
     commands = {};
-    commands.debug = true;
-    commands.ghost = true;
+    // The GHOST CAMERA row sets ghost; the session starts the ghost at the player.
+    application.debug = application.ghost = true;
+    application.world().GetGhost().Position = start;
     commands.camera_pan = {1, 0};
     application.advance(0.1, commands, camera);
     CHECK_MESSAGE(
         (application.ghost && player.Position == start && application.world().GetGhost().Position != start),
         "Ghost must move while player is paused");
-    commands = {};
-    commands.pause = true;
-    commands.ghost = true;
-    application.advance(0, commands, camera);
+    application.paused = application.ghost = false;
     for (int frame = 0; frame < 180; ++frame) {
         commands = {};
         commands.direction = {frame % 60 < 30 ? 1.f : -1.f, 0};

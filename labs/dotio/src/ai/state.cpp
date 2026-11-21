@@ -2,12 +2,13 @@
 #include "dotio/ai/fuzzy.h"
 #include "dotio/ai/wander.h"
 #include "dotio/entities/enemy.h"
-#include "dotio/math/portable.h"
 #include "dotio/math/random.h"
 #include "dotio/navigation/grid.h"
 #include "dotio/navigation/route.h"
 #include "dotio/world.h"
 
+#include <cmath>
+#include <numbers>
 #include <optional>
 
 namespace dotio {

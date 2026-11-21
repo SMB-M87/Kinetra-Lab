@@ -16,6 +16,8 @@ class DotioSession final : public Session {
             {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"}, {"GHOST CLICK  TELEPORT"}),
         &application_.debug};
     kinetra_lab::ModalPause pause_;
+    /// The debug panel; the application supplies its rows.
+    kinetra::DebugMenu menu_;
 
   public:
     DotioSession(std::uint32_t seed, dotio::Difficulty difficulty) : application_(seed, difficulty) {}
@@ -28,8 +30,8 @@ class DotioSession final : public Session {
         const bool modal = settings_.update(input, camera);
         // A hidden menu takes no click, so it needs no rows.
         const auto entries =
-            application_.menu.visible ? application_.debug_entries() : std::vector<kinetra::DebugEntry>{};
-        const bool captured = settings_.update_debug(input, camera.viewport, application_.menu, entries);
+            menu_.visible ? application_.debug_entries() : std::vector<kinetra::DebugEntry>{};
+        const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         if (!was_ghost && application_.ghost) {
             application_.world().GetGhost().Position = application_.world().GetPlayer().Position;
             application_.world().GetGhost().Velocity = {};
@@ -45,7 +47,7 @@ class DotioSession final : public Session {
     }
     void render(kinetra::Runtime &runtime) override {
         frame_limit_.apply(runtime);
-        dotio::render(runtime, application_, settings_);
+        dotio::render(runtime, application_, settings_, menu_);
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Dotio"; }

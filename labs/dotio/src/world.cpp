@@ -1,8 +1,15 @@
 #include "dotio/world.h"
 #include "dotio/ai/fuzzy.h"
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/math/portable.h"
 #include "dotio/math/random.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <optional>
+#include <random>
 #include <stdexcept>
 
 namespace dotio {

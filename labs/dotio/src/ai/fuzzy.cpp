@@ -1,5 +1,4 @@
 #include "dotio/ai/fuzzy.h"
-#include "dotio/math/portable.h"
 #include "dotio/navigation/grid.h"
 #include <algorithm>
 #include <cmath>

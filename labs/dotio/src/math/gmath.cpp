@@ -1,8 +1,9 @@
 #include "dotio/math/gmath.h"
-#include "dotio/math/portable.h"
 #include <kinetra/simulation/math.h>
 
 #include <bitset>
+#include <cmath>
+#include <cstdint>
 #include <iostream>
 
 namespace dotio::math {

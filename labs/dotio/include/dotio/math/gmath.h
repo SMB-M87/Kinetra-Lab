@@ -1,6 +1,9 @@
-#include "dotio/math/portable.h"
 #ifndef GMATH_H
 #define GMATH_H
+
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 
 namespace dotio::math {
 /// Legacy field/coordinate compatibility facade; shared vector calculations use kinetra::Vec2.

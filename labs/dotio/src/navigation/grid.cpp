@@ -1,8 +1,12 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/math/portable.h"
 #include "dotio/math/random.h"
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <map>
+#include <random>
 #include <stdexcept>
 #include <tuple>
 #include <vector>

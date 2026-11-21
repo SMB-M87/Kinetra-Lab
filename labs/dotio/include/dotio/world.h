@@ -9,9 +9,14 @@
 #include "dotio/entities/player.h"
 #include "dotio/navigation/grid.h"
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <unordered_set>
+#include <vector>
 
 namespace dotio {
 /// Own the streamed-world game population, projectiles and grid.
