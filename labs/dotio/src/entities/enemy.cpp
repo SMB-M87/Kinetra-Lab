@@ -2,10 +2,12 @@
 #include "dotio/ai/state.h"
 #include "dotio/ai/wander.h"
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/math/portable.h"
 #include "dotio/math/random.h"
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 
 namespace dotio {
 Enemy::Enemy() : PhysicsObject() {
@@ -266,7 +268,7 @@ float Enemy::AmmoUsedRatio() const {
     return _ammo / static_cast<float>(ammo_capacity);
 }
 float Enemy::Distance() const {
-    return max(abs(Position.X - Target.X), abs(Position.Y - Target.Y));
+    return std::max(std::abs(Position.X - Target.X), std::abs(Position.Y - Target.Y));
 }
 
 void Enemy::AmmoFired() {

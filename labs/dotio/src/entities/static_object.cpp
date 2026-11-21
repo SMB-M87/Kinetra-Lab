@@ -1,5 +1,4 @@
 #include "dotio/entities/static_object.h"
-#include "dotio/math/portable.h"
 
 namespace dotio {
 StaticObject::~StaticObject() = default;

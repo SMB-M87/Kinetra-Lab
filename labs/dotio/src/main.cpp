@@ -1,9 +1,11 @@
 #include "dotio/presentation/session.h"
 #include "dotio/zoom.h"
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <optional>
 #include <random>
+#include <stdexcept>
 
 int main(int argc, char **argv) {
     try {

@@ -4,6 +4,7 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
 
+#include <array>
 #include <cmath>
 #include <numbers>
 #include <random>

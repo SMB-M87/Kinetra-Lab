@@ -55,8 +55,6 @@ class Grid {
     /// Pushes `object` out of every wall cell it overlaps.
     void HandleGridCollision(dotio::PhysicsObject &object) const;
 
-    bool GridIntersection(const dotio::math::Segment &segment, dotio::math::Point2 &intersection) const;
-
     static bool SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
                                            const float r);
 

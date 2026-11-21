@@ -1,8 +1,9 @@
 #include "dotio/math/gmath.h"
-#include "dotio/math/portable.h"
 #include <kinetra/simulation/math.h>
 
 #include <bitset>
+#include <cmath>
+#include <cstdint>
 #include <iostream>
 
 namespace dotio::math {
@@ -286,13 +287,6 @@ Position GridEntry::GetCellPosition(const Position &position, const Coordinates 
     return Vec2{position - origin}.Modulo(cellSize);
 }
 
-bool GridEntry::ActivatePath(const dotio::math::GridEntry &origin, const dotio::math::GridEntry &target) {
-    int far = 6;
-    int row = abs(origin.Row - target.Row);
-    int column = abs(origin.Column - target.Column);
-    return row < far && column < far;
-}
-
 uint8_t GridEntry::GetSquarePartition(const Position &position, const float semiWidth,
                                       const Coordinates &origin, float cellSize) {
     const Position cellPosition = GetCellPosition(position, origin, cellSize);
@@ -393,10 +387,6 @@ void GridEntry::GetPartitions(uint8_t partition, const Position &position, const
 
 bool GridEntry::operator==(const GridEntry &other) const {
     return this->Row == other.Row && this->Column == other.Column;
-}
-
-bool GridEntry::operator!=(const GridEntry &other) const {
-    return this->Row != other.Row && this->Column != other.Column;
 }
 
 GridEntry GridEntry::NullGridEntry = {-1, -1};

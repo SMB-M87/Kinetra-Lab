@@ -90,7 +90,7 @@ labs/dotio/
                    physics_object.h static_object.h physics_adapter.h
     ai/            state.h wander.h fuzzy.h tracker.h
     navigation/    grid.h route.h
-    math/          gmath.h portable.h
+    math/          gmath.h random.h
     presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
         entities/ ai/ navigation/ math/ presentation/
@@ -103,7 +103,7 @@ labs/dotio/
 | `entities/` | Moving and static world objects and their physics |
 | `ai/` | The enemy state machine, steering wander, fuzzy decisions and the population tracker |
 | `navigation/` | The occupancy grid with its route planner (Kinetra's `WeightedGrid`), and enemy routes |
-| `math/` | The small `gmath` vector helpers and the portable compatibility header, in namespace `dotio::math` |
+| `math/` | The small `gmath` vector helpers and seeded random values, in namespace `dotio::math` |
 | `presentation/` | Session and drawing; needs `Kinetra::Runtime` |
 
 ### Top level
@@ -169,7 +169,7 @@ classDiagram
 | Header | Source | Responsibility |
 | --- | --- | --- |
 | [gmath.h](include/dotio/math/gmath.h) | [gmath.cpp](src/math/gmath.cpp) | Legacy vector, position, segment and grid types; grid coordinate conversion, neighbor partitions and compatibility operators. Canonical vector math delegates to Kinetra |
-| [portable.h](include/dotio/math/portable.h) | header only | Standard-library includes and the unqualified `min` and `max` the ported code relies on |
+| [random.h](include/dotio/math/random.h) | header only | Uniform values from the raw bits of a seeded `std::mt19937`, the same on every standard library |
 
 ### presentation/
 

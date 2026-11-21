@@ -295,6 +295,12 @@ Reading it:
 
 ## Review
 
+### Step 5
+
+- The menu-click case (`the debug menu toggles a row once per click at every size`) keeps using the header-only panel; it now includes `<kinetra/runtime/debug_view.h>` itself, with a comment, instead of getting it through `application.h`.
+- Pause and Ghost are now driven in the tests the way the session drives them: the RUNNING and GHOST CAMERA rows set `paused` and `ghost`.
+- Removing `GridEntry::operator!=` changes no result: nothing compared cells with `!=`, and the golden fingerprint is unchanged.
+
 ### Step 4
 
 - `plan_shelter` reduces the old 20-line quadrant condition to its two factors (same side along one axis including the player's line, strictly along the other) and keeps "more than one cell from the player".
@@ -309,6 +315,14 @@ Reading it:
 - `wander.cpp`'s `signed_unit` now uses the shared `math::unit`; `unit * 2 - 1` and the old `bits / 2^23 - 1` give the same float for every 24-bit value, so steering wander is unchanged (its tests pass unchanged).
 
 ## Verification
+
+### Step 5
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset release` (everything) | passed |
+| `ctest --test-dir build-release -R 'dotio\|capture\|menu'` | 87/87 passed, golden fingerprint unchanged |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
 
 ### Step 4
 

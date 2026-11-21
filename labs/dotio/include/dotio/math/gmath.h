@@ -1,6 +1,9 @@
-#include "dotio/math/portable.h"
 #ifndef GMATH_H
 #define GMATH_H
+
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 
 namespace dotio::math {
 /// Legacy field/coordinate compatibility facade; shared vector calculations use kinetra::Vec2.
@@ -180,13 +183,11 @@ typedef struct GridEntry {
                           const GridEntry &gridSize, GridEntry &output);
     static Position GetCellPosition(const Position &position, const Coordinates &origin,
                                     const float cellSize);
-    static bool ActivatePath(const dotio::math::GridEntry &start, const dotio::math::GridEntry &candidate);
     static unsigned char GetSquarePartition(const Position &position, float semiWidth,
                                             const Coordinates &origin, float cellSize);
     static void GetPartitions(uint8_t partition, const Position &position, const Coordinates &origin,
                               float cellSize, const GridEntry &gridSize, GridEntry output[4]);
     bool operator==(const GridEntry &other) const;
-    bool operator!=(const GridEntry &other) const;
     static GridEntry NullGridEntry;
 } GridSize, GridPosition, GridCoordinates;
 } // namespace dotio::math

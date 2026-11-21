@@ -1,6 +1,5 @@
 #include "dotio/entities/physics_object.h"
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/math/portable.h"
 
 namespace dotio {
 PhysicsObject::~PhysicsObject() = default;

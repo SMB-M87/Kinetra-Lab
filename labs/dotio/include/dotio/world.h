@@ -9,9 +9,14 @@
 #include "dotio/entities/player.h"
 #include "dotio/navigation/grid.h"
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <unordered_set>
+#include <vector>
 
 namespace dotio {
 /// Own the streamed-world game population, projectiles and grid.
@@ -137,8 +142,7 @@ class World {
 
     dotio::Player &GetGhost();
 
-    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear,
-                  bool active);
+    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear);
 
     void AddArrow(dotio::math::Position position, dotio::math::Vector2 velocity);
 

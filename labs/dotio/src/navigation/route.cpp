@@ -2,9 +2,11 @@
 
 #include "dotio/navigation/grid.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace dotio {
 namespace {

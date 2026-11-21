@@ -1,6 +1,6 @@
 #include "dotio/entities/player.h"
-#include "dotio/math/portable.h"
 #include "dotio/world.h"
+#include <cmath>
 
 namespace dotio {
 Player::Player() : PhysicsObject() {

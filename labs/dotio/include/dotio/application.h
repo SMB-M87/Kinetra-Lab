@@ -4,8 +4,10 @@
 #include "dotio/world.h"
 #include "dotio/zoom.h"
 #include "kinetra_lab/debug.h"
+#include <algorithm>
 #include <array>
-#include <kinetra/runtime/debug_view.h>
+#include <cmath>
+#include <cstdint>
 #include <kinetra/runtime/timing.h>
 #include <kinetra/view/camera.h>
 #include <memory>
@@ -48,12 +50,23 @@ inline constexpr int fewest_pursuit_cycles = 1, most_pursuit_cycles = 40, fewest
                      smallest_spawn_limit = 0, largest_spawn_limit = 40;
 } // namespace tuning_step
 
+/// What the player asks for in one frame, in world units (Y up), mapped from input by the
+/// presentation (read_commands) or written by a tool or test.
 struct Commands {
-    kinetra::Vec2 direction{}, camera_pan{}, aim{};
-    bool shoot{}, pause{}, help{}, debug{}, ghost{}, teleport{};
+    /// Movement direction of the player, or of the ghost camera in Ghost; at most unit length.
+    kinetra::Vec2 direction{};
+    /// Extra pan of the ghost camera; the session sets it to `direction`.
+    kinetra::Vec2 camera_pan{};
+    /// World point the player aims at.
+    kinetra::Vec2 aim{};
+    /// Fire at `aim` this frame; ignored in Ghost.
+    bool shoot{};
+    /// In Debug Mode with Ghost on: move the player to `teleport_target` if it is clear.
+    bool teleport{};
+    /// Wheel steps of zoom this frame, positive zooms in; applied in Debug Mode only.
     float zoom_steps{};
+    /// World point a teleport goes to.
     kinetra::Vec2 teleport_target{};
-    std::array<bool, 6> paths{};
 };
 
 /// Own the ported world at a stable address: enemies and state objects reference it.
@@ -165,12 +178,11 @@ class Application {
     }
 
   public:
-    bool paused{}, help{}, debug{}, ghost{};
+    bool paused{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
     bool statistics{}, active_agents{}, frame_times{};
     /// Simulated seconds per elapsed second, set by the debug menu's SPEED row.
     float time_scale{1};
-    kinetra::DebugMenu menu;
     /// Which section and which list of the debug menu are open.
     kinetra::DebugFolds folds{"SIMULATION"};
     /// The debug menu's ZOOM row and the steps its buttons asked for.
@@ -293,30 +305,14 @@ class Application {
     }
 
     void advance(double elapsed, const Commands &commands, kinetra::Camera2D &camera) {
-        if (commands.pause)
-            paused = !paused;
-        if (commands.help)
-            help = !help;
-        if (commands.debug)
-            debug = !debug;
-        if (debug && (commands.ghost || (ghost && commands.teleport))) {
-            if (commands.teleport) {
-                auto &player = world_->GetPlayer();
-                const auto candidate = from_world(commands.teleport_target);
-                if (teleport_clear(candidate, player.Radius)) {
-                    player.Position = candidate;
-                    player.Velocity = {};
-                }
-            } else {
-                ghost = !ghost;
-                world_->GetGhost().Position = world_->GetPlayer().Position;
-                world_->GetGhost().Velocity = {};
+        if (debug && ghost && commands.teleport) {
+            auto &player = world_->GetPlayer();
+            const auto candidate = from_world(commands.teleport_target);
+            if (teleport_clear(candidate, player.Radius)) {
+                player.Position = candidate;
+                player.Velocity = {};
             }
         }
-        if (debug)
-            for (std::size_t i = 0; i < paths.size(); ++i)
-                if (commands.paths[i])
-                    paths[i] = !paths[i];
         if (!debug)
             ghost = false;
         // The ZOOM row's steps are taken even outside debug mode, so none is left over for

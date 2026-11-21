@@ -1,8 +1,12 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/entities/physics_adapter.h"
-#include "dotio/math/portable.h"
 #include "dotio/math/random.h"
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <map>
+#include <random>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -146,10 +150,6 @@ void Grid::HandleGridCollision(dotio::PhysicsObject &object) const {
     auto body = dotio::physics_body(object);
     kinetra::collide_grid(body, CollisionView());
     dotio::apply_body(object, body);
-}
-
-bool Grid::GridIntersection(const dotio::math::Segment &segment, dotio::math::Point2 &intersection) const {
-    return IsIntersectingAnyCell(segment, intersection);
 }
 
 bool Grid::SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 center,

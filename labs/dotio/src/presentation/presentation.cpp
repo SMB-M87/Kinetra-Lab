@@ -93,7 +93,8 @@ PresentedPositions::~PresentedPositions() {
         object->Position = position;
 }
 
-void render(Runtime &runtime, Application &application, const SettingsOverlay &settings) {
+void render(Runtime &runtime, Application &application, const SettingsOverlay &settings,
+            const DebugMenu &menu) {
     auto &world = application.world();
     // The camera follows the drawn player, not the simulated one, or the player would jitter
     // on screen; Ghost moves per frame and needs no correction. Restored after the frame.
@@ -254,8 +255,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             draw_row(population, baseline - 12 * statistics_scale);
         draw_row(rates, baseline);
     }
-    if (application.menu.visible)
-        application.menu.draw(runtime, application.debug_entries());
+    if (menu.visible)
+        menu.draw(runtime, application.debug_entries());
     if (application.frame_times)
         draw_frame_times(runtime, runtime.frame_times());
     settings.draw(runtime);
