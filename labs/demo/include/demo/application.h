@@ -12,20 +12,27 @@ namespace demo {
 /// elapsed time, intent and the current logical camera viewport, including on paused frames.
 class Application {
   public:
+    /// A scene with `agent_count` initial agents (0 to 300) and terrain from `seed`.
+    /// Throws std::invalid_argument for another count, and std::runtime_error when the
+    /// agents cannot all be placed clear of each other and of terrain.
     Application(int agent_count, std::uint32_t seed);
     /// Applies one frame of intent, then runs the fixed ticks that `elapsed` seconds times
     /// `commands.time_scale` are worth; none while paused, except one for
     /// `commands.single_step`. Throws std::invalid_argument, before anything changes, for
     /// a negative or non-finite time scale.
     void advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);
+    /// The scene, for drawing and inspection.
     const Scene &scene() const { return scene_; }
     /// The scene's motion and wander values, for a debug menu to change between frames.
     /// The next tick throws std::invalid_argument for values that validate() rejects.
     Tuning &tuning() { return scene_.tuning(); }
     /// Read-only access to the scene's motion and wander values.
     const Tuning &tuning() const { return scene_.tuning(); }
+    /// What the renderer shows besides the scene.
     const PresentationOptions &presentation() const { return presentation_; }
+    /// Whether the scene is paused; a paused scene still streams and follows the camera.
     bool paused() const { return paused_; }
+    /// Outcome of the most recent pointer action.
     ActionResult last_action() const { return last_action_; }
     /// Position and angle of a body as drawn.
     struct Pose {

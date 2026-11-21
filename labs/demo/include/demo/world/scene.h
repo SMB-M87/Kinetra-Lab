@@ -19,10 +19,21 @@
 namespace demo {
 
 /// Application-owned population, routes and terrain. Eviction remaps body indices.
+///
+/// Distances are world units, times simulated seconds. The world holds the moving bodies
+/// first (body ids below moving_body_count(): agents, the player and six passive props),
+/// then the loaded terrain; every agent's body id is a moving body other than the player.
+/// stream() keeps the terrain, the population and the navigation around the player; update()
+/// runs one fixed tick. A value type: a copy is an independent scene.
 class Scene {
   public:
+    /// Largest population; streaming spawns no agent beyond it.
     static constexpr std::size_t maximum_agents = 1200;
 
+    /// `count` agents (0 to 300) at seeded points around the player's start at (0, -18),
+    /// the player and the props, with terrain from `seed`. Terrain loads with the first
+    /// stream(). Throws std::invalid_argument for another count, and std::runtime_error
+    /// when an agent finds no free place in 1000 attempts.
     explicit Scene(int count, std::uint32_t seed);
 
     /// The physics world: the moving bodies first (agents, player, props), then the loaded
@@ -89,15 +100,31 @@ class Scene {
 
     /// Retain player-centered terrain and populate newly active chunks once. The population
     /// is capped; distant agents are evicted and revisits can repopulate chunks.
+    ///
+    /// The areas scale with the camera's viewport, not with its zoom or position: physics
+    /// terrain and the agents it keeps lie within 1.25 times the view at the widest debug
+    /// zoom (5 pixels per unit), agents wake within 1.75 times the view at the widest
+    /// normal zoom (17), and navigation covers that waking area plus 24 units. The view
+    /// itself only decides what the ghost preview samples. Throws what
+    /// Camera2D::validate() or Terrain::update() throws.
     void stream(const kinetra::Camera2D &camera);
 
     /// Teleport only into free loaded space and discard previous navigation/momentum.
+    /// Returns false, changing nothing, when `destination` is not finite, lies outside the
+    /// view, or the player would overlap terrain or another body there.
     bool teleport(kinetra::Vec2 destination);
 
+    /// Plans a route for the player to `destination`, or to the nearest reachable point
+    /// when it is occupied. Returns false, leaving the player without a goal, when no route
+    /// exists. Player input cancels the walk.
     bool walk_to(kinetra::Vec2 destination);
 
+    /// A click at `destination`: on an awake agent (within one unit) it selects it, or
+    /// deselects it when it was selected; elsewhere it commands the selected agent there.
+    /// Returns false when the click did neither, so the caller can walk the player.
     bool select_or_target(kinetra::Vec2 destination);
 
+    /// Commands every awake agent to `destination` and clears the selection.
     void target_agents(kinetra::Vec2 destination);
 
     /// Follow the latest player pose, including while paused or after teleportation.
