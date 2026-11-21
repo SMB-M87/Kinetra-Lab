@@ -1,6 +1,6 @@
 # Demo restructuring
 
-Status: implemented (step 4 waits for Kinetra access) · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra `test/contact-response-tests`) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
+Status: implemented (step 4 waits for Kinetra access) · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra #19) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
 
 Roadmap phase 5. The Demo's scene, agents and terrain live almost entirely in headers, `Scene` exposes its state as public fields that tests and the application write directly, a test suite that covers only the engine sits in Lab, and the module has no README that explains how it works. This phase moves the code into `.cpp` files, gives `Scene` operations, documents the module and moves the engine test to Kinetra, without changing behavior.
 
@@ -193,7 +193,7 @@ Dependencies and merge order: none; steps 2 to 4 are stacked on this branch.
 
 **Step 4.** Title: `test(demo): move the engine-only contact tests to Kinetra`
 
-Summary: roadmap phase 5, step 4 of 4. `labs/demo/tests/contact_tests.cpp` tested only `World::step`; its six cases move unchanged to Kinetra as `kinetra_contact_response_tests` (Kinetra pull request `test(physics): move the contact response cases from Kinetra-Lab`, branch `test/contact-response-tests`). Lab drops its copy and the `kinetra_demo_contact_tests` target, updates the targeted table in `AGENTS.md` and the README, and records the Kinetra branch commit.
+Summary: roadmap phase 5, step 4 of 4. `labs/demo/tests/contact_tests.cpp` tested only `World::step`; its six cases move unchanged to Kinetra as `kinetra_contact_response_tests` (Kinetra [#19](https://github.com/SMB-M87/Kinetra/pull/19), branch `test/contact-response-tests`). Lab drops its copy and the `kinetra_demo_contact_tests` target, updates the targeted table in `AGENTS.md` and the README, and records the Kinetra branch commit.
 
 Dependencies and merge order: stacked on step 3. The Kinetra pull request merges first, with a merge commit; then the pointer moves to Kinetra's merge commit before this one merges.
 
