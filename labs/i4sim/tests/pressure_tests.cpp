@@ -1,11 +1,12 @@
-// Predictive passing under pressure: recorded outcomes, the baseline for roadmap phase 7.
+// Predictive passing under pressure: required outcomes since roadmap phase 7.
 //
 // Each case runs one blueprint fixture with manual goals under one steering profile,
 // with predictive passing on and heatmap costs off. It first checks that the situation
-// the scenario is about really occurs, and then compares one recorded line: contacts,
+// the scenario is about really occurs, then requires the outcome (no contact, every mover
+// at its goal, no stuck mover), and finally compares one recorded line: contacts,
 // passing plans and how they ended, arrivals, flow, and a fingerprint of trajectory and
-// event log. The lines record today's behavior, including its failures; they are not
-// requirements yet. Phase 7 turns them into required outcomes.
+// event log. The line pins the exact run, as the golden suite does, so a refactor cannot
+// change it unnoticed.
 //
 // KINETRA_PRINT_GOLDEN=1 prints the current lines, as in the golden suite.
 #include "i4sim/simulation/flow_metrics.h"
@@ -75,8 +76,8 @@ std::string outcome(const Recorder &recorder, const Simulation &simulation, cons
          << " crossings=" << count(events, EventKind::passing_crossing) << " ends=";
     bool any = false;
     for (auto end : {PassingEnd::completed, PassingEnd::disabled, PassingEnd::participant_stopped,
-                     PassingEnd::participant_held, PassingEnd::traffic_control, PassingEnd::no_progress,
-                     PassingEnd::goal_changed})
+                     PassingEnd::participant_held, PassingEnd::traffic_control, PassingEnd::obstructed,
+                     PassingEnd::no_progress, PassingEnd::goal_changed})
         if (const auto ended = count(events, EventKind::passing_ended, end)) {
             line << (any ? "," : "") << name(end) << ':' << ended;
             any = true;
@@ -89,7 +90,9 @@ std::string outcome(const Recorder &recorder, const Simulation &simulation, cons
     return line.str();
 }
 
-/// Runs `scenario` under `profile` and returns its recorded line; `watch` sees every tick.
+/// Runs `scenario` under `profile`, requires that it ends without contact, with every mover
+/// at its goal and without a stuck mover, and returns its recorded line; `watch` sees
+/// every tick.
 std::string run(const Scenario &scenario, SteeringProfile profile, const Watch &watch) {
     Simulation simulation(load_blueprint(std::filesystem::path(__FILE__).parent_path() /
                                          (std::string(scenario.fixture) + ".json")));
@@ -112,6 +115,12 @@ std::string run(const Scenario &scenario, SteeringProfile profile, const Watch &
         flow.observe(simulation);
         watch(simulation);
     }
+    std::size_t arrived = 0;
+    for (const auto &mover : simulation.movers())
+        arrived += !mover.moving() && kinetra::distance(mover.body.position, mover.destination) < 0.1f;
+    CHECK_MESSAGE(simulation.collisions() == 0, scenario.fixture << ": movers touched");
+    CHECK_MESSAGE(arrived == simulation.movers().size(), scenario.fixture << ": not every mover arrived");
+    CHECK_MESSAGE(flow.stuck_movers() == 0, scenario.fixture << ": a mover was stuck");
     return outcome(recorder, simulation, flow);
 }
 
@@ -149,6 +158,24 @@ void check_lane_intrusion(SteeringProfile profile, const std::string &expected) 
     i4sim::test::check_line("lane intrusion", line, expected);
 }
 
+/// Movers 0 and 1 pass head-on while mover 2 drives to a goal on mover 0's exit target
+/// and stops there. The plan's lanes are checked only when it forms, before mover 2
+/// arrives; the case is the in-plan contact replayed from the 8640x4800 benchmark.
+void check_lane_stop(SteeringProfile profile, const std::string &expected) {
+    // A center within 130 mm of the target puts the stopping mover's body (113 mm square)
+    // on the place mover 0 heads for.
+    bool blocked = false;
+    const auto line =
+        run({"pressure-lane-intrusion", {{1900, 800}, {500, 800}, {1330, 636}}, 5000}, profile,
+            [&](const Simulation &simulation) {
+                const auto target = simulation.passing_target(0);
+                blocked = blocked || (first_pair_passing(simulation) && target &&
+                                      kinetra::distance(simulation.movers()[2].body.position, *target) < 130);
+            });
+    CHECK_MESSAGE(blocked, "The stopping mover never stood on an active passing target");
+    i4sim::test::check_line("lane stop", line, expected);
+}
+
 /// Two head-on pairs on parallel lines 400 mm apart.
 void check_simultaneous(SteeringProfile profile, const std::string &expected) {
     std::size_t most = 0;
@@ -176,59 +203,75 @@ void check_narrow_aisle(SteeringProfile profile, const std::string &expected) {
 }
 } // namespace
 
-// Known failure: after the first pass, the lone mover and the second oncoming mover form
-// no plan and shuffle in front of each other until the end; only the first oncoming
-// mover arrives.
-TEST_CASE("three oncoming movers under reciprocal steering keep their recorded outcome") {
+TEST_CASE("three oncoming movers under reciprocal steering end with every mover arrived and no contact") {
     check_three_oncoming(
         SteeringProfile::reciprocal,
-        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=1/3 waiting_ticks=4 stuck=1 fingerprint=c35453d8b129aaa2");
+        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
+        "arrived=3/3 waiting_ticks=9 stuck=0 fingerprint=7abc8e877fa1df6d");
 }
 
-TEST_CASE("three oncoming movers under improved steering keep their recorded outcome") {
+TEST_CASE("three oncoming movers under improved steering end with every mover arrived and no contact") {
     check_three_oncoming(
         SteeringProfile::improved,
-        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=3/3 waiting_ticks=30 stuck=0 fingerprint=916dbae033e3481b");
+        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
+        "arrived=3/3 waiting_ticks=10 stuck=0 fingerprint=58b08b416144079c");
 }
 
-TEST_CASE("a mover crossing passing lanes under reciprocal steering keeps its recorded outcome") {
+TEST_CASE(
+    "a mover crossing passing lanes under reciprocal steering ends with every mover arrived and no contact") {
     check_lane_intrusion(
         SteeringProfile::reciprocal,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=3/3 waiting_ticks=58 stuck=0 fingerprint=4e789d8607c8e81e");
+        "arrived=3/3 waiting_ticks=300 stuck=0 fingerprint=214f1f48dcdf3a6e");
 }
 
-TEST_CASE("a mover crossing passing lanes under improved steering keeps its recorded outcome") {
+TEST_CASE(
+    "a mover crossing passing lanes under improved steering ends with every mover arrived and no contact") {
     check_lane_intrusion(
         SteeringProfile::improved,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=3/3 waiting_ticks=116 stuck=0 fingerprint=07bb0939d96a3673");
+        "arrived=3/3 waiting_ticks=300 stuck=0 fingerprint=ec56c7b6381530e6");
 }
 
-TEST_CASE("simultaneous passing pairs under reciprocal steering keep their recorded outcome") {
+TEST_CASE("a mover stopping on a passing target under reciprocal steering ends with every mover arrived and "
+          "no contact") {
+    check_lane_stop(
+        SteeringProfile::reciprocal,
+        "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=obstructed:1 "
+        "arrived=3/3 waiting_ticks=176 stuck=0 fingerprint=a994bcc2beb86f6e");
+}
+
+TEST_CASE("a mover stopping on a passing target under improved steering ends with every mover arrived and no "
+          "contact") {
+    check_lane_stop(
+        SteeringProfile::improved,
+        "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=obstructed:1 "
+        "arrived=3/3 waiting_ticks=100 stuck=0 fingerprint=2befd81c05b28b8c");
+}
+
+TEST_CASE(
+    "simultaneous passing pairs under reciprocal steering end with every mover arrived and no contact") {
     check_simultaneous(
         SteeringProfile::reciprocal,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
         "arrived=4/4 waiting_ticks=8 stuck=0 fingerprint=62657db7b0850622");
 }
 
-TEST_CASE("simultaneous passing pairs under improved steering keep their recorded outcome") {
+TEST_CASE("simultaneous passing pairs under improved steering end with every mover arrived and no contact") {
     check_simultaneous(
         SteeringProfile::improved,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
         "arrived=4/4 waiting_ticks=8 stuck=0 fingerprint=43747191bd7ca665");
 }
 
-TEST_CASE("a narrow aisle under reciprocal steering keeps its recorded outcome") {
+TEST_CASE("a narrow aisle under reciprocal steering ends with every mover arrived and no contact") {
     check_narrow_aisle(
         SteeringProfile::reciprocal,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
         "arrived=2/2 waiting_ticks=48 stuck=0 fingerprint=68f6981bfc4d901d");
 }
 
-TEST_CASE("a narrow aisle under improved steering keeps its recorded outcome") {
+TEST_CASE("a narrow aisle under improved steering ends with every mover arrived and no contact") {
     check_narrow_aisle(
         SteeringProfile::improved,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "

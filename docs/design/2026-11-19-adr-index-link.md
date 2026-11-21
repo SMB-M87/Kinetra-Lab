@@ -21,7 +21,7 @@ The Lab documentation index gets a link to Kinetra's architecture decisions. Rea
 
 ## Problem
 
-- [docs/README.md](../README.md) has no link to any ADR. Only [labs/demo/README.md](../../labs/demo/README.md#verification-and-limits) links three of them, inline.
+- [docs/README.md](../README.md) has no link to any ADR. Only [labs/demo/README.md](../../labs/demo/README.md#open-points) links three of them, inline.
 - ADR 0002 to 0007 record Demo and Dotio decisions from before the applications moved to Lab, and ADR 0009 defines the Kinetra/Lab boundary. They stay in Kinetra because ADRs are history and are not moved.
 - Lab has no `docs/decisions/` directory. [AGENTS.md](../../AGENTS.md#documentation-in-lab) creates it with the first Lab ADR, and every decision so far belonged in Kinetra. A reader of the Lab docs sees neither the Kinetra ADRs nor this rule, so the missing directory looks like an omission.
 

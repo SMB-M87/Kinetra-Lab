@@ -43,26 +43,26 @@ constexpr int overlap_interval_frames = 20;
 /// Checks the crowd invariants after one frame. The first violation stops the scenario,
 /// because later frames build on the broken state.
 void check_invariants(const demo::Scene &scene, int frame) {
-    const auto &world = scene.world;
+    const auto &world = scene.world();
     REQUIRE_MESSAGE(!world.sweep_budget_exhausted(), "Crowd contact exhausted the swept-event budget");
     const auto bodies = world.bodies();
-    REQUIRE_MESSAGE(scene.moving_body_count <= bodies.size(), "More moving bodies than world bodies");
+    REQUIRE_MESSAGE(scene.moving_body_count() <= bodies.size(), "More moving bodies than world bodies");
     for (const auto &body : bodies)
         REQUIRE_MESSAGE((kinetra::finite(body.position) && kinetra::finite(body.velocity)),
                         "Nonfinite body motion");
     REQUIRE_MESSAGE(scene.agents().size() <= demo::Scene::maximum_agents, "Population exceeded its cap");
     std::set<std::size_t> agent_bodies;
     for (const auto &agent : scene.agents()) {
-        REQUIRE_MESSAGE(agent.body_id() < scene.moving_body_count,
+        REQUIRE_MESSAGE(agent.body_id() < scene.moving_body_count(),
                         "Agent refers to a body outside the movers");
         REQUIRE_MESSAGE(agent_bodies.insert(agent.body_id()).second, "Two agents share one body");
     }
-    REQUIRE_MESSAGE((scene.player < scene.moving_body_count && !agent_bodies.contains(scene.player)),
+    REQUIRE_MESSAGE((scene.player() < scene.moving_body_count() && !agent_bodies.contains(scene.player())),
                     "Player body is not a separate mover");
     if (frame % overlap_interval_frames != 0)
         return;
-    for (std::size_t a = 0; a < scene.moving_body_count; ++a)
-        for (std::size_t b = a + 1; b < scene.moving_body_count; ++b)
+    for (std::size_t a = 0; a < scene.moving_body_count(); ++a)
+        for (std::size_t b = a + 1; b < scene.moving_body_count(); ++b)
             if (const auto contact = kinetra::collide(bodies[a], bodies[b]))
                 REQUIRE_MESSAGE(contact->penetration <= max_penetration, "Moving bodies overlap too deeply");
 }
@@ -93,9 +93,9 @@ std::string run(const Scenario &scenario) {
         const auto &scene = application.scene();
         INFO("frame " << frame);
         check_invariants(scene, frame);
-        avoidance_limited += scene.avoidance_limited;
-        const auto bodies = scene.world.bodies();
-        for (std::size_t i = 0; i < scene.moving_body_count; ++i) {
+        avoidance_limited += scene.avoidance_limited();
+        const auto bodies = scene.world().bodies();
+        for (std::size_t i = 0; i < scene.moving_body_count(); ++i) {
             trajectory.add(bodies[i].position);
             trajectory.add(bodies[i].velocity);
             trajectory.add(bodies[i].angle);
@@ -105,8 +105,8 @@ std::string run(const Scenario &scenario) {
     }
     const auto &scene = application.scene();
     std::ostringstream line;
-    line << "agents=" << scene.agents().size() << " moving_bodies=" << scene.moving_body_count
-         << " bodies=" << scene.world.bodies().size() << " avoidance_limited=" << avoidance_limited
+    line << "agents=" << scene.agents().size() << " moving_bodies=" << scene.moving_body_count()
+         << " bodies=" << scene.world().bodies().size() << " avoidance_limited=" << avoidance_limited
          << " trajectory=" << std::hex << std::setw(16) << std::setfill('0') << trajectory.value();
     return line.str();
 }
