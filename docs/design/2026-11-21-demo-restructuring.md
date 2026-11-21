@@ -154,6 +154,8 @@ Demo has no navigation-only sub-READMEs left: the include layout change already 
 
 **Step 1.** Self-review of `git diff main...refactor/demo-headers`: every moved body compared with its old text; only indentation, `inline` and the `Class::` prefix changed. `mapping.h` now includes `kinetra/view/input.h`; `kinetra_lab/input.h`, which `mapping.cpp` uses, includes the runtime's `engine.h`, but that header has no SDL or OpenGL dependency, so the headless build still links. No findings.
 
+**Step 2.** Self-review of `git diff refactor/demo-headers...refactor/demo-scene-operations`. Each extracted function was compared with the code it replaces for the order of its floating-point operations and side effects; the lambda's captures became `Tick` fields or members with the same values. One finding, resolved before the commit: `arrange` first validated, then changed the world, then rebuilt the navigation, so an area that `Navigation::rebuild` rejects would leave a half-arranged scene. It now rebuilds the navigation before it changes anything, because the navigation keeps its old snapshot when it rejects one.
+
 ## Verification
 
 **Golden lines depend on the toolchain.** On this machine (Ubuntu 24.04, GCC 13.3) unchanged `main` does not reproduce the recorded crowd characterization lines, nor the i4sim RVO golden line, in Debug or Release; these are the same five cases the `windows` presets exclude for that reason. CI's pinned Arch toolchain checks the recorded lines. Locally, each step is checked against the lines that `main` produces here: the step must reproduce them exactly.
@@ -169,6 +171,8 @@ Demo has no navigation-only sub-READMEs left: the include layout change already 
 | Golden, Release | the five lines against `main`'s Release lines on this machine | identical |
 | Smoke | `kinetra` (demo, dotio, i4sim, menu), `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, each `--frames 120`, under Xvfb with software Mesa | passed |
 
+**Step 2** (`refactor/demo-scene-operations`, at `33fe902`): targeted `dev` build without warnings and 60 Demo cases passed, the three new ones included; the characterization lines are identical to `main`'s in Debug. `cmake --workflow --preset graphics` passed 298 of 303, failing only the same five toolchain-dependent golden cases, whose Release lines are identical to `main`'s; the seven smoke runs passed.
+
 `ctest --preset dev -LE soak` ignores the label filter with CMake 3.28; `ctest --test-dir build-dev -LE soak` applies it.
 
 ## Pull request
@@ -180,6 +184,12 @@ Summary: roadmap phase 5, step 1 of 4. The Demo's scene, agent, terrain, tuning,
 Changes: `labs/demo/src/world/{scene,agent,terrain,tuning}.cpp`, `src/input/mapping.cpp` (logic library), `src/presentation/help_overlay.cpp`; trimmed header includes; two test files include the steering and avoidance headers they use; `kinetra_directory_warnings(labs/demo RECURSE AS_ERRORS)`.
 
 Dependencies and merge order: none; steps 2 to 4 are stacked on this branch.
+
+**Step 2.** Title: `refactor(demo): give Scene operations instead of public fields`
+
+Summary: roadmap phase 5, step 2 of 4. `Scene`'s 16 public fields become private. Callers read through accessors and change state through named operations; tests that built a layout by clearing the world and setting fields now use `arrange`, which keeps the scene's invariants. The constructor, `stream` and `update` are split into named steps (`update` from 170 lines to 12). No behavior change: the crowd characterization lines are identical to `main`'s.
+
+Dependencies and merge order: stacked on step 1; merge step 1 first.
 
 ## Open points
 
