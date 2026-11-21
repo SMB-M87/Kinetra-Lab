@@ -27,7 +27,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | Write READMEs, diagrams or `///` comments | [Documentation guide](external/Kinetra/docs/documentation.md) |
 | Understand Lab targets and session flow | [System architecture](docs/architecture.md) |
 | Work on one application | Its README and architecture page (see [functionality index](#functionality-index)) |
-| Know what is planned | [Quality roadmap](docs/design/2026-11-18-quality-roadmap.md) |
+| Know what is planned, or record an idea | [Roadmap](docs/roadmap.md) (the backlog; `roadmap` skill), [Kinetra roadmap](external/Kinetra/docs/roadmap.md) for engine work, and the [quality roadmap](docs/design/2026-11-18-quality-roadmap.md) for the scope of phase 8 |
 
 ## Scope
 
@@ -99,6 +99,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - **Thin sub-READMEs:** the navigation-only READMEs in `include/`, `src/` and `tests/` subdirectories are folded into their module README when the roadmap reaches that module.
 - **Architecture pages:** the cross-application pages live in [docs/](docs/README.md).
 - **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md).
+- **Roadmap:** application, tool and build work that is planned or only an idea goes in [docs/roadmap.md](docs/roadmap.md); engine work in [Kinetra's roadmap](external/Kinetra/docs/roadmap.md), with a linked item in each when it needs both. Format in the [documentation guide](external/Kinetra/docs/documentation.md#roadmap).
 - **ADRs:** Lab ADRs go in `docs/decisions/`, created with its README when the first Lab ADR is written.
 - **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is rendered with `tools/capture/capture_tour.sh`; look at frames from every chapter before committing it.
 
