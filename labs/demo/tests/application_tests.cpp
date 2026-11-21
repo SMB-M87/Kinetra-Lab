@@ -4,6 +4,9 @@
 #include "demo/application.h"
 #include "demo/input/mapping.h"
 
+#include <kinetra/simulation/avoidance.h>
+#include <kinetra/simulation/steering.h>
+
 #include <doctest/doctest.h>
 
 #include <algorithm>

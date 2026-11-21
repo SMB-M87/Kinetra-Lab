@@ -3,6 +3,9 @@
 // follower and Ghost isolation.
 #include "demo/world/scene.h"
 
+#include <kinetra/simulation/avoidance.h>
+#include <kinetra/simulation/steering.h>
+
 #include <doctest/doctest.h>
 
 #include <cmath>
