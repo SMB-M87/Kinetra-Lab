@@ -50,4 +50,5 @@ flowchart TD
 - [Launcher](../launcher/README.md).
 - [Build and verification](../README.md#tests-and-resources).
 - [Screenshots, clips and demo video](media/README.md) used by the project overview, and the [capture tool](../tools/capture/README.md) that generates them.
+- [Windows release](../tools/release/README.md): the ready-to-run zip and how CI publishes it.
 - [Core architecture](../external/Kinetra/docs/architecture.md) for reusable engine contracts.
