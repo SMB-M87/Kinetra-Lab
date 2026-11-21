@@ -66,7 +66,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
 | `labs/i4sim/` logic (`simulation/`, `blueprint/`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` | `^kinetra_i4sim` |
-| `labs/demo/` logic (`application`, `debug_panel`, `world/`, `input/`) | `kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_demo(:\|_terrain\|_contacts\|_crowd)` |
+| `labs/demo/` logic (`application`, `debug_panel`, `world/`, `input/`) | `kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests` | `^kinetra_demo(:\|_terrain\|_crowd)` |
 | `labs/dotio/` logic (everything outside `presentation/`) | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/shared/` | `kinetra_lab_tests` | `^kinetra_lab:` |
 | `launcher/include/launcher/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |

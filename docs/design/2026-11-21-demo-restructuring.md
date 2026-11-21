@@ -1,6 +1,6 @@
 # Demo restructuring
 
-Status: implemented (step 4 waits for Kinetra access) · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra `test/contact-response-tests`) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
+Status: implemented (step 4 waits for Kinetra access) · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra #19) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
 
 Roadmap phase 5. The Demo's scene, agents and terrain live almost entirely in headers, `Scene` exposes its state as public fields that tests and the application write directly, a test suite that covers only the engine sits in Lab, and the module has no README that explains how it works. This phase moves the code into `.cpp` files, gives `Scene` operations, documents the module and moves the engine test to Kinetra, without changing behavior.
 
@@ -177,6 +177,8 @@ Kinetra branch `test/contact-response-tests`: `tests/contact_response_tests.cpp`
 
 **Step 3** (`docs/demo-module`): `python3 external/Kinetra/tools/check_docs.py` passed; the header edits are comment-only, apart from `PointerAction` and `ActionResult`, which are split over lines (same enumerators, same order) to carry a comment per value, confirmed by a `dev` build of the Demo targets and the capture tool without warnings. Every path, type and test name in the README was checked with `grep`.
 
+**Step 4** (local `test/demo-contact-tests`, Kinetra `test/contact-response-tests` at `88a4916`, rebased on Kinetra `main`): in Kinetra, `kinetra_contact_response_tests` builds without warnings and passes its 6 cases; `diff` against Lab's file shows only the header comment. In Lab, the `dev` build of the Demo targets has no warnings, `kinetra_demo_contacts` is no longer registered, the 54 remaining non-soak Demo cases pass and the characterization lines are identical to `main`'s. `cmake --workflow --preset graphics` on the pointer `88a4916` passed 308 of 313, failing only the five toolchain-dependent golden cases that fail on `main` here too; the seven smoke runs passed. After SMB-M87/Kinetra#19 merged, the pointer moved to its merge commit `8896a19` (parents `d2d4a54` and `88a4916`); `git diff --stat 88a4916 8896a19` is empty, so this verification stands.
+
 `ctest --preset dev -LE soak` ignores the label filter with CMake 3.28; `ctest --test-dir build-dev -LE soak` applies it.
 
 ## Pull request
@@ -188,6 +190,12 @@ Summary: roadmap phase 5, step 1 of 4. The Demo's scene, agent, terrain, tuning,
 Changes: `labs/demo/src/world/{scene,agent,terrain,tuning}.cpp`, `src/input/mapping.cpp` (logic library), `src/presentation/help_overlay.cpp`; trimmed header includes; two test files include the steering and avoidance headers they use; `kinetra_directory_warnings(labs/demo RECURSE AS_ERRORS)`.
 
 Dependencies and merge order: none; steps 2 to 4 are stacked on this branch.
+
+**Step 4.** Title: `test(demo): move the engine-only contact tests to Kinetra`
+
+Summary: roadmap phase 5, step 4 of 4. `labs/demo/tests/contact_tests.cpp` tested only `World::step`; its six cases move unchanged to Kinetra as `kinetra_contact_response_tests` (Kinetra [#19](https://github.com/SMB-M87/Kinetra/pull/19), branch `test/contact-response-tests`). Lab drops its copy and the `kinetra_demo_contact_tests` target, updates the targeted table in `AGENTS.md` and the README, and records the Kinetra branch commit.
+
+Dependencies and merge order: stacked on step 3. The Kinetra pull request merges first, with a merge commit; then the pointer moves to Kinetra's merge commit before this one merges.
 
 **Step 3.** Title: `docs(demo): contracts and module README`
 
