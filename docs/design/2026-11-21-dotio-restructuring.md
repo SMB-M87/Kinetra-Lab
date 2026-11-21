@@ -1,6 +1,6 @@
 # Dotio restructuring
 
-Status: accepted · Branches: `test/dotio-baseline` (step 1), `refactor/dotio-grid-rng` (step 2), Kinetra `feat/weighted-grid-search` (step 3), `refactor/dotio-navigation` (step 4), `refactor/dotio-layers` (step 5), `refactor/dotio-conventions` (step 6), `docs/dotio-module` (step 7) · Related: [quality roadmap, phase 6](2026-11-18-quality-roadmap.md#phase-6-dotio), [Dotio](../../labs/dotio/README.md), [Kinetra navigation](../../external/Kinetra/docs/engine/navigation.md)
+Status: implemented · Branches: `test/dotio-baseline` (step 1), `refactor/dotio-grid-rng` (step 2), Kinetra `feat/weighted-grid-search` (step 3), `refactor/dotio-navigation` (step 4), `refactor/dotio-layers` (step 5), `refactor/dotio-conventions` (step 6), `docs/dotio-module` (step 7) · Related: [quality roadmap, phase 6](2026-11-18-quality-roadmap.md#phase-6-dotio), [Dotio](../../labs/dotio/README.md), [Kinetra navigation](../../external/Kinetra/docs/engine/navigation.md)
 
 Roadmap phase 6. Dotio still runs on the code it was ported with: a static occupancy grid, randomness that no seed controls, its own A*, priority queue, stack and graph, a logic header that includes a runtime header, and the naming of the original game. This phase first records how enemies behave today, then makes runs reproducible, moves route planning onto Kinetra's weighted grid, fixes the layers and names, and documents the module.
 
@@ -267,6 +267,10 @@ Reading it:
 - Route-following ticks without a route stay at 5–6%: they are the decision tick between entering a state and its first plan, not failed plans.
 - Stuck episodes stay rare and inside the baseline's range in both wander modes.
 
+### After step 7
+
+Steps 5 to 7 change no behavior: the golden fingerprint stayed the same through every commit, so the statistics *after step 4* are the final ones. In short, against the baseline: every statistic stays within, or a few percent from, the baseline's run-to-run spread; nothing overlaps a wall; stuck episodes stay at most one per 300 enemy-minutes; and runs are now reproducible from their seed.
+
 ## Affected areas
 
 - `labs/dotio/` (all of it), `labs/dotio/CMakeLists.txt`, the root `CMakeLists.txt` (warnings as errors).
@@ -295,6 +299,13 @@ Reading it:
 
 ## Review
 
+### Step 7
+
+- Making Dotio warning-free needed only explicit casts with the same values and one renamed loop variable; the golden fingerprint did not move.
+- The README's old state diagram said an attacker recovers on a "fuzzy recovery decision"; the code recovers when the enemy runs out of ammunition. The new diagram follows the code.
+- `docs/dotio-architecture.md` is absorbed into the README (structure, lifecycle, engine boundary); the documentation index, the system architecture page and AGENTS.md point there.
+- The Dotio captures were refreshed and looked at (both screenshots, first, middle and last frames of both clips). Two refreshes give byte-identical files, so the media and capture guides no longer call Dotio's captures irreproducible. The settings screenshot did not change. The tour video is not re-rendered (user decision).
+
 ### Step 6
 
 - The renames ran through clang-tidy's `readability-identifier-naming` in two passes (functions and private suffixes with the repository's configuration, then members and class constants with extra options), exported per translation unit and merged with `clang-apply-replacements`, so declarations and uses change together. Grid's and Bolt's class constants, two capture files and the member accesses of the capture tool's tests were renamed by hand afterwards.
@@ -322,6 +333,20 @@ Reading it:
 - `wander.cpp`'s `signed_unit` now uses the shared `math::unit`; `unit * 2 - 1` and the old `bits / 2^23 - 1` give the same float for every 24-bit value, so steering wander is unchanged (its tests pass unchanged).
 
 ## Verification
+
+### Step 7: Full
+
+At the top of the stack (`docs/dotio-module`), Kinetra at `feat/weighted-grid-search` (3622849):
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset dev` with `labs/dotio` warnings as errors | passed, no warnings |
+| `cmake --workflow --preset graphics` (SDL offscreen, software Mesa) | 302/307 passed. The 5 failures are trajectory fingerprints of other modules: four `kinetra_demo_crowd_characterization` cases and i4sim's RVO golden case. They fail identically with Kinetra `main` (7d3e586) on this Ubuntu GCC 13 toolchain, pass on CI's pinned Arch toolchain (PR #53 is green), and are the same cases CMakePresets.json already excludes on Windows. Pre-existing, not caused by this phase |
+| Smoke: `kinetra --frames 120`; `kinetra --variant demo\|dotio\|i4sim --frames 120` (Dotio on hard); `kinetra_demo`, `kinetra_dotio --seed 42`, `kinetra_i4sim`, each `--frames 120` | all exit 0 |
+| `tools/capture/capture_media.sh build-graphics dotio dotio-debug dotio-settings dotio-clip dotio-debug-clip`, twice | identical files |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
+| Kinetra `cmake --workflow --preset graphics` (step 3) | passed |
+| Pull request CI | #51, #53 and Kinetra #17 green; the rest see their pull requests |
 
 ### Step 6
 
@@ -365,14 +390,39 @@ Local Full (`cmake --workflow --preset graphics`) runs once on the top of the st
 
 ## Pull request
 
-Filled in per step.
+One pull request per step, stacked; each description has Summary, Changes, Verification, Review notes, Dependencies and Follow-up.
+
+| Step | Pull request | Branch | Base |
+| --- | --- | --- | --- |
+| 1 Baseline | Lab #50, `test(dotio): seeded behavior baseline and phase 6 plan` (merged) | `test/dotio-baseline` | `main` |
+| 2 Grid and seeds | Lab #51, `refactor(dotio): one grid per world and every random value from the seed` | `refactor/dotio-grid-rng` | `main` |
+| 3 Kinetra search | Kinetra #17, `feat(navigation): search a weighted grid for the nearest accepted cell` | `feat/weighted-grid-search` | `main` |
+| 4 Routes | Lab #53, `feat(dotio): plan enemy routes on Kinetra's weighted grid` | `refactor/dotio-navigation` | `refactor/dotio-grid-rng` |
+| 5 Layers | Lab #56, `refactor(dotio): runtime headers out of the logic, global usings and dead code gone` | `refactor/dotio-layers` | `refactor/dotio-navigation` |
+| 6 Names | Lab #57, `refactor(dotio): Lab naming, #pragma once and one name per field` | `refactor/dotio-conventions` | `refactor/dotio-layers` |
+| 7 Docs | `docs(dotio): module README, header contracts, warnings as errors, fresh captures` | `docs/dotio-module` | `refactor/dotio-conventions` |
+
+**Merge order:** #51; Kinetra #17 with a merge commit, then move the pointer on `refactor/dotio-navigation` to the Kinetra merge commit (the trees are identical, `git -C external/Kinetra diff --stat 3622849 <merge>` empty, so verification stands); then #53, #56, #57 and step 7, each after the one it is stacked on.
 
 ## Playtest checklist
 
-Filled in at the end of the phase.
+For the user, against the tour video's Dotio chapter (the old behavior). Play each difficulty for a few minutes, with `kinetra_dotio --seed N` so a run can be repeated:
+
+1. **Pursuit.** Break sight around a corner and run a long way. Pursuers should follow through the maze without stopping short or twitching between routes, and give up after the difficulty's pursuit cycles (Easy soonest).
+2. **Corners.** Pursuers no longer step back to the center of their own cell first; they head for the next cell at once. Check that they do not scrape or stick on wall corners.
+3. **Recovery.** An enemy out of arrows should run out of your sight, deeper for a fearful one, reload and come back. With one hit left and no shelter it turns kamikaze. Debug Mode → LAYERS → PATHS → RECOVERY and HIDING HITS show the shelter routes.
+4. **Kamikaze.** Close, bold enemies at one hit left charge and explode; out of sight they route to you.
+5. **Path wander.** ENEMIES → WANDER → PATH: wanderers sway along routes to nearby cells, as in the original game; STEERING (default) is unchanged.
+6. **Difficulty feel.** Easy, Medium, Hard should feel like before: damage per minute roughly 50 / 290 / 470 in the benchmark.
+7. **Reproducibility.** The same `--seed` and the same moves give the same game; the launcher prints its seed at start.
+8. **Debug menu.** Every row as before; the debug panel still opens with Shift+Ctrl and the DEBUG button, and takes the pointer while it is over it.
+9. **Windows build**, if you use it: the same checks there (its trajectory fingerprints are not tested in CI).
 
 ## Open points
 
-- **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, and the four random streams.
+- **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, the four random streams, the golden fingerprint (skipped on Windows), and refreshing the Dotio captures in step 7.
+- The Demo crowd characterization and i4sim RVO golden cases fail on Ubuntu's GCC 13 (locally, before and after this phase) and pass on CI's Arch toolchain. Trajectory fingerprints are compiler-sensitive; the Dotio golden fingerprint may become one too on another compiler.
+- Route following passes waypoints by distance and does not cut corners that are already in sight; a raster version of Kinetra's `route_target` would make pursuers smoother (module README, open points).
+- Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly, and the playtest should look at it.
 - `<kinetra/runtime/timing.h>` (`FixedClock`, `RateCounter`) is header-only and headless but sits under `runtime/`; Demo, Dotio and i4sim logic include it. Moving it to `view/` or `simulation/` is a Kinetra include-layout change for later.
 - `dotio::math::Vec2` duplicates `kinetra::Vec2` with extra operators (length comparisons, component products). Replacing it is a larger change than renaming and is left for later.
