@@ -20,7 +20,7 @@ The Demo is Kinetra-Lab's reference application for the public Kinetra engine: a
 
 The Demo owns its policy: world generation, the population and where it spawns, agent decisions (wander, commands, sleep), the player's controls, the tuning values and the debug menu's content. The mechanisms come from Kinetra: physics and contacts, `Navigation` (A*, swept clearance, route shortening), `steer` and reciprocal `avoid_collisions`, the spatial grid, the fixed clock, the camera, and the runtime with its overlays.
 
-It is not a collision-free crowd simulation. Steering and navigation use conservative envelopes; agents can still touch, and a dense crowd can keep an agent from arriving. Shared passing, which phase 8 of the [quality roadmap](../../docs/design/2026-11-18-quality-roadmap.md) plans, is not here.
+It is not a collision-free crowd simulation. Steering and navigation use conservative envelopes; agents can still touch, and a dense crowd can keep an agent from arriving. Shared passing, an item on the [roadmap](../../docs/roadmap.md#later), is not here.
 
 ## Controls
 

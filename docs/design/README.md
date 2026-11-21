@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-21 | [One prioritized roadmap](2026-11-21-roadmap-priorities.md): the quality roadmap closed, every open point and the user's new wishes on the roadmap in order of priority | implemented |
 | 2026-11-21 | [Roadmap as a backlog](2026-11-21-roadmap-backlog.md): `docs/roadmap.md` with the work left after the quality roadmap and the user's ideas | implemented |
 | 2026-11-21 | [Demo restructuring](2026-11-21-demo-restructuring.md): roadmap phase 5, bodies out of headers, scene operations, contact tests to Kinetra, module README | implemented |
 | 2026-11-21 | [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md): roadmap phase 7, causes from replayed runs first, then guarded passing (Reciprocal gains with passing on; off by default) and the standstill near a destination, documented as a limit | implemented |
@@ -54,6 +55,6 @@ One design document per Lab branch, written before the code and kept after mergi
 | 2026-11-19 | [Link the architecture decisions](2026-11-19-adr-index-link.md) from the Lab documentation index | implemented |
 | 2026-11-19 | [i4sim restructuring](2026-11-19-i4sim-restructuring.md): roadmap phase 4, passing safety net first | implemented |
 | 2026-11-18 | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md): roadmap phase 3, characterization tests first | implemented |
-| 2026-11-18 | [Quality roadmap](2026-11-18-quality-roadmap.md): phases for tooling, tests, shared presentation, i4sim, Demo, Dotio, predictive passing and documentation cleanup | accepted |
+| 2026-11-18 | [Quality roadmap](2026-11-18-quality-roadmap.md): phases for tooling, tests, shared presentation, i4sim, Demo, Dotio, predictive passing and documentation cleanup; closed on 2026-11-21, the rest is on the [roadmap](../roadmap.md) | implemented |
 | 2026-11-18 | [Tooling and CI](2026-11-18-tooling-and-ci.md): roadmap phase 2 | implemented |
 | 2026-11-18 | [Development process and agent rules](2026-11-18-development-process.md) | implemented |
