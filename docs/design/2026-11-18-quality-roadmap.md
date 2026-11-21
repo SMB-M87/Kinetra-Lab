@@ -1,8 +1,10 @@
 # Quality roadmap
 
-Status: accepted · Branch: one per phase · Related: [development process](2026-11-18-development-process.md), [Kinetra workflow](../../external/Kinetra/docs/workflow.md)
+Status: implemented (closed on 2026-11-21; what it left is on the [roadmap](../roadmap.md)) · Branch: one per phase · Related: [development process](2026-11-18-development-process.md), [Kinetra workflow](../../external/Kinetra/docs/workflow.md)
 
 This plan turns Kinetra-Lab and Kinetra into a codebase that has tooling, tests, clear boundaries and documentation that explains the code. It is split into phases; each phase is a separate branch with its own design document, which refines the scope written here. The phases build on each other, so the order matters.
+
+**Closed on 2026-11-21.** Phases 1 to 7 and 9 are merged. Phase 8 and every check or decision still open are items on the [roadmap](../roadmap.md), the only plan from now on. This page stays as the record of the programme, its evidence and its decisions.
 
 ## Table of contents
 
@@ -98,7 +100,7 @@ flowchart LR
 
 ## Status
 
-Updated on 2026-11-19, after phase 4.
+Updated on 2026-11-21, when the plan closed.
 
 | Phase | State | Where |
 | --- | --- | --- |
@@ -106,11 +108,11 @@ Updated on 2026-11-19, after phase 4.
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
 | 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
-| 5 Demo | Implemented: steps 1–3 (headers, scene operations, contracts and README) in Lab #52, #54 and #55; step 4 (contact tests to Kinetra) on `test/demo-contact-tests` with Kinetra #19 | [Demo restructuring](2026-11-21-demo-restructuring.md) |
-| 6 Dotio | Implemented: step 1 in Lab #50; step 2 in #51; Kinetra `WeightedGrid::search` in Kinetra #17; routes on the weighted grid in #53; layers and dead code in #56; names in #57; module README, contracts and warnings as errors on `docs/dotio-module`. Playtest by the user | [Dotio restructuring](2026-11-21-dotio-restructuring.md) |
+| 5 Demo | Implemented: steps 1–3 (headers, scene operations, contracts and README) in Lab #52, #54 and #55; step 4 (contact tests to Kinetra) in Lab #64 with Kinetra #19 | [Demo restructuring](2026-11-21-demo-restructuring.md) |
+| 6 Dotio | Implemented: step 1 in Lab #50; step 2 in #51; Kinetra `WeightedGrid::search` in Kinetra #17; routes on the weighted grid in #53; layers and dead code in #56; names in #57; module README, contracts and warnings as errors in #62. The playtest by the user is a roadmap item | [Dotio restructuring](2026-11-21-dotio-restructuring.md) |
 | 7 Predictive passing under pressure | Implemented: step 1 (causes) in Lab #49, steps 2–3 (guarded passing, measured) in Lab #58, step 4 (standstill near a destination, documented as a limit; MAKE WAY proposed, awaiting a decision) in Lab #59; passing stays off by default | [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md) |
-| 8 | Not started | This page |
-| 9 Easier try-out | In review: HTTPS submodule on `build/https-submodule`, Windows zip on `build/windows-release` (stacked); the desktop check on Windows is the user's | [HTTPS submodule](2026-11-21-https-submodule.md), [Windows release zip](2026-11-21-windows-release-zip.md) |
+| 8 Shared passing mechanism | Not started; moved to the roadmap | [Roadmap](../roadmap.md#later) |
+| 9 Easier try-out | Implemented: HTTPS submodule in Lab #47, Windows zip in #48 (stacked); the desktop check on Windows is a roadmap item | [HTTPS submodule](2026-11-21-https-submodule.md), [Windows release zip](2026-11-21-windows-release-zip.md) |
 
 ## Phase 2: tooling and CI
 
@@ -208,7 +210,7 @@ Goal: predictive passing that stays safe and keeps traffic flowing under pressur
 
 ## Phase 8: shared passing mechanism
 
-Repositories: Kinetra and Lab. Depends on phases 5, 6 and 7.
+Repositories: Kinetra and Lab. Depends on phases 5, 6 and 7. Not started; moved to the [roadmap](../roadmap.md#later) on 2026-11-21 as *Shared passing mechanism*.
 
 - **Kinetra design and ADR.** Move the proven, application-free part of predictive passing (conflict prediction, lane agreement, maneuver guard) to Kinetra. Factory policy (traffic zones, parking, junction rules) stays in i4sim.
 - **Same scenarios everywhere.** Run the phase 4 pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism and scenario set.
@@ -249,7 +251,4 @@ Two read-only audits on 2026-11-18 (Lab at `4eb5dba`, Kinetra at `b107142`) foun
 
 ## Open points
 
-- Desktop playtests and performance checks remain manual; CI cannot replace them.
-- Phase 6 starts with a short video of today's Dotio enemy behavior. Recording it needs the user's desktop.
-- Resolved in phase 4: the [layer rule](../../AGENTS.md#lab-boundaries) allows a presentation to link `Kinetra::Launcher` for its menu widgets, as i4sim's blueprint screen does.
-- Phase 4 left three session oddities as they were, for a decision on the intended behavior: `R` drops a `--ups` rate, RESET PARAMETERS sets a horizon of 8 against the default 32, and the session ignores its `output` argument ([i4sim open points](../../labs/i4sim/README.md#open-points)).
+- None: the plan closed on 2026-11-21. What it still held (phase 8, the user's checks and decisions, the i4sim session behavior) is on the [roadmap](../roadmap.md).

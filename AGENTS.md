@@ -27,7 +27,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | Write READMEs, diagrams or `///` comments | [Documentation guide](external/Kinetra/docs/documentation.md) |
 | Understand Lab targets and session flow | [System architecture](docs/architecture.md) |
 | Work on one application | Its README and architecture page (see [functionality index](#functionality-index)) |
-| Know what is planned, or record an idea | [Roadmap](docs/roadmap.md) (the backlog; `roadmap` skill), [Kinetra roadmap](external/Kinetra/docs/roadmap.md) for engine work, and the [quality roadmap](docs/design/2026-11-18-quality-roadmap.md) for the scope of phase 8 |
+| Know what is planned, or record an idea | [Roadmap](docs/roadmap.md) (the only plan, in order of priority; `roadmap` skill), and the [Kinetra roadmap](external/Kinetra/docs/roadmap.md) for engine work |
 
 ## Scope
 
@@ -82,7 +82,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 
 **Warnings.** `KINETRA_LAB_WARNINGS` (on in `dev` and `ci`) reports the shared warning set for `labs/` and `launcher/`. Engine warnings are errors in CI.
 - Lab code had 119 warnings when this was introduced. New or changed Lab code must not add any.
-- When a roadmap phase makes a module warning-free, add `kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/<module> RECURSE AS_ERRORS)` to the root `CMakeLists.txt`, so CI keeps it that way.
+- When a module becomes warning-free, add `kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/<module> RECURSE AS_ERRORS)` to the root `CMakeLists.txt`, so CI keeps it that way.
 
 ## Git with the engine submodule
 
@@ -96,7 +96,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 ## Documentation in Lab
 
 - **Module READMEs:** `launcher/README.md`, `labs/demo/README.md`, `labs/dotio/README.md` and `labs/i4sim/README.md` are the module READMEs. They follow the [module template](external/Kinetra/docs/documentation.md#module-readme-template).
-- **Thin sub-READMEs:** the navigation-only READMEs in `include/`, `src/` and `tests/` subdirectories are folded into their module README when the roadmap reaches that module.
+- **Thin sub-READMEs:** a navigation-only README in an `include/`, `src/` or `tests/` subdirectory is folded into its module README.
 - **Architecture pages:** the cross-application pages live in [docs/](docs/README.md).
 - **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md).
 - **Roadmap:** application, tool and build work that is planned or only an idea goes in [docs/roadmap.md](docs/roadmap.md); engine work in [Kinetra's roadmap](external/Kinetra/docs/roadmap.md), with a linked item in each when it needs both. Format in the [documentation guide](external/Kinetra/docs/documentation.md#roadmap).

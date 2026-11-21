@@ -1,6 +1,6 @@
 # Demo restructuring
 
-Status: implemented (step 4 waits for Kinetra access) · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra #19) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
+Status: implemented · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra #19) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
 
 Roadmap phase 5. The Demo's scene, agents and terrain live almost entirely in headers, `Scene` exposes its state as public fields that tests and the application write directly, a test suite that covers only the engine sits in Lab, and the module has no README that explains how it works. This phase moves the code into `.cpp` files, gives `Scene` operations, documents the module and moves the engine test to Kinetra, without changing behavior.
 
@@ -212,5 +212,4 @@ Dependencies and merge order: stacked on step 1; merge step 1 first.
 ## Open points
 
 - **Help overlay is reachable only from tests.** `FrameCommands::toggle_help` is set by no input mapping, and the renderer never calls `demo::draw_help`; only `application_tests.cpp` and `presentation_tests.cpp` use them. The help lines a user sees come from the settings overlay. The relevance check of 2026-11-21 marked the help overlay as done, so this phase leaves it alone. Decision for the user: remove `draw_help`, `toggle_help` and `PresentationOptions::help`, or draw the overlay from the renderer.
-- **Kinetra access.** This session could not push to `SMB-M87/Kinetra`: attaching the repository with push access was refused by the permission check, and the git proxy rejects the push. Step 4 is therefore committed locally only: Kinetra `test/contact-response-tests` (the suite, its registration, the test map, the targeted-tests table and a Kinetra design document) and Lab `test/demo-contact-tests` on top of step 3 (drops Lab's copy, updates the docs, records the Kinetra commit). To finish: push the Kinetra branch and open its pull request, then push the Lab branch with the pointer, as [AGENTS.md](../../AGENTS.md#git-with-the-engine-submodule) describes.
 - **Characterization lines and toolchains.** The recorded Demo crowd lines and the i4sim RVO golden line hold only for CI's pinned toolchain. A local check needs a run of `main` for reference; recording per-toolchain lines, or a tolerance, would make the local Full level pass as is.
