@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dotio/math/gmath.h"
+#include "dotio/math/vector.h"
 
 #include <array>
 #include <cstddef>

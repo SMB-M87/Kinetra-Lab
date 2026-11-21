@@ -1,5 +1,5 @@
 #pragma once
-#include "dotio/math/gmath.h"
+#include "dotio/math/vector.h"
 
 namespace dotio {
 /// Drawing boundary retained by the ported game; the runtime adapter owns Y-axis conversion.

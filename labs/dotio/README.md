@@ -25,7 +25,7 @@ The stable application-owned World separates game rules from input and drawing a
 flowchart LR
     Session["Dotio session: capture and commands"] --> App["Application: clocks and World ownership"]
     App --> World["World: residency, AI and combat"]
-    World --> Math["gmath compatibility"]
+    World --> Math["Legacy vectors and cells"]
     World --> Physics["Kinetra simulation through physics adapter"]
     App --> Presentation["Presentation: coordinates, camera and drawing"]
     Presentation --> Runtime["Kinetra Runtime"]
@@ -90,7 +90,7 @@ labs/dotio/
                    physics_object.h static_object.h physics_adapter.h
     ai/            state.h wander.h fuzzy.h tracker.h
     navigation/    grid.h route.h
-    math/          gmath.h random.h
+    math/          vector.h cell.h random.h
     presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
         entities/ ai/ navigation/ math/ presentation/
@@ -103,7 +103,7 @@ labs/dotio/
 | `entities/` | Moving and static world objects and their physics |
 | `ai/` | The enemy state machine, steering wander, fuzzy decisions and the population tracker |
 | `navigation/` | The occupancy grid with its route planner (Kinetra's `WeightedGrid`), and enemy routes |
-| `math/` | The small `gmath` vector helpers and seeded random values, in namespace `dotio::math` |
+| `math/` | The legacy vector and grid-cell types and seeded random values, in namespace `dotio::math` |
 | `presentation/` | Session and drawing; needs `Kinetra::Runtime` |
 
 ### Top level
@@ -168,7 +168,8 @@ classDiagram
 
 | Header | Source | Responsibility |
 | --- | --- | --- |
-| [gmath.h](include/dotio/math/gmath.h) | [gmath.cpp](src/math/gmath.cpp) | Legacy vector, position, segment and grid types; grid coordinate conversion, neighbor partitions and compatibility operators. Canonical vector math delegates to Kinetra |
+| [vector.h](include/dotio/math/vector.h) | [vector.cpp](src/math/vector.cpp) | Legacy vector (`Vec2` and its aliases), color and segment types and their operators; canonical vector math delegates to Kinetra |
+| [cell.h](include/dotio/math/cell.h) | [cell.cpp](src/math/cell.cpp) | Grid cells (`GridEntry`): conversion from and to legacy positions, and the neighbor partitions enemies separate by |
 | [random.h](include/dotio/math/random.h) | header only | Uniform values from the raw bits of a seeded `std::mt19937`, the same on every standard library |
 
 ### presentation/
