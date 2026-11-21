@@ -19,9 +19,13 @@ namespace i4sim::detail {
 /// their exit targets. See docs/factory-simulation-architecture.md#predictive-passing.
 ///
 /// A plan overrides its movers' routes with traffic controls; it never changes their
-/// goals. Ending a plan replans both routes; after a plan that did not complete, the
-/// movers join a new plan only after `passing_retry_ticks`. Plan ids start at 1 and advance whether or not
-/// events are recorded, so recording cannot change them.
+/// goals. In every tick it is checked against the movers around it: a participant waits
+/// at its braking point while a mover with priority is predicted to enter its lane ahead,
+/// and the plan ends as `obstructed` when a stationary mover stands on a remaining leg, a
+/// mover drives toward the participant along that lane, or a wait does not end. Movers
+/// behind a participant are ignored. Ending a plan replans both routes; after a plan that did not
+/// complete, the movers join a new plan only after `passing_retry_ticks`. Plan ids start
+/// at 1 and advance whether or not events are recorded, so recording cannot change them.
 class PredictivePassing {
   public:
     /// True when `motion` turns passing on for a steering profile that supports it.
@@ -29,8 +33,8 @@ class PredictivePassing {
 
     /// Number of active plans.
     std::size_t pairs() const { return plans_.size(); }
-    /// The target `mover` currently heads for in a plan: its entry target before crossing,
-    /// its exit target after.
+    /// The target `mover` currently heads for in a plan: its braking point while it waits,
+    /// otherwise its entry target before crossing and its exit target after.
     std::optional<Vec2> target(std::size_t mover) const;
 
     /// Ends every plan of `mover` with `PassingEnd::goal_changed`; called when it receives
@@ -64,6 +68,13 @@ class PredictivePassing {
         /// Least summed distance to the current targets, and the tick it was reached.
         float best_remaining{};
         std::uint64_t progress_at{};
+        /// Per participant: waiting for a mover with priority to leave the lane ahead.
+        std::array<bool, 2> waiting{};
+        /// Per participant: tick its current wait began, and the last tick a mover with
+        /// priority was predicted in its lane ahead.
+        std::array<std::uint64_t, 2> waiting_since{}, intruded_at{};
+        /// Per participant: where it stops while it waits, its braking point.
+        std::array<Vec2, 2> hold{};
     };
     std::vector<Plan> plans_;
     /// Per mover: first tick at which it may join a new plan.
@@ -71,7 +82,19 @@ class PredictivePassing {
     std::uint64_t next_plan_{1};
 
     void advance_plans(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
-                       EventLog &log);
+                       const kinetra::SpatialGrid &index, EventLog &log);
+    /// Rechecks the remaining legs of each participant of `plan` against the other movers:
+    /// starts and ends waits, and returns `PassingEnd::obstructed` when a stationary mover
+    /// stands on a remaining leg, a mover with priority drives toward the participant in
+    /// its lane ahead, or a wait lasted `passing_timeout_ticks`.
+    std::optional<PassingEnd> guard(Plan &plan, const Fleet &fleet, const MotionSettings &motion,
+                                    std::uint64_t tick, const kinetra::SpatialGrid &index) const;
+    /// Whether `plan` must yield to `other`: always when `other` is in no plan, otherwise
+    /// only to a participant of an older plan.
+    bool yields_to(const Plan &plan, std::size_t other) const;
+    /// Updates the summed progress of `plan`; true when it went `passing_timeout_ticks`
+    /// without progress.
+    static bool stalled(Plan &plan, const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick);
     void form_plans(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
                     std::uint64_t tick, const kinetra::SpatialGrid &index, EventLog &log);
     bool try_form(std::size_t a, std::size_t b, const std::vector<Vec2> &directions, const FloorPlan &floor,

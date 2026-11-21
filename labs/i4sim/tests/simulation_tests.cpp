@@ -1084,6 +1084,44 @@ std::optional<SimulationEvent> first_event(const Simulation &simulation, EventKi
 }
 } // namespace
 
+TEST_CASE("a mover that stops on a remaining passing leg ends the plan as obstructed") {
+    // Mover 2 drives to mover 0's exit target and stops there after the plan formed.
+    auto run = pressure_run("pressure-lane-intrusion", {{1900, 800}, {500, 800}, {1330, 636}});
+    std::uint64_t stopped_at = 0;
+    while (!first_event(run, EventKind::passing_ended) && run.ticks() < 5000) {
+        run.tick();
+        if (!stopped_at && !run.movers()[2].moving())
+            stopped_at = run.ticks();
+    }
+    const auto end = first_event(run, EventKind::passing_ended);
+    REQUIRE(end);
+    CHECK(end->end == PassingEnd::obstructed);
+    // The guard sees the stopped mover in the next coordination, not 240 ticks later.
+    REQUIRE(stopped_at > 0);
+    CHECK(end->tick == stopped_at + 1);
+    CHECK(run.collisions() == 0);
+}
+
+TEST_CASE("a mover crossing a passing lane makes the participant wait and the plan still completes") {
+    auto run = pressure_run("pressure-lane-intrusion", {{1900, 800}, {500, 800}, {1300, 1500}});
+    run_until_pair(run);
+    const auto formed = *first_event(run, EventKind::passing_formed);
+    bool waited = false;
+    while (run.predictive_pairs() == 1 && run.ticks() < 5000) {
+        run.tick();
+        // A waiting participant follows its braking point, neither its entry nor its exit.
+        for (std::size_t side = 0; side < 2; ++side)
+            if (const auto target = run.passing_target(side))
+                waited = waited || (kinetra::distance(*target, formed.entry[side]) > 1 &&
+                                    kinetra::distance(*target, formed.exit[side]) > 1);
+    }
+    CHECK(waited);
+    const auto end = first_event(run, EventKind::passing_ended);
+    REQUIRE(end);
+    CHECK(end->end == PassingEnd::completed);
+    CHECK(run.collisions() == 0);
+}
+
 TEST_CASE("a completed passing plan lets its movers pass the next oncoming mover at once") {
     // Mover 0 meets movers 1 and 2, which drive toward it in a column.
     auto run = pressure_run("pressure-three-oncoming", {{3300, 800}, {300, 800}, {700, 800}});
