@@ -170,11 +170,12 @@ flowchart TD
 *Takeaway:* a plan is checked against the movers around it in every tick, not only when it forms; a passing mover makes a participant wait, a standing or oncoming one ends the plan.
 
 - *Remaining legs:* before crossing, from the participant's position to its entry target and on to its exit target; while crossing, to its exit target. Swept with the footprint plus `clearance_mm`, with `crosses_mover`, so touching does not count; the formation check is stricter (touching counts), so a mover that the formation accepted next to a lane does not end the plan in the next tick.
-- *Lane ahead:* the first `speed * horizon + braking_distance(speed, force)` millimeters of the remaining legs (71 mm at the defaults). Another mover is *predicted in it* when its footprint at its position plus its velocity times 0, 4, 8, … ticks up to the horizon overlaps.
-- *Priority:* a participant yields to movers in no plan and to participants of older plans, and ignores movers whose center lies behind its own along its heading.
-- *Oncoming:* a mover in the lane ahead whose velocity against the participant's heading exceeds a quarter of the maximum speed.
+- *Lane axis:* the direction from the participant's entry to its exit target. Ahead, behind and oncoming are judged along it, because the leg to the entry target runs mostly sideways.
+- *Lane ahead:* the first `speed * horizon + braking_distance(speed, force)` millimeters of the remaining legs (71 mm at the defaults). Another mover is *predicted in it* when its footprint at its position plus its velocity times 0, 4, 8, … ticks and the horizon itself overlaps.
+- *Priority:* a participant yields to movers in no plan and to participants of older plans, and ignores movers (moving or stationary) whose center lies behind its own along the lane axis.
+- *Oncoming:* a mover in the lane ahead whose velocity against the lane axis exceeds a quarter of the maximum speed.
 - *Stationary:* idle, unreachable or held. A moving mover that only stands still is handled by waiting and the 240-tick limit.
-- *Waiting:* the participant's control target becomes its braking point, `position + velocity * |velocity| / (2 * force)`, with arrival braking; `Simulation::passing_target` reports that point, so the mint arrow shows it.
+- *Waiting:* the participant's control target becomes its braking point, `braking_distance(|velocity|, force)` ahead along its velocity, with arrival braking; `Simulation::passing_target` reports that point, so the mint arrow shows it.
 - `PassingEnd::obstructed` is appended to the enum, so the numeric values of the other reasons, which the pressure fingerprints hash, stay the same.
 
 ### Step 3: measured result
@@ -185,22 +186,22 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Reciprocal | MAS-demonstrator | 42 | 10 → 10 [10] | 0 → 0 | 25041 → 23983 [24006] | 1 (1) → 1 (1) | 4 (1) → 3 (1) | 0 → 0 |
 | Reciprocal | MAS-demonstrator | 915839214 | 16 → 16 [16] | 0 → 0 | 10842 → 10663 [12872] | 1 (1) → 1 (1) | 5 (0) → 3 (0) | 0 → 0 |
-| Reciprocal | 3840x2400 | 42 | 59 → 60 [59] | 0 → 0 | 3095 → 1385 [1583] | 0 → 0 | 11 (5) → 6 (1) | 0 → 0 |
+| Reciprocal | 3840x2400 | 42 | 59 → 60 [59] | 0 → 0 | 3095 → 1358 [1583] | 0 → 0 | 11 (5) → 6 (1) | 0 → 0 |
 | Reciprocal | 3840x2400 | 915839214 | 61 → 63 [61] | 0 → 0 | 3177 → 1811 [651] | 0 → 0 | 7 (3) → 6 (1) | 0 → 0 |
-| Reciprocal | 8640x4800 | 42 | 99 → 101 [95] | 0 → 0 | 45668 → 29516 [48187] | 6 (0) → 6 (0) | 244 (87) → 262 (132) | 0 → 0 |
-| Reciprocal | 8640x4800 | 915839214 | 103 → 102 [93] | 0 → 0 | 58203 → 44417 [64702] | 10 (2) → 10 (0) | 219 (74) → 211 (102) | 0 → 0 |
+| Reciprocal | 8640x4800 | 42 | 99 → 100 [95] | 0 → 0 | 45668 → 41273 [48187] | 6 (0) → 11 (1) [6 (0)] | 244 (87) → 236 (127) | 0 → 0 |
+| Reciprocal | 8640x4800 | 915839214 | 103 → 104 [93] | 0 → 0 | 58203 → 33500 [64702] | 10 (2) → 11 (0) [15 (1)] | 219 (74) → 220 (93) | 0 → 0 |
 | Improved | MAS-demonstrator | 42 | 14 → 16 [16] | 60 (10) → 134 (11) [53 (9)] | 5452 → 633 [278] | 1 (1) → 0 | 3 (2) → 2 (2) | 0 → 0 |
 | Improved | MAS-demonstrator | 915839214 | 14 → 16 [16] | 212 (16) → 203 (11) [204 (12)] | 2019 → 872 [288] | 1 (0) → 0 | 4 (4) → 3 (2) | 0 → 0 |
-| Improved | 3840x2400 | 42 | 58 → 59 [54] | 0 → 4 (2) [1 (1)] | 1573 → 767 [853] | 2 (0) → 1 (0) | 7 (4) → 7 (2) | 0 → 0 |
-| Improved | 3840x2400 | 915839214 | 56 → 56 [60] | 0 → 4 (2) [18 (4)] | 1538 → 1140 [1055] | 2 (0) → 3 (0) | 4 (3) → 4 (4) | 0 → 0 |
-| Improved | 8640x4800 | 42 | 96 → 100 [98] | 767 (81) → 240 (60) [384 (71)] | 34343 → 13555 [2595] | 4 (0) → 3 (0) | 242 (96) → 216 (109) | 17 → 0 |
-| Improved | 8640x4800 | 915839214 | 101 → 104 [99] | 823 (71) → 158 (45) [726 (78)] | 33940 → 12384 [2953] | 6 (0) → 2 (0) | 224 (89) → 221 (117) | 5 → 0 |
+| Improved | 3840x2400 | 42 | 58 → 59 [54] | 0 → 2 (1) [1 (1)] | 1573 → 1042 [853] | 2 (0) → 1 (0) | 7 (4) → 7 (2) | 0 → 0 |
+| Improved | 3840x2400 | 915839214 | 56 → 55 [60] | 0 → 1 (1) [18 (4)] | 1538 → 1402 [1055] | 2 (0) → 2 (0) | 4 (3) → 5 (4) | 0 → 0 |
+| Improved | 8640x4800 | 42 | 96 → 99 [98] | 767 (81) → 350 (55) [384 (71)] | 34343 → 18281 [2595] | 4 (0) → 3 (0) | 242 (96) → 212 (116) | 17 → 0 |
+| Improved | 8640x4800 | 915839214 | 101 → 102 [99] | 823 (71) → 355 (43) [726 (78)] | 33940 → 16117 [2953] | 6 (0) → 3 (0) | 224 (89) → 197 (108) | 5 → 0 |
 
-Run time on `8640x4800` under Reciprocal, measured one run after another on an otherwise idle machine (this container is about twice as slow as the machine of the roadmap's baseline): passing off 18.4 and 18.6 s before, 18.9 and 18.6 s after; passing on 27.3 and 26.7 s before, 27.8 and 27.7 s after. The guard adds about 2.5% to a passing run; passing as a whole still costs about 48% over passing off.
+Run time on `8640x4800` under Reciprocal, measured one run after another on an otherwise idle machine (this container is about twice as slow as the machine of the roadmap's baseline): passing off 18.4 and 18.6 s before, 18.9 and 18.6 s after; passing on 27.3 and 26.7 s before, 29.4 and 27.9 s after (a first run gave 32.8 and 28.5 s). The guard adds about 5% to a passing run; passing as a whole costs about 50% over passing off, as in the roadmap's baseline.
 
-- **Reciprocal, the reference profile:** with the guard, passing on completes as many products as passing off or more in all six runs (101 and 102 against 95 and 93 on `8640x4800`), still without a contact, and waits less on the large floor. Against passing on before the guard: equal or better in five runs, one product fewer in one (103 → 102). No regression.
-- **Improved:** no contact in a plan any more; on `8640x4800` 240 and 158 contacts against 384 and 726 with passing off; MAS completes 16 again, like passing off. Seed 42 on MAS touches more (134 contacts in 11 episodes against 53 in 9), and Improved still waits 4–5 times as long as without passing. Its remaining contacts are the jostling episodes of [step 1](#step-1-why-improved-has-more-contacts-with-passing): a profile limit.
-- **Plans:** about half end without completing, mostly as `obstructed` (114 and 92 of 262 and 211 under Reciprocal on `8640x4800`). The guard gives up maneuvers the traffic around them no longer allows; giving up costs less than the old 240-tick standstill before `no_progress`.
+- **Reciprocal, the reference profile:** with the guard, passing on completes as many products as passing off or more in all six runs (100 and 104 against 95 and 93 on `8640x4800`), still without a contact, and waits less than before the guard and than passing off. Against passing on before the guard: equal or better in all six runs. No regression in products, contacts or waiting. One measure is worse: with seed 42 on `8640x4800`, 11 movers are stuck at some point (one at the end) against 6 before the guard and with passing off; with the other seed 11 against 10 before and 15 off. A run this large is chaotic (a different plan changes every later encounter), so one seed does not establish a trend, but it is recorded as an open point.
+- **Improved:** no contact in a plan any more (17 and 5 before); on `8640x4800` 350 and 355 contacts against 384 and 726 with passing off and 767 and 823 before the guard; MAS completes 16 again, like passing off. Seed 42 on MAS touches more (134 contacts in 11 episodes against 53 in 9), and Improved still waits 6–7 times as long as without passing on the large floor. Its remaining contacts are the jostling episodes of [step 1](#step-1-why-improved-has-more-contacts-with-passing): a profile limit.
+- **Plans:** about half end without completing, mostly as `obstructed` (109 and 73 of 236 and 220 under Reciprocal on `8640x4800`). The guard gives up maneuvers the traffic around them no longer allows; giving up costs less than the old 240-tick standstill before `no_progress`.
 - **`MAS-demonstrator` seed 42:** Reciprocal completes 10 products with or without passing, against 16 with the other seed, and ends with one stuck mover either way. Passing does not cause the gap. It is examined with step 4.
 
 ### Step 4: a way out for a boxed-in mover
@@ -292,7 +293,7 @@ Title: `fix(i4sim): guard predictive passing while a maneuver runs`
 - Pressure suite: every case requires no contact, every mover arrived and no stuck mover; five new simulation cases.
 - i4sim README, test guide (after-phase-7 benchmark table), factory architecture, roadmap Status row.
 
-**Measured** (Release, 50,000 ticks, both seeds, three layouts; table in the design document): Reciprocal with passing on completes as many products as passing off or more in all six runs (101 and 102 against 95 and 93 on `8640x4800`), without a contact. Improved: no contact in a plan any more (17 and 5 before); on `8640x4800` 240 and 158 contacts against 384 and 726 with passing off. The guard adds about 2.5% run time.
+**Measured** (Release, 50,000 ticks, both seeds, three layouts; table in the design document): Reciprocal with passing on completes as many products as passing off or more in all six runs (100 and 104 against 95 and 93 on `8640x4800`), without a contact. Improved: no contact in a plan any more (17 and 5 before); on `8640x4800` 350 and 355 contacts against 384 and 726 with passing off. The guard adds about 5% run time. One seed shows more movers stuck at some point on `8640x4800` (11 against 6); recorded as an open point.
 
 **Design.** `docs/design/2026-11-21-i4sim-passing-under-pressure.md`
 
@@ -359,6 +360,7 @@ For the user's review (decisions taken without the user):
 - The three stacked pull requests, and Improved's extra contacts documented as a profile limit rather than changed.
 - The yield order (outside movers, then older plans), ignoring movers behind, ending at once for an oncoming mover, the 20-tick resume and the 240-tick limit before a plan ends as `obstructed`; the new end reason; no retry delay after a completed plan.
 - Passing stays off by default although Reciprocal now gains in every measured run: Improved, the default profile, stays mixed.
+- With seed 42 on `8640x4800` under Reciprocal, more movers are stuck at some point with the guard (11) than without passing (6); throughput and waiting are better. More seeds would show whether this is a trend.
 - A boxed-in mover gets a `Navigation` detour even with RECOVERY off.
 
 Known and not addressed here:

@@ -249,25 +249,25 @@ On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s wit
 - On `8640x4800`, about 35–40% of the plans end without completing.
 - Under Reciprocal, passing raises the completed products on `8640x4800` from 95 and 93 to 99 and 103 without a contact; the other four runs complete the same number. Under Improved the results are mixed and contacts increase. That is why the policy stays optional.
 
-**After roadmap phase 7** (guarded passing), measured on 2026-11-21 with the same runs. Passing off is unchanged tick for tick; each cell shows passing **off / on** with the guard, and in the last column the plans that ended `obstructed`. The phase 7 [design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result) compares them with passing on before the guard.
+**After roadmap phase 7** (guarded passing), measured on 2026-11-21 with the same runs. Passing off is unchanged tick for tick; each cell shows passing **off / on** with the guard. The phase 7 [design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result) compares them with passing on before the guard.
 
 | Profile | Blueprint | Seed | Completed | Contacts (episodes) | Waiting ticks | Stuck movers | Plans (cancelled) | Contacts in a plan |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Reciprocal | MAS-demonstrator | 42 | 10 / 10 | 0 / 0 | 24006 / 23983 | 1 (1) / 1 (1) | 3 (1) | 0 |
 | Reciprocal | MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 | 12872 / 10663 | 2 (1) / 1 (1) | 3 (0) | 0 |
-| Reciprocal | 3840x2400 | 42 | 59 / 60 | 0 / 0 | 1583 / 1385 | 0 / 0 | 6 (1) | 0 |
+| Reciprocal | 3840x2400 | 42 | 59 / 60 | 0 / 0 | 1583 / 1358 | 0 / 0 | 6 (1) | 0 |
 | Reciprocal | 3840x2400 | 915839214 | 61 / 63 | 0 / 0 | 651 / 1811 | 0 / 0 | 6 (1) | 0 |
-| Reciprocal | 8640x4800 | 42 | 95 / 101 | 0 / 0 | 48187 / 29516 | 6 (0) / 6 (0) | 262 (132) | 0 |
-| Reciprocal | 8640x4800 | 915839214 | 93 / 102 | 0 / 0 | 64702 / 44417 | 15 (1) / 10 (0) | 211 (102) | 0 |
+| Reciprocal | 8640x4800 | 42 | 95 / 100 | 0 / 0 | 48187 / 41273 | 6 (0) / 11 (1) | 236 (127) | 0 |
+| Reciprocal | 8640x4800 | 915839214 | 93 / 104 | 0 / 0 | 64702 / 33500 | 15 (1) / 11 (0) | 220 (93) | 0 |
 | Improved | MAS-demonstrator | 42 | 16 / 16 | 53 (9) / 134 (11) | 278 / 633 | 0 / 0 | 2 (2) | 0 |
 | Improved | MAS-demonstrator | 915839214 | 16 / 16 | 204 (12) / 203 (11) | 288 / 872 | 0 / 0 | 3 (2) | 0 |
-| Improved | 3840x2400 | 42 | 54 / 59 | 1 (1) / 4 (2) | 853 / 767 | 1 (0) / 1 (0) | 7 (2) | 0 |
-| Improved | 3840x2400 | 915839214 | 60 / 56 | 18 (4) / 4 (2) | 1055 / 1140 | 1 (0) / 3 (0) | 4 (4) | 0 |
-| Improved | 8640x4800 | 42 | 98 / 100 | 384 (71) / 240 (60) | 2595 / 13555 | 2 (0) / 3 (0) | 216 (109) | 0 |
-| Improved | 8640x4800 | 915839214 | 99 / 104 | 726 (78) / 158 (45) | 2953 / 12384 | 4 (1) / 2 (0) | 221 (117) | 0 |
+| Improved | 3840x2400 | 42 | 54 / 59 | 1 (1) / 2 (1) | 853 / 1042 | 1 (0) / 1 (0) | 7 (2) | 0 |
+| Improved | 3840x2400 | 915839214 | 60 / 55 | 18 (4) / 1 (1) | 1055 / 1402 | 1 (0) / 2 (0) | 5 (4) | 0 |
+| Improved | 8640x4800 | 42 | 98 / 99 | 384 (71) / 350 (55) | 2595 / 18281 | 2 (0) / 3 (0) | 212 (116) | 0 |
+| Improved | 8640x4800 | 915839214 | 99 / 102 | 726 (78) / 355 (43) | 2953 / 16117 | 4 (1) / 3 (0) | 197 (108) | 0 |
 
-- Reciprocal with passing on completes as many or more products than without in all six runs, without a contact, and waits less on `8640x4800`.
-- Improved has no contact in a plan any more; on `8640x4800` it touches less than without passing. Its contacts elsewhere come in episodes of one pair beside a parked mover, which also occur without passing, so Improved stays mixed.
+- Reciprocal with passing on completes as many products as without, or more, in all six runs, without a contact, and waits less on `8640x4800`; with seed 42 more movers are stuck at some point (11 against 6).
+- Improved has no contact in a plan any more; on `8640x4800` it touches less than without passing (350 and 355 against 384 and 726). Its contacts elsewhere come in episodes of one pair beside a parked mover, which also occur without passing, so Improved stays mixed.
 - About half of the plans on `8640x4800` end without completing, mostly as `obstructed`: the guard gives up a maneuver that traffic around it no longer allows.
 
 **Parking traffic**, Reciprocal, the same 50000-tick runs, parking traffic **off / on**:
