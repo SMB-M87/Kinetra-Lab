@@ -616,6 +616,14 @@ TEST_CASE("no enemy stands still in a moving state around a standing player for 
     }
 }
 
+// Pins a whole seeded game, so a refactor that changes any enemy decision, route or random
+// draw shows here. When a deliberate behavior change moves it, record the new value and say
+// why in the commit. Floating-point results differ between compilers, so CTest skips this
+// case on Windows (CMakePresets.json).
+TEST_CASE("a seeded game reproduces its recorded fingerprint") {
+    CHECK(scripted_run(42, 30) == 0x9d126f5dc5068339ull);
+}
+
 TEST_CASE("two worlds keep their own grids") {
     auto first = std::make_unique<dotio::World>();
     auto second = std::make_unique<dotio::World>();
