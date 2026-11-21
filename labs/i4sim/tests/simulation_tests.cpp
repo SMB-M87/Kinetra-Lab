@@ -8,6 +8,7 @@
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/flow_metrics.h"
 #include "i4sim/simulation/simulation.h"
+#include "i4sim/testing/event_counts.h"
 #include "i4sim/testing/recorder.h"
 #include "i4sim/testing/showcase.h"
 
@@ -19,9 +20,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace i4sim;
@@ -978,6 +981,50 @@ TEST_CASE("the event log records a passing plan from formation to completion") {
     }
 }
 
+TEST_CASE("a passing plan never forms with a lane across a parked mover") {
+    // Mover 2 parks on the lane mover 0 would take on its first choice of side, before the
+    // pair meets. Every plan that forms must keep each leg clear of it; with the parked
+    // mover in the way the pair may also pass without a plan.
+    Simulation run(load_blueprint(i4sim::test::fixture_blueprint("pressure-lane-intrusion")));
+    run.set_workload(false);
+    run.configure_motion(passing_motion(SteeringProfile::reciprocal));
+    run.record_events(true);
+    REQUIRE(run.move_to(2, {1100, 636}));
+    run.run();
+    while (run.movers()[2].moving() && run.ticks() < 2000)
+        run.tick();
+    REQUIRE(!run.movers()[2].moving());
+    REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800})));
+    const auto &parked = run.movers()[2].body;
+    for (std::size_t seen = 0; run.ticks() < 5000;) {
+        std::vector<Vec2> positions;
+        for (const auto &mover : run.movers())
+            positions.push_back(mover.body.position);
+        run.tick();
+        for (const auto events = run.events(); seen < events.size(); ++seen) {
+            const auto &formed = events[seen];
+            if (formed.kind != EventKind::passing_formed)
+                continue;
+            for (std::size_t side = 0; side < 2; ++side) {
+                CAPTURE(side);
+                const auto extent = run.movers()[formed.movers[side]].body.half_extents;
+                const auto crosses = [&](Vec2 from, Vec2 to) {
+                    for (float f = 0; f <= 1; f += 0.01f) {
+                        const auto p = from + (to - from) * f;
+                        if (std::abs(p.x - parked.position.x) < extent.x + parked.half_extents.x &&
+                            std::abs(p.y - parked.position.y) < extent.y + parked.half_extents.y)
+                            return true;
+                    }
+                    return false;
+                };
+                CHECK(!crosses(positions[formed.movers[side]], formed.entry[side]));
+                CHECK(!crosses(formed.entry[side], formed.exit[side]));
+            }
+        }
+    }
+    CHECK(run.collisions() == 0);
+}
+
 TEST_CASE("the event log records why a passing plan ends") {
     auto pair = passing_pair(SteeringProfile::reciprocal);
     run_until_pair(pair);
@@ -1012,6 +1059,137 @@ TEST_CASE("turning predictive passing off ends a plan as disabled") {
     CHECK(end.kind == EventKind::passing_ended);
     CHECK(end.end == PassingEnd::disabled);
     CHECK(end.tick == pair.ticks());
+}
+
+namespace {
+/// A pressure fixture from labs/i4sim/tests with manual goals, passing on (Reciprocal,
+/// heatmap costs off) and events recorded, running.
+Simulation pressure_run(std::string_view fixture, const std::vector<Vec2> &goals) {
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint(fixture)));
+    simulation.set_workload(false);
+    simulation.configure_motion(passing_motion(SteeringProfile::reciprocal));
+    for (std::size_t mover = 0; mover < goals.size(); ++mover)
+        REQUIRE(simulation.move_to(mover, goals[mover]));
+    simulation.record_events(true);
+    simulation.run();
+    return simulation;
+}
+
+/// The first event of `kind` at or after `from`, if any.
+std::optional<SimulationEvent> first_event(const Simulation &simulation, EventKind kind,
+                                           std::size_t from = 0) {
+    const auto events = simulation.events();
+    for (std::size_t i = from; i < events.size(); ++i)
+        if (events[i].kind == kind)
+            return events[i];
+    return std::nullopt;
+}
+} // namespace
+
+TEST_CASE("a mover that stops on a remaining passing leg ends the plan as obstructed") {
+    // Mover 2 drives to mover 0's exit target and stops there after the plan formed.
+    auto run = pressure_run("pressure-lane-intrusion", {{1900, 800}, {500, 800}, {1330, 636}});
+    std::uint64_t stopped_at = 0;
+    while (!first_event(run, EventKind::passing_ended) && run.ticks() < 5000) {
+        run.tick();
+        if (!stopped_at && !run.movers()[2].moving())
+            stopped_at = run.ticks();
+    }
+    const auto end = first_event(run, EventKind::passing_ended);
+    REQUIRE(end);
+    CHECK(end->end == PassingEnd::obstructed);
+    // The guard sees the stopped mover in the next coordination, not 240 ticks later.
+    REQUIRE(stopped_at > 0);
+    CHECK(end->tick == stopped_at + 1);
+    CHECK(run.collisions() == 0);
+}
+
+TEST_CASE("a mover crossing a passing lane makes the participant wait and the plan still completes") {
+    auto run = pressure_run("pressure-lane-intrusion", {{1900, 800}, {500, 800}, {1300, 1500}});
+    run_until_pair(run);
+    const auto formed = *first_event(run, EventKind::passing_formed);
+    bool waited = false;
+    while (run.predictive_pairs() == 1 && run.ticks() < 5000) {
+        run.tick();
+        // A waiting participant follows its braking point, neither its entry nor its exit.
+        for (std::size_t side = 0; side < 2; ++side)
+            if (const auto target = run.passing_target(side))
+                waited = waited || (kinetra::distance(*target, formed.entry[side]) > 1 &&
+                                    kinetra::distance(*target, formed.exit[side]) > 1);
+    }
+    CHECK(waited);
+    const auto end = first_event(run, EventKind::passing_ended);
+    REQUIRE(end);
+    CHECK(end->end == PassingEnd::completed);
+    CHECK(run.collisions() == 0);
+}
+
+TEST_CASE("a mover driving toward a participant along its lane ends the plan as obstructed") {
+    // Without path planning every mover steers straight at its goal, so the pair meets on
+    // y = 800 and mover 0's lane lies at y = 735.5. Mover 2 starts at the east wall on that
+    // line and drives west along it, past mover 1 in its own lane and toward mover 0.
+    auto blueprint = load_blueprint(i4sim::test::fixture_blueprint("pressure-lane-intrusion"));
+    blueprint.movers[2].position = {2273.5, 679};
+    Simulation run(blueprint);
+    run.set_workload(false);
+    auto motion = passing_motion(SteeringProfile::reciprocal);
+    motion.path_planning = false;
+    run.configure_motion(motion);
+    run.record_events(true);
+    // Mover 2 leaves 80 ticks before the pair, so it reaches mover 0's lane while the
+    // pair still passes.
+    REQUIRE(run.move_to(2, {300, 735.5}));
+    run.run();
+    for (int tick = 0; tick < 80; ++tick)
+        run.tick();
+    REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800})));
+    run_until_pair(run);
+    const auto formed = *first_event(run, EventKind::passing_formed);
+    REQUIRE(formed.movers == std::array<std::size_t, 2>{0, 1});
+    REQUIRE(std::abs(formed.exit[0].y - 735.5f) < 2);
+    while (!first_event(run, EventKind::passing_ended) && run.ticks() < 3000)
+        run.tick();
+    const auto end = first_event(run, EventKind::passing_ended);
+    REQUIRE(end);
+    CHECK_MESSAGE(end->end == PassingEnd::obstructed, "ended as " << name(*end->end));
+    // At once, not after a 240-tick wait: waiting cannot clear a mover that drives toward it.
+    CHECK(end->tick - formed.tick < 240);
+    for (int tick = 0; tick < 3000; ++tick)
+        run.tick();
+    CHECK(run.collisions() == 0);
+}
+
+TEST_CASE("a completed passing plan lets its movers pass the next oncoming mover at once") {
+    // Mover 0 meets movers 1 and 2, which drive toward it in a column.
+    auto run = pressure_run("pressure-three-oncoming", {{3300, 800}, {300, 800}, {700, 800}});
+    while (run.events().size() < 4 && run.ticks() < 6000)
+        run.tick();
+    const auto events = run.events();
+    REQUIRE(events.size() >= 4);
+    CHECK(events[2].kind == EventKind::passing_ended);
+    CHECK(events[2].end == PassingEnd::completed);
+    CHECK(events[3].kind == EventKind::passing_formed);
+    CHECK(events[3].movers == std::array<std::size_t, 2>{0, 2});
+    CHECK(events[3].tick - events[2].tick < 120);
+}
+
+TEST_CASE("movers of a cancelled passing plan wait before they form a new one") {
+    auto pair = passing_pair(SteeringProfile::reciprocal);
+    run_until_pair(pair);
+    // Holding mover 1 ends the plan; releasing it 100 ticks later leaves the pair room for
+    // a new plan, which may only form 120 ticks after the end.
+    pair.toggle_mover(1);
+    for (int tick = 0; tick < 100; ++tick)
+        pair.tick();
+    pair.toggle_mover(1);
+    const auto cancelled = pair.events().back();
+    REQUIRE(cancelled.end == PassingEnd::participant_held);
+    const auto seen = pair.events().size();
+    while (!first_event(pair, EventKind::passing_formed, seen) && pair.ticks() < cancelled.tick + 1000)
+        pair.tick();
+    const auto again = first_event(pair, EventKind::passing_formed, seen);
+    REQUIRE(again);
+    CHECK(again->tick == cancelled.tick + 120);
 }
 
 namespace {
@@ -1155,6 +1333,28 @@ TEST_CASE("the event log records each contact once with its tick and participant
     CHECK(border.border);
     CHECK(border.movers[0] == 0);
     CHECK(border.movers[1] < wall.borders().size());
+}
+
+TEST_CASE("contact episodes group the repeated contacts of one pair") {
+    const auto contact = [](std::uint64_t tick, std::size_t a, std::size_t b, bool border = false) {
+        SimulationEvent event{.tick = tick, .kind = EventKind::contact, .movers = {a, b}};
+        event.border = border;
+        return event;
+    };
+    // Pair 0-1 touches three times within 500 ticks of each other, then again after 500;
+    // pair 0-2 and mover 0 against border 1 are separate episodes, and passing events
+    // do not count.
+    const std::vector<SimulationEvent> events{
+        contact(10, 0, 1),
+        contact(300, 0, 1),
+        contact(799, 0, 1),
+        contact(1299, 0, 1),
+        contact(310, 0, 2),
+        contact(320, 0, 1, true),
+        {.tick = 330, .kind = EventKind::passing_formed, .plan = 1, .movers = {0, 1}}};
+    CHECK(i4sim::test::contact_episodes(events) == 4);
+    CHECK(i4sim::test::contact_episodes(events, 100) == 6);
+    CHECK(i4sim::test::contact_episodes({}) == 0);
 }
 
 TEST_CASE("recording events is opt-in and does not change the run") {

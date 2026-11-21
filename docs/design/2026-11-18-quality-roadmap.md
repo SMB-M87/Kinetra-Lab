@@ -108,7 +108,8 @@ Updated on 2026-11-19, after phase 4.
 | 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
 | 5 Demo | Implemented: step 1 (headers) in Lab #52, step 2 (scene operations) in Lab #54, step 3 (contracts and README) on `docs/demo-module`; step 4 (contact tests to Kinetra) committed locally, waiting for Kinetra push access | [Demo restructuring](2026-11-21-demo-restructuring.md) |
 | 6 Dotio | In progress: step 1 (statistics baseline) on `test/dotio-baseline` | [Dotio restructuring](2026-11-21-dotio-restructuring.md) |
-| 7, 8 | Not started | This page |
+| 7 Predictive passing under pressure | In review: step 1 (causes) in Lab #49, steps 2–3 (guarded passing, measured) on `fix/i4sim-guarded-passing`, step 4 (standstill near a destination, documented as a limit with a proposed remedy) on `docs/i4sim-destination-standstill`, stacked; passing stays off by default | [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md) |
+| 8 | Not started | This page |
 | 9 Easier try-out | In review: HTTPS submodule on `build/https-submodule`, Windows zip on `build/windows-release` (stacked); the desktop check on Windows is the user's | [HTTPS submodule](2026-11-21-https-submodule.md), [Windows release zip](2026-11-21-windows-release-zip.md) |
 
 ## Phase 2: tooling and CI

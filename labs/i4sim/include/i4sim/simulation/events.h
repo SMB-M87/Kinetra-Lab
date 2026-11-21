@@ -23,7 +23,7 @@ enum class EventKind {
 /// Why a passing plan was removed. When several reasons apply in the same tick, the
 /// simulation records the first it finds: `disabled`; then for each participant in
 /// turn `participant_stopped`, `participant_held`, `traffic_control`; then
-/// `no_progress`; and only when none applies, `completed`. `goal_changed` is recorded
+/// `obstructed`; then `no_progress`; and only when none applies, `completed`. `goal_changed` is recorded
 /// immediately when a participant receives a goal, and `disabled` when a motion change
 /// turns passing off.
 enum class PassingEnd {
@@ -45,6 +45,10 @@ enum class PassingEnd {
     /// decision, or a PLANNER change (path planning or heatmap) that plans every route
     /// again.
     goal_changed,
+    /// A mover that stands still (idle, unreachable or held) is on a participant's
+    /// remaining lane, another mover drives toward a participant along its lane, or a
+    /// participant waited 240 ticks for a mover to leave its lane ahead.
+    obstructed,
 };
 
 /// One entry of the simulation event log (see `Simulation::record_events`).
@@ -105,6 +109,8 @@ constexpr std::string_view name(PassingEnd end) {
         return "no_progress";
     case PassingEnd::goal_changed:
         return "goal_changed";
+    case PassingEnd::obstructed:
+        return "obstructed";
     }
     return "unknown";
 }
