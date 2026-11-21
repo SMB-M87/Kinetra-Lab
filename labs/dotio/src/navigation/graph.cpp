@@ -70,8 +70,8 @@ bool Graph::AStar(const dotio::math::GridEntry &start, const dotio::math::GridEn
     return false;
 }
 
-bool Graph::HideStar(const dotio::math::GridEntry &start, const dotio::math::Position &player,
-                     const float fear, Vertex &output) {
+bool Graph::HideStar(const dotio::Grid &grid, const dotio::math::GridEntry &start,
+                     const dotio::math::Position &player, const float fear, Vertex &output) {
     ClearAll();
     dotio::PriorityQueue q(start);
 
@@ -98,8 +98,7 @@ bool Graph::HideStar(const dotio::math::GridEntry &start, const dotio::math::Pos
         intersection.X += dotio::Grid::CellSize / 2;
         intersection.Y += dotio::Grid::CellSize / 2;
 
-        if (dotio::Grid::IsIntersectingAnyCell(
-                {intersection, player}, reinterpret_cast<const int *>(dotio::Grid::Array), intersection)) {
+        if (grid.IsIntersectingAnyCell({intersection, player}, intersection)) {
             count++;
             if (count > fear) {
                 output = *vertex;

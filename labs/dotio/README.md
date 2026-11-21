@@ -33,7 +33,7 @@ flowchart LR
 
 ## Launch and controls
 
-The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels difficulty selection. Direct `--variant dotio --difficulty hard` skips the menu. The independent `kinetra_dotio` executable accepts `--difficulty` and `--frames`. `--agents` in the bundled launcher affects Demo only.
+The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels difficulty selection. Direct `--variant dotio --difficulty hard` skips the menu. The independent `kinetra_dotio` executable accepts `--difficulty`, `--frames` and `--seed N`; it prints the seed it plays, and the same seed gives the same maze and the same enemy decisions for the same input. The bundled launcher prints a random world seed at start; `kinetra_dotio --seed` replays it. `--agents` in the bundled launcher affects Demo only.
 
 | Input | Behavior |
 | --- | --- |
@@ -277,7 +277,7 @@ cmake --build --preset release --target kinetra_dotio_behavior_benchmark
 
 The baseline of phase 6 is in [Dotio restructuring](../../docs/design/2026-11-21-dotio-restructuring.md#baseline).
 
-Dotio's collision grid, `dotio::Grid::Array`, is global state. Generating or initializing a world overwrites all of it; cases that build on the plain bordered arena call `open_map()` first. No case depends on another case or on the order in which they run.
+Every world owns its grid (`dotio::World::grid()`); cases that build on the plain bordered arena call `open_map()` on it, and `fixture()` starts on one. No case depends on another case or on the order in which they run.
 
 From the repository root, for the tests that need no window:
 
@@ -293,7 +293,7 @@ One case runs on its own through CTest (`-R 'kinetra_dotio:a failed escape'`) or
 
 ### Limits
 
-Static raster storage permits only one active Dotio world. Absolute district integers and local float precision remain finite. Cross-platform random sequences/timing are not promised. Teleport tests destination clearance, not a swept route. Gameplay balance and desktop feel require manual Artix checks.
+Absolute district integers and local float precision remain finite. Cross-platform random sequences/timing are not promised. Teleport tests destination clearance, not a swept route. Gameplay balance and desktop feel require manual Artix checks.
 
 ## Provenance
 

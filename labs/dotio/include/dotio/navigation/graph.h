@@ -20,8 +20,8 @@ class Graph {
     void AddVertex(const dotio::math::GridEntry &cell);
     Vertex &GetVertex(const dotio::math::GridEntry &cell);
     bool AStar(const dotio::math::GridEntry &start, const dotio::math::GridEntry &goal, Vertex &output);
-    bool HideStar(const dotio::math::GridEntry &start, const dotio::math::Position &player, const float fear,
-                  Vertex &output);
+    bool HideStar(const dotio::Grid &grid, const dotio::math::GridEntry &start,
+                  const dotio::math::Position &player, const float fear, Vertex &output);
     dotio::Stack GetPath(const dotio::math::GridEntry &start, const Vertex &goal);
 };
 } // namespace dotio

@@ -1,30 +1,25 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/portable.h"
+#include "dotio/math/random.h"
 #include <map>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
 
 namespace dotio {
-kinetra::CollisionGrid Grid::CollisionView(const int *cells) {
-    return {{cells, std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
+kinetra::CollisionGrid Grid::CollisionView() const {
+    return {{&Array[0][0], std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
 }
-
-const dotio::math::GridSize Grid::GridSize{Rows, Columns};
-dotio::math::Coordinates Grid::Origin = {0.0f, 0.0f};
-float Grid::CellSize = 100.0f;
-
-int Grid::Array[Rows][Columns]{};
 
 // Seeded depth-first mazes reproduce the narrow, irregular passages of the original
 // hand-authored map. Shared edge ports join independently generated 32-cell districts.
-int Grid::TerrainCell(std::uint32_t seed, int row, int column) {
+int Grid::TerrainCell(std::uint32_t seed, int row, int column) const {
     constexpr int size = 32;
     const int y = (row % size + size) % size, x = (column % size + size) % size;
     const int dy = (row - y) / size, dx = (column - x) / size;
     using Cells = std::array<int, size * size>;
-    static thread_local std::map<std::tuple<std::uint32_t, int, int>, Cells> cache;
+    auto &cache = terrain_cache_;
     const auto key = std::tuple{seed, dy, dx};
     if (const auto found = cache.find(key); found != cache.end())
         return found->second[y * size + x];
@@ -133,15 +128,14 @@ void Grid::Generate(std::uint32_t seed, int offset_row, int offset_column) {
             Array[row][column] = TerrainCell(seed, row + offset_row, column + offset_column);
 }
 
-void Grid::HandleGridCollision(dotio::PhysicsObject &object, const float, const int *cells) {
+void Grid::HandleGridCollision(dotio::PhysicsObject &object) const {
     auto body = dotio::physics_body(object);
-    kinetra::collide_grid(body, CollisionView(cells));
+    kinetra::collide_grid(body, CollisionView());
     dotio::apply_body(object, body);
 }
 
-bool Grid::GridIntersection(const dotio::math::Segment &segment, const int *cells,
-                            dotio::math::Point2 &intersection) {
-    return IsIntersectingAnyCell(segment, cells, intersection);
+bool Grid::GridIntersection(const dotio::math::Segment &segment, dotio::math::Point2 &intersection) const {
+    return IsIntersectingAnyCell(segment, intersection);
 }
 
 bool Grid::SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 center,
@@ -164,19 +158,16 @@ uint8_t Grid::SegementCircleIntersection(const dotio::math::Segment &segment,
     return flags;
 }
 
-bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, const int *cells,
-                                 dotio::math::Point2 &intersection) {
-    if (const auto fraction = kinetra::segment_grid(
-            dotio::physics_vector(segment.Start), dotio::physics_vector(segment.End), CollisionView(cells))) {
+bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const {
+    if (const auto fraction = kinetra::segment_grid(dotio::physics_vector(segment.Start),
+                                                    dotio::physics_vector(segment.End), CollisionView())) {
         intersection = segment.Start + (segment.End - segment.Start) * *fraction;
         return true;
     }
     return false;
 }
 
-dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) {
-    std::random_device random;
-    std::mt19937 generator(random());
+dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin, std::mt19937 &random) const {
     const int center_row = std::clamp(origin.Row, 0, Rows - 1);
     const int center_col = std::clamp(origin.Column, 0, Columns - 1);
     std::vector<dotio::math::GridEntry> candidates;
@@ -187,26 +178,18 @@ dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) {
                 candidates.push_back({row, col});
     if (candidates.empty())
         throw std::runtime_error("No free Dotio wander cell in the local neighborhood");
-    std::uniform_int_distribution<std::size_t> choose(0, candidates.size() - 1);
-    return candidates[choose(generator)];
+    return candidates[std::size_t(dotio::math::index(random, int(candidates.size())))];
 }
 
-dotio::math::Position Grid::GeneratePosition() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    int minIndex = 3;
-    int maxIndexRow = dotio::Grid::GridSize.Rows - minIndex;
-    int maxIndexCol = dotio::Grid::GridSize.Columns - minIndex;
-
-    std::uniform_int_distribution<int> dis_row(minIndex, maxIndexRow);
-    std::uniform_int_distribution<int> dis_col(minIndex, maxIndexCol);
-
+dotio::math::Position Grid::GeneratePosition(std::mt19937 &random) const {
+    // Rows and columns from 3 to 152, both included, as the original game chose them.
+    constexpr int margin = 3;
+    constexpr int choices = Rows - 2 * margin + 1;
     int row, column;
     do {
-        row = dis_row(gen);
-        column = dis_col(gen);
-    } while (dotio::Grid::Array[row][column] != 0);
+        row = margin + dotio::math::index(random, choices);
+        column = margin + dotio::math::index(random, choices);
+    } while (Array[row][column] != 0);
     float posX = column * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     float posY = row * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     return {posX, posY};

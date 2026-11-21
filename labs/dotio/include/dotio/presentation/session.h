@@ -20,8 +20,8 @@ class Application;
 
 /// A Dotio session that also shows the application it runs.
 ///
-/// Input alone cannot tell a tool where the enemies are, and the AI is not seeded, so a
-/// script cannot know it in advance. A tool that plays the game, such as the capture tool's
+/// Input alone cannot tell a tool where the enemies are, and a script cannot follow every
+/// decision of the AI in advance. A tool that plays the game, such as the capture tool's
 /// scripted player, reads the world here and answers with ordinary input.
 class Session : public kinetra_lab::Session {
   public:
@@ -33,7 +33,6 @@ class Session : public kinetra_lab::Session {
 
 /// Creates a Dotio session at the difficulty with index `difficulty`; throws
 /// std::invalid_argument for an index outside difficulty_names(). The caller sets the
-/// camera to dotio::initial_zoom for a fresh start. Dotio's world is a singleton, so at
-/// most one session may exist at a time.
+/// camera to dotio::initial_zoom for a fresh start. Each session owns its own world.
 std::unique_ptr<Session> create_session(std::uint32_t seed, std::size_t difficulty);
 } // namespace dotio
