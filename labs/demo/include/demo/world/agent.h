@@ -19,9 +19,14 @@ namespace demo {
 /// routes, as WanderTuning::mode says; both turn back beyond the home range.
 class Agent {
   public:
+    /// An agent for world body `body_id`, wandering around `home`. Its random sequence is
+    /// derived from `seed` and the body id, so agents of one scene wander differently but
+    /// repeatably. It starts dormant: update_visibility() wakes it.
     Agent(std::size_t body_id, kinetra::Vec2 home, std::uint32_t seed = 0);
 
+    /// World body id of the agent's body, kept current by the scene.
     std::size_t body_id() const { return body_id_; }
+    /// Points the agent at body `id` after the scene renumbered the world.
     void remap_body(std::size_t id) { body_id_ = id; }
     /// Where the agent was placed; the center of the range it wanders in.
     kinetra::Vec2 home() const { return home_; }
@@ -30,17 +35,27 @@ class Agent {
     kinetra::Vec2 goal() const { return goal_; }
     /// Waypoints still ahead; empty while the agent steers without a route.
     std::span<const kinetra::Vec2> route() const { return route_; }
+    /// Whether the agent is awake: its body overlapped the active view at the last
+    /// update_visibility(). Dormant agents neither steer nor take commands.
     bool active() const { return active_; }
+    /// Simulated seconds until the route is planned again; zero or less means at the next
+    /// active tick.
     float replan_in() const { return replan_in_; }
+    /// Whether the agent wanders, rather than travelling to a commanded goal.
     bool wandering() const { return wandering_; }
     /// Whether the last active tick wandered by steering. Such an agent follows no route, so
     /// only local avoidance keeps it clear of terrain, and there is no route to draw. False
     /// during route wander and commanded travel, and for a dormant agent.
     bool steers_without_route() const { return steers_without_route_; }
 
-    /// Keep the displayed route until the next active tick computes a replacement.
+    /// Commands an awake agent to travel to `destination` for at most 20 active simulated
+    /// seconds; a dormant agent ignores it. Keeps the displayed route until the next active
+    /// tick computes a replacement.
     void retarget(kinetra::Vec2 destination);
+    /// Plans the route again at the next active tick, for example after terrain changed.
     void invalidate_route() { replan_in_ = 0; }
+    /// Wakes the agent when `body`, its own body, overlaps `view`, and puts it to sleep
+    /// otherwise. Falling asleep drops the route; waking up replans it.
     void update_visibility(kinetra::Aabb view, const kinetra::Body &body);
 
     /// Advance active patrol/replanning state and consume reached waypoints.
@@ -68,7 +83,9 @@ class Agent {
     /// avoid spinning in enclosed terrain. Beyond the home range a leg starts toward home.
     void choose_wander_goal(const kinetra::Body &body, const kinetra::Navigation &navigation,
                             const WanderTuning &wander);
+    /// A seeded random value in [0, 1).
     float unit() { return float(random_() >> 8) / 16777216.f; }
+    /// Simulated seconds between two plans of the same route.
     static constexpr float replan_interval = 2;
     /// One full turn in radians.
     static constexpr float full_turn = 6.283185307f;
