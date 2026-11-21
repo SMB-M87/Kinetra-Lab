@@ -117,8 +117,8 @@ TEST_CASE("the coordinated factory reproduces its recorded summary") {
         run_factory(recorder, fixture_blueprint("MAS-demonstrator"), 42, coordinated_motion(), 20000);
     check_summary(
         "factory coordinated", recorder, simulation,
-        "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=33 distance_mm=28894.994 "
-        "trajectory=4ddfccb8b11ef0ff");
+        "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=33 distance_mm=28843.187 "
+        "trajectory=0db5b6760196d5cd");
 }
 
 TEST_CASE("the coordinated large factory reproduces its recorded summary") {

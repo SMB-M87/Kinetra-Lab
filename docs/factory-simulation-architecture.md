@@ -266,21 +266,31 @@ the swept envelopes of existing pairs. Detected narrow passages are excluded eve
 when their optional admission policy is off. Corridor recovery has precedence.
 If no candidate fits, ordinary steering keeps its existing route.
 
+Every tick a guard rechecks each participant's remaining legs against the current
+bodies. A stationary mover (idle, unreachable or held) on a remaining leg, or a mover
+driving toward the participant along its lane, ends the plan as `obstructed`. A mover
+predicted, along its current velocity, to enter the lane the participant reaches within
+the steering horizon plus its braking distance makes the participant stop at its braking
+point; it resumes once that lane has been clear for 20 ticks, and a 240-tick wait ends
+the plan as `obstructed`. Participants yield to movers outside every plan and to older
+plans, and ignore movers behind them.
+
 Disabling the feature, blocking a participant or issuing a new goal releases the
 pair and rebuilds the original routes. A pair also releases after 240 ticks without
-measurable progress; both participants wait 120 ticks before retrying. Body positions
+measurable progress. After a plan that did not complete, both participants wait 120
+ticks before retrying; after a completed one they may pair again at once. Body positions
 are never snapped by this policy. Existing local avoidance and contact correction
-remain active. Snapshot checks do not reserve space against later intrusions by
-unrelated movers; this is not a general collision-free or starvation-free scheduler.
+remain active. The guard predicts along current velocities; this is not a general
+collision-free or starvation-free scheduler.
 
 Each plan has an id. With the event log on (`Simulation::record_events`), the
 simulation records the plan's formation with both entry and exit targets, the start
 of crossing, and its end with the first reason that applied, in the order the policy
-checks them: completed, disabled, participant stopped, participant held, corridor
-recovery took a participant, no progress, or a new goal. Contact starts are recorded
+checks them: disabled, participant stopped, participant held, corridor recovery took a
+participant, obstructed, no progress, completed, or a new goal. Contact starts are recorded
 with tick and participants, flagged when a participant was in a plan. Recording never
 changes a decision. The [pressure scenarios](../labs/i4sim/tests/README.md#golden-and-pressure-lines)
-record today's outcomes in situations the snapshot checks do not cover.
+require contact-free arrival in situations a formation check alone does not cover.
 The [regression and benchmark guide](../labs/i4sim/tests/README.md) describes coverage.
 
 ## Verification
