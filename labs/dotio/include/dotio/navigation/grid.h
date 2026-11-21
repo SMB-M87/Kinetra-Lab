@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <random>
 #include <tuple>
 
 namespace dotio {
@@ -52,9 +53,13 @@ class Grid {
     /// first point it does.
     bool IsIntersectingAnyCell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const;
 
-    dotio::math::GridEntry GenerateGridEntry(dotio::math::GridEntry origin) const;
+    /// A free cell at most five cells from `origin` in each direction, drawn from `random`.
+    /// Throws std::runtime_error when there is none.
+    dotio::math::GridEntry GenerateGridEntry(dotio::math::GridEntry origin, std::mt19937 &random) const;
 
-    dotio::math::Position GeneratePosition() const;
+    /// Center of a free cell at least three cells inside the window, drawn from `random`.
+    /// Draws until it finds one; the window must have a free cell there.
+    dotio::math::Position GeneratePosition(std::mt19937 &random) const;
 
   private:
     /// Generated 32-cell districts by (seed, district row, district column).

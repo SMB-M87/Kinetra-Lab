@@ -3,6 +3,7 @@
 #include "dotio/ai/wander.h"
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/portable.h"
+#include "dotio/math/random.h"
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
 
@@ -285,10 +286,7 @@ void Enemy::ResetPursue() {
 }
 void Enemy::Reset() {
     HitsRemaining = _world->difficulty_settings().enemy_hits;
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(2.0f, 10.0f);
-    Fear = dis(gen);
+    Fear = dotio::math::uniform(_world->behavior_random(), spawn_fear_min, spawn_fear_max);
     _state = &_wander;
     RandomizeWander(*this);
     IsActive = true;

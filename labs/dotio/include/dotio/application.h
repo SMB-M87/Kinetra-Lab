@@ -239,8 +239,8 @@ class Application {
     /// Fraction of the next tick already accumulated, in [0, 1); one while paused, so a
     /// paused frame shows the exact state.
     double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
-    explicit Application(std::uint32_t seed = std::random_device{}(),
-                         dotio::Difficulty difficulty = dotio::Difficulty::medium) {
+    /// A world for `seed` at `difficulty`; the same seed and the same commands give the same run.
+    explicit Application(std::uint32_t seed, dotio::Difficulty difficulty = dotio::Difficulty::medium) {
         world_->Initialize(seed, difficulty);
     }
 

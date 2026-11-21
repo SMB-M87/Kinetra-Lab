@@ -38,6 +38,10 @@ class World {
     std::mt19937 population_random_{0};
     /// Wander headings and their drift; its own stream, so spawning does not shift it.
     std::mt19937 wander_random_{0};
+    /// Enemy fear and path-wander targets; its own stream, so spawning does not shift it.
+    std::mt19937 behavior_random_{0};
+    /// Spawn points of the player and the ghost, and the dormant pool's first positions.
+    std::mt19937 placement_random_{0};
     int offset_row_{}, offset_column_{};
     void RefreshGraphCell(int row, int column);
     std::array<int, 4> resident_cells_{-1, -1, -1, -1};
@@ -60,9 +64,10 @@ class World {
 
     /// Starts a new world for `seed` at `difficulty`: terrain, player, a dormant enemy pool,
     /// the preset of the difficulty as settings() and a default enemy_tuning(). The seed also
-    /// seeds wander_random(). Throws std::invalid_argument for a difficulty without a preset,
-    /// before anything changes.
-    void Initialize(std::uint32_t seed = std::random_device{}(), Difficulty difficulty = Difficulty::medium);
+    /// seeds every random stream of the world, so the same seed and the same commands give the
+    /// same run. Throws std::invalid_argument for a difficulty without a preset, before
+    /// anything changes.
+    void Initialize(std::uint32_t seed, Difficulty difficulty = Difficulty::medium);
     /// The balance this world runs with. It starts as the preset of the difficulty and
     /// follows every change made through settings().
     const DifficultySettings &difficulty_settings() const { return settings_; }
@@ -84,6 +89,9 @@ class World {
     /// Seeded from the world's seed in Initialize(), so the same seed and the same calls
     /// give the same wander. Only the wander code draws from it.
     std::mt19937 &wander_random() { return wander_random_; }
+    /// Generator behind enemy fear (on spawn, reset and reload) and the targets and jitter of
+    /// path-mode wander. Seeded from the world's seed in Initialize().
+    std::mt19937 &behavior_random() { return behavior_random_; }
 
     /// Starts a new life after the player's death: respawns the player and retires every
     /// enemy and projectile. Difficulty, settings() and enemy_tuning() stay as they are.

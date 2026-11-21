@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <numbers>
@@ -461,6 +462,53 @@ TEST_CASE("the generated arena is reproducible per seed and its floor is connect
     CHECK_MESSAGE(changed, "Different arena seeds produced identical geometry");
 }
 
+namespace {
+/// Plays `seconds` of a Medium game from `seed` with a scripted player that walks in a
+/// turning circle and shoots ahead, and returns a hash of the player's and every enemy's
+/// position, state and resources, sampled every tick.
+std::uint64_t scripted_run(std::uint32_t seed, int seconds) {
+    auto application = std::make_unique<dotio::Application>(seed);
+    kinetra::Camera2D camera;
+    camera.viewport = {1280, 720};
+    camera.pixels_per_unit = dotio::initial_zoom;
+    std::uint64_t hash = 1469598103934665603ull;
+    const auto mix = [&hash](double value) {
+        hash = (hash ^ std::uint64_t(std::int64_t(std::llround(value * 64)))) * 1099511628211ull;
+    };
+    for (int tick = 0; tick < seconds * 60; ++tick) {
+        const float angle = float(tick) * 0.01f;
+        dotio::Commands commands;
+        commands.direction = {std::cos(angle), std::sin(angle)};
+        commands.shoot = tick % 30 < 15;
+        commands.aim = camera.position + kinetra::Vec2{std::cos(angle * 3), std::sin(angle * 3)} * 10.f;
+        application->advance(1.0 / 60, commands, camera);
+        auto &world = application->world();
+        const auto &player = world.GetPlayer();
+        mix(player.Position.X);
+        mix(player.Position.Y);
+        mix(player.Health);
+        mix(player.Kills);
+        mix(double(world.ResetCount()));
+        for (auto &enemy : world.GetEnemies()) {
+            if (!enemy.IsActive)
+                continue;
+            mix(enemy.Position.X);
+            mix(enemy.Position.Y);
+            mix(enemy.Fear);
+            mix(enemy.IsAttacking() + 2 * enemy.IsPursueing() + 4 * enemy.IsRecovering() +
+                8 * enemy.IsKamikazing());
+        }
+    }
+    return hash;
+}
+} // namespace
+
+TEST_CASE("one seed and one command sequence give the same run and another seed differs") {
+    const auto first = scripted_run(42, 30);
+    CHECK_MESSAGE(first == scripted_run(42, 30), "The same seed and commands gave two different runs");
+    CHECK_MESSAGE(first != scripted_run(43, 30), "Two seeds gave the same run");
+}
+
 TEST_CASE("two worlds keep their own grids") {
     auto first = std::make_unique<dotio::World>();
     auto second = std::make_unique<dotio::World>();
@@ -558,7 +606,7 @@ TEST_CASE("crates interact with actors and streaming keeps geometry continuous a
         CHECK_MESSAGE((horizontal >= 4 && vertical >= 4), "District edge lacks alternate exits");
     }
     for (int i = 0; i < 64; ++i) {
-        const auto cell = world.grid().GenerateGridEntry({150, 150});
+        const auto cell = world.grid().GenerateGridEntry({150, 150}, world.behavior_random());
         CHECK_MESSAGE((cell.Row >= 0 && cell.Row < dotio::Grid::Rows && cell.Column >= 0 &&
                        cell.Column < dotio::Grid::Columns && !world.grid().Array[cell.Row][cell.Column]),
                       "Edge wander target escaped streamed raster");
@@ -880,7 +928,7 @@ TEST_CASE("the debug camera detaches from the player while WASD keeps moving the
 }
 
 TEST_CASE("help pause and Ghost commands work and long play keeps finite state") {
-    dotio::Application application;
+    dotio::Application application{42};
     kinetra::Camera2D camera;
     auto &player = application.world().GetPlayer();
     const auto start = player.Position;
@@ -1489,9 +1537,7 @@ TEST_CASE("steering wander repeats for a world seed and differs between seeds") 
         float heading, x, y;
         bool operator==(const Pose &) const = default;
     };
-    // One wanderer in a room; the rest of the world is the same in every run. Dotio's other
-    // randomness is not seeded: an enemy's fear and the Ghost's start. Neither reaches a
-    // wandering enemy that never sees the player.
+    // One wanderer in a room; the rest of the world is the same in every run.
     const auto wander = [](std::uint32_t seed) {
         auto world = walled_world(seed);
         carve(world->grid(), 10, 10, 20, 20);

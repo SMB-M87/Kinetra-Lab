@@ -2,6 +2,7 @@
 #include "dotio/ai/fuzzy.h"
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/portable.h"
+#include "dotio/math/random.h"
 #include <stdexcept>
 
 namespace dotio {
@@ -13,6 +14,9 @@ namespace {
 /// Second word of the seed sequence of World::wander_random(), so that stream differs from
 /// the population stream that the same world seed starts.
 constexpr std::uint32_t wander_stream = 0x57414E44; // "WAND"
+/// Second word of the seed sequences of World::behavior_random() and of the placement stream.
+constexpr std::uint32_t behavior_stream = 0x42485652;  // "BHVR"
+constexpr std::uint32_t placement_stream = 0x504C4345; // "PLCE"
 } // namespace
 
 void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
@@ -25,6 +29,10 @@ void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
     population_random_.seed(seed);
     std::seed_seq wander_seed{seed, wander_stream};
     wander_random_.seed(wander_seed);
+    std::seed_seq behavior_seed{seed, behavior_stream};
+    behavior_random_.seed(behavior_seed);
+    std::seed_seq placement_seed{seed, placement_stream};
+    placement_random_.seed(placement_seed);
     offset_row_ = offset_column_ = 0;
     resident_cells_ = {-1, -1, -1, -1};
     grid_.Generate(seed);
@@ -32,14 +40,12 @@ void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
     ExtractGraph();
 
     SetPlayer(dotio::Player(this, {Grid::CellSize * 80.5f, Grid::CellSize * 80.5f}, 0.0f));
-    SetGhost(dotio::Player(this, grid_.GeneratePosition(), 0.0f));
+    SetGhost(dotio::Player(this, grid_.GeneratePosition(placement_random_), 0.0f));
 
     for (std::size_t i = 0; i < GetEnemies().GetCapacity(); i++) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<float> dis(2.0f, 10.0f);
-        float fear = dis(gen);
-        AddEnemy(grid_.GeneratePosition(), GetPlayer().Position, fear, true);
+        const float fear =
+            dotio::math::uniform(behavior_random_, Enemy::spawn_fear_min, Enemy::spawn_fear_max);
+        AddEnemy(grid_.GeneratePosition(placement_random_), GetPlayer().Position, fear, true);
         _enemies[i].Initialize();
         // Slots start dormant; player-centered streaming alone chooses spawn density.
         _enemies[i].IsActive = false;
@@ -208,7 +214,7 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
             continue;
         }
         if (!enemy.IsActive && spawn_due && attempts++ < 8) {
-            const auto unit = [&]() { return float(population_random_() >> 8) / 16777216.f; };
+            const auto unit = [&]() { return dotio::math::unit(population_random_); };
             const dotio::math::Vec2 position{center.X + (unit() * 2 - 1) * spawn_half.X,
                                              center.Y + (unit() * 2 - 1) * spawn_half.Y};
             dotio::math::GridEntry cell;
@@ -304,7 +310,7 @@ void World::Reset() {
     GetPlayer().Velocity = {};
     GetPlayer().Cooldown = 0;
 
-    GetPlayer().Position = grid_.GeneratePosition();
+    GetPlayer().Position = grid_.GeneratePosition(placement_random_);
     GetPlayer().Health = GetPlayer().MaxHealth;
     GetPlayer().Mana = GetPlayer().MaxMana;
     GetPlayer().Kills = 1;

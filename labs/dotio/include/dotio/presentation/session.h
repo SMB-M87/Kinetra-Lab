@@ -20,8 +20,8 @@ class Application;
 
 /// A Dotio session that also shows the application it runs.
 ///
-/// Input alone cannot tell a tool where the enemies are, and the AI is not seeded, so a
-/// script cannot know it in advance. A tool that plays the game, such as the capture tool's
+/// Input alone cannot tell a tool where the enemies are, and a script cannot follow every
+/// decision of the AI in advance. A tool that plays the game, such as the capture tool's
 /// scripted player, reads the world here and answers with ordinary input.
 class Session : public kinetra_lab::Session {
   public:

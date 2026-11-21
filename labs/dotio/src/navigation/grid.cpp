@@ -1,6 +1,7 @@
 #include "dotio/navigation/grid.h"
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/portable.h"
+#include "dotio/math/random.h"
 #include <map>
 #include <stdexcept>
 #include <tuple>
@@ -166,9 +167,7 @@ bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, dotio::math::Poin
     return false;
 }
 
-dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) const {
-    std::random_device random;
-    std::mt19937 generator(random());
+dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin, std::mt19937 &random) const {
     const int center_row = std::clamp(origin.Row, 0, Rows - 1);
     const int center_col = std::clamp(origin.Column, 0, Columns - 1);
     std::vector<dotio::math::GridEntry> candidates;
@@ -179,25 +178,17 @@ dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) co
                 candidates.push_back({row, col});
     if (candidates.empty())
         throw std::runtime_error("No free Dotio wander cell in the local neighborhood");
-    std::uniform_int_distribution<std::size_t> choose(0, candidates.size() - 1);
-    return candidates[choose(generator)];
+    return candidates[std::size_t(dotio::math::index(random, int(candidates.size())))];
 }
 
-dotio::math::Position Grid::GeneratePosition() const {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    int minIndex = 3;
-    int maxIndexRow = dotio::Grid::GridSize.Rows - minIndex;
-    int maxIndexCol = dotio::Grid::GridSize.Columns - minIndex;
-
-    std::uniform_int_distribution<int> dis_row(minIndex, maxIndexRow);
-    std::uniform_int_distribution<int> dis_col(minIndex, maxIndexCol);
-
+dotio::math::Position Grid::GeneratePosition(std::mt19937 &random) const {
+    // Rows and columns from 3 to 152, both included, as the original game chose them.
+    constexpr int margin = 3;
+    constexpr int choices = Rows - 2 * margin + 1;
     int row, column;
     do {
-        row = dis_row(gen);
-        column = dis_col(gen);
+        row = margin + dotio::math::index(random, choices);
+        column = margin + dotio::math::index(random, choices);
     } while (Array[row][column] != 0);
     float posX = column * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     float posY = row * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);

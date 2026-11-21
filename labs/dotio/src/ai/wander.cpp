@@ -1,5 +1,6 @@
 #include "dotio/ai/wander.h"
 #include "dotio/entities/enemy.h"
+#include "dotio/math/random.h"
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
 
@@ -37,11 +38,9 @@ bool blocked(const Grid &grid, const dotio::math::Segment &feeler) {
     return grid.IsIntersectingAnyCell(feeler, hit);
 }
 
-/// Uniform value in [-1, 1) from 24 raw bits. Standard distributions may differ between
-/// standard libraries; raw bits keep a seed reproducible everywhere.
+/// Uniform value in [-1, 1) from one draw (see math/random.h).
 float signed_unit(std::mt19937 &random) {
-    constexpr float half_range = 8388608.f; // 2^23
-    return static_cast<float>(random() >> 8) / half_range - 1.f;
+    return dotio::math::unit(random) * 2.f - 1.f;
 }
 
 /// Turns `enemy` to the first direction whose forward feeler is free. The side that was free

@@ -3,6 +3,7 @@
 #include "dotio/ai/wander.h"
 #include "dotio/entities/enemy.h"
 #include "dotio/math/portable.h"
+#include "dotio/math/random.h"
 #include "dotio/navigation/grid.h"
 #include "dotio/world.h"
 
@@ -33,7 +34,8 @@ void WanderState::Execute(const float delta) {
         }
     }
 
-    float angle = static_cast<float>(std::rand()) / RAND_MAX * 2 * std::numbers::pi_v<float>;
+    const float angle =
+        dotio::math::unit(_enemy->GetWorld().behavior_random()) * 2 * std::numbers::pi_v<float>;
     dotio::math::Vec2 displacement((dotio::Grid::CellSize)*std::cos(angle),
                                    (dotio::Grid::CellSize * 0.4f) * std::sin(angle));
     dotio::math::Vec2 target = pos + displacement;
@@ -60,8 +62,11 @@ void WanderState::Update() {
         if (dotio::math::GridEntry::FromWorld(_enemy->Position, dotio::Grid::Origin, dotio::Grid::CellSize,
                                               dotio::Grid::GridSize, enemy_output)) {
             dotio::math::GridEntry enemy_grid = {enemy_output.Row, enemy_output.Column};
-            if (dotio::Vertex _; _enemy->GetWorld().GetGraph().AStar(
-                    enemy_grid, _enemy->GetWorld().grid().GenerateGridEntry(enemy_grid), _))
+            if (dotio::Vertex _;
+                _enemy->GetWorld().GetGraph().AStar(enemy_grid,
+                                                    _enemy->GetWorld().grid().GenerateGridEntry(
+                                                        enemy_grid, _enemy->GetWorld().behavior_random()),
+                                                    _))
                 _enemy->Path = _enemy->GetWorld().GetGraph().GetPath(enemy_grid, _);
         }
     }
@@ -209,10 +214,8 @@ void RecoverState::Execute(const float delta) {
 
 void RecoverState::Update() {
     if (_enemy->HasReloadedAmmo()) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<float> dis(2.0f, 6.0f);
-        _enemy->Fear = dis(gen);
+        _enemy->Fear = dotio::math::uniform(_enemy->GetWorld().behavior_random(), Enemy::spawn_fear_min,
+                                            Enemy::reloaded_fear_max);
         _enemy->Path.clear();
         _enemy->ResetPursue();
         _enemy->SetState(_enemy->GetPursueState());

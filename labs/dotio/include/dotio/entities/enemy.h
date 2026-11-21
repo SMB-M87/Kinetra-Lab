@@ -27,6 +27,12 @@ class Enemy final : public PhysicsObject {
     void SpatialPartitioning(const float delta);
 
   public:
+    /// Range of Fear for a spawned or reset enemy, drawn from World::behavior_random(). Fear
+    /// is in grid cells: the distance an attacking enemy keeps grows with it.
+    static constexpr float spawn_fear_min = 2.0f, spawn_fear_max = 10.0f;
+    /// Largest Fear after a reload: a reloaded enemy is bolder than a fresh one.
+    static constexpr float reloaded_fear_max = 6.0f;
+
     dotio::math::Vec2 Target{};
     dotio::math::Vec2 TargetVelocity{};
     dotio::Stack Path;
