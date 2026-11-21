@@ -40,7 +40,8 @@ inline constexpr unsigned recovery_backoff_ticks = 30;
 inline constexpr unsigned recovery_backoff_limit = 10;
 /// Ticks a corridor waits after a recovery ended before it tries a new one.
 inline constexpr std::uint64_t corridor_retry_ticks = 120;
-/// Ticks a mover waits after its passing plan ended before it may join a new one.
+/// Ticks a mover waits after its passing plan ended without completing before it may join
+/// a new one.
 inline constexpr std::uint64_t passing_retry_ticks = 120;
 /// Ticks a passing plan may go without its participants getting closer to their targets.
 inline constexpr std::uint64_t passing_timeout_ticks = 240;

@@ -29,7 +29,7 @@ void soak(unsigned seed, demo::WanderMode wander) {
     for (int tick = 0; tick < soak_ticks; ++tick) {
         INFO("tick " << tick);
         application.advance(1.0 / 120, {}, camera);
-        const auto &world = application.scene().world;
+        const auto &world = application.scene().world();
         REQUIRE_MESSAGE(!world.sweep_budget_exhausted(),
                         "Ordinary crowd contact exhausted the swept-event budget");
         // One assertion per tick instead of per body keeps the soak run as fast as before.

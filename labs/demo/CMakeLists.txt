@@ -1,4 +1,6 @@
-add_library(kinetra_demo_logic src/application.cpp src/debug_panel.cpp)
+add_library(kinetra_demo_logic
+    src/application.cpp src/debug_panel.cpp src/input/mapping.cpp
+    src/world/agent.cpp src/world/scene.cpp src/world/terrain.cpp src/world/tuning.cpp)
 target_include_directories(kinetra_demo_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab/debug.h is headless: the menu rows that every Lab application shares.
 target_link_libraries(kinetra_demo_logic PUBLIC Kinetra::Simulation kinetra_lab)
@@ -20,7 +22,8 @@ if(BUILD_TESTING)
         LIBRARIES kinetra_demo_logic kinetra_lab)
 endif()
 if(KINETRA_BUILD_RUNTIME)
-    add_library(kinetra_demo_presentation src/presentation/renderer.cpp src/presentation/session.cpp)
+    add_library(kinetra_demo_presentation
+    src/presentation/help_overlay.cpp src/presentation/renderer.cpp src/presentation/session.cpp)
     target_link_libraries(kinetra_demo_presentation
         PUBLIC kinetra_demo_logic kinetra_lab Kinetra::Runtime)
 endif()

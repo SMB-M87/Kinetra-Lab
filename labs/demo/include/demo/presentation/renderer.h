@@ -28,7 +28,9 @@ struct FrameOverlays {
 
 /// Present the latest scene without changing application state: the bodies between their
 /// last two ticks, the debug `layers` that are on, and the `overlays`. Vectors, paths and
-/// probes follow the application's own presentation options, which commands switch.
+/// probes follow the application's own presentation options, which commands switch. Draws
+/// one complete frame, from Runtime::begin() to Runtime::end(); the runtime's camera is
+/// unchanged afterwards.
 void render(kinetra::Runtime &runtime, const Application &application,
             const DebugLayers &layers = DebugLayers::none(), const FrameOverlays &overlays = {});
 /// State summary for DemoSession::status(): agents, pause, chunks, camera, paths,
