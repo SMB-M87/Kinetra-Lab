@@ -13,6 +13,7 @@
 #include <optional>
 #include <set>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace demo {
@@ -141,6 +142,37 @@ class Scene {
     std::vector<kinetra::Body> loaded_terrain_;
     kinetra::SpatialGrid terrain_index_{4};
 
+    /// What every mover's steering in one tick shares; defined in scene.cpp.
+    struct Tick;
+
+    /// Places `count` agents at seeded free points around the player's start.
+    void populate_initial(int count, std::uint32_t seed);
+    /// Adds the player and the six passive props after the initial agents.
+    void add_player_and_props();
+    /// Removes the movers outside `retained`, except the player, and renumbers the rest.
+    /// Returns whether any was removed; then the world holds only the movers.
+    bool evict_distant(kinetra::Aabb retained);
+    /// Replaces the world's bodies with `movers`, dropping the loaded terrain.
+    void keep_only(std::span<const kinetra::Body> movers);
+    /// Spawns agents once in each chunk that overlaps `active_view` for the first time.
+    /// `terrain_dropped` says whether the world already holds only `movers`. Returns
+    /// whether a chunk was populated; then the world holds only the movers.
+    bool populate_chunks(kinetra::Aabb active_view, std::span<const kinetra::Body> movers,
+                         bool terrain_dropped);
+    /// Appends the terrain within `retained` to a world that holds only movers, rebuilds
+    /// the terrain index and the navigation around `active_view`, and invalidates routes.
+    void load_terrain(kinetra::Aabb retained, kinetra::Aabb active_view);
+    /// The steering settings and the snapshot of the moving bodies for one tick.
+    Tick prepare_tick() const;
+    /// The acceleration that steers mover `id` toward `target` among the snapshot's
+    /// neighbors, and around nearby terrain when `terrain_avoidance` says so.
+    kinetra::Vec2 local_acceleration(std::size_t id, kinetra::Vec2 target, AvoidTerrain terrain_avoidance,
+                                     float dt, Tick &tick);
+    /// Sets the acceleration of every awake agent. Sleeping agents become fixed for the
+    /// tick; returns their bodies as they were, to restore after physics.
+    std::vector<std::pair<std::size_t, kinetra::Body>> steer_agents(float dt, Tick &tick);
+    /// Sets the player's acceleration and turn from `control`, or from its route.
+    void steer_player(float dt, const PlayerControl &control, Tick &tick);
     /// Reject overlapping spawn candidates, including the reserved player/passive area.
     bool spawn(kinetra::Vec2 position, const Terrain::Chunks &chunks);
 };
