@@ -152,15 +152,34 @@ Demo has no navigation-only sub-READMEs left: the include layout change already 
 
 ## Review
 
-To be filled per step.
+**Step 1.** Self-review of `git diff main...refactor/demo-headers`: every moved body compared with its old text; only indentation, `inline` and the `Class::` prefix changed. `mapping.h` now includes `kinetra/view/input.h`; `kinetra_lab/input.h`, which `mapping.cpp` uses, includes the runtime's `engine.h`, but that header has no SDL or OpenGL dependency, so the headless build still links. No findings.
 
 ## Verification
 
-To be filled per step.
+**Golden lines depend on the toolchain.** On this machine (Ubuntu 24.04, GCC 13.3) unchanged `main` does not reproduce the recorded crowd characterization lines, nor the i4sim RVO golden line, in Debug or Release; these are the same five cases the `windows` presets exclude for that reason. CI's pinned Arch toolchain checks the recorded lines. Locally, each step is checked against the lines that `main` produces here: the step must reproduce them exactly.
+
+**Step 1** (`refactor/demo-headers`, at `a0c2438`):
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Targeted | `cmake --build --preset dev --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests kinetra_demo kinetra kinetra_capture`; `ctest --test-dir build-dev -R '^kinetra_demo' -E characterization -LE soak` | passed, 57 cases, no warnings |
+| Characterization, Debug | the four lines against `main`'s Debug lines on this machine | identical |
+| Headless logic | `cmake --preset headless`, build `kinetra_demo_tests kinetra_demo_terrain_tests` | passed |
+| Full | `cmake --workflow --preset graphics` | 295 of 300 passed; the 5 failures are the toolchain-dependent golden cases above |
+| Golden, Release | the five lines against `main`'s Release lines on this machine | identical |
+| Smoke | `kinetra` (demo, dotio, i4sim, menu), `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`, each `--frames 120`, under Xvfb with software Mesa | passed |
+
+`ctest --preset dev -LE soak` ignores the label filter with CMake 3.28; `ctest --test-dir build-dev -LE soak` applies it.
 
 ## Pull request
 
-To be filled per step.
+**Step 1.** Title: `refactor(demo): move function bodies out of the headers`
+
+Summary: roadmap phase 5, step 1 of 4. The Demo's scene, agent, terrain, tuning, input mapping and help overlay keep only declarations in their headers; the bodies move verbatim to `.cpp` files. No header has a `using namespace` any more. The Demo module joins i4sim with warnings as errors. Includes the phase's design document. No behavior change.
+
+Changes: `labs/demo/src/world/{scene,agent,terrain,tuning}.cpp`, `src/input/mapping.cpp` (logic library), `src/presentation/help_overlay.cpp`; trimmed header includes; two test files include the steering and avoidance headers they use; `kinetra_directory_warnings(labs/demo RECURSE AS_ERRORS)`.
+
+Dependencies and merge order: none; steps 2 to 4 are stacked on this branch.
 
 ## Open points
 
