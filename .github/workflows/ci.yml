@@ -43,8 +43,6 @@ jobs:
       - name: Trust the workspace and fetch the Kinetra submodule
         run: |
           git config --global --add safe.directory '*'
-          # .gitmodules uses an SSH URL for developers; CI reads the public repository over HTTPS.
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
           git submodule update --init --recursive
           git submodule status
 
@@ -87,7 +85,6 @@ jobs:
       - name: Fetch the Kinetra submodule
         run: |
           git config --global --add safe.directory '*'
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
           git submodule update --init --recursive
           gcc --version | head -1; cmake --version | head -1
 

@@ -117,12 +117,7 @@ git submodule update --init --recursive
 ls external/Kinetra/CMakeLists.txt   # must exist
 ```
 
-While the directory is empty, `git -C external/Kinetra ...` acts on the Lab repository itself, not the engine; initialize the submodule first. If the update asks for SSH authentication (`.gitmodules` uses a `git@github.com:` URL), switch this clone to HTTPS:
-
-```sh
-git config submodule.external/Kinetra.url https://github.com/SMB-M87/Kinetra.git
-git submodule update --init --recursive
-```
+While the directory is empty, `git -C external/Kinetra ...` acts on the Lab repository itself, not the engine; initialize the submodule first. The submodule URL is HTTPS, so no SSH key is needed. A clone made while `.gitmodules` still had an SSH URL picks up the HTTPS URL with `git submodule sync --recursive`.
 
 If an earlier configure failed, remove `build/` before rebuilding. No separate Kinetra installation or build is needed.
 
