@@ -34,7 +34,7 @@ constexpr int rows = dotio::Grid::Rows, columns = dotio::Grid::Columns;
 constexpr float cell = 100; // Legacy pixels per grid cell.
 
 bool wall(dotio::Application &application, int row, int column) {
-    return application.world().grid().Array[row][column] != 0;
+    return application.world().grid().Cell(row, column) != 0;
 }
 
 bool sight_blocked(dotio::Application &application, dotio::math::Vec2 from, dotio::math::Vec2 to) {

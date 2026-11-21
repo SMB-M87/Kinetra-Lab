@@ -37,7 +37,6 @@ void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
     resident_cells_ = {-1, -1, -1, -1};
     grid_.Generate(seed);
     PopulateObjects();
-    ExtractGraph();
 
     SetPlayer(dotio::Player(this, {Grid::CellSize * 80.5f, Grid::CellSize * 80.5f}, 0.0f));
     SetGhost(dotio::Player(this, grid_.GeneratePosition(placement_random_), 0.0f));
@@ -76,7 +75,7 @@ void World::PopulateObjects() {
                     return prop.row == absolute_row && prop.column == absolute_col;
                 }))
                 continue;
-            if (grid_.Array[row][col])
+            if (grid_.Cell(row, col))
                 continue;
             kinetra::Body body;
             body.position = {(col + 0.5f) * Grid::CellSize, (row + 0.5f) * Grid::CellSize};
@@ -129,7 +128,6 @@ dotio::math::Vec2 World::StreamAroundPlayer() {
                prop.body.position.y > Grid::CellSize * (Grid::Rows - 3);
     });
     PopulateObjects();
-    ExtractGraph();
     enemies_moved_ = false;
     return shift;
 }
@@ -141,7 +139,7 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
     const auto outside = [&](dotio::math::Position position, dotio::math::Vec2 half) {
         return std::abs(position.X - center.X) > half.X || std::abs(position.Y - center.Y) > half.Y;
     };
-    // Trim the expensive graph at cell boundaries, independently of camera pan/zoom.
+    // Trim residency at cell boundaries, independently of camera pan/zoom.
     const auto limit = [](float value, int maximum) {
         return std::clamp(int(std::floor(value / Grid::CellSize)), 0, maximum - 1);
     };
@@ -149,9 +147,8 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
         limit(center.Y - retained_half.Y, Grid::Rows), limit(center.X - retained_half.X, Grid::Columns),
         limit(center.Y + retained_half.Y, Grid::Rows), limit(center.X + retained_half.X, Grid::Columns)};
     if (region != resident_cells_) {
-        // Only the entering/leaving strips change occupancy. Rebuild adjacent vertices
-        // too: diagonal links depend on the two orthogonal clearance cells.
-        std::array<bool, Grid::Rows * Grid::Columns> dirty{};
+        // Only the entering and leaving strips change occupancy; SetCell() keeps the route
+        // planner in step, and routes planned on the old cells are dropped.
         const auto inside = [](int row, int column, const std::array<int, 4> &bounds) {
             return row >= bounds[0] && column >= bounds[1] && row <= bounds[2] && column <= bounds[3];
         };
@@ -161,18 +158,10 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
                 if (resident_cells_[0] >= 0 && admitted == inside(row, col, resident_cells_))
                     continue;
                 const int cell = admitted ? TerrainCell(row, col) : 1;
-                if (cell == grid_.Array[row][col])
-                    continue;
-                grid_.Array[row][col] = cell;
-                for (int y = std::max(0, row - 1); y <= std::min(Grid::Rows - 1, row + 1); ++y)
-                    for (int x = std::max(0, col - 1); x <= std::min(Grid::Columns - 1, col + 1); ++x)
-                        dirty[y * Grid::Columns + x] = true;
+                if (cell != grid_.Cell(row, col))
+                    grid_.SetCell(row, col, cell);
             }
         resident_cells_ = region;
-        for (int row = 0; row < Grid::Rows; ++row)
-            for (int col = 0; col < Grid::Columns; ++col)
-                if (dirty[row * Grid::Columns + col])
-                    RefreshGraphCell(row, col);
         for (auto &enemy : GetEnemies())
             enemy.Path.clear();
     }
@@ -220,7 +209,7 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
             dotio::math::GridEntry cell;
             if (!dotio::math::GridEntry::FromWorld(position, Grid::Origin, Grid::CellSize, Grid::GridSize,
                                                    cell) ||
-                grid_.Array[cell.Row][cell.Column])
+                grid_.Cell(cell.Row, cell.Column))
                 continue;
             const dotio::math::Vec2 spawn{(cell.Column + 0.5f) * Grid::CellSize,
                                           (cell.Row + 0.5f) * Grid::CellSize};
@@ -326,50 +315,6 @@ void World::Reset() {
         for (auto &partition : enemy.LastPartition)
             partition = {-1, -1};
     }
-}
-
-void World::ExtractGraph() {
-    _graph.vertexMap.clear();
-    for (int row = 0; row < Grid::Rows; ++row)
-        for (int column = 0; column < Grid::Columns; ++column)
-            RefreshGraphCell(row, column);
-}
-
-void World::RefreshGraphCell(int row, int column) {
-    const dotio::math::GridEntry cell{row, column};
-    if (grid_.Array[row][column] != 0) {
-        _graph.vertexMap.erase(cell);
-        return;
-    }
-    auto &vertex = _graph.vertexMap.insert_or_assign(cell, Vertex(cell)).first->second;
-    if (row > 0 && grid_.Array[row - 1][column] == 0)
-        vertex.AddAdjacent(vertex, {row - 1, column});
-
-    if (row < dotio::Grid::GridSize.Rows - 1 && grid_.Array[row + 1][column] == 0)
-        vertex.AddAdjacent(vertex, {row + 1, column});
-
-    if (column > 0 && grid_.Array[row][column - 1] == 0)
-        vertex.AddAdjacent(vertex, {row, column - 1});
-
-    if (column < dotio::Grid::GridSize.Columns - 1 && grid_.Array[row][column + 1] == 0)
-        vertex.AddAdjacent(vertex, {row, column + 1});
-
-    if (row > 0 && column > 0 && grid_.Array[row - 1][column - 1] == 0 && grid_.Array[row][column - 1] == 0 &&
-        grid_.Array[row - 1][column] == 0)
-        vertex.AddAdjacent(vertex, {row - 1, column - 1});
-
-    if (row > 0 && column < dotio::Grid::GridSize.Columns - 1 && grid_.Array[row - 1][column + 1] == 0 &&
-        grid_.Array[row][column + 1] == 0 && grid_.Array[row - 1][column] == 0)
-        vertex.AddAdjacent(vertex, {row - 1, column + 1});
-
-    if (row < dotio::Grid::GridSize.Rows - 1 && column > 0 && grid_.Array[row + 1][column - 1] == 0 &&
-        grid_.Array[row][column - 1] == 0 && grid_.Array[row + 1][column] == 0)
-        vertex.AddAdjacent(vertex, {row + 1, column - 1});
-
-    if (row < dotio::Grid::GridSize.Rows - 1 && column < dotio::Grid::GridSize.Columns - 1 &&
-        grid_.Array[row + 1][column + 1] == 0 && grid_.Array[row][column + 1] == 0 &&
-        grid_.Array[row + 1][column] == 0)
-        vertex.AddAdjacent(vertex, {row + 1, column + 1});
 }
 
 void World::SetPlayer(dotio::Player player) {
@@ -547,7 +492,4 @@ Tracker<Bolt> &World::GetBolts() {
     return _bolts.GetTracker();
 }
 
-dotio::Graph &World::GetGraph() {
-    return _graph;
-}
 } // namespace dotio

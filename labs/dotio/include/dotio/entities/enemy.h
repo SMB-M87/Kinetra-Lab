@@ -3,7 +3,7 @@
 
 #include "dotio/ai/state.h"
 #include "dotio/entities/physics_object.h"
-#include "dotio/navigation/stack.h"
+#include "dotio/navigation/route.h"
 
 namespace dotio {
 class World;
@@ -35,7 +35,8 @@ class Enemy final : public PhysicsObject {
 
     dotio::math::Vec2 Target{};
     dotio::math::Vec2 TargetVelocity{};
-    dotio::Stack Path;
+    /// The route the current state follows; empty while it needs none or found none.
+    dotio::Route Path;
     float Fear{};
     int HitsRemaining{1};
     bool LineOfSight{false}, Debug{false}, Frozen{};

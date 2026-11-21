@@ -293,13 +293,6 @@ bool GridEntry::ActivatePath(const dotio::math::GridEntry &origin, const dotio::
     return row < far && column < far;
 }
 
-bool GridEntry::PathRefresh(const dotio::math::GridEntry &origin, const dotio::math::GridEntry &target) {
-    int near = 1;
-    int row = abs(origin.Row - target.Row);
-    int column = abs(origin.Column - target.Column);
-    return row >= near || column >= near;
-}
-
 uint8_t GridEntry::GetSquarePartition(const Position &position, const float semiWidth,
                                       const Coordinates &origin, float cellSize) {
     const Position cellPosition = GetCellPosition(position, origin, cellSize);

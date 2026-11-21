@@ -179,9 +179,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 ((p[1] && enemy.IsWandering()) || (p[2] && enemy.IsPursueing()) ||
                  (p[3] && enemy.IsKamikazing()) || (p[4] && enemy.IsRecovering()))) {
                 auto start = to_world(enemy.Position);
-                for (int i = enemy.Path.size() - 1; i >= 0; --i) {
-                    const auto cell = enemy.Path.get(i);
-                    const auto end = to_world({cell.Column * 100.f + 50, cell.Row * 100.f + 50});
+                for (const auto waypoint : enemy.Path.remaining()) {
+                    const auto end = to_world(waypoint);
                     runtime.line(start, end, 0.05f, color_of_state(enemy));
                     start = end;
                 }
