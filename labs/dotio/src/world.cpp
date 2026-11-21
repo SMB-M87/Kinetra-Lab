@@ -27,19 +27,19 @@ void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
     wander_random_.seed(wander_seed);
     offset_row_ = offset_column_ = 0;
     resident_cells_ = {-1, -1, -1, -1};
-    Grid::Generate(seed);
+    grid_.Generate(seed);
     PopulateObjects();
     ExtractGraph();
 
     SetPlayer(dotio::Player(this, {Grid::CellSize * 80.5f, Grid::CellSize * 80.5f}, 0.0f));
-    SetGhost(dotio::Player(this, dotio::Grid::GeneratePosition(), 0.0f));
+    SetGhost(dotio::Player(this, grid_.GeneratePosition(), 0.0f));
 
     for (std::size_t i = 0; i < GetEnemies().GetCapacity(); i++) {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<float> dis(2.0f, 10.0f);
         float fear = dis(gen);
-        AddEnemy(dotio::Grid::GeneratePosition(), GetPlayer().Position, fear, true);
+        AddEnemy(grid_.GeneratePosition(), GetPlayer().Position, fear, true);
         _enemies[i].Initialize();
         // Slots start dormant; player-centered streaming alone chooses spawn density.
         _enemies[i].IsActive = false;
@@ -70,7 +70,7 @@ void World::PopulateObjects() {
                     return prop.row == absolute_row && prop.column == absolute_col;
                 }))
                 continue;
-            if (Grid::Array[row][col])
+            if (grid_.Array[row][col])
                 continue;
             kinetra::Body body;
             body.position = {(col + 0.5f) * Grid::CellSize, (row + 0.5f) * Grid::CellSize};
@@ -93,7 +93,7 @@ dotio::math::Vec2 World::StreamAroundPlayer() {
     const dotio::math::Vec2 shift{columns * Grid::CellSize, rows * Grid::CellSize};
     offset_column_ += columns;
     offset_row_ += rows;
-    Grid::Generate(seed_, offset_row_, offset_column_);
+    grid_.Generate(seed_, offset_row_, offset_column_);
     resident_cells_ = {-1, -1, -1, -1};
     _player.Position -= shift;
     _ghost.Position -= shift;
@@ -155,9 +155,9 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
                 if (resident_cells_[0] >= 0 && admitted == inside(row, col, resident_cells_))
                     continue;
                 const int cell = admitted ? TerrainCell(row, col) : 1;
-                if (cell == Grid::Array[row][col])
+                if (cell == grid_.Array[row][col])
                     continue;
-                Grid::Array[row][col] = cell;
+                grid_.Array[row][col] = cell;
                 for (int y = std::max(0, row - 1); y <= std::min(Grid::Rows - 1, row + 1); ++y)
                     for (int x = std::max(0, col - 1); x <= std::min(Grid::Columns - 1, col + 1); ++x)
                         dirty[y * Grid::Columns + x] = true;
@@ -214,7 +214,7 @@ void World::StreamEnemies(dotio::math::Position center, dotio::math::Vec2 normal
             dotio::math::GridEntry cell;
             if (!dotio::math::GridEntry::FromWorld(position, Grid::Origin, Grid::CellSize, Grid::GridSize,
                                                    cell) ||
-                Grid::Array[cell.Row][cell.Column])
+                grid_.Array[cell.Row][cell.Column])
                 continue;
             const dotio::math::Vec2 spawn{(cell.Column + 0.5f) * Grid::CellSize,
                                           (cell.Row + 0.5f) * Grid::CellSize};
@@ -280,9 +280,9 @@ void World::UpdateObjects(float delta) {
             for (std::size_t j = i + 1; j < props_.size(); ++j)
                 if (const auto hit = kinetra::collide(body, props_[j].body))
                     kinetra::resolve_contact(body, props_[j].body, *hit);
-            kinetra::collide_grid(body, Grid::CollisionView());
+            kinetra::collide_grid(body, grid_.CollisionView());
         }
-        Grid::HandleGridCollision(_player, 0, &Grid::Array[0][0]);
+        grid_.HandleGridCollision(_player);
     }
 }
 
@@ -304,7 +304,7 @@ void World::Reset() {
     GetPlayer().Velocity = {};
     GetPlayer().Cooldown = 0;
 
-    GetPlayer().Position = dotio::Grid::GeneratePosition();
+    GetPlayer().Position = grid_.GeneratePosition();
     GetPlayer().Health = GetPlayer().MaxHealth;
     GetPlayer().Mana = GetPlayer().MaxMana;
     GetPlayer().Kills = 1;
@@ -331,39 +331,38 @@ void World::ExtractGraph() {
 
 void World::RefreshGraphCell(int row, int column) {
     const dotio::math::GridEntry cell{row, column};
-    if (Grid::Array[row][column] != 0) {
+    if (grid_.Array[row][column] != 0) {
         _graph.vertexMap.erase(cell);
         return;
     }
     auto &vertex = _graph.vertexMap.insert_or_assign(cell, Vertex(cell)).first->second;
-    if (row > 0 && dotio::Grid::Array[row - 1][column] == 0)
+    if (row > 0 && grid_.Array[row - 1][column] == 0)
         vertex.AddAdjacent(vertex, {row - 1, column});
 
-    if (row < dotio::Grid::GridSize.Rows - 1 && dotio::Grid::Array[row + 1][column] == 0)
+    if (row < dotio::Grid::GridSize.Rows - 1 && grid_.Array[row + 1][column] == 0)
         vertex.AddAdjacent(vertex, {row + 1, column});
 
-    if (column > 0 && dotio::Grid::Array[row][column - 1] == 0)
+    if (column > 0 && grid_.Array[row][column - 1] == 0)
         vertex.AddAdjacent(vertex, {row, column - 1});
 
-    if (column < dotio::Grid::GridSize.Columns - 1 && dotio::Grid::Array[row][column + 1] == 0)
+    if (column < dotio::Grid::GridSize.Columns - 1 && grid_.Array[row][column + 1] == 0)
         vertex.AddAdjacent(vertex, {row, column + 1});
 
-    if (row > 0 && column > 0 && dotio::Grid::Array[row - 1][column - 1] == 0 &&
-        dotio::Grid::Array[row][column - 1] == 0 && dotio::Grid::Array[row - 1][column] == 0)
+    if (row > 0 && column > 0 && grid_.Array[row - 1][column - 1] == 0 && grid_.Array[row][column - 1] == 0 &&
+        grid_.Array[row - 1][column] == 0)
         vertex.AddAdjacent(vertex, {row - 1, column - 1});
 
-    if (row > 0 && column < dotio::Grid::GridSize.Columns - 1 &&
-        dotio::Grid::Array[row - 1][column + 1] == 0 && dotio::Grid::Array[row][column + 1] == 0 &&
-        dotio::Grid::Array[row - 1][column] == 0)
+    if (row > 0 && column < dotio::Grid::GridSize.Columns - 1 && grid_.Array[row - 1][column + 1] == 0 &&
+        grid_.Array[row][column + 1] == 0 && grid_.Array[row - 1][column] == 0)
         vertex.AddAdjacent(vertex, {row - 1, column + 1});
 
-    if (row < dotio::Grid::GridSize.Rows - 1 && column > 0 && dotio::Grid::Array[row + 1][column - 1] == 0 &&
-        dotio::Grid::Array[row][column - 1] == 0 && dotio::Grid::Array[row + 1][column] == 0)
+    if (row < dotio::Grid::GridSize.Rows - 1 && column > 0 && grid_.Array[row + 1][column - 1] == 0 &&
+        grid_.Array[row][column - 1] == 0 && grid_.Array[row + 1][column] == 0)
         vertex.AddAdjacent(vertex, {row + 1, column - 1});
 
     if (row < dotio::Grid::GridSize.Rows - 1 && column < dotio::Grid::GridSize.Columns - 1 &&
-        dotio::Grid::Array[row + 1][column + 1] == 0 && dotio::Grid::Array[row][column + 1] == 0 &&
-        dotio::Grid::Array[row + 1][column] == 0)
+        grid_.Array[row + 1][column + 1] == 0 && grid_.Array[row][column + 1] == 0 &&
+        grid_.Array[row + 1][column] == 0)
         vertex.AddAdjacent(vertex, {row + 1, column + 1});
 }
 
@@ -410,7 +409,7 @@ void World::UpdateEnemies(const float delta, const bool debug) {
         enemy.TargetVelocity = GetPlayer().Velocity;
         enemy.Update(delta);
         enemy.Debug = debug;
-        dotio::Grid::HandleGridCollision(enemy, delta, reinterpret_cast<const int *>(dotio::Grid::Array));
+        grid_.HandleGridCollision(enemy);
     }
 }
 
@@ -422,7 +421,7 @@ void World::UpdateArrows(const float delta, const bool debug) {
             continue;
         const dotio::math::Segment segment{arrow.Position, arrow.Position + arrow.Velocity * delta};
         dotio::math::Point2 wall{}, hit{};
-        const bool blocked = Grid::IsIntersectingAnyCell(segment, &Grid::Array[0][0], wall);
+        const bool blocked = grid_.IsIntersectingAnyCell(segment, wall);
         const bool hits_player =
             Grid::SegementCircleIntersection(segment, GetPlayer().Position, GetPlayer().Radius, hit) & 1;
         const auto object = FirstObjectHit(segment, 0);
@@ -458,7 +457,7 @@ void World::UpdateBolts(const float delta) {
             continue;
         const dotio::math::Segment segment{bolt.Position, bolt.Position + bolt.Velocity * delta};
         dotio::math::Point2 wall{};
-        const bool blocked = Grid::IsIntersectingAnyCell(segment, &Grid::Array[0][0], wall);
+        const bool blocked = grid_.IsIntersectingAnyCell(segment, wall);
         float nearest = blocked ? (wall - segment.Start).GetLength() : std::numeric_limits<float>::infinity();
         Enemy *victim = nullptr;
         std::size_t index = 0;

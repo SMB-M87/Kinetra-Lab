@@ -23,6 +23,7 @@ class World {
     TrackerData<Enemy, 666> _enemies;
     TrackerData<Arrow, 666> _arrows;
     TrackerData<Bolt, 20> _bolts;
+    dotio::Grid grid_;
     dotio::Graph _graph{};
     std::array<dotio::math::Position, 666> previous_enemy_positions_{};
     bool enemies_moved_{};
@@ -104,13 +105,13 @@ class World {
         return {float(offset_column_) * Grid::CellSize, float(offset_row_) * Grid::CellSize};
     }
     int TerrainCell(int row, int column) const {
-        return Grid::TerrainCell(seed_, row + offset_row_, column + offset_column_);
+        return grid_.TerrainCell(seed_, row + offset_row_, column + offset_column_);
     }
     int TeleportCell(int row, int column) const {
         if (row >= resident_cells_[0] && column >= resident_cells_[1] && row <= resident_cells_[2] &&
             column <= resident_cells_[3] && row >= 0 && column >= 0 && row < Grid::Rows &&
             column < Grid::Columns)
-            return Grid::Array[row][column];
+            return grid_.Array[row][column];
         return TerrainCell(row, column);
     }
     /// Update residency; timed fuzzy density control refills at most one offscreen slot per call.
@@ -154,6 +155,11 @@ class World {
     [[nodiscard]] Tracker<Bolt> &GetBolts();
 
     [[nodiscard]] dotio::Graph &GetGraph();
+
+    /// The occupancy raster of this world's resident window. Initialize() generates it and
+    /// streaming keeps it current; tests may write it to build an arena.
+    dotio::Grid &grid() { return grid_; }
+    const dotio::Grid &grid() const { return grid_; }
 };
 } // namespace dotio
 

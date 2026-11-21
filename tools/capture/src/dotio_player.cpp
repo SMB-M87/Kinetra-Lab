@@ -20,7 +20,7 @@ bool on_screen(const dotio::Enemy &enemy, const kinetra::Camera2D &camera, float
 /// stops a bolt that comes within the bolt's radius of it (World::UpdateBolts).
 bool clear_shot(const dotio::World &world, dotio::math::Vec2 from, dotio::math::Vec2 to) {
     dotio::math::Point2 hit{};
-    if (dotio::Grid::IsIntersectingAnyCell({from, to}, &dotio::Grid::Array[0][0], hit))
+    if (world.grid().IsIntersectingAnyCell({from, to}, hit))
         return false;
     for (const auto &crate : world.GetObjects())
         if (kinetra::segment_circle(dotio::physics_vector(from), dotio::physics_vector(to),

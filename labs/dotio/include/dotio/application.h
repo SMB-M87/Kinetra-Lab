@@ -364,7 +364,7 @@ class Application {
             player.Update(1);
             update_rate.count();
             aim -= world_->StreamAroundPlayer();
-            dotio::Grid::HandleGridCollision(player, 1, &dotio::Grid::Array[0][0]);
+            world_->grid().HandleGridCollision(player);
             if (commands.shoot && !ghost)
                 player.Shoot(aim, debug && invulnerable);
             if (++tick_ == 3) {

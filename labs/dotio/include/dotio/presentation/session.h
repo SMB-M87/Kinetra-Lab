@@ -33,7 +33,6 @@ class Session : public kinetra_lab::Session {
 
 /// Creates a Dotio session at the difficulty with index `difficulty`; throws
 /// std::invalid_argument for an index outside difficulty_names(). The caller sets the
-/// camera to dotio::initial_zoom for a fresh start. Dotio's world is a singleton, so at
-/// most one session may exist at a time.
+/// camera to dotio::initial_zoom for a fresh start. Each session owns its own world.
 std::unique_ptr<Session> create_session(std::uint32_t seed, std::size_t difficulty);
 } // namespace dotio

@@ -238,8 +238,8 @@ bool Enemy::IsKamikazing() {
     return &GetState() == &GetKamikazeState();
 }
 bool Enemy::IsInLineOfSight() {
-    if (dotio::math::Point2 _; dotio::Grid::IsIntersectingAnyCell(
-            {Position, _world->GetPlayer().Position}, reinterpret_cast<const int *>(dotio::Grid::Array), _))
+    if (dotio::math::Point2 _;
+        _world->grid().IsIntersectingAnyCell({Position, _world->GetPlayer().Position}, _))
         return false;
     else {
         return true;

@@ -7,24 +7,18 @@
 #include <vector>
 
 namespace dotio {
-kinetra::CollisionGrid Grid::CollisionView(const int *cells) {
-    return {{cells, std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
+kinetra::CollisionGrid Grid::CollisionView() const {
+    return {{&Array[0][0], std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
 }
-
-const dotio::math::GridSize Grid::GridSize{Rows, Columns};
-dotio::math::Coordinates Grid::Origin = {0.0f, 0.0f};
-float Grid::CellSize = 100.0f;
-
-int Grid::Array[Rows][Columns]{};
 
 // Seeded depth-first mazes reproduce the narrow, irregular passages of the original
 // hand-authored map. Shared edge ports join independently generated 32-cell districts.
-int Grid::TerrainCell(std::uint32_t seed, int row, int column) {
+int Grid::TerrainCell(std::uint32_t seed, int row, int column) const {
     constexpr int size = 32;
     const int y = (row % size + size) % size, x = (column % size + size) % size;
     const int dy = (row - y) / size, dx = (column - x) / size;
     using Cells = std::array<int, size * size>;
-    static thread_local std::map<std::tuple<std::uint32_t, int, int>, Cells> cache;
+    auto &cache = terrain_cache_;
     const auto key = std::tuple{seed, dy, dx};
     if (const auto found = cache.find(key); found != cache.end())
         return found->second[y * size + x];
@@ -133,15 +127,14 @@ void Grid::Generate(std::uint32_t seed, int offset_row, int offset_column) {
             Array[row][column] = TerrainCell(seed, row + offset_row, column + offset_column);
 }
 
-void Grid::HandleGridCollision(dotio::PhysicsObject &object, const float, const int *cells) {
+void Grid::HandleGridCollision(dotio::PhysicsObject &object) const {
     auto body = dotio::physics_body(object);
-    kinetra::collide_grid(body, CollisionView(cells));
+    kinetra::collide_grid(body, CollisionView());
     dotio::apply_body(object, body);
 }
 
-bool Grid::GridIntersection(const dotio::math::Segment &segment, const int *cells,
-                            dotio::math::Point2 &intersection) {
-    return IsIntersectingAnyCell(segment, cells, intersection);
+bool Grid::GridIntersection(const dotio::math::Segment &segment, dotio::math::Point2 &intersection) const {
+    return IsIntersectingAnyCell(segment, intersection);
 }
 
 bool Grid::SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 center,
@@ -164,17 +157,16 @@ uint8_t Grid::SegementCircleIntersection(const dotio::math::Segment &segment,
     return flags;
 }
 
-bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, const int *cells,
-                                 dotio::math::Point2 &intersection) {
-    if (const auto fraction = kinetra::segment_grid(
-            dotio::physics_vector(segment.Start), dotio::physics_vector(segment.End), CollisionView(cells))) {
+bool Grid::IsIntersectingAnyCell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const {
+    if (const auto fraction = kinetra::segment_grid(dotio::physics_vector(segment.Start),
+                                                    dotio::physics_vector(segment.End), CollisionView())) {
         intersection = segment.Start + (segment.End - segment.Start) * *fraction;
         return true;
     }
     return false;
 }
 
-dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) {
+dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) const {
     std::random_device random;
     std::mt19937 generator(random());
     const int center_row = std::clamp(origin.Row, 0, Rows - 1);
@@ -191,7 +183,7 @@ dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin) {
     return candidates[choose(generator)];
 }
 
-dotio::math::Position Grid::GeneratePosition() {
+dotio::math::Position Grid::GeneratePosition() const {
     std::random_device rd;
     std::mt19937 gen(rd());
 
@@ -206,7 +198,7 @@ dotio::math::Position Grid::GeneratePosition() {
     do {
         row = dis_row(gen);
         column = dis_col(gen);
-    } while (dotio::Grid::Array[row][column] != 0);
+    } while (Array[row][column] != 0);
     float posX = column * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     float posY = row * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     return {posX, posY};

@@ -61,7 +61,7 @@ void WanderState::Update() {
                                               dotio::Grid::GridSize, enemy_output)) {
             dotio::math::GridEntry enemy_grid = {enemy_output.Row, enemy_output.Column};
             if (dotio::Vertex _; _enemy->GetWorld().GetGraph().AStar(
-                    enemy_grid, dotio::Grid::GenerateGridEntry(enemy_grid), _))
+                    enemy_grid, _enemy->GetWorld().grid().GenerateGridEntry(enemy_grid), _))
                 _enemy->Path = _enemy->GetWorld().GetGraph().GetPath(enemy_grid, _);
         }
     }
@@ -231,7 +231,8 @@ void RecoverState::Update() {
         if (dotio::math::GridEntry::FromWorld(_enemy->Position, dotio::Grid::Origin, dotio::Grid::CellSize,
                                               dotio::Grid::GridSize, enemy_output)) {
             if (dotio::Vertex _; _enemy->GetWorld().GetGraph().HideStar(
-                    {enemy_output.Row, enemy_output.Column}, _enemy->Target, _enemy->Fear, _))
+                    _enemy->GetWorld().grid(), {enemy_output.Row, enemy_output.Column}, _enemy->Target,
+                    _enemy->Fear, _))
                 _enemy->Path =
                     _enemy->GetWorld().GetGraph().GetPath({enemy_output.Row, enemy_output.Column}, _);
             else if (_enemy->HitsRemaining == 1)

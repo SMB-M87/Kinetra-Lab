@@ -32,9 +32,9 @@ std::array<dotio::math::Segment, 3> feelers_at(dotio::math::Position position, f
              feeler(heading - wander_side_feeler_angle_rad, wander_side_feeler_cells)}};
 }
 
-bool blocked(const dotio::math::Segment &feeler) {
+bool blocked(const Grid &grid, const dotio::math::Segment &feeler) {
     dotio::math::Point2 hit{};
-    return Grid::IsIntersectingAnyCell(feeler, &Grid::Array[0][0], hit);
+    return grid.IsIntersectingAnyCell(feeler, hit);
 }
 
 /// Uniform value in [-1, 1) from 24 raw bits. Standard distributions may differ between
@@ -49,7 +49,7 @@ float signed_unit(std::mt19937 &random) {
 /// instead of turning back into the wall it just left.
 void turn_to_free_direction(Enemy &enemy) {
     const auto free_at = [&](float heading) {
-        return !blocked(feelers_at(enemy.Position, heading)[wander_forward_feeler]);
+        return !blocked(enemy.GetWorld().grid(), feelers_at(enemy.Position, heading)[wander_forward_feeler]);
     };
     for (const float turn : wander_fan_rad)
         for (const float side : {enemy.WanderSide, -enemy.WanderSide})
@@ -84,11 +84,12 @@ void SteerWander(Enemy &enemy, const float delta) {
     // A path planned while WanderMode::path was selected must not be drawn or followed later.
     enemy.Path.clear();
     const auto feelers = WanderFeelers(enemy);
-    if (blocked(feelers[wander_forward_feeler])) {
+    const auto &grid = enemy.GetWorld().grid();
+    if (blocked(grid, feelers[wander_forward_feeler])) {
         turn_to_free_direction(enemy);
     } else {
-        const bool positive = blocked(feelers[wander_positive_feeler]);
-        const bool negative = blocked(feelers[wander_negative_feeler]);
+        const bool positive = blocked(grid, feelers[wander_positive_feeler]);
+        const bool negative = blocked(grid, feelers[wander_negative_feeler]);
         // Both blocked means a passage narrower than the feelers spread: turning either way
         // would aim at a wall, so the forward feeler alone decides there.
         if (positive != negative) {

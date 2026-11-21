@@ -4,24 +4,42 @@
 #include "dotio/entities/physics_object.h"
 #include <kinetra/simulation/collision_grid.h>
 
+#include <array>
+#include <cstdint>
+#include <map>
+#include <tuple>
+
 namespace dotio {
-/// Streamed local world window, character clearance, visibility and swept projectile geometry.
+/// Occupancy raster of a world's resident window: wall cells for collision, sight lines,
+/// projectile sweeps and routes. One instance per World; nonzero cells are walls.
+///
+/// Cell (row, column) covers `Origin + (column, row) * CellSize` to one cell further, in
+/// legacy pixels; +Y points down the screen.
 class Grid {
   public:
-    static const int Rows = 155;
-    static const int Columns = 155;
-    static const dotio::math::GridSize GridSize;
-    static dotio::math::Coordinates Origin;
-    static float CellSize;
-    static int Array[Rows][Columns];
-    static kinetra::CollisionGrid CollisionView(const int *cells = &Array[0][0]);
-    static void Generate(std::uint32_t seed, int offset_row = 0, int offset_column = 0);
-    static int TerrainCell(std::uint32_t seed, int row, int column);
+    static constexpr int Rows = 155;
+    static constexpr int Columns = 155;
+    /// Edge length of one square cell, in legacy pixels.
+    static constexpr float CellSize = 100.0f;
+    static inline const dotio::math::GridSize GridSize{Rows, Columns};
+    /// Legacy position of the corner of cell (0, 0).
+    static inline const dotio::math::Coordinates Origin{0.0f, 0.0f};
+    /// The raster, row by row; nonzero means wall.
+    int Array[Rows][Columns]{};
 
-    static void HandleGridCollision(dotio::PhysicsObject &object, const float delta, const int *Array);
+    /// A borrowed view of Array for Kinetra's grid queries; valid while this grid lives.
+    kinetra::CollisionGrid CollisionView() const;
+    /// Fills Array with the seeded terrain whose cell (offset_row, offset_column) is cell
+    /// (0, 0) of the window.
+    void Generate(std::uint32_t seed, int offset_row = 0, int offset_column = 0);
+    /// Terrain of the absolute cell (row, column) for `seed`: 1 for a wall, 0 for floor.
+    /// Independent of Array; remembers recently generated districts.
+    int TerrainCell(std::uint32_t seed, int row, int column) const;
 
-    static bool GridIntersection(const dotio::math::Segment &segment, const int *Array,
-                                 dotio::math::Point2 &intersection);
+    /// Pushes `object` out of every wall cell it overlaps.
+    void HandleGridCollision(dotio::PhysicsObject &object) const;
+
+    bool GridIntersection(const dotio::math::Segment &segment, dotio::math::Point2 &intersection) const;
 
     static bool SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
                                            const float r);
@@ -30,12 +48,17 @@ class Grid {
                                               const dotio::math::Point2 c, const float r,
                                               dotio::math::Point2 &outIntersection);
 
-    static bool IsIntersectingAnyCell(dotio::math::Segment segment, const int *Array,
-                                      dotio::math::Point2 &intersection);
+    /// Whether `segment` meets a wall cell or leaves the window; `intersection` receives the
+    /// first point it does.
+    bool IsIntersectingAnyCell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const;
 
-    static dotio::math::GridEntry GenerateGridEntry(dotio::math::GridEntry origin);
+    dotio::math::GridEntry GenerateGridEntry(dotio::math::GridEntry origin) const;
 
-    static dotio::math::Position GeneratePosition();
+    dotio::math::Position GeneratePosition() const;
+
+  private:
+    /// Generated 32-cell districts by (seed, district row, district column).
+    mutable std::map<std::tuple<std::uint32_t, int, int>, std::array<int, 32 * 32>> terrain_cache_;
 };
 } // namespace dotio
 #endif

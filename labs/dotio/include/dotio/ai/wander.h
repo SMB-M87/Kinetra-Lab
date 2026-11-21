@@ -39,7 +39,7 @@ inline constexpr std::size_t wander_forward_feeler = 0, wander_positive_feeler =
 ///
 /// Each starts at the enemy's position and follows its wander heading; the order is given by
 /// wander_forward_feeler, wander_positive_feeler and wander_negative_feeler. A feeler is
-/// blocked when Grid::IsIntersectingAnyCell reports a hit for it. SteerWander() tests exactly
+/// blocked when its world's Grid::IsIntersectingAnyCell reports a hit for it. SteerWander() tests exactly
 /// these segments, so a drawing of them shows what the logic sees. Reads the enemy's
 /// position and heading and Grid::CellSize; changes nothing.
 std::array<dotio::math::Segment, 3> WanderFeelers(const Enemy &enemy);

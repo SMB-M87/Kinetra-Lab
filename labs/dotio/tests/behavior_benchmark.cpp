@@ -33,13 +33,13 @@ namespace {
 constexpr int rows = dotio::Grid::Rows, columns = dotio::Grid::Columns;
 constexpr float cell = 100; // Legacy pixels per grid cell.
 
-bool wall(dotio::Application &, int row, int column) {
-    return dotio::Grid::Array[row][column] != 0;
+bool wall(dotio::Application &application, int row, int column) {
+    return application.world().grid().Array[row][column] != 0;
 }
 
-bool sight_blocked(dotio::Application &, dotio::math::Vec2 from, dotio::math::Vec2 to) {
+bool sight_blocked(dotio::Application &application, dotio::math::Vec2 from, dotio::math::Vec2 to) {
     dotio::math::Point2 hit{};
-    return dotio::Grid::IsIntersectingAnyCell({from, to}, &dotio::Grid::Array[0][0], hit);
+    return application.world().grid().IsIntersectingAnyCell({from, to}, hit);
 }
 
 bool route_empty(const dotio::Enemy &enemy) {

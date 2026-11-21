@@ -192,7 +192,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const auto draw_probe = [&](dotio::math::Segment probe) {
                 runtime.line(to_world(probe.Start), to_world(probe.End), 0.04f, color_of_state(enemy));
                 dotio::math::Point2 hit{};
-                if (dotio::Grid::IsIntersectingAnyCell(probe, &dotio::Grid::Array[0][0], hit))
+                if (application.world().grid().IsIntersectingAnyCell(probe, hit))
                     runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
             };
             if (application.probes) {
@@ -209,8 +209,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             }
             if (p[5] && enemy.IsRecovering()) {
                 dotio::math::Point2 hit{};
-                if (dotio::Grid::IsIntersectingAnyCell({enemy.Position, enemy.Target},
-                                                       &dotio::Grid::Array[0][0], hit)) {
+                if (application.world().grid().IsIntersectingAnyCell({enemy.Position, enemy.Target}, hit)) {
                     runtime.line(to_world(enemy.Position), to_world(enemy.Target), 0.04f,
                                  layer_color::hiding_hits);
                     runtime.circle(to_world(hit), 0.2f, {1, 1, 0});
