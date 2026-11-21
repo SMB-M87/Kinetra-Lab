@@ -3,9 +3,11 @@
 #
 # Same pinned toolchain as Kinetra's CI (dated Arch Linux image plus Arch Linux
 # Archive snapshot), so engine warnings (-Werror) and clang-format output cannot
-# change without a commit. Bump ARCH_SNAPSHOT and the image tag together, in both
-# repositories. Lab warnings are reported but not errors until each module's
-# roadmap phase makes it warning-free. Graphics tests are compiled, not run (no GPU).
+# change without a commit. When the archive does not answer, the run falls back to
+# the current Arch packages and says so in a warning (Kinetra's testing.md).
+# Bump ARCH_SNAPSHOT and the image tag together, in both repositories. Lab
+# warnings are reported but not errors until each module's roadmap phase makes it
+# warning-free. Graphics tests are compiled, not run (no GPU).
 # The workflow name "CI" and job id "checks" are required status checks on main.
 #
 # The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
@@ -34,8 +36,17 @@ jobs:
     steps:
       - name: Install pinned toolchain and dependencies
         run: |
+          # The pinned snapshot comes from the Arch Linux Archive. When the archive does not
+          # answer, the image's own mirrors serve the current packages instead; such a run is
+          # not pinned, so it says so in a warning, and the versions below show what it got.
+          packages="git python cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json"
+          cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.image
           echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
-          pacman -Syyuu --noconfirm --needed git python cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json
+          if ! pacman -Syyuu --noconfirm --needed $packages; then
+            echo "::warning title=Toolchain not pinned::The Arch Linux Archive did not answer, so this run uses the current Arch packages instead of snapshot ${ARCH_SNAPSHOT}."
+            cp /etc/pacman.d/mirrorlist.image /etc/pacman.d/mirrorlist
+            pacman -Syyuu --noconfirm --needed $packages
+          fi
           gcc --version | head -1; clang-format --version; cmake --version | head -1
 
       - uses: actions/checkout@v7
