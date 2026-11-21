@@ -1,8 +1,8 @@
 # Demo restructuring
 
-Status: accepted · Branches: `refactor/demo-headers` (step 1), `refactor/demo-scene-operations` (step 2), `test/demo-contact-tests` (step 3), `docs/demo-module` (step 4) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
+Status: implemented (step 4 waits for Kinetra access) · Branches: `refactor/demo-headers` (step 1, Lab #52), `refactor/demo-scene-operations` (step 2, Lab #54), `docs/demo-module` (step 3), `test/demo-contact-tests` (step 4, with Kinetra `test/contact-response-tests`) · Related: [quality roadmap, phase 5](2026-11-18-quality-roadmap.md#phase-5-demo), [Demo](../../labs/demo/README.md)
 
-Roadmap phase 5. The Demo's scene, agents and terrain live almost entirely in headers, `Scene` exposes its state as public fields that tests and the application write directly, a test suite that covers only the engine sits in Lab, and the module has no README that explains how it works. This phase moves the code into `.cpp` files, gives `Scene` operations, moves the engine test to Kinetra and documents the module, without changing behavior.
+Roadmap phase 5. The Demo's scene, agents and terrain live almost entirely in headers, `Scene` exposes its state as public fields that tests and the application write directly, a test suite that covers only the engine sits in Lab, and the module has no README that explains how it works. This phase moves the code into `.cpp` files, gives `Scene` operations, documents the module and moves the engine test to Kinetra, without changing behavior.
 
 ## Table of contents
 
@@ -13,8 +13,8 @@ Roadmap phase 5. The Demo's scene, agents and terrain live almost entirely in he
   - [Steps](#steps)
   - [Step 1: headers](#step-1-headers)
   - [Step 2: scene operations](#step-2-scene-operations)
-  - [Step 3: contact tests to Kinetra](#step-3-contact-tests-to-kinetra)
-  - [Step 4: contracts and module README](#step-4-contracts-and-module-readme)
+  - [Step 3: contracts and module README](#step-3-contracts-and-module-readme)
+  - [Step 4: contact tests to Kinetra](#step-4-contact-tests-to-kinetra)
 - [Affected areas](#affected-areas)
 - [Test plan](#test-plan)
 - [Review](#review)
@@ -58,7 +58,7 @@ Agent choices, made while the user was away and recorded for review. None of the
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Pull requests | Four, stacked in order: headers, scene operations, contact tests, contracts and README. Each later one has the previous branch as its base | One logical step per pull request, as asked. Lab CI runs on every pull request regardless of its base, so each step is checked on its own. Stacking keeps the diffs small; GitHub retargets a stacked pull request to `main` when its base merges |
+| Pull requests | Four, stacked in order: headers, scene operations, contracts and README, contact tests. Each later one has the previous branch as its base. The contact tests came third in the first plan; they moved last because this session could not push to Kinetra (see [open points](#open-points)), and a Lab branch may not record an unpushed Kinetra commit | One logical step per pull request, as asked. Lab CI runs on every pull request regardless of its base, so each step is checked on its own. Stacking keeps the diffs small; GitHub retargets a stacked pull request to `main` when its base merges |
 | Bodies first, encapsulation second | Step 1 moves code verbatim; step 2 changes the interface and extracts functions | A pure move is reviewable by comparing old and new text; mixing it with interface changes hides both |
 | Hand-built layouts in tests | A `Scene::arrange(movers, player, obstacles, navigation_area)` operation instead of public fields or a test friend | Four terrain tests need an exact layout (one wall, one player). An operation keeps the invariants in one place, validates its input, and also rebuilds the terrain index that the tests now leave stale |
 | Placing a body | `Scene::moving_body(id)` returns a mutable body for ids below `moving_body_count()` and throws otherwise | Tests and tools place the player or an agent; a mutable world would also let them add or remove bodies and break the mover-first layout |
@@ -75,8 +75,8 @@ Agent choices, made while the user was away and recorded for review. None of the
 | --- | --- | --- |
 | 1 | `refactor/demo-headers` | This document; bodies to `.cpp`; no `using namespace` in headers; Demo warnings as errors |
 | 2 | `refactor/demo-scene-operations` | `Scene` accessors and operations; `update`, `stream` and the constructor split into named steps |
-| 3 | `test/demo-contact-tests` | Kinetra pull request with the suite; Lab drops its copy and records the Kinetra branch commit |
-| 4 | `docs/demo-module` | `///` contracts; module README; `docs/demo-architecture.md` absorbed; roadmap status |
+| 3 | `docs/demo-module` | `///` contracts; module README; `docs/demo-architecture.md` absorbed; roadmap status |
+| 4 | `test/demo-contact-tests` | Kinetra pull request with the suite; Lab drops its copy and records the Kinetra branch commit |
 
 ### Step 1: headers
 
@@ -118,17 +118,19 @@ The public fields become private members with a trailing underscore. Callers use
 | `stream` | `evict_distant(retained)`, `load_terrain(retained)`, `populate_chunks(active)`, `reload_physics(retained, active)` |
 | `update` | `steering_settings()`, `avoidance_settings()`, `steer_agents(...)`, `steer_player(...)`, and the 60-line lambda as `local_acceleration(...)` on a small per-tick context struct |
 
-### Step 3: contact tests to Kinetra
-
-Kinetra branch `test/contact-response-tests`: `tests/contact_response_tests.cpp` with the six cases unchanged except its header comment, registered as `kinetra_contact_response_tests`, with a row in the test map and the targeted-tests table. Lab removes `labs/demo/tests/contact_tests.cpp` and `kinetra_demo_contact_tests`, updates the `AGENTS.md` targeted table and records the Kinetra branch commit. Kinetra merges first, with a merge commit; then the Lab pointer moves to Kinetra's merge commit, as [AGENTS.md](../../AGENTS.md#git-with-the-engine-submodule) prescribes.
-
-### Step 4: contracts and module README
+### Step 3: contracts and module README
 
 - `///` on every public type, function and non-trivial member in `labs/demo/include/demo/`, with units (world units, seconds, logical pixels), ownership and failure behavior.
 - `labs/demo/README.md` rewritten after the module template: concepts, structure with a diagram of the real types, the frame and tick flow, the streaming algorithm, the agent lifecycle as a state diagram, avoidance, invariants, recipes, tests and open points. The content of `docs/demo-architecture.md` moves in; the page goes, and its links (`docs/README.md`, `docs/architecture.md`, `AGENTS.md`, others found by `grep`) point to the README.
 - The roadmap's phase 5 row in the Status table.
 
+As implemented: the README keeps the controls and debug-menu reference and adds concepts, a class diagram, the frame as a sequence diagram, the streaming and tick algorithms, the agent lifecycle as a state diagram, invariants, recipes and the local-golden procedure. `docs/README.md`, `docs/architecture.md` and `AGENTS.md` link the README instead of the removed page.
+
 Demo has no navigation-only sub-READMEs left: the include layout change already removed them.
+
+### Step 4: contact tests to Kinetra
+
+Kinetra branch `test/contact-response-tests`: `tests/contact_response_tests.cpp` with the six cases unchanged except its header comment, registered as `kinetra_contact_response_tests`, with a row in the test map and the targeted-tests table. Lab removes `labs/demo/tests/contact_tests.cpp` and `kinetra_demo_contact_tests`, updates the `AGENTS.md` targeted table and records the Kinetra branch commit. Kinetra merges first, with a merge commit; then the Lab pointer moves to Kinetra's merge commit, as [AGENTS.md](../../AGENTS.md#git-with-the-engine-submodule) prescribes.
 
 ## Affected areas
 
@@ -173,6 +175,8 @@ Demo has no navigation-only sub-READMEs left: the include layout change already 
 
 **Step 2** (`refactor/demo-scene-operations`, at `33fe902`): targeted `dev` build without warnings and 60 Demo cases passed, the three new ones included; the characterization lines are identical to `main`'s in Debug. `cmake --workflow --preset graphics` passed 298 of 303, failing only the same five toolchain-dependent golden cases, whose Release lines are identical to `main`'s; the seven smoke runs passed.
 
+**Step 3** (`docs/demo-module`): `python3 external/Kinetra/tools/check_docs.py` passed; the header edits are comment-only, apart from `PointerAction` and `ActionResult`, which are split over lines (same enumerators, same order) to carry a comment per value, confirmed by a `dev` build of the Demo targets and the capture tool without warnings. Every path, type and test name in the README was checked with `grep`.
+
 `ctest --preset dev -LE soak` ignores the label filter with CMake 3.28; `ctest --test-dir build-dev -LE soak` applies it.
 
 ## Pull request
@@ -185,6 +189,12 @@ Changes: `labs/demo/src/world/{scene,agent,terrain,tuning}.cpp`, `src/input/mapp
 
 Dependencies and merge order: none; steps 2 to 4 are stacked on this branch.
 
+**Step 3.** Title: `docs(demo): contracts and module README`
+
+Summary: roadmap phase 5, step 3 of 4. `///` contracts on every Demo header (comment-only) and a module README after the template, which absorbs `docs/demo-architecture.md`; the roadmap's phase 5 row. No code change.
+
+Dependencies and merge order: stacked on step 2; merge #52 and #54 first.
+
 **Step 2.** Title: `refactor(demo): give Scene operations instead of public fields`
 
 Summary: roadmap phase 5, step 2 of 4. `Scene`'s 16 public fields become private. Callers read through accessors and change state through named operations; tests that built a layout by clearing the world and setting fields now use `arrange`, which keeps the scene's invariants. The constructor, `stream` and `update` are split into named steps (`update` from 170 lines to 12). No behavior change: the crowd characterization lines are identical to `main`'s.
@@ -194,3 +204,5 @@ Dependencies and merge order: stacked on step 1; merge step 1 first.
 ## Open points
 
 - **Help overlay is reachable only from tests.** `FrameCommands::toggle_help` is set by no input mapping, and the renderer never calls `demo::draw_help`; only `application_tests.cpp` and `presentation_tests.cpp` use them. The help lines a user sees come from the settings overlay. The relevance check of 2026-11-21 marked the help overlay as done, so this phase leaves it alone. Decision for the user: remove `draw_help`, `toggle_help` and `PresentationOptions::help`, or draw the overlay from the renderer.
+- **Kinetra access.** This session could not push to `SMB-M87/Kinetra`: attaching the repository with push access was refused by the permission check, and the git proxy rejects the push. Step 4 is therefore committed locally only: Kinetra `test/contact-response-tests` (the suite, its registration, the test map, the targeted-tests table and a Kinetra design document) and Lab `test/demo-contact-tests` on top of step 3 (drops Lab's copy, updates the docs, records the Kinetra commit). To finish: push the Kinetra branch and open its pull request, then push the Lab branch with the pointer, as [AGENTS.md](../../AGENTS.md#git-with-the-engine-submodule) describes.
+- **Characterization lines and toolchains.** The recorded Demo crowd lines and the i4sim RVO golden line hold only for CI's pinned toolchain. A local check needs a run of `main` for reference; recording per-toolchain lines, or a tolerance, would make the local Full level pass as is.

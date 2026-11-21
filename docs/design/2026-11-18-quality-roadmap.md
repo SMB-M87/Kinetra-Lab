@@ -103,7 +103,8 @@ Updated on 2026-11-19, after phase 4.
 | 2 Tooling and CI | Implemented | [Tooling and CI](2026-11-18-tooling-and-ci.md) |
 | 3 Safety net and shared presentation | Implemented: step 1 in Lab #2; steps 2–7 on `refactor/shared-presentation` with Kinetra `feat/overlay-glyphs-navigation` | [Safety net and shared presentation](2026-11-18-safety-net-shared-presentation.md), [Kinetra design](../../external/Kinetra/docs/design/2026-11-18-overlay-glyphs-navigation.md) |
 | 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
-| 5–8 | Not started | This page |
+| 5 Demo | Implemented: step 1 (headers) in Lab #52, step 2 (scene operations) in Lab #54, step 3 (contracts and README) on `docs/demo-module`; step 4 (contact tests to Kinetra) committed locally, waiting for Kinetra push access | [Demo restructuring](2026-11-21-demo-restructuring.md) |
+| 6–8 | Not started | This page |
 
 ## Phase 2: tooling and CI
 
