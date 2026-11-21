@@ -25,6 +25,11 @@ target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation kinetra_lab
 if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_dotio_tests PREFIX kinetra_dotio
         SOURCES tests/dotio_tests.cpp LIBRARIES kinetra_dotio_logic)
+    # Seeded statistics of enemy behavior; minutes per full run, so CTest runs only a smoke.
+    add_executable(kinetra_dotio_behavior_benchmark tests/behavior_benchmark.cpp)
+    target_link_libraries(kinetra_dotio_behavior_benchmark PRIVATE kinetra_dotio_logic)
+    add_test(NAME kinetra_dotio_behavior_smoke
+        COMMAND kinetra_dotio_behavior_benchmark --seeds 1 --seconds 10)
 endif()
 if(KINETRA_BUILD_RUNTIME)
     add_library(kinetra_dotio_presentation src/presentation/presentation.cpp src/presentation/session.cpp)
