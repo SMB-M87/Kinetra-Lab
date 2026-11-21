@@ -6,6 +6,7 @@
 #include <kinetra/simulation/steering.h>
 #include <random>
 #include <stdexcept>
+#include <utility>
 
 namespace demo {
 using namespace kinetra;
@@ -45,7 +46,7 @@ void append_avoidance_circles(const Body &obstacle, std::vector<Circle> &circles
 }
 } // namespace
 
-Scene::Scene(int count, std::uint32_t seed) : terrain(seed), preview(seed) {
+Scene::Scene(int count, std::uint32_t seed) : terrain_(seed), preview_(seed) {
     if (count < 0 || count > 300)
         throw std::invalid_argument("Initial agent count must be 0..300");
     // Use the world seed for dispersed, repeatable spawn candidates. Temporary
@@ -69,7 +70,7 @@ Scene::Scene(int count, std::uint32_t seed) : terrain(seed), preview(seed) {
     b.position = {0, -18};
     b.half_extents = {0.65f, 0.4f};
     b.friction = 0;
-    player = world.add(b);
+    player_ = world_.add(b);
     for (int i = 0; i < 6; ++i) {
         Body ball;
         if (i >= 2)
@@ -81,97 +82,132 @@ Scene::Scene(int count, std::uint32_t seed) : terrain(seed), preview(seed) {
         ball.angle = 0.35f * float(i);
         ball.angular_velocity = 0.7f;
         ball.restitution = 0.9f;
-        world.add(ball);
+        world_.add(ball);
     }
-    moving_body_count = world.bodies().size();
+    moving_body_count_ = world_.bodies().size();
     // Initial agents already populate these chunks; exploration adds agents elsewhere.
     for (int y = -2; count > 0 && y <= 0; ++y)
         for (int x = -2; x <= 1; ++x)
             populated_.emplace(x, y);
 }
 
+Body &Scene::moving_body(std::size_t id) {
+    if (id >= moving_body_count_)
+        throw std::out_of_range("Scene body id is not a moving body");
+    return world_.body(id);
+}
+
+void Scene::arrange(std::vector<Body> movers, std::size_t player, std::vector<Body> obstacles,
+                    Aabb navigation_area) {
+    if (player >= movers.size())
+        throw std::invalid_argument("Arranged player must be one of the movers");
+    for (const auto &agent : agents_)
+        if (agent.body_id() >= movers.size() || agent.body_id() == player)
+            throw std::invalid_argument("Every agent needs an arranged mover other than the player");
+    // Navigation validates before it replaces its snapshot, so a rejected area leaves the
+    // scene as it was.
+    navigation_.rebuild(navigation_area, obstacles);
+    world_.clear();
+    for (const auto &body : movers)
+        world_.add(body);
+    std::vector<Aabb> obstacle_bounds;
+    for (const auto &body : obstacles) {
+        world_.add(body);
+        obstacle_bounds.push_back(bounds(body));
+    }
+    terrain_index_.rebuild(obstacle_bounds);
+    loaded_terrain_ = std::move(obstacles);
+    moving_body_count_ = movers.size();
+    player_ = player;
+    player_goal_.reset();
+    player_path_.clear();
+    player_replan_ = 0;
+    for (auto &agent : agents_)
+        agent.invalidate_route();
+}
+
 void Scene::stream(const Camera2D &camera) {
     camera.validate();
     const Vec2 half_view = camera.viewport / (2 * camera.pixels_per_unit);
-    view = {camera.position - half_view, camera.position + half_view};
-    if (!following)
-        preview.update(view, 0);
+    view_ = {camera.position - half_view, camera.position + half_view};
+    if (!following_)
+        preview_.update(view_, 0);
     bool removed = false;
-    std::vector<bool> discard(moving_body_count);
+    std::vector<bool> discard(moving_body_count_);
     // Lifecycle distances are player-centered and independent of Ghost and current zoom.
-    const auto center = world.body(player).position;
+    const auto center = world_.body(player_).position;
     const Vec2 active_half = camera.viewport * (1.75f / (2 * 17.f));
     const Aabb active_view{center - active_half, center + active_half};
     const Vec2 retained_half = camera.viewport * (1.25f / (2 * 5.f));
     const Aabb retained{center - retained_half, center + retained_half};
-    for (std::size_t id = 0; id < moving_body_count; ++id)
-        if (id != player && !retained.overlaps(bounds(world.body(id)))) {
+    for (std::size_t id = 0; id < moving_body_count_; ++id)
+        if (id != player_ && !retained.overlaps(bounds(world_.body(id)))) {
             discard[id] = true;
             removed = true;
         }
     if (removed) {
         // Compact movers and remap every handle atomically before rebuilding terrain.
-        std::vector<std::size_t> remap(moving_body_count);
+        std::vector<std::size_t> remap(moving_body_count_);
         std::vector<Body> retained_bodies;
-        for (std::size_t i = 0; i < moving_body_count; ++i)
+        for (std::size_t i = 0; i < moving_body_count_; ++i)
             if (!discard[i]) {
                 remap[i] = retained_bodies.size();
-                retained_bodies.push_back(world.body(i));
+                retained_bodies.push_back(world_.body(i));
             }
         std::erase_if(agents_, [&](const Agent &a) { return discard[a.body_id()]; });
         for (auto &agent : agents_)
             agent.remap_body(remap[agent.body_id()]);
-        player = remap[player];
-        world.clear();
+        player_ = remap[player_];
+        world_.clear();
         for (const auto &body : retained_bodies)
-            world.add(body);
-        moving_body_count = retained_bodies.size();
+            world_.add(body);
+        moving_body_count_ = retained_bodies.size();
     }
     // Remember only resident chunks, allowing bounded state and fresh populations on return.
     std::erase_if(populated_, [&](const auto &coordinate) {
         const Vec2 corner{float(coordinate.first) * 32.f, float(coordinate.second) * 32.f};
         return !retained.overlaps({corner, corner + Vec2{32, 32}});
     });
-    const bool changed = terrain.update(retained, 0) || removed;
-    std::vector<Body> movers(world.bodies().begin(), world.bodies().begin() + moving_body_count);
+    const bool changed = terrain_.update(retained, 0) || removed;
+    std::vector<Body> movers(world_.bodies().begin(), world_.bodies().begin() + moving_body_count_);
     if (changed) {
-        world.clear();
+        world_.clear();
         for (const auto &body : movers)
-            world.add(body);
+            world_.add(body);
     }
     bool added = false;
-    for (const auto &[coordinate, obstacles] : terrain.chunks()) {
+    for (const auto &[coordinate, obstacles] : terrain_.chunks()) {
         const Vec2 corner{float(coordinate.first) * Terrain::chunk_size,
                           float(coordinate.second) * Terrain::chunk_size};
         if (!active_view.overlaps({corner, corner + Vec2{32, 32}}) || agents_.size() >= maximum_agents ||
             !populated_.insert(coordinate).second)
             continue;
-        std::seed_seq sequence{terrain.seed(), std::uint32_t(coordinate.first),
+        std::seed_seq sequence{terrain_.seed(), std::uint32_t(coordinate.first),
                                std::uint32_t(coordinate.second), 12345u};
         std::mt19937 random(sequence);
         // Remove disposable obstacles before inserting movers to retain stable indices.
         if (!changed && !added) {
-            world.clear();
+            world_.clear();
             for (const auto &body : movers)
-                world.add(body);
+                world_.add(body);
         }
         added = true;
         for (int attempt = 0, made = 0; attempt < 160 && made < 12 && agents_.size() < maximum_agents;
              ++attempt) {
             const auto unit = [&]() { return float(random() >> 8) / 16777216.f; };
-            if (spawn(corner + Vec2{2 + unit() * 28, 2 + unit() * 28}, terrain.chunks()))
+            if (spawn(corner + Vec2{2 + unit() * 28, 2 + unit() * 28}, terrain_.chunks()))
                 ++made;
         }
     }
     if (changed || added) {
-        moving_body_count = world.bodies().size();
+        moving_body_count_ = world_.bodies().size();
         loaded_terrain_.clear();
         std::vector<Aabb> terrain_bounds;
-        for (const auto &[coordinate, bodies] : terrain.chunks())
+        for (const auto &[coordinate, bodies] : terrain_.chunks())
             for (const auto &body : bodies) {
                 if (!retained.overlaps(bounds(body)))
                     continue;
-                world.add(body);
+                world_.add(body);
                 loaded_terrain_.push_back(body);
                 terrain_bounds.push_back(bounds(body));
             }
@@ -180,75 +216,76 @@ void Scene::stream(const Camera2D &camera) {
         // Plan only around simulated actors, rather than allocating navigation
         // for the much larger debug residency area. Margin covers wander goals.
         const Vec2 route_margin{24, 24};
-        navigation.rebuild({active_view.min - route_margin, active_view.max + route_margin}, loaded_terrain_);
+        navigation_.rebuild({active_view.min - route_margin, active_view.max + route_margin},
+                            loaded_terrain_);
         for (auto &agent : agents_)
             agent.invalidate_route();
-        player_replan = 0;
+        player_replan_ = 0;
     }
     for (auto &agent : agents_)
-        agent.update_visibility(active_view, world.body(agent.body_id()));
+        agent.update_visibility(active_view, world_.body(agent.body_id()));
 }
 
 bool Scene::teleport(Vec2 destination) {
-    if (!finite(destination) || !view.overlaps({destination, destination}))
+    if (!finite(destination) || !view_.overlaps({destination, destination}))
         return false;
-    Body candidate = world.body(player);
+    Body candidate = world_.body(player_);
     candidate.position = destination;
-    if (terrain.blocked(candidate))
+    if (terrain_.blocked(candidate))
         return false;
-    for (std::size_t i = 0; i < world.bodies().size(); ++i)
-        if (i != player && collide(candidate, world.body(i)))
+    for (std::size_t i = 0; i < world_.bodies().size(); ++i)
+        if (i != player_ && collide(candidate, world_.body(i)))
             return false;
     candidate.velocity = candidate.acceleration = {};
     candidate.angular_velocity = 0;
-    world.body(player) = candidate;
-    player_goal.reset();
-    player_path.clear();
+    world_.body(player_) = candidate;
+    player_goal_.reset();
+    player_path_.clear();
     return true;
 }
 
 bool Scene::walk_to(Vec2 destination) {
-    player_path = navigation.path(world.body(player).position, destination);
-    player_goal = player_path.empty() ? std::nullopt : std::optional<Vec2>(player_path.back());
-    player_replan = 2;
-    return player_goal.has_value();
+    player_path_ = navigation_.path(world_.body(player_).position, destination);
+    player_goal_ = player_path_.empty() ? std::nullopt : std::optional<Vec2>(player_path_.back());
+    player_replan_ = 2;
+    return player_goal_.has_value();
 }
 
 bool Scene::select_or_target(Vec2 destination) {
     for (auto &agent : agents_)
-        if (agent.active() && length(world.body(agent.body_id()).position - destination) < 1.f) {
-            if (selected_agent && length(*selected_agent - agent.home()) < 0.001f)
-                selected_agent.reset();
+        if (agent.active() && length(world_.body(agent.body_id()).position - destination) < 1.f) {
+            if (selected_agent_ && length(*selected_agent_ - agent.home()) < 0.001f)
+                selected_agent_.reset();
             else
-                selected_agent = agent.home();
+                selected_agent_ = agent.home();
             return true;
         }
-    if (selected_agent) {
+    if (selected_agent_) {
         for (auto &agent : agents_)
-            if (length(agent.home() - *selected_agent) < 0.001f) {
+            if (length(agent.home() - *selected_agent_) < 0.001f) {
                 agent.retarget(destination);
                 return true;
             }
-        selected_agent.reset();
+        selected_agent_.reset();
     }
     return false;
 }
 
 void Scene::target_agents(Vec2 destination) {
-    selected_agent.reset();
+    selected_agent_.reset();
     for (auto &agent : agents_)
         agent.retarget(destination);
 }
 
 void Scene::follow(Camera2D &camera) const {
-    if (following)
-        camera.position = world.body(player).position;
+    if (following_)
+        camera.position = world_.body(player_).position;
 }
 
 void Scene::update(float dt, const PlayerControl &control) {
-    validate(tuning);
-    avoidance_limited = 0;
-    const MotionTuning &motion = tuning.motion;
+    validate(tuning_);
+    avoidance_limited_ = 0;
+    const MotionTuning &motion = tuning_.motion;
     Steering steering;
     steering.max_speed = motion.max_speed;
     steering.max_acceleration = motion.max_acceleration;
@@ -257,8 +294,8 @@ void Scene::update(float dt, const PlayerControl &control) {
     steering.slow_radius = slow_radius;
     steering.stop_radius = stop_radius;
     steering.clearance = motion.clearance;
-    std::vector<Body> snapshot(world.bodies().begin(), world.bodies().begin() + moving_body_count);
-    std::vector<bool> cooperative(moving_body_count, false);
+    std::vector<Body> snapshot(world_.bodies().begin(), world_.bodies().begin() + moving_body_count_);
+    std::vector<bool> cooperative(moving_body_count_, false);
     for (const auto &agent : agents_) {
         cooperative[agent.body_id()] = agent.active();
         if (!agent.active()) {
@@ -271,7 +308,7 @@ void Scene::update(float dt, const PlayerControl &control) {
     std::vector<Aabb> boxes;
     float largest_radius = 0;
     float largest_speed = steering.max_speed;
-    for (std::size_t id = 0; id < moving_body_count; ++id) {
+    for (std::size_t id = 0; id < moving_body_count_; ++id) {
         boxes.push_back(bounds(snapshot[id]));
         largest_radius = std::max(largest_radius, bounding_radius(snapshot[id]));
         largest_speed = std::max(largest_speed, length(snapshot[id].velocity));
@@ -290,7 +327,7 @@ void Scene::update(float dt, const PlayerControl &control) {
         const auto &body = snapshot[id];
         std::vector<Body> obstacles;
         std::vector<AvoidanceAgent> agents;
-        const bool reciprocal = reciprocal_avoidance && id != player;
+        const bool reciprocal = reciprocal_avoidance_ && id != player_;
         const float range = reciprocal ? bounding_radius(body) + largest_radius +
                                              (avoidance.max_speed + largest_speed) * avoidance.horizon
                                        : legacy_neighbor_range;
@@ -299,7 +336,7 @@ void Scene::update(float dt, const PlayerControl &control) {
             // Terrain clearance is handled by the swept route. Local avoidance
             // handles movers without fighting planned static-obstacle corners. Only
             // an agent without a route adds terrain below.
-            if (other != id && other < moving_body_count) {
+            if (other != id && other < moving_body_count_) {
                 if (reciprocal) {
                     const auto &neighbor = snapshot[other];
                     agents.push_back({other, neighbor.position, neighbor.velocity, bounding_radius(neighbor),
@@ -336,11 +373,11 @@ void Scene::update(float dt, const PlayerControl &control) {
             const auto result = avoid_collisions({id, body.position, body.velocity, bounding_radius(body)},
                                                  preferred, agents, dt, avoidance);
             if (!result.feasible)
-                ++avoidance_limited;
+                ++avoidance_limited_;
             return result.acceleration;
         }
         auto settings = steering;
-        if (id != player) {
+        if (id != player_) {
             settings.separation_radius = motion.separation_radius;
             settings.separation_weight = motion.separation_weight;
         }
@@ -350,7 +387,7 @@ void Scene::update(float dt, const PlayerControl &control) {
     // state after physics so gravity, impulses and timers cannot advance them.
     std::vector<std::pair<std::size_t, Body>> sleeping;
     for (auto &agent : agents_) {
-        auto &body = world.body(agent.body_id());
+        auto &body = world_.body(agent.body_id());
         if (!agent.active()) {
             sleeping.emplace_back(agent.body_id(), body);
             body.motion = Motion::fixed;
@@ -358,7 +395,7 @@ void Scene::update(float dt, const PlayerControl &control) {
             body.angular_velocity = 0;
             continue;
         }
-        const Vec2 target = agent.advance_navigation(dt, body, navigation, tuning);
+        const Vec2 target = agent.advance_navigation(dt, body, navigation_, tuning_);
         // A route keeps its own clearance from terrain; an agent without one relies on
         // local avoidance to stay clear of it.
         body.acceleration = acceleration(agent.body_id(), target,
@@ -370,34 +407,34 @@ void Scene::update(float dt, const PlayerControl &control) {
                     0.2f,
                 -5.f, 5.f);
     }
-    auto &p = world.body(player);
+    auto &p = world_.body(player_);
     const Vec2 direction = control.direction;
     if (length(direction) > 0 || control.turn_left || control.turn_right) {
-        player_goal.reset();
-        player_path.clear();
+        player_goal_.reset();
+        player_path_.clear();
     }
-    if (player_goal) {
-        player_replan -= dt;
-        if (player_replan <= 0) {
-            player_path = navigation.path(p.position, *player_goal);
-            player_replan = 2;
+    if (player_goal_) {
+        player_replan_ -= dt;
+        if (player_replan_ <= 0) {
+            player_path_ = navigation_.path(p.position, *player_goal_);
+            player_replan_ = 2;
         }
         p.acceleration =
-            acceleration(player, route_target(p.position, player_path, navigation), AvoidTerrain::no);
-        if (length(*player_goal - p.position) < 0.4f) {
-            player_goal.reset();
-            player_path.clear();
+            acceleration(player_, route_target(p.position, player_path_, navigation_), AvoidTerrain::no);
+        if (length(*player_goal_ - p.position) < 0.4f) {
+            player_goal_.reset();
+            player_path_.clear();
         }
     } else {
         p.acceleration = limited((normalized(direction) * 7 - p.velocity) / 0.15f, 25);
     }
     p.angular_velocity = (float(control.turn_left) - float(control.turn_right)) * 2;
-    if (player_goal && length(p.velocity) > 0.1f)
+    if (player_goal_ && length(p.velocity) > 0.1f)
         p.angular_velocity = std::clamp(
             std::remainder(std::atan2(p.velocity.y, p.velocity.x) - p.angle, 6.283185307f) / 0.2f, -5.f, 5.f);
-    world.step(dt);
+    world_.step(dt);
     for (const auto &[id, body] : sleeping)
-        world.body(id) = body;
+        world_.body(id) = body;
 }
 
 bool Scene::spawn(Vec2 position, const Terrain::Chunks &chunks) {
@@ -416,14 +453,14 @@ bool Scene::spawn(Vec2 position, const Terrain::Chunks &chunks) {
     b.half_extents = {0.4f, 0.25f};
     b.radius = 0.32f;
     b.friction = 0;
-    for (const auto &other : world.bodies())
+    for (const auto &other : world_.bodies())
         if (length(other.position - position) < 1.5f)
             return false;
     for (const auto &[coordinate, obstacles] : chunks)
         for (const auto &obstacle : obstacles)
             if (collide(b, obstacle))
                 return false;
-    agents_.emplace_back(world.add(b), position, terrain.seed());
+    agents_.emplace_back(world_.add(b), position, terrain_.seed());
     return true;
 }
 } // namespace demo

@@ -29,12 +29,12 @@ void Application::apply_actions(const FrameCommands &commands) {
     if (commands.toggle_help)
         presentation_.help = !presentation_.help;
     presentation_.probes = commands.probes;
-    scene_.world.gravity = gravity_ ? kinetra::Vec2{0, -9.81f} : kinetra::Vec2{};
+    scene_.set_gravity(gravity_ ? kinetra::Vec2{0, -9.81f} : kinetra::Vec2{});
 }
 
 void Application::update_camera(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
     kinetra::zoom(camera, commands.zoom_steps, commands.debug ? debug_zoom_limits : zoom_limits);
-    if (!scene_.following)
+    if (!scene_.following())
         camera.position += commands.camera_pan * (float(std::min(elapsed, 0.1)) * 20);
     scene_.follow(camera);
     // Keep floating-point coordinates inside the terrain and spatial-grid limits.
@@ -46,7 +46,7 @@ void Application::apply_pointer(const PointerCommand &command, const kinetra::Ca
     const auto destination = camera.screen_to_world(command.screen_position);
     switch (command.action) {
     case PointerAction::clear_selection:
-        scene_.selected_agent.reset();
+        scene_.clear_selection();
         break;
     case PointerAction::teleport:
         last_action_ =
@@ -66,18 +66,18 @@ void Application::apply_pointer(const PointerCommand &command, const kinetra::Ca
 
 void Application::tick(const FrameCommands &commands, bool snapshot) {
     if (snapshot)
-        before_tick_ = poses(scene_.world);
+        before_tick_ = poses(scene_.world());
     scene_.update(float(clock_.step()), commands.debug && commands.ghost ? PlayerControl{} : commands.player);
     if (snapshot)
-        after_tick_ = poses(scene_.world);
+        after_tick_ = poses(scene_.world());
 }
 
 void Application::advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
     if (!std::isfinite(commands.time_scale) || commands.time_scale < 0)
         throw std::invalid_argument("Time scale must be finite and not negative");
-    scene_.reciprocal_avoidance = commands.reciprocal_avoidance;
+    scene_.set_reciprocal_avoidance(commands.reciprocal_avoidance);
     apply_actions(commands);
-    scene_.following = !(commands.debug && commands.ghost);
+    scene_.set_following(!(commands.debug && commands.ghost));
     update_camera(elapsed, commands, camera);
     scene_.stream(camera);
     if (commands.pointer &&
@@ -95,7 +95,7 @@ void Application::advance(double elapsed, const FrameCommands &commands, kinetra
     // Snapshots from before a pause would draw the first running frames behind the state
     // shown while paused; start from the current state instead.
     if (!paused_ && was_paused_)
-        before_tick_ = after_tick_ = poses(scene_.world);
+        before_tick_ = after_tick_ = poses(scene_.world());
     was_paused_ = paused_;
     if (!paused_)
         // Only the last tick is drawn between, so only it needs snapshots.
@@ -107,7 +107,7 @@ void Application::advance(double elapsed, const FrameCommands &commands, kinetra
 }
 
 Application::Pose Application::presented_pose(std::size_t id) const {
-    const auto &body = scene_.world.body(id);
+    const auto &body = scene_.world().body(id);
     const Pose exact{body.position, body.angle};
     if (paused_ || id >= after_tick_.size() || id >= before_tick_.size())
         return exact;

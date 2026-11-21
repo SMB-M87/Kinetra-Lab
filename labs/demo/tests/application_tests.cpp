@@ -22,7 +22,7 @@ using namespace kinetra;
 namespace {
 Vec2 player_position(const Application &application) {
     const auto &scene = application.scene();
-    return scene.world.body(scene.player).position;
+    return scene.world().body(scene.player()).position;
 }
 
 /// Elapsed time per frame in seconds; the Demo's fixed clock steps at the same rate.
@@ -42,23 +42,23 @@ float distance_covered(Application &application, Camera2D &camera, int frames) {
     for (int frame = 0; frame < frames; ++frame) {
         std::vector<Vec2> before;
         for (const auto &agent : application.scene().agents())
-            before.push_back(application.scene().world.body(agent.body_id()).position);
+            before.push_back(application.scene().world().body(agent.body_id()).position);
         application.advance(frame_seconds, {}, camera);
         // A standing player streams nothing in or out, so the agents keep their order.
         const auto agents = application.scene().agents();
         REQUIRE(agents.size() == before.size());
         for (std::size_t i = 0; i < agents.size(); ++i)
-            covered += distance(application.scene().world.body(agents[i].body_id()).position, before[i]);
+            covered += distance(application.scene().world().body(agents[i].body_id()).position, before[i]);
     }
     return covered;
 }
 
 /// The loaded terrain body of `shape` that lies nearest to the player of `scene`.
 Body nearest_terrain(const Scene &scene, Shape shape) {
-    const auto bodies = scene.world.bodies();
-    const Vec2 player = bodies[scene.player].position;
+    const auto bodies = scene.world().bodies();
+    const Vec2 player = bodies[scene.player()].position;
     std::optional<Body> nearest;
-    for (std::size_t id = scene.moving_body_count; id < bodies.size(); ++id)
+    for (std::size_t id = scene.moving_body_count(); id < bodies.size(); ++id)
         if (bodies[id].shape == shape &&
             (!nearest || distance(bodies[id].position, player) < distance(nearest->position, player)))
             nearest = bodies[id];
@@ -79,11 +79,11 @@ TEST_CASE("a steering wanderer heading for terrain gets away from it without tou
             CAPTURE(reciprocal);
             CAPTURE(static_cast<int>(shape));
             Scene scene(1, 42);
-            scene.reciprocal_avoidance = reciprocal;
+            scene.set_reciprocal_avoidance(reciprocal);
             // The agent walks a straight line unless avoidance turns it, and its home
             // range does not pull it away from the obstacle.
-            scene.tuning.wander.jitter = 0;
-            scene.tuning.wander.range = 1e6f;
+            scene.tuning().wander.jitter = 0;
+            scene.tuning().wander.range = 1e6f;
             const Camera2D camera = session_camera();
             scene.stream(camera);
             const Body obstacle = nearest_terrain(scene, shape);
@@ -95,33 +95,34 @@ TEST_CASE("a steering wanderer heading for terrain gets away from it without tou
                         obstacle.angle);
             const auto id = scene.agents().front().body_id();
             const float start_distance = bounding_radius(obstacle) + start_gap;
-            scene.world.body(id).position = obstacle.position - approach * start_distance;
-            scene.world.body(id).velocity = approach * scene.tuning.motion.max_speed;
-            REQUIRE_MESSAGE(!scene.terrain.blocked(scene.world.body(id)), "The agent starts inside terrain");
+            scene.moving_body(id).position = obstacle.position - approach * start_distance;
+            scene.moving_body(id).velocity = approach * scene.tuning().motion.max_speed;
+            REQUIRE_MESSAGE(!scene.terrain().blocked(scene.world().body(id)),
+                            "The agent starts inside terrain");
             float covered = 0;
             for (int tick = 0; tick < ticks; ++tick) {
                 INFO("tick " << tick);
-                const Vec2 before = scene.world.body(id).position;
+                const Vec2 before = scene.world().body(id).position;
                 scene.stream(camera);
                 scene.update(float(frame_seconds), {});
-                const Body &agent = scene.world.body(id);
+                const Body &agent = scene.world().body(id);
                 REQUIRE_MESSAGE(scene.agents().front().steers_without_route(),
                                 "The agent stopped wandering by steering");
                 covered += distance(agent.position, before);
                 // Without avoidance of terrain the agent runs into the obstacle and physics
                 // has to push it out again. Avoidance keeps its clearance, so the shapes
                 // never even touch, which also rules out any deeper overlap.
-                const auto terrain = scene.world.bodies().subspan(scene.moving_body_count);
+                const auto terrain = scene.world().bodies().subspan(scene.moving_body_count());
                 const bool touching = std::any_of(terrain.begin(), terrain.end(), [&](const Body &body) {
                     return collide(agent, body).has_value();
                 });
                 REQUIRE_MESSAGE(!touching, "A steering wanderer touched terrain");
             }
-            const Vec2 end = scene.world.body(id).position;
+            const Vec2 end = scene.world().body(id).position;
             INFO("covered " << covered << ", ended " << distance(end, obstacle.position)
                             << " from the obstacle, started " << start_distance);
             // Stopped in front of the obstacle it would have covered the start gap only.
-            CHECK_MESSAGE(covered > scene.tuning.motion.max_speed * float(ticks * frame_seconds) / 3,
+            CHECK_MESSAGE(covered > scene.tuning().motion.max_speed * float(ticks * frame_seconds) / 3,
                           "A steering wanderer did not keep moving at terrain");
             CHECK_MESSAGE(distance(end, obstacle.position) > start_distance,
                           "A steering wanderer stayed at the obstacle it headed for");
@@ -280,7 +281,7 @@ TEST_CASE("a single step while paused runs exactly one fixed tick") {
     reference.advance(1.0 / 120, commands, reference_camera);
     const auto positions = [](const Application &application) {
         std::vector<Vec2> result;
-        for (const auto &body : application.scene().world.bodies())
+        for (const auto &body : application.scene().world().bodies())
             result.push_back(body.position);
         return result;
     };
@@ -299,7 +300,7 @@ TEST_CASE("a single step while paused runs exactly one fixed tick") {
     CHECK_MESSAGE(stepped.paused(), "A single step ended the pause");
     CHECK_MESSAGE(same(positions(stepped), positions(reference)),
                   "A single step did not move every body by exactly one tick");
-    const auto player = stepped.scene().player;
+    const auto player = stepped.scene().player();
     CHECK_MESSAGE(length(stepped.presented_pose(player).position - player_position(stepped)) == 0,
                   "A stepped scene is not drawn at its exact state");
     commands.single_step = false;
@@ -340,18 +341,18 @@ TEST_CASE("switching avoidance mode neither resets nor advances the scene") {
     Camera2D camera;
     FrameCommands commands;
     application.advance(1.0 / 120, commands, camera);
-    CHECK_MESSAGE(application.scene().reciprocal_avoidance, "Reciprocal avoidance did not start enabled");
+    CHECK_MESSAGE(application.scene().reciprocal_avoidance(), "Reciprocal avoidance did not start enabled");
     const auto count = application.scene().agents().size();
     const auto before = player_position(application);
     commands.reciprocal_avoidance = false;
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((!application.scene().reciprocal_avoidance &&
+    CHECK_MESSAGE((!application.scene().reciprocal_avoidance() &&
                    application.scene().agents().size() == count &&
                    length(before - player_position(application)) == 0),
                   "Switching avoidance mode reset or advanced the scene");
     commands.reciprocal_avoidance = true;
     application.advance(0, commands, camera);
-    CHECK_MESSAGE(application.scene().reciprocal_avoidance, "Could not restore reciprocal avoidance");
+    CHECK_MESSAGE(application.scene().reciprocal_avoidance(), "Could not restore reciprocal avoidance");
 }
 
 TEST_CASE("help toggles and pause stops fixed updates without replaying paused time") {
@@ -417,9 +418,9 @@ TEST_CASE("pointer commands report walking teleport route and agent results") {
     commands.toggle_pause = true;
     commands.pointer = PointerCommand{PointerAction::walk, camera.world_to_screen({12, 0})};
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((application.last_action() == ActionResult::walking && application.scene().player_goal),
+    CHECK_MESSAGE((application.last_action() == ActionResult::walking && application.scene().player_goal()),
                   "Walk command lost its route");
-    const auto original_path = application.scene().player_path;
+    const auto original_path = application.scene().player_path();
     std::vector<Vec2> original_homes;
     for (const auto &agent : application.scene().agents())
         original_homes.push_back(agent.home());
@@ -430,14 +431,14 @@ TEST_CASE("pointer commands report walking teleport route and agent results") {
     application.advance(0, commands, camera);
     CHECK_MESSAGE((application.last_action() == ActionResult::teleport_blocked &&
                    length(player_position(application) - original_position) == 0 &&
-                   application.scene().player_path.size() == original_path.size() &&
-                   application.scene().player_goal),
+                   application.scene().player_path().size() == original_path.size() &&
+                   application.scene().player_goal()),
                   "Rejected teleport changed the player or route");
     commands.debug = commands.ghost = false;
     commands.pointer->action = PointerAction::walk;
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((application.last_action() == ActionResult::no_route && !application.scene().player_goal &&
-                   application.scene().player_path.empty()),
+    CHECK_MESSAGE((application.last_action() == ActionResult::no_route &&
+                   !application.scene().player_goal() && application.scene().player_path().empty()),
                   "Failed walk retained the previous route");
     commands.pointer = PointerCommand{PointerAction::target_agents, camera.world_to_screen({3, 4})};
     application.advance(0, commands, camera);
@@ -465,9 +466,9 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
     REQUIRE_MESSAGE(agent != scene.agents().end(), "Missing active agent for selection test");
     Input input;
     input.clicked = true;
-    input.mouse = camera.world_to_screen(scene.world.body(agent->body_id()).position);
+    input.mouse = camera.world_to_screen(scene.world().body(agent->body_id()).position);
     application.advance(0, read_commands(input), camera);
-    CHECK_MESSAGE(scene.selected_agent.has_value(), "Left click did not select an agent");
+    CHECK_MESSAGE(scene.selected_agent().has_value(), "Left click did not select an agent");
 
     const auto start = player_position(application);
     input.clicked = false;
@@ -476,7 +477,7 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
     auto commands = read_commands(input);
     commands.debug = commands.ghost = true;
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((!scene.selected_agent && length(player_position(application) - start) == 0 &&
+    CHECK_MESSAGE((!scene.selected_agent() && length(player_position(application) - start) == 0 &&
                    application.last_action() == ActionResult::none),
                   "Right click must clear the selection without teleporting the player");
 }
@@ -488,8 +489,8 @@ TEST_CASE("opposing held rotation cancels navigation without rotating") {
     PlayerControl control;
     control.turn_left = control.turn_right = true;
     scene.update(1.f / 120, control);
-    CHECK_MESSAGE((!scene.player_goal && scene.player_path.empty() &&
-                   scene.world.body(scene.player).angular_velocity == 0),
+    CHECK_MESSAGE((!scene.player_goal() && scene.player_path().empty() &&
+                   scene.world().body(scene.player()).angular_velocity == 0),
                   "Opposing held rotation controls must cancel navigation without rotating");
 }
 
@@ -533,7 +534,7 @@ TEST_CASE("drawn poses lie between the last two ticks and snap after a teleport 
     commands.player.direction = {1, 0};
     // Ten whole ticks and half of the next one.
     application.advance(10.5 / 120, commands, camera);
-    const auto player = application.scene().player;
+    const auto player = application.scene().player();
     const auto exact = player_position(application);
     const auto drawn = application.presented_pose(player).position;
     CHECK_MESSAGE(length(exact - drawn) > 0, "A moving player was drawn at its simulated position");
