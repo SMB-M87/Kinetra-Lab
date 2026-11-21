@@ -50,7 +50,7 @@ Run from WSL; interop starts the `.exe` as a Windows process:
 ./build-windows/kinetra.exe --variant i4sim
 ```
 
-From Windows, open `\\wsl.localhost\<distribution>\<path to Kinetra-Lab>\build-windows\kinetra.exe` in Explorer. To run without WSL, copy the executable together with `SDL2.dll` and `i4sim-blueprints/`; nothing else is needed.
+From Windows, open `\\wsl.localhost\<distribution>\<path to Kinetra-Lab>\build-windows\kinetra.exe` in Explorer. To run without WSL, copy the executable together with `SDL2.dll` and `i4sim-blueprints/`; nothing else is needed. The [release workflow](../tools/release/README.md) publishes exactly that set as a ready-to-run zip.
 
 ## Building on Windows
 
@@ -73,11 +73,10 @@ wsl --cd <path to Kinetra-Lab in WSL> cmake --workflow --preset windows
 pacman -S --needed git mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-nlohmann-json
 ```
 
-Keep the committed line endings, then clone with the engine submodule. The submodule URL uses SSH; without an SSH key for GitHub, the `insteadOf` line makes Git use HTTPS instead:
+Keep the committed line endings, then clone with the engine submodule (over HTTPS, no SSH key needed):
 
 ```sh
 git config --global core.autocrlf false
-git config --global url."https://github.com/".insteadOf "git@github.com:"
 git clone --recurse-submodules https://github.com/SMB-M87/Kinetra-Lab.git
 cd Kinetra-Lab
 ```
