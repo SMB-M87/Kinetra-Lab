@@ -301,17 +301,32 @@ stateDiagram-v2
     [*] --> Formed: head-on conflict predicted, lanes fit
     Formed --> Crossing: both stopped at their entry points
     Crossing --> [*]: both reached their exit points (completed)
-    Formed --> [*]: cancelled
-    Crossing --> [*]: cancelled
+    Formed --> [*]: cancelled or obstructed
+    Crossing --> [*]: cancelled or obstructed
+    state Formed {
+        [*] --> Driving
+        Driving --> Waiting: a mover with priority predicted in the lane ahead
+        Waiting --> Driving: lane ahead clear for 20 ticks
+    }
+    state Crossing {
+        state "Driving" as Driving2
+        state "Waiting" as Waiting2
+        [*] --> Driving2
+        Driving2 --> Waiting2: a mover with priority predicted in the lane ahead
+        Waiting2 --> Driving2: lane ahead clear for 20 ticks
+    }
 ```
+
+*Takeaway:* a plan is checked against the movers around it in every tick; each participant may wait on its own, and an obstruction that waiting cannot clear ends the plan.
 
 - **Prediction.** From the tick's snapshot, with preferred speed and a lookahead that depends on the footprints, the policy finds pairs with roughly opposite headings that would meet. Pairs are sorted by encounter time and mover index, so pairing is deterministic; a mover joins one pair at most.
 - **Plan.** Each mover gets an *entry point* in its own side lane and an *exit point* beyond the encounter. The lanes are offset by the footprints plus 8 mm. Two side choices and three shared sideways shifts are tried, so a pair can also pass next to a wall.
 - **Checks.** A plan is accepted only if both swept paths clear the static grid (with 2 mm inflation), every other mover in the snapshot, the detected junctions and corridors, and the paths of existing pairs. If nothing fits, ordinary steering continues.
+- **Guard.** In every tick each participant's remaining legs are checked again. A mover that stands still on them (idle, unreachable or held), or one that drives toward the participant along its lane, ends the plan as `obstructed`. A mover predicted to enter the *lane ahead* (what the participant reaches within the steering horizon plus its braking distance) makes the participant stop at its braking point and wait until that lane has been clear for 20 ticks; a wait of 240 ticks also ends the plan as `obstructed`. A participant yields to movers outside every plan and to participants of older plans, never to younger ones, and ignores movers behind it, so two plans cannot wait for each other and a decision does not flip back and forth.
 - **Two stages.** Both movers first reach their entry points and stop (*formed*), then both drive to their exit points (*crossing*), and then they plan routes to their unchanged goals.
-- **Cancellation.** A plan ends early when the feature is switched off, a participant is held or gets a new goal, corridor recovery takes a participant, or the pair makes no progress for 240 ticks; the movers then wait 120 ticks before trying again.
+- **Cancellation.** A plan ends early when the feature is switched off, a participant is held or gets a new goal, corridor recovery takes a participant, the guard finds it obstructed, or the pair makes no progress for 240 ticks; the movers then wait 120 ticks before trying again. After a completed plan they may pair with the next oncoming mover at once.
 
-Mint arrows show the temporary targets and `PASS` counts active pairs. With the event log on, every plan records its formation, crossing and end with the reason. *Limits:* the checks use the snapshot of the tick in which the plan forms. A third mover that enters a lane later is not guarded against; the [pressure scenarios](tests/README.md#golden-and-pressure-lines) record what happens then, and roadmap phase 7 addresses it.
+Mint arrows show the temporary targets (a waiting participant's braking point while it waits) and `PASS` counts active pairs. With the event log on, every plan records its formation, crossing and end with the reason. The [pressure scenarios](tests/README.md#golden-and-pressure-lines) require that three oncoming movers, a mover crossing or stopping in a lane, two simultaneous pairs and a narrow aisle end without contact and with every mover at its goal. *Limits:* the guard predicts other movers along their current velocity; it is no general collision-free or starvation-free scheduler. Under Improved it removes the contacts in plans but not Improved's own jostling beside parked movers ([phase 7 measurements](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result)). Passing stays off by default.
 
 ### Parking traffic
 
@@ -358,7 +373,7 @@ Pitfalls:
 | Suite | Covers | Needs |
 | --- | --- | --- |
 | `kinetra_i4sim` | Blueprints, recipes, production, motion and every traffic policy, the event log, flow metrics, scenarios | Nothing |
-| `kinetra_i4sim_golden`, `kinetra_i4sim_pressure` | Ten seeded runs and eight passing scenarios under pressure, each pinned to one recorded line | Exact floating point |
+| `kinetra_i4sim_golden`, `kinetra_i4sim_pressure` | Ten seeded runs and ten passing cases under pressure (five scenarios, two profiles), each pinned to one recorded line; the pressure cases also require no contact and every mover arrived | Exact floating point |
 | `kinetra_i4sim_controller` | Loading, keys, pointer, camera, modal pause and the debug-menu entries | Nothing |
 | `kinetra_i4sim_graphics` | The session as a whole: blueprint screen, panels, rendered overlays, catalog recovery, showcase scenes | An OpenGL context |
 | `kinetra_i4sim_relocation` | The catalog is found beside a relocated executable | Nothing |
@@ -397,5 +412,5 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 - With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge until a section or layer is closed.
 - The graphics suite is one long case that clicks debug-menu rows by number. The numbers are named in `menu_row`, but they still follow the menu's layout by hand.
 - Two movers can block each other for good close to a destination, mostly under Reciprocal on the larger factories. It happens without any setting change (2 of 48 seeded runs in the [measurement](../../docs/design/2026-11-20-i4sim-tuning-stall.md#verification)), and a SPEED, FORCE or HORIZON change can steer a run into it. RECOVERY does not resolve it. Planned as [roadmap phase 7, step 4](../../docs/design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure).
-- Predictive passing is not safe under pressure yet: a third mover in a passing lane, and three oncoming movers, are recorded as today's outcomes. Roadmap [phase 7](../../docs/design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure) addresses them, and [phase 8](../../docs/design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism) moves the proven mechanism to Kinetra.
+- Predictive passing stays off by default. Under Improved its benchmark results stay mixed because of Improved's own contact episodes; under Reciprocal it raises throughput without contact ([phase 7](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result)). [Phase 8](../../docs/design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism) moves the mechanism to Kinetra.
 - Desktop playtests and performance checks stay manual.
