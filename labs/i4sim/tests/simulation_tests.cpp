@@ -20,9 +20,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace i4sim;
@@ -1055,6 +1057,64 @@ TEST_CASE("turning predictive passing off ends a plan as disabled") {
     CHECK(end.kind == EventKind::passing_ended);
     CHECK(end.end == PassingEnd::disabled);
     CHECK(end.tick == pair.ticks());
+}
+
+namespace {
+/// A pressure fixture from labs/i4sim/tests with manual goals, passing on (Reciprocal,
+/// heatmap costs off) and events recorded, running.
+Simulation pressure_run(std::string_view fixture, const std::vector<Vec2> &goals) {
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint(fixture)));
+    simulation.set_workload(false);
+    simulation.configure_motion(passing_motion(SteeringProfile::reciprocal));
+    for (std::size_t mover = 0; mover < goals.size(); ++mover)
+        REQUIRE(simulation.move_to(mover, goals[mover]));
+    simulation.record_events(true);
+    simulation.run();
+    return simulation;
+}
+
+/// The first event of `kind` at or after `from`, if any.
+std::optional<SimulationEvent> first_event(const Simulation &simulation, EventKind kind,
+                                           std::size_t from = 0) {
+    const auto events = simulation.events();
+    for (std::size_t i = from; i < events.size(); ++i)
+        if (events[i].kind == kind)
+            return events[i];
+    return std::nullopt;
+}
+} // namespace
+
+TEST_CASE("a completed passing plan lets its movers pass the next oncoming mover at once") {
+    // Mover 0 meets movers 1 and 2, which drive toward it in a column.
+    auto run = pressure_run("pressure-three-oncoming", {{3300, 800}, {300, 800}, {700, 800}});
+    while (run.events().size() < 4 && run.ticks() < 6000)
+        run.tick();
+    const auto events = run.events();
+    REQUIRE(events.size() >= 4);
+    CHECK(events[2].kind == EventKind::passing_ended);
+    CHECK(events[2].end == PassingEnd::completed);
+    CHECK(events[3].kind == EventKind::passing_formed);
+    CHECK(events[3].movers == std::array<std::size_t, 2>{0, 2});
+    CHECK(events[3].tick - events[2].tick < 120);
+}
+
+TEST_CASE("movers of a cancelled passing plan wait before they form a new one") {
+    auto pair = passing_pair(SteeringProfile::reciprocal);
+    run_until_pair(pair);
+    // Holding mover 1 ends the plan; releasing it 100 ticks later leaves the pair room for
+    // a new plan, which may only form 120 ticks after the end.
+    pair.toggle_mover(1);
+    for (int tick = 0; tick < 100; ++tick)
+        pair.tick();
+    pair.toggle_mover(1);
+    const auto cancelled = pair.events().back();
+    REQUIRE(cancelled.end == PassingEnd::participant_held);
+    const auto seen = pair.events().size();
+    while (!first_event(pair, EventKind::passing_formed, seen) && pair.ticks() < cancelled.tick + 1000)
+        pair.tick();
+    const auto again = first_event(pair, EventKind::passing_formed, seen);
+    REQUIRE(again);
+    CHECK(again->tick == cancelled.tick + 120);
 }
 
 namespace {

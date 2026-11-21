@@ -36,7 +36,7 @@ std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {
 }
 
 void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const FloorPlan &floor, Fleet &fleet,
-                                       const MotionSettings &motion, std::uint64_t tick) {
+                                       const MotionSettings &motion, std::uint64_t tick, bool retry_later) {
     for (auto id : ids) {
         auto &m = fleet.movers[id];
         m.coordination.passing = false;
@@ -47,8 +47,11 @@ void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const Flo
         tracking.best_remaining = route_remaining(m.body.position, m.route);
         if (id < fleet.controls.size())
             fleet.controls[id].reset();
+        // After a failed plan the movers wait before they try again, so they do not thrash.
+        // After a completed one they may pass the next oncoming mover at once: waiting only
+        // lets it come too close for a plan.
         if (id < retry_.size())
-            retry_[id] = tick + passing_retry_ticks;
+            retry_[id] = retry_later ? tick + passing_retry_ticks : tick;
     }
 }
 
@@ -70,7 +73,7 @@ void PredictivePassing::end(std::size_t index, PassingEnd reason, const FloorPla
     record(EventKind::passing_ended, plans_[index], tick, log, reason);
     const auto ids = plans_[index].movers;
     plans_.erase(plans_.begin() + std::ptrdiff_t(index));
-    restore_routes(ids, floor, fleet, motion, tick);
+    restore_routes(ids, floor, fleet, motion, tick, reason != PassingEnd::completed);
 }
 
 void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,

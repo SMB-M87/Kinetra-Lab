@@ -19,9 +19,9 @@ namespace i4sim::detail {
 /// their exit targets. See docs/factory-simulation-architecture.md#predictive-passing.
 ///
 /// A plan overrides its movers' routes with traffic controls; it never changes their
-/// goals. Ending a plan replans both routes and lets the movers join a new plan only after
-/// `passing_retry_ticks`. Plan ids start at 1 and advance whether or not events are
-/// recorded, so recording cannot change them.
+/// goals. Ending a plan replans both routes; after a plan that did not complete, the
+/// movers join a new plan only after `passing_retry_ticks`. Plan ids start at 1 and advance whether or not
+/// events are recorded, so recording cannot change them.
 class PredictivePassing {
   public:
     /// True when `motion` turns passing on for a steering profile that supports it.
@@ -80,8 +80,10 @@ class PredictivePassing {
                      const kinetra::SpatialGrid &index) const;
     void end(std::size_t index, PassingEnd reason, const FloorPlan &floor, Fleet &fleet,
              const MotionSettings &motion, std::uint64_t tick, EventLog &log);
+    /// Plans both routes again and resets the participants' progress. `retry_later` makes
+    /// them wait `passing_retry_ticks` before they may join a new plan.
     void restore_routes(std::array<std::size_t, 2> movers, const FloorPlan &floor, Fleet &fleet,
-                        const MotionSettings &motion, std::uint64_t tick);
+                        const MotionSettings &motion, std::uint64_t tick, bool retry_later);
     static void record(EventKind kind, const Plan &plan, std::uint64_t tick, EventLog &log,
                        std::optional<PassingEnd> end = {});
 };

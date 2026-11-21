@@ -194,21 +194,18 @@ void check_narrow_aisle(SteeringProfile profile, const std::string &expected) {
 }
 } // namespace
 
-// Known failure: after the first pass, the lone mover and the second oncoming mover form
-// no plan and shuffle in front of each other until the end; only the first oncoming
-// mover arrives.
 TEST_CASE("three oncoming movers under reciprocal steering keep their recorded outcome") {
     check_three_oncoming(
         SteeringProfile::reciprocal,
-        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=1/3 waiting_ticks=4 stuck=1 fingerprint=c35453d8b129aaa2");
+        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
+        "arrived=3/3 waiting_ticks=9 stuck=0 fingerprint=7abc8e877fa1df6d");
 }
 
 TEST_CASE("three oncoming movers under improved steering keep their recorded outcome") {
     check_three_oncoming(
         SteeringProfile::improved,
-        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=3/3 waiting_ticks=30 stuck=0 fingerprint=916dbae033e3481b");
+        "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
+        "arrived=3/3 waiting_ticks=10 stuck=0 fingerprint=58b08b416144079c");
 }
 
 TEST_CASE("a mover crossing passing lanes under reciprocal steering keeps its recorded outcome") {
