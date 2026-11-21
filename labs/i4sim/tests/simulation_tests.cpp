@@ -1122,6 +1122,33 @@ TEST_CASE("a mover crossing a passing lane makes the participant wait and the pl
     CHECK(run.collisions() == 0);
 }
 
+TEST_CASE("a mover driving toward a participant along its lane ends the plan as obstructed") {
+    // Mover 2 starts east of the pair on the line of mover 0's lane (y = 636) and drives
+    // west along it, toward mover 0, while the pair passes.
+    auto blueprint = load_blueprint(i4sim::test::fixture_blueprint("pressure-lane-intrusion"));
+    blueprint.movers[2].position = {2043.5, 579.5};
+    Simulation run(blueprint);
+    run.set_workload(false);
+    run.configure_motion(passing_motion(SteeringProfile::reciprocal));
+    run.record_events(true);
+    REQUIRE((run.move_to(0, {1900, 800}) && run.move_to(1, {500, 800}) && run.move_to(2, {300, 636})));
+    run.run();
+    run_until_pair(run);
+    const auto formed = *first_event(run, EventKind::passing_formed);
+    REQUIRE(formed.movers == std::array<std::size_t, 2>{0, 1});
+    REQUIRE(std::abs(formed.exit[0].y - 636) < 2);
+    while (!first_event(run, EventKind::passing_ended) && run.ticks() < 3000)
+        run.tick();
+    const auto end = first_event(run, EventKind::passing_ended);
+    REQUIRE(end);
+    CHECK_MESSAGE(end->end == PassingEnd::obstructed, "ended as " << name(*end->end));
+    // At once, not after a 240-tick wait: waiting cannot clear a mover that drives toward it.
+    CHECK(end->tick - formed.tick < 240);
+    for (int tick = 0; tick < 3000; ++tick)
+        run.tick();
+    CHECK(run.collisions() == 0);
+}
+
 TEST_CASE("a completed passing plan lets its movers pass the next oncoming mover at once") {
     // Mover 0 meets movers 1 and 2, which drive toward it in a column.
     auto run = pressure_run("pressure-three-oncoming", {{3300, 800}, {300, 800}, {700, 800}});
