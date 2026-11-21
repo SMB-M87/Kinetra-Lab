@@ -19,7 +19,7 @@ flowchart LR
     Rules --> Adapter[Legacy pixel/frame physics adapter]
     Adapter --> Sim[Kinetra public simulation API]
     Render[Presentation and legacy drawing adapter] --> Runtime[Kinetra Runtime / bitmap / debug / help]
-    Rules --> Graph[Local graph and fear-biased HideStar]
+    Rules --> Graph[Routes and shelters on Kinetra WeightedGrid]
 ```
 
 Movement consumes 60 Hz ticks; AI runs at 20 Hz, sequentially on the owning thread. Legacy Y-down pixels map to Kinetra Y-up world units at 25 pixels/unit. [physics_adapter.h](../labs/dotio/include/dotio/entities/physics_adapter.h) converts state; engine integration, contacts, impulses, circle sweeps and raster queries perform reusable mechanics. Legacy field names and grid conversion policies stay local; canonical vector operations delegate to Kinetra.
@@ -30,9 +30,9 @@ The session is a `dotio::Session` ([session.h](../labs/dotio/include/dotio/prese
 
 ## Lifecycle and constraints
 
-Application owns dotio::World through a unique_ptr to keep the address stable: enemies and AI states reference that world. World owns its grid, actor/projectile pools, navigation graph and props, so several worlds can exist side by side.
+Application owns dotio::World through a unique_ptr to keep the address stable: enemies and AI states reference that world. World owns its grid (with its route planner), actor/projectile pools and props, so several worlds can exist side by side.
 
-Streaming rebases actors, projectiles, props and the camera together; routes and spatial partitions rebuild. Absolute district coordinates retain seeded terrain identity while local coordinates bound the active simulation. Presentation adapts legacy drawing to Runtime; game rules and the graph remain independent of SDL/OpenGL.
+Streaming rebases actors, projectiles, props and the camera together; routes and spatial partitions rebuild. Absolute district coordinates retain seeded terrain identity while local coordinates bound the active simulation. Presentation adapts legacy drawing to Runtime; game rules and route planning remain independent of SDL/OpenGL.
 
 ## Source navigation
 
