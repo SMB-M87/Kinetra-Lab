@@ -8,13 +8,15 @@
 #include <cstddef>
 
 namespace dotio {
+/// A pooled object: it has an `is_active` flag that marks a slot in use.
 template <typename T>
 concept Activatable = requires(T t) {
     { t.is_active } -> std::convertible_to<bool>;
 };
 
 template <typename T>
-/// Fixed-pool view with circular slot reuse; instances must not outlive their owning pool.
+/// A view of a fixed pool with circular slot reuse, and an iterator over all of its slots,
+/// active or not. Borrowed: it must not outlive the TrackerData that owns the slots.
 struct Tracker {
   private:
     T *instances_{};
@@ -27,8 +29,11 @@ struct Tracker {
     explicit Tracker(T *instances, const size_t size, const size_t index)
         : instances_(instances), size_(size), index_(index), instance_(&instances_[0]) {}
 
+    /// Slot `index`, wrapped around the pool size.
     T &operator[](const std::size_t index) { return get_instances()[index % size_]; }
 
+    /// Copies `instance` into the next slot in circular order, whether that slot is in use or
+    /// not, and activates it.
     void add_instance(T instance)
         requires Activatable<T>
     {
@@ -58,6 +63,8 @@ struct Tracker {
     [[nodiscard]] size_t get_capacity() const { return size_; };
 };
 
+/// Owns a fixed pool of `size` slots and the Tracker that views it. Slot addresses never
+/// change, so other objects may keep pointers to them.
 template <typename T, size_t size> struct TrackerData {
   private:
     size_t capacity_{size};

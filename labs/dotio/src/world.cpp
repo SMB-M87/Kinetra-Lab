@@ -156,7 +156,7 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
         limit(center.y - retained_half.y, Grid::rows), limit(center.x - retained_half.x, Grid::columns),
         limit(center.y + retained_half.y, Grid::rows), limit(center.x + retained_half.x, Grid::columns)};
     if (region != resident_cells_) {
-        // Only the entering and leaving strips change occupancy; SetCell() keeps the route
+        // Only the entering and leaving strips change occupancy; set_cell() keeps the route
         // planner in step, and routes planned on the old cells are dropped.
         const auto inside = [](int row, int column, const std::array<int, 4> &bounds) {
             return row >= bounds[0] && column >= bounds[1] && row <= bounds[2] && column <= bounds[3];
@@ -382,7 +382,7 @@ void World::update_arrows(const float delta, const bool debug) {
         dotio::math::Point2 wall{}, hit{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         const bool hits_player =
-            Grid::segement_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
+            Grid::segment_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
         const auto object = first_object_hit(segment, 0);
         const float object_distance = object ? object->second * (segment.end - segment.start).get_length()
                                              : std::numeric_limits<float>::infinity();

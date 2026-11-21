@@ -152,15 +152,15 @@ void Grid::handle_grid_collision(dotio::PhysicsObject &object) const {
     dotio::apply_body(object, body);
 }
 
-bool Grid::segment_is_intersecing_circle(const dotio::math::Segment &segment,
-                                         const dotio::math::Point2 center, const float radius) {
+bool Grid::segment_intersects_circle(const dotio::math::Segment &segment, const dotio::math::Point2 center,
+                                     const float radius) {
     dotio::math::Point2 hit;
-    return segement_circle_intersection(segment, center, radius, hit) & 1;
+    return segment_circle_intersection(segment, center, radius, hit) & 1;
 }
 
-uint8_t Grid::segement_circle_intersection(const dotio::math::Segment &segment,
-                                           const dotio::math::Point2 center, const float radius,
-                                           dotio::math::Point2 &intersection) {
+uint8_t Grid::segment_circle_intersection(const dotio::math::Segment &segment,
+                                          const dotio::math::Point2 center, const float radius,
+                                          dotio::math::Point2 &intersection) {
     const auto start = dotio::physics_vector(segment.start), end = dotio::physics_vector(segment.end);
     const auto c = dotio::physics_vector(center);
     const uint8_t flags =

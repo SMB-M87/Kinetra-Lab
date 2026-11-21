@@ -24,7 +24,7 @@ float wrapped(float heading) {
 }
 
 /// The feelers of a body at `position` that follows `heading`; the geometry behind both
-/// WanderFeelers() and the directions a blocked enemy tries.
+/// wander_feelers() and the directions a blocked enemy tries.
 std::array<dotio::math::Segment, 3> feelers_at(dotio::math::Position position, float heading) {
     const auto feeler = [&](float angle, float cells) {
         return dotio::math::Segment{position, position + direction(angle) * (cells * Grid::cell_size)};
