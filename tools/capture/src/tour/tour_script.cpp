@@ -232,7 +232,7 @@ void demo_chapter(Tour &tour) {
     tour.wait(0.9);
 }
 
-// Dotio. Its AI is not seeded, so the player is steered by what the world shows.
+// Dotio. The player is steered by what the world shows, so it reacts to the enemies it meets.
 
 dotio::Application &dotio_application(Tour &tour) {
     return dynamic_cast<dotio::Session &>(tour.session()).application();

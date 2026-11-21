@@ -18,7 +18,7 @@ namespace dotio {
 /// legacy pixels; +Y points down the screen.
 ///
 /// The grid also owns the route planner, a kinetra::WeightedGrid with one planning cell per
-/// raster cell in the same legacy coordinates. Every write goes through SetCell(), which
+/// raster cell in the same legacy coordinates. Every write goes through set_cell(), which
 /// blocks or frees the planning cell too, so routes and collision always see the same walls.
 class Grid {
   public:
@@ -37,7 +37,7 @@ class Grid {
     /// Writes cell (row, column), nonzero for a wall, and blocks or frees its planning cell.
     /// Both must lie inside the grid.
     void set_cell(int row, int column, int value);
-    /// Writes every cell, as SetCell() does.
+    /// Writes every cell, as set_cell() does.
     void fill(int value);
     /// The route planner: cell id `row * columns + column`, positions in legacy pixels.
     const kinetra::WeightedGrid &navigation() const { return navigation_; }
@@ -54,12 +54,16 @@ class Grid {
     /// Pushes `object` out of every wall cell it overlaps.
     void handle_grid_collision(dotio::PhysicsObject &object) const;
 
-    static bool segment_is_intersecing_circle(const dotio::math::Segment &segment,
-                                              const dotio::math::Point2 c, const float r);
+    /// Whether `segment` meets the circle around `c` of radius `r`, in legacy pixels.
+    static bool segment_intersects_circle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
+                                          const float r);
 
-    static uint8_t segement_circle_intersection(const dotio::math::Segment &segment,
-                                                const dotio::math::Point2 c, const float r,
-                                                dotio::math::Point2 &out_intersection);
+    /// Where `segment` first meets the circle around `c` of radius `r`: bit 1 set when it
+    /// does (with the point in `out_intersection`), bit 2 when the start lies inside the
+    /// circle, bit 4 when the end does.
+    static uint8_t segment_circle_intersection(const dotio::math::Segment &segment,
+                                               const dotio::math::Point2 c, const float r,
+                                               dotio::math::Point2 &out_intersection);
 
     /// Whether `segment` meets a wall cell or leaves the window; `intersection` receives the
     /// first point it does.

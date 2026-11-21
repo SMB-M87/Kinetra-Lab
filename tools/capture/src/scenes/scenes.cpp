@@ -153,9 +153,9 @@ void demo_debug_clip(Stage &stage) {
     stage.record(clip_frames, [&](int frame) { return demo_walk(stage, frame); });
 }
 
-// Dotio: debug is opt-in; the debug view turns on Debug Mode and every visual row. The AI is
-// not seeded, so the player is scripted against the world of the running session
-// (dotio_player.h) instead of along a fixed timeline.
+// Dotio: debug is opt-in; the debug view turns on Debug Mode and every visual row. The player
+// is scripted against the world of the running session (dotio_player.h) instead of along a
+// fixed timeline, so it reacts to the enemies it meets without knowing their moves ahead.
 
 /// Aims the pointer at the enemy the scripted player would shoot (dotio_aim) and adds the
 /// fire button to `input` for the first half of every second, so mana lasts and bolts are

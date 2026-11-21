@@ -34,14 +34,14 @@ void Player::update(const float delta) {
 }
 
 void Player::draw(dotio::Renderer &renderer) {
-    renderer.draw_circle(position, radius, {0.4, 0.0, 1.0, 1.0});
+    renderer.draw_circle(position, radius, {0.4f, 0.0f, 1.0f, 1.0f});
 }
 
 void Player::shoot(const dotio::math::Coordinates mouse, const bool debug) {
     if (mana < 10.0f || cooldown > 0.0f)
         return;
 
-    dotio::math::Vector2 force{(6.0f + (bolt_speed * (kills / max_bullet_kills))), 0.0f};
+    dotio::math::Vector2 force{(6.0f + (bolt_speed * (static_cast<float>(kills) / max_bullet_kills))), 0.0f};
     force.rotate((mouse - position).get_direction());
     world_->add_bolt(position, force);
     if (!debug)

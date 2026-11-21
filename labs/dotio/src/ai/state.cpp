@@ -128,7 +128,7 @@ void AttackState::execute(const float delta) {
 void AttackState::update() {
     // Kamikaze is a last-health behavior; fuzzy combat rules still choose when to commit.
     if (enemy_->hits_remaining == 1 &&
-        dotio::Fuzzy::evaluate(enemy_->distance(), enemy_->fear, enemy_->get_ammo())) {
+        dotio::Fuzzy::evaluate(enemy_->distance(), enemy_->fear, static_cast<float>(enemy_->get_ammo()))) {
         enemy_->set_state(enemy_->get_kamikaze_state());
         return;
     }

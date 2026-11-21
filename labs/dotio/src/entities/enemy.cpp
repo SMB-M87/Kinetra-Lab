@@ -265,7 +265,7 @@ float Enemy::get_cooldown() const {
     return cooldown_;
 }
 float Enemy::ammo_used_ratio() const {
-    return ammo_ / static_cast<float>(ammo_capacity);
+    return static_cast<float>(ammo_) / static_cast<float>(ammo_capacity);
 }
 float Enemy::distance() const {
     return std::max(std::abs(position.x - target.x), std::abs(position.y - target.y));

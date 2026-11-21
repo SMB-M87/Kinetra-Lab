@@ -85,7 +85,8 @@ void World::populate_objects() {
             if (grid_.cell(row, col))
                 continue;
             kinetra::Body body;
-            body.position = {(col + 0.5f) * Grid::cell_size, (row + 0.5f) * Grid::cell_size};
+            body.position = {(static_cast<float>(col) + 0.5f) * Grid::cell_size,
+                             (static_cast<float>(row) + 0.5f) * Grid::cell_size};
             body.mass = 25;
             body.radius = 24;
             body.friction = 0.25f;
@@ -97,12 +98,13 @@ void World::populate_objects() {
 dotio::math::Vec2 World::stream_around_player() {
     const auto shift_axis = [](float position) {
         const int cell = int(std::floor(position / Grid::cell_size));
-        return cell < 48 || cell > 106 ? int(std::floor((cell - 77) / 16.f)) * 16 : 0;
+        return cell < 48 || cell > 106 ? int(std::floor(static_cast<float>(cell - 77) / 16.f)) * 16 : 0;
     };
     const int columns = shift_axis(player_.position.x), rows = shift_axis(player_.position.y);
     if (!columns && !rows)
         return {};
-    const dotio::math::Vec2 shift{columns * Grid::cell_size, rows * Grid::cell_size};
+    const dotio::math::Vec2 shift{static_cast<float>(columns) * Grid::cell_size,
+                                  static_cast<float>(rows) * Grid::cell_size};
     offset_column_ += columns;
     offset_row_ += rows;
     grid_.generate(seed_, offset_row_, offset_column_);
@@ -154,7 +156,7 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
         limit(center.y - retained_half.y, Grid::rows), limit(center.x - retained_half.x, Grid::columns),
         limit(center.y + retained_half.y, Grid::rows), limit(center.x + retained_half.x, Grid::columns)};
     if (region != resident_cells_) {
-        // Only the entering and leaving strips change occupancy; SetCell() keeps the route
+        // Only the entering and leaving strips change occupancy; set_cell() keeps the route
         // planner in step, and routes planned on the old cells are dropped.
         const auto inside = [](int row, int column, const std::array<int, 4> &bounds) {
             return row >= bounds[0] && column >= bounds[1] && row <= bounds[2] && column <= bounds[3];
@@ -218,8 +220,8 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
                                                     cell) ||
                 grid_.cell(cell.row, cell.column))
                 continue;
-            const dotio::math::Vec2 spawn{(cell.column + 0.5f) * Grid::cell_size,
-                                          (cell.row + 0.5f) * Grid::cell_size};
+            const dotio::math::Vec2 spawn{(static_cast<float>(cell.column) + 0.5f) * Grid::cell_size,
+                                          (static_cast<float>(cell.row) + 0.5f) * Grid::cell_size};
             const bool occupied =
                 std::any_of(get_enemies().get_instances(),
                             get_enemies().get_instances() + get_enemies().get_capacity(),
@@ -242,10 +244,10 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
                 enemy.velocity = {};
                 enemy.is_active = true;
                 enemy.reset();
-                for (auto &cell : enemy.last_partition) {
-                    if (auto found = enemy_partition_map.find(cell); found != enemy_partition_map.end())
+                for (auto &partition : enemy.last_partition) {
+                    if (auto found = enemy_partition_map.find(partition); found != enemy_partition_map.end())
                         found->second.erase(&enemy);
-                    cell = {-1, -1};
+                    partition = {-1, -1};
                 }
             }
         }
@@ -380,7 +382,7 @@ void World::update_arrows(const float delta, const bool debug) {
         dotio::math::Point2 wall{}, hit{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         const bool hits_player =
-            Grid::segement_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
+            Grid::segment_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
         const auto object = first_object_hit(segment, 0);
         const float object_distance = object ? object->second * (segment.end - segment.start).get_length()
                                              : std::numeric_limits<float>::infinity();

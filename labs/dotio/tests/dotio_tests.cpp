@@ -269,14 +269,14 @@ TEST_CASE("projectile segments and line of sight stop at walls and routes and sh
     auto world = fixture();
     dotio::math::Point2 hit{};
     CHECK_MESSAGE(
-        ((dotio::Grid::segement_circle_intersection({{550, 300}, {550, 800}}, {550, 550}, 20, hit) & 1) &&
+        ((dotio::Grid::segment_circle_intersection({{550, 300}, {550, 800}}, {550, 550}, 20, hit) & 1) &&
          std::abs(hit.y - 530) < 0.01f),
         "Vertical projectile failed continuous collision");
     CHECK_MESSAGE(
-        !(dotio::Grid::segement_circle_intersection({{500, 300}, {500, 800}}, {550, 550}, 20, hit) & 1),
+        !(dotio::Grid::segment_circle_intersection({{500, 300}, {500, 800}}, {550, 550}, 20, hit) & 1),
         "Projectile hit a circle outside its segment");
     CHECK_MESSAGE(
-        (dotio::Grid::segement_circle_intersection({{550, 550}, {550, 550}}, {550, 550}, 20, hit) & 1),
+        (dotio::Grid::segment_circle_intersection({{550, 550}, {550, 550}}, {550, 550}, 20, hit) & 1),
         "Point segment inside circle must hit");
     world->grid().set_cell(7, 5, 1);
     CHECK_MESSAGE((world->grid().is_intersecting_any_cell({{550, 550}, {550, 900}}, hit) &&
