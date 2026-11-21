@@ -177,6 +177,8 @@ Kinetra branch `test/contact-response-tests`: `tests/contact_response_tests.cpp`
 
 **Step 3** (`docs/demo-module`): `python3 external/Kinetra/tools/check_docs.py` passed; the header edits are comment-only, apart from `PointerAction` and `ActionResult`, which are split over lines (same enumerators, same order) to carry a comment per value, confirmed by a `dev` build of the Demo targets and the capture tool without warnings. Every path, type and test name in the README was checked with `grep`.
 
+**Step 4** (local `test/demo-contact-tests`, Kinetra local `test/contact-response-tests` at `bf35222`): in Kinetra, `kinetra_contact_response_tests` builds without warnings and passes its 6 cases; `diff` against Lab's file shows only the header comment. In Lab, the `dev` build of the Demo targets has no warnings, `kinetra_demo_contacts` is no longer registered, the 54 remaining non-soak Demo cases pass and the characterization lines are identical to `main`'s. Not pushed, so no CI and no Full run.
+
 `ctest --preset dev -LE soak` ignores the label filter with CMake 3.28; `ctest --test-dir build-dev -LE soak` applies it.
 
 ## Pull request
@@ -188,6 +190,12 @@ Summary: roadmap phase 5, step 1 of 4. The Demo's scene, agent, terrain, tuning,
 Changes: `labs/demo/src/world/{scene,agent,terrain,tuning}.cpp`, `src/input/mapping.cpp` (logic library), `src/presentation/help_overlay.cpp`; trimmed header includes; two test files include the steering and avoidance headers they use; `kinetra_directory_warnings(labs/demo RECURSE AS_ERRORS)`.
 
 Dependencies and merge order: none; steps 2 to 4 are stacked on this branch.
+
+**Step 4.** Title: `test(demo): move the engine-only contact tests to Kinetra`
+
+Summary: roadmap phase 5, step 4 of 4. `labs/demo/tests/contact_tests.cpp` tested only `World::step`; its six cases move unchanged to Kinetra as `kinetra_contact_response_tests` (Kinetra pull request `test(physics): move the contact response cases from Kinetra-Lab`, branch `test/contact-response-tests`). Lab drops its copy and the `kinetra_demo_contact_tests` target, updates the targeted table in `AGENTS.md` and the README, and records the Kinetra branch commit.
+
+Dependencies and merge order: stacked on step 3. The Kinetra pull request merges first, with a merge commit; then the pointer moves to Kinetra's merge commit before this one merges.
 
 **Step 3.** Title: `docs(demo): contracts and module README`
 

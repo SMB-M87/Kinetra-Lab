@@ -250,7 +250,6 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | --- | --- | --- |
 | [crowd_characterization_tests.cpp](tests/crowd_characterization_tests.cpp) | `kinetra_demo_crowd_characterization` (4) | Pins crowd behavior in both wander modes, so a refactor can prove that it preserves behavior. A dense idle crowd (240 agents, seed 123, 480 frames) and a player walking through newly streamed chunks with commanded agents (40 agents, seed 456, 1200 frames) check every frame for finite motion, an intact swept-event budget, a one-to-one agent-to-body mapping and at most 0.01 units of overlap between moving bodies. Each scenario and wander mode is one case and must reproduce a recorded summary line with a trajectory fingerprint; a mismatch shows the expected and actual line. `KINETRA_PRINT_GOLDEN=1` prints the current lines for a deliberate update |
 | [crowd_stability_tests.cpp](tests/crowd_stability_tests.cpp) | `kinetra_demo_crowd` (5) | 60 simulated seconds per case. 240 initial agents with seeds 123 and 456 and steering wander, and seed 123 with route wander; rejects swept-event starvation, nonfinite motion and the spinning tangent-contact freeze. Two more cases watch 48 agents around a standing player, one per wander mode: at least 80 % of those awake after a second are still awake after a minute (labels `unit` and `soak`, 180-second timeout per case) |
-| [contact_tests.cpp](tests/contact_tests.cpp) | `kinetra_demo_contacts` (6) | Slow/fast head-on elastic moving contacts at 60/120 Hz, momentum/energy conservation, transformed circle/box contacts, off-center angular momentum and resting-wall stability; circle/box/polygon thin-wall translation regressions (rotation and avoidance remain outside this guarantee) |
 | [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_demo_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
 | [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo_logic` (27) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (1) | Help overlay placement, camera preservation, routes and OpenGL rendering; one case, because every check shares one `Runtime` (label `graphics`) |
@@ -259,7 +258,7 @@ Run the suites that need no window from the repository root:
 
 ```sh
 cmake --preset release
-cmake --build --preset release --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_contact_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
+cmake --build --preset release --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests
 ctest --test-dir build-release -R '^kinetra_demo' -LE soak
 ```
 
@@ -268,6 +267,8 @@ ctest --test-dir build-release -R '^kinetra_demo' -LE soak
 The characterization lines are recorded with CI's pinned Arch Linux toolchain; another compiler or math library produces other lines, which is why the `windows` presets exclude these cases. To prove locally that a refactor keeps behavior, compare the lines a branch prints with those `main` prints on the same machine.
 
 For `kinetra_demo_graphics`, use the `graphics` preset ([tests and resources](../../README.md#tests-and-resources)): `cmake --workflow --preset graphics` builds everything and runs every suite with a software OpenGL context.
+
+The contact response of whole bodies, which the Demo relies on, is tested in Kinetra (`kinetra_contact_response_tests`).
 
 Not covered: the session's frame order and the drawing beyond the one graphics case; desktop feel and performance, which need manual checks.
 
