@@ -85,7 +85,7 @@ Vec2 nearest_agent(Tour &tour, Vec2 near) {
     for (const auto &agent : scene.agents()) {
         if (!agent.active())
             continue;
-        const Vec2 point = tour.camera().world_to_screen(scene.world.body(agent.body_id()).position);
+        const Vec2 point = tour.camera().world_to_screen(scene.world().body(agent.body_id()).position);
         if (!best || kinetra::length(point - near) < kinetra::length(*best - near))
             best = point;
     }

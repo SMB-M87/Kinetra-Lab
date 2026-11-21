@@ -220,7 +220,7 @@ TEST_CASE("running pauses and resumes the scene and a single tick runs exactly o
     // A single tick pauses a running scene and moves it by one tick, whatever time passes.
     FrameCommands walk;
     walk.player.direction = {1, 0};
-    const auto &player = f.application.scene().world.body(f.application.scene().player);
+    const auto &player = f.application.scene().world().body(f.application.scene().player());
     f.row("SINGLE TICK").action();
     const float before = player.position.x;
     f.advance(walk, 1.0);
@@ -250,8 +250,8 @@ TEST_CASE("layers gravity and the ghost camera reach the commands only in debug 
     f.row("GRAVITY").action();
     f.row("GHOST CAMERA").action();
     f.advance();
-    CHECK(f.application.scene().world.gravity.y != 0);
-    CHECK_FALSE(f.application.scene().following);
+    CHECK(f.application.scene().world().gravity.y != 0);
+    CHECK_FALSE(f.application.scene().following());
     CHECK(f.application.presentation().vectors);
     // Leaving debug mode: no layers, no gravity, and the camera returns to the player.
     FrameCommands commands;
@@ -259,16 +259,16 @@ TEST_CASE("layers gravity and the ghost camera reach the commands only in debug 
     CHECK_FALSE(commands.ghost);
     CHECK_FALSE(commands.probes);
     f.application.advance(0, commands, f.camera);
-    CHECK(f.application.scene().world.gravity.y == 0);
-    CHECK(f.application.scene().following);
+    CHECK(f.application.scene().world().gravity.y == 0);
+    CHECK(f.application.scene().following());
     CHECK_FALSE(f.application.presentation().vectors);
     CHECK_FALSE(f.application.presentation().paths);
     CHECK_MESSAGE(!f.row("GHOST CAMERA").active(), "the ghost camera is switched off, not only hidden");
     // Back in debug mode the layers and gravity return; the ghost camera stays off.
     f.advance();
     CHECK(f.application.presentation().vectors);
-    CHECK(f.application.scene().world.gravity.y != 0);
-    CHECK(f.application.scene().following);
+    CHECK(f.application.scene().world().gravity.y != 0);
+    CHECK(f.application.scene().following());
 }
 
 TEST_CASE("the wheel and the zoom row zoom in debug mode and not over a panel") {

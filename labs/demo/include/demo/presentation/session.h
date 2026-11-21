@@ -4,6 +4,7 @@
 #include <memory>
 
 namespace demo {
+/// Initial agents of a Demo started without an --agents option.
 inline constexpr int default_agent_count = 48;
 class Application;
 
