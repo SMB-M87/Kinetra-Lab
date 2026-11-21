@@ -114,7 +114,7 @@ The access to the world sits in three small functions at the top of the file, so
 
 ### Step 3: goal search in Kinetra's weighted grid
 
-Kinetra branch `feat/weighted-grid-search` with its own design document, `docs/design/2026-11-21-weighted-grid-search.md` in Kinetra:
+Kinetra branch `feat/weighted-grid-search` with its own [design document](../../external/Kinetra/docs/design/2026-11-21-weighted-grid-search.md) and pull request SMB-M87/Kinetra#17:
 
 ```cpp
 /// Cheapest route from `start` to the first cell `accept` takes, offering cells in order of
@@ -231,6 +231,42 @@ Same command, at `refactor/dotio-grid-rng`. Runs are now reproducible: the finge
 | Stuck episodes / enemy-min, steering / path | 0.000 / 0.017 | 0.003 / 0.004 | 0.003 / 0.002 |
 | Ticks overlapping a wall (%) | 0.00 | 0.00 | 0.00 |
 
+### After step 4
+
+Same command, at `refactor/dotio-navigation`; both baseline runs, then the new value in bold. Steering-wander fingerprints `3755ca3a6a2422e7 06c7e8afcc466887 7cca05806d2ffdb7`.
+
+| Statistic | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Damage to player / min | 59.1 / 50.3 → **51.9** | 294.3 / 292.0 → **293.6** | 467.6 / 480.5 → **474.5** |
+| Player deaths / 10 min | 0.00 / 0.00 → **0.00** | 15.83 / 15.58 → **15.17** | 34.67 / 35.75 → **35.50** |
+| Time in pursue (%) | 1.9 / 2.1 → **2.1** | 9.1 / 8.9 → **9.3** | 12.5 / 12.0 → **13.0** |
+| Pursuits / enemy-min | 0.38 / 0.39 → **0.37** | 2.12 / 2.11 → **2.19** | 3.59 / 3.59 → **3.74** |
+| Pursuits that find the player (%) | 73.0 / 69.0 → **69.2** | 91.8 / 92.0 → **91.7** | 98.7 / 98.6 → **98.8** |
+| Pursuit duration (s) | 3.84 / 4.09 → **4.25** | 2.86 / 2.85 → **2.79** | 2.11 / 2.02 → **2.05** |
+| Recoveries / enemy-min | 0.00 / 0.00 → **0.00** | 0.01 / 0.00 → **0.00** | 0.02 / 0.02 → **0.01** |
+| Kamikaze entries / enemy-min | 0.08 / 0.08 → **0.07** | 0.36 / 0.32 → **0.33** | 0.45 / 0.43 → **0.38** |
+| Route-following ticks without a route (%) | 5.3 / 5.2 → **5.2** | 5.8 / 5.7 → **5.8** | 6.2 / 6.2 → **6.1** |
+| Stuck episodes / enemy-min | 0.000 / 0.000 → **0.000** | 0.004 / 0.002 → **0.002** | 0.006 / 0.002 → **0.003** |
+| Ticks overlapping a wall (%) | 0.00 / 0.00 → **0.00** | 0.00 / 0.00 → **0.00** | 0.00 / 0.00 → **0.00** |
+| Attack distance (cells) | 8.19 / 8.31 → **8.39** | 5.19 / 5.08 → **5.25** | 4.78 / 4.70 → **4.73** |
+
+Path wander, baseline run 1 → after step 4:
+
+| Statistic | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Damage to player / min | 52.7 → **52.9** | 292.6 → **288.6** | 482.3 → **466.8** |
+| Pursuits / enemy-min | 0.34 → **0.34** | 2.26 → **2.07** | 3.42 → **3.59** |
+| Pursuits that find the player (%) | 72.1 → **71.6** | 93.2 → **92.2** | 99.1 → **99.2** |
+| Route-following ticks without a route (%) | 5.2 → **5.3** | 5.8 → **6.1** | 6.4 → **6.2** |
+| Stuck episodes / enemy-min | 0.017 → **0.012** | 0.001 → **0.006** | 0.003 → **0.001** |
+| Ticks overlapping a wall (%) | 0.00 → **0.00** | 0.00 → **0.00** | 0.00 → **0.00** |
+
+Reading it:
+- The new planner keeps every statistic within, or within a few percent of, the baseline's run-to-run spread: difficulty separates as before, pursuits find the player as often, and no enemy overlaps a wall.
+- Whole routes did not make pursuits find the player more often in the benchmark: its player walks only 6 to 16 cells, so few pursuits needed more than 50 cells. The [pursuit case](#test-plan) shows the difference directly: a far pursuer now follows one route instead of replanning every decision tick.
+- Route-following ticks without a route stay at 5–6%: they are the decision tick between entering a state and its first plan, not failed plans.
+- Stuck episodes stay rare and inside the baseline's range in both wander modes.
+
 ## Affected areas
 
 - `labs/dotio/` (all of it), `labs/dotio/CMakeLists.txt`, the root `CMakeLists.txt` (warnings as errors).
@@ -259,6 +295,13 @@ Same command, at `refactor/dotio-grid-rng`. Runs are now reproducible: the finge
 
 ## Review
 
+### Step 4
+
+- `plan_shelter` reduces the old 20-line quadrant condition to its two factors (same side along one axis including the player's line, strictly along the other) and keeps "more than one cell from the player".
+- A failed replan keeps the old route, as `Graph::AStar` failing left `Path` untouched before.
+- Kinetra's route starts after the enemy's own cell, so a pursuer no longer first returns to its cell center; the pursuit case checks routes stay clear of walls from the exact start.
+- The golden fingerprint is skipped on Windows like the other trajectory fingerprints (`CMakePresets.json`), and recorded only after the behavior change.
+
 ### Step 2
 
 - `Grid::TerrainCell` kept a `static thread_local` district cache; it is now a member of the grid (a memo of a pure function, but still shared state across worlds).
@@ -266,6 +309,17 @@ Same command, at `refactor/dotio-grid-rng`. Runs are now reproducible: the finge
 - `wander.cpp`'s `signed_unit` now uses the shared `math::unit`; `unit * 2 - 1` and the old `bits / 2^23 - 1` give the same float for every 24-bit value, so steering wander is unchanged (its tests pass unchanged).
 
 ## Verification
+
+### Step 4
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset dev` (everything, Kinetra branch pointer) | passed |
+| `ctest --preset dev -R 'capture\|dotio\|menu'` | 83/83 passed before the fingerprint case; then `ctest --test-dir build-release -R '^kinetra_dotio'` 45/45 |
+| Golden fingerprint, Debug and Release | identical (`0x9d126f5dc5068339`) |
+| `ctest --preset dev -R '^kinetra_i4sim_(golden\|pressure)'` | 17/18; the RVO golden case fails identically with Kinetra `main` in this Debug build (pre-existing, platform-sensitive, already excluded on Windows) |
+| Kinetra `cmake --workflow --preset graphics` on `feat/weighted-grid-search` | passed |
+| Benchmark | see [after step 4](#after-step-4) |
 
 ### Step 2
 

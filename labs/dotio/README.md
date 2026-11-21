@@ -89,7 +89,7 @@ labs/dotio/
     entities/      arrow.h bolt.h enemy.h player.h moving_object.h
                    physics_object.h static_object.h physics_adapter.h
     ai/            state.h wander.h fuzzy.h tracker.h
-    navigation/    graph.h grid.h vertex.h priority_queue.h stack.h
+    navigation/    grid.h route.h
     math/          gmath.h portable.h
     presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
@@ -102,7 +102,7 @@ labs/dotio/
 | top level | The application, the world, difficulty presets and the legacy drawing interface |
 | `entities/` | Moving and static world objects and their physics |
 | `ai/` | The enemy state machine, steering wander, fuzzy decisions and the population tracker |
-| `navigation/` | The occupancy grid, the path graph and the storage that A* uses |
+| `navigation/` | The occupancy grid with its route planner (Kinetra's `WeightedGrid`), and enemy routes |
 | `math/` | The small `gmath` vector helpers and the portable compatibility header, in namespace `dotio::math` |
 | `presentation/` | Session and drawing; needs `Kinetra::Runtime` |
 
@@ -162,10 +162,7 @@ classDiagram
 | Header | Source | Responsibility |
 | --- | --- | --- |
 | [grid.h](include/dotio/navigation/grid.h) | [grid.cpp](src/navigation/grid.cpp) | Static occupancy raster, seeded terrain and raster queries |
-| [graph.h](include/dotio/navigation/graph.h) | [graph.cpp](src/navigation/graph.cpp) | Local A* pathfinding and fear-biased shelter search |
-| [vertex.h](include/dotio/navigation/vertex.h) | [vertex.cpp](src/navigation/vertex.cpp) | Graph node |
-| [priority_queue.h](include/dotio/navigation/priority_queue.h) | [priority_queue.cpp](src/navigation/priority_queue.cpp) | Search frontier |
-| [stack.h](include/dotio/navigation/stack.h) | [stack.cpp](src/navigation/stack.cpp) | Path storage |
+| [route.h](include/dotio/navigation/route.h) | [route.cpp](src/navigation/route.cpp) | `Route` (the waypoints an enemy follows), `plan_route` and the fear-biased shelter search `plan_shelter`, both on the grid's `kinetra::WeightedGrid` |
 
 ### math/
 
@@ -186,7 +183,7 @@ classDiagram
 
 Seeded 32-cell districts form irregular narrow passages, jittered junctions, bends, intersections, loops, multiple inter-district exits and occasional rooms. The original hand-authored maze is a structural reference, not a repeated tile. Absolute coordinates preserve terrain and visible wall gradients across rebases/revisits.
 
-A 155×155-cell occupancy/navigation window shifts by multiples of 16 cells. Actors, camera, projectiles and props rebase together; paths and partitions rebuild. Moving/resizing residency refreshes entering/leaving strips and neighboring graph links, reusing overlap. Rebase still rebuilds the local window. Rendering samples Ghost terrain without spawning distant physics and culls full actor/projectile/prop bounds before tessellation.
+A 155×155-cell occupancy/navigation window shifts by multiples of 16 cells. Actors, camera, projectiles and props rebase together; paths and partitions rebuild. Moving/resizing residency rewrites only the entering/leaving strips, and the grid's route planner follows every written cell. Rebase still rebuilds the local window. Rendering samples Ghost terrain without spawning distant physics and culls full actor/projectile/prop bounds before tessellation.
 
 | Player-centered region | Relative half-extents | Purpose |
 | --- | --- | --- |
@@ -224,10 +221,10 @@ The diagram highlights principal transitions, not every fuzzy-rule combination. 
 
 | State | Behavior |
 | --- | --- |
-| Wander | Until the player is visible: by steering (default), following a heading that drifts at random and turning away from walls with three feelers; or, as the original game did, along A* routes to random nearby cells |
+| Wander | Until the player is visible: by steering (default), following a heading that drifts at random and turning away from walls with three feelers; or, as the original game did, along routes to random nearby cells |
 | Attack | Fear/ammo-dependent distance and predictive shots |
-| Pursue | A* routes after lost visibility, bounded pursuit cycles |
-| Recover | Fear-biased HideStar shelter search and reload outside player sight |
+| Pursue | Routes to the player after lost visibility, replanned when the player leaves the route's last cell; bounded pursuit cycles |
+| Recover | Fear-biased shelter search (`plan_shelter`) and reload outside player sight |
 | Kamikaze | Chase, fire remaining ammo, explode on contact |
 
 **Steering wander** ([wander.h](include/dotio/ai/wander.h)). Every decision tick (20 Hz) an enemy's wander heading drifts by up to 0.35 rad, drawn from a generator seeded with the world's seed. Every update a forward feeler of 0.9 cells and two side feelers of 0.6 cells at 0.6 rad are tested against the grid. A blocked forward feeler turns the heading to the first free direction of a fan (0.8, 1.6, 2.4 rad, to the enemy's preferred side first, then a half turn); a single blocked side feeler turns it away by 0.15 rad per update. The enemy accelerates along its heading with the WANDER force. No path is planned, so a wanderer needs no route to exist; it leaves a dead end by turning around in it.
@@ -255,7 +252,7 @@ Player bolts sweep relative to each enemy's start/end movement and include their
 
 ## Verification and limits
 
-[Logic/application tests](tests/dotio_tests.cpp) cover AI, fuzzy pressure, A*/HideStar, collision/sweeps, rewards, durability, progression/reset, pause, streaming, props, difficulty and debug capture. [Presentation tests](tests/presentation_tests.cpp) cover bindings and normal/debug rendering. The [Lab build](../../CMakeLists.txt) links Dotio without engine-private headers. Commands: [development](../../README.md#tests-and-resources).
+[Logic/application tests](tests/dotio_tests.cpp) cover AI, fuzzy pressure, routes and shelters, collision/sweeps, rewards, durability, progression/reset, pause, streaming, props, difficulty and debug capture. [Presentation tests](tests/presentation_tests.cpp) cover bindings and normal/debug rendering. The [Lab build](../../CMakeLists.txt) links Dotio without engine-private headers. Commands: [development](../../README.md#tests-and-resources).
 
 ### Tests
 
@@ -263,7 +260,7 @@ Both test programs are doctest suites: each `TEST_CASE` is one behavior, named a
 
 | Source | CTest suite (cases) | Coverage |
 | --- | --- | --- |
-| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (38) | Geometry, routing, streaming, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom. Needs no window |
+| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (44) | Geometry, routes clear of walls and pursuers that reach the player, no enemy standing still, determinism per seed and a recorded fingerprint, independent worlds, streaming, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom. Needs no window |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (3) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`. Needs an OpenGL context (label `graphics`) |
 
 ### Behavior benchmark

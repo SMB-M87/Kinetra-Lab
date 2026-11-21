@@ -8,8 +8,22 @@
 #include <vector>
 
 namespace dotio {
+Grid::Grid() : navigation_({Columns * CellSize, Rows * CellSize}, {CellSize, CellSize}) {
+}
+
+void Grid::SetCell(int row, int column, int value) {
+    cells_[row][column] = value;
+    navigation_.block(row * Columns + column, value != 0);
+}
+
+void Grid::Fill(int value) {
+    for (int row = 0; row < Rows; ++row)
+        for (int column = 0; column < Columns; ++column)
+            SetCell(row, column, value);
+}
+
 kinetra::CollisionGrid Grid::CollisionView() const {
-    return {{&Array[0][0], std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
+    return {{&cells_[0][0], std::size_t(Rows * Columns)}, Rows, Columns, CellSize, {Origin.X, Origin.Y}};
 }
 
 // Seeded depth-first mazes reproduce the narrow, irregular passages of the original
@@ -125,7 +139,7 @@ int Grid::TerrainCell(std::uint32_t seed, int row, int column) const {
 void Grid::Generate(std::uint32_t seed, int offset_row, int offset_column) {
     for (int row = 0; row < Rows; ++row)
         for (int column = 0; column < Columns; ++column)
-            Array[row][column] = TerrainCell(seed, row + offset_row, column + offset_column);
+            SetCell(row, column, TerrainCell(seed, row + offset_row, column + offset_column));
 }
 
 void Grid::HandleGridCollision(dotio::PhysicsObject &object) const {
@@ -174,7 +188,7 @@ dotio::math::GridEntry Grid::GenerateGridEntry(dotio::math::GridEntry origin, st
     // Enumerate once: unlike rejection sampling, sealed neighborhoods cannot hang.
     for (int row = std::max(0, center_row - 5); row <= std::min(Rows - 1, center_row + 5); ++row)
         for (int col = std::max(0, center_col - 5); col <= std::min(Columns - 1, center_col + 5); ++col)
-            if (!Array[row][col])
+            if (!cells_[row][col])
                 candidates.push_back({row, col});
     if (candidates.empty())
         throw std::runtime_error("No free Dotio wander cell in the local neighborhood");
@@ -189,7 +203,7 @@ dotio::math::Position Grid::GeneratePosition(std::mt19937 &random) const {
     do {
         row = margin + dotio::math::index(random, choices);
         column = margin + dotio::math::index(random, choices);
-    } while (Array[row][column] != 0);
+    } while (cells_[row][column] != 0);
     float posX = column * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     float posY = row * dotio::Grid::CellSize + (dotio::Grid::CellSize * 0.5f);
     return {posX, posY};

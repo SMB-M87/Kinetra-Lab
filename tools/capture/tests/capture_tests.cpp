@@ -357,9 +357,7 @@ struct OpenDotioWorld {
     kinetra::Camera2D camera;
 
     OpenDotioWorld() {
-        for (auto &row : world().grid().Array)
-            for (auto &cell : row)
-                cell = 0;
+        world().grid().Fill(0);
         for (auto &enemy : world().GetEnemies())
             enemy.IsActive = false;
         camera.viewport = {960, 540};
@@ -380,7 +378,7 @@ struct OpenDotioWorld {
     /// Blocks the grid cell that holds the point at `offset` from the player.
     void wall(dotio::math::Vec2 offset) {
         const auto point = player().Position + offset;
-        world().grid().Array[int(point.Y / dotio::Grid::CellSize)][int(point.X / dotio::Grid::CellSize)] = 1;
+        world().grid().SetCell(int(point.Y / dotio::Grid::CellSize), int(point.X / dotio::Grid::CellSize), 1);
     }
 };
 } // namespace
@@ -436,9 +434,7 @@ TEST_CASE("the scripted Dotio player targets the nearest enemy it can see") {
     CHECK(capture::dotio_target(world.application, world.camera) == &far);
 
     // Without the wall the hidden enemy is the nearest in sight.
-    for (auto &row : world.world().grid().Array)
-        for (auto &cell : row)
-            cell = 0;
+    world.world().grid().Fill(0);
     CHECK(capture::dotio_target(world.application, world.camera) == &hidden);
 }
 
