@@ -17,6 +17,7 @@ This plan turns Kinetra-Lab and Kinetra into a codebase that has tooling, tests,
 - [Phase 6: Dotio](#phase-6-dotio)
 - [Phase 7: predictive passing under pressure](#phase-7-predictive-passing-under-pressure)
 - [Phase 8: shared passing mechanism](#phase-8-shared-passing-mechanism)
+- [Phase 9: easier try-out](#phase-9-easier-try-out)
 - [Documentation in every phase](#documentation-in-every-phase)
 - [Documentation cleanup](#documentation-cleanup)
 - [Open points](#open-points)
@@ -74,6 +75,7 @@ Settled with the user on 2026-11-18. ⚑ marks answers that differ from the agen
 | CI | GitHub Actions per pull request: headless build and tests, format check, docs check | Catches what the Targeted level skips locally; there is no GPU in CI |
 | Predictive passing | Its scenarios and diagnostics join phase 4's safety net, before the refactor. Behavior changes follow in phase 7, on the restructured code. The mechanism moves to Kinetra last, in phase 8 | Added on 2026-11-18. Changing behavior inside the hotspot that phase 4 splits would add flags and change the golden values during the refactor. Sharing an unproven mechanism would spread its failures to Demo and Dotio |
 | Documentation cleanup | Cross-cutting fixes now, on their own branch; module READMEs are rewritten in their module's phase | Added on 2026-11-18. Stale facts mislead today, but a module README written before its refactor would be written twice |
+| Easier try-out | HTTPS submodule URL by default, and a ready-to-run Windows zip with the i4sim blueprints as a GitHub Release asset | Added on 2026-11-21 at the user's request. The build is well documented, but trying the launcher required a compiler, dependencies and possibly an SSH detour first |
 | Skill documentation | Every skill gets a `README.md` with use cases next to its `SKILL.md`; `.agents/skills/README.md` stays the page that lists all skills | Added on 2026-11-18 at the user's request. `SKILL.md` instructs the agent; a person choosing a skill needs examples of when to use it and what it changes |
 
 ## Phases
@@ -89,9 +91,10 @@ flowchart LR
     P7 --> P8["8 Shared passing<br/>mechanism"]
     P5 --> P8
     P6 --> P8
+    P9["9 Easier try-out"]
 ```
 
-*Takeaway:* phases 4–6 depend only on phase 3 and may run in any order; i4sim goes first because it hurts most. Predictive passing changes behavior only after phase 4 restructured i4sim, and is shared only after all three applications are clean. Each phase ends at the **Full** verification level, with its module documentation rewritten.
+*Takeaway:* phases 4–6 depend only on phase 3 and may run in any order; phase 9 depends on none of them; i4sim goes first because it hurts most. Predictive passing changes behavior only after phase 4 restructured i4sim, and is shared only after all three applications are clean. Each phase ends at the **Full** verification level, with its module documentation rewritten.
 
 ## Status
 
@@ -105,6 +108,7 @@ Updated on 2026-11-19, after phase 4.
 | 4 i4sim | Implemented: step 1 (passing safety net) in Lab #6, step 2 (simulation components) in Lab #18, step 3 (session and module README) on `refactor/i4sim-session` | [i4sim restructuring](2026-11-19-i4sim-restructuring.md) |
 | 5, 7, 8 | Not started | This page |
 | 6 Dotio | In progress: step 1 (statistics baseline) on `test/dotio-baseline`, step 2 (grid per world, seeded randomness) on `refactor/dotio-grid-rng` | [Dotio restructuring](2026-11-21-dotio-restructuring.md) |
+| 9 Easier try-out | In review: HTTPS submodule on `build/https-submodule`, Windows zip on `build/windows-release` (stacked); the desktop check on Windows is the user's | [HTTPS submodule](2026-11-21-https-submodule.md), [Windows release zip](2026-11-21-windows-release-zip.md) |
 
 ## Phase 2: tooling and CI
 
@@ -207,6 +211,18 @@ Repositories: Kinetra and Lab. Depends on phases 5, 6 and 7.
 - **Kinetra design and ADR.** Move the proven, application-free part of predictive passing (conflict prediction, lane agreement, maneuver guard) to Kinetra. Factory policy (traffic zones, parking, junction rules) stays in i4sim.
 - **Same scenarios everywhere.** Run the phase 4 pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism and scenario set.
 - **Steering models.** Use this phase to decide whether the four overlapping steering models in Kinetra can share one agent-motion interface (see [Evidence](#evidence)), and to move i4sim-shaped defaults out of the engine.
+
+## Phase 9: easier try-out
+
+Repository: Lab. Added on 2026-11-21; independent of the other phases.
+
+Someone who wants to see the launcher should not need a compiler, dependencies or an SSH key first.
+
+- **HTTPS submodule.** `.gitmodules` points at `https://github.com/SMB-M87/Kinetra.git`, so a plain `git clone --recurse-submodules` works without an SSH key. CI drops its `insteadOf` rewrite. Developers who push with SSH set `pushInsteadOf` once.
+- **Windows zip.** A release workflow cross-builds the launcher and the three applications, and publishes `Kinetra-Lab-windows-x64.zip` with `SDL2.dll`, `i4sim-blueprints/` and the licenses. Every merge on `main` refreshes the `main-build` pre-release; a `v*` tag makes a fixed release.
+- **Quick start.** The README's quick start opens with the download, before the build route.
+
+**Done when:** a fresh clone without an SSH key gets the submodule, the zip downloads from a fixed link in the README, and it starts the launcher on a Windows machine without installing anything (checked by the user on a desktop).
 
 ## Documentation in every phase
 
