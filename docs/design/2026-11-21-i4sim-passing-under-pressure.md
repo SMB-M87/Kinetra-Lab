@@ -1,8 +1,8 @@
 # i4sim passing under pressure
 
-Status: accepted · Branches: `test/i4sim-passing-causes` (step 1), `fix/i4sim-guarded-passing` (steps 2 and 3), `fix/i4sim-destination-standstill` (step 4) · Related: [quality roadmap, phase 7](2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure), [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md), [i4sim restructuring](2026-11-19-i4sim-restructuring.md), [i4sim tests](../../labs/i4sim/tests/README.md), [factory simulation architecture](../factory-simulation-architecture.md#predictive-passing)
+Status: implemented · Branches: `test/i4sim-passing-causes` (step 1, Lab #49), `fix/i4sim-guarded-passing` (steps 2 and 3, Lab #58), `docs/i4sim-destination-standstill` (step 4) · Related: [quality roadmap, phase 7](2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure), [i4sim motion changes keep routes](2026-11-20-i4sim-tuning-stall.md), [i4sim restructuring](2026-11-19-i4sim-restructuring.md), [i4sim tests](../../labs/i4sim/tests/README.md), [factory simulation architecture](../factory-simulation-architecture.md#predictive-passing)
 
-Roadmap phase 7. Predictive passing in i4sim must stay safe and keep traffic flowing under pressure, with Reciprocal as the reference profile, and the standstills near a destination found on 2026-11-20 must be explained. This document first establishes the causes from recorded runs, then changes behavior in two steps, each on its own branch and pull request, stacked in that order.
+Roadmap phase 7. Predictive passing in i4sim must stay safe and keep traffic flowing under pressure, with Reciprocal as the reference profile, and the standstills near a destination found on 2026-11-20 must be explained. This document first establishes the causes from recorded runs, then changes passing on its own branch, and finally records the standstill as a limit with a proposed remedy, each step in its own pull request, stacked in that order.
 
 The user asked for the phase while away and asked not to wait for answers: every decision the agent took on its own is marked ✱ in [Decisions](#decisions) and listed for review under [Open points](#open-points).
 
@@ -20,7 +20,7 @@ The user asked for the phase while away and asked not to wait for answers: every
   - [Step 1: diagnostics and a new pressure case](#step-1-diagnostics-and-a-new-pressure-case)
   - [Step 2: guarded maneuvers](#step-2-guarded-maneuvers)
   - [Step 3: measured result](#step-3-measured-result)
-  - [Step 4: a way out for a boxed-in mover](#step-4-a-way-out-for-a-boxed-in-mover)
+  - [Step 4: a documented limit and a proposed remedy](#step-4-a-documented-limit-and-a-proposed-remedy)
 - [Affected areas](#affected-areas)
 - [Test plan](#test-plan)
 - [Review](#review)
@@ -81,13 +81,17 @@ The contacts *in* a plan (17 and 5) and the pressure scenarios show what passing
 
 The [measurement harness of the tuning-stall work](2026-11-20-i4sim-tuning-stall.md#measurement-harness) (48 runs: four blueprints, six seeds, Improved and Reciprocal, 12,000 ticks, no change) ends with a stuck mover in 2 runs: `4320x2400` under Reciprocal with seeds 915839214 and 2026. Both end in the same place. Replayed with seed 2026:
 
-- The parking places of movers 22 to 27 lie in the bottom row of `4320x2400` (cells 240 mm high, y 2160 to 2400), below the producer cells at (2520, 2040) and (3240, 2040). A parked APM4220 (127 mm) leaves a strip of 108 mm above it, too low for another 127 mm mover, so a mover enters and leaves this row only through the free cells above it, (2760, 2040), (3000, 2040) and (3480, 2040).
-- At tick 7800 mover 25 leaves its parking place (3359.5, 2331.5) with a product for (3039.5, 1839.5). It drives up into the strip, cannot pass parked mover 26 to the east, and a replanned route sends it west along the strip. At tick 8400 it stands at (3085, 2223.5): the producer cell's corner (3120, 2160) is 100.5 mm to its right and parked mover 22's corner (3019.5, 2268) 108 mm below it, so its 127 mm body fits neither up nor west. The only way out is back east.
-- Its two routes, (2760, 2040) and (2760, 2280), both lead west. Every 100 ticks without progress `MotionStep::follow_route` replans, and `grid_route` refines the grid route around stationary movers (`labs/i4sim/src/simulation/routing.cpp`), but the refinement only adds the corners of obstacles near the grid route to its nodes. Both grid routes lead west, so no refined route leads east; the refinement fails and the mover keeps the obstructed route. It slides back and forth for 1900 ticks, a stuck mover on its own.
-- At tick 10340 mover 23 returns to its parking place (3090.5, 2331.5), which mover 25's body overlaps by 19 mm. Reciprocal avoidance stops it at (3214, 2336.5), 123.6 mm from its destination, and now mover 23 also closes the way east. Neither moves again: the *two movers blocking each other about 120 mm from a destination* of the roadmap. Mover 23's route is its destination alone, so it has nothing to replan.
-- RECOVERY (route recovery with `kinetra::Navigation` around blocked cells and movers) frees mover 25 in this run, but the 48 runs with RECOVERY on end with 7 stuck runs. Six of them are mover 18 on `4320x2400` under Improved at (800.5, 1757.5): its recovery detour runs straight to (800.5, 1359.5), past the corner of the blocked cell at (600, 1560) with 3 mm to spare, and the border constraint stops it there. That is a separate failure of route recovery, recorded under [Open points](#open-points).
+- The parking places of movers 22 to 27 lie in the bottom row of `4320x2400` (cells 240 mm high, y 2160 to 2400), below the producer cells at (2520, 2040) and (3240, 2040). A parked APM4220 (127 mm) leaves a strip of 108 mm above it, too low for another one, so a mover leaves this row only through the free cells above it, (2760, 2040), (3000, 2040) and (3480, 2040), and only where no neighbor is parked beside that exit.
+- Mover 26 stands idle at its parking place (3494, 2331.5) with a product: it waits for a producer and keeps waiting until after tick 12,000. At tick 7730 mover 25 leaves its own place (3359.5, 2331.5), right beside it, for (3039.5, 1839.5), with a departure route to (3480, 2280) past mover 26. It does not get east: Reciprocal avoidance keeps it off mover 26 (2 mm of rectangular clearance), so it slides almost straight up (velocity about (0.1, −0.8) mm/tick) and from tick 7960 stands at (3365, 2223.5), under the producer cell's corner, with mover 26 blocking the way east. Why the departure check (`grid_route` with `require_departure`, refined around stationary movers) accepted a route that steering cannot follow past mover 26 is not established yet.
+- Every 100 ticks without progress `MotionStep::follow_route` replans. The grid route does not see parked movers, and the refinement around them only adds the corners of obstacles near that grid route, so the replanned routes keep pointing west. Mover 25 drives west along the strip to (3085, 2223.5), where parked mover 22 (idle with a product, like 26) and the corner of the producer cell at (3240, 2040) leave 100.5 by 108 mm, too little for its 127 mm body. From tick 8400 it slides back and forth there: with movers 22 and 26 parked there is no way out at all.
+- At tick 10340 mover 23 returns to its parking place (3090.5, 2331.5), which mover 25's body overlaps by 19 mm. Reciprocal avoidance stops it at (3214, 2336.5), 123.6 mm from its destination: the *two movers blocking each other about 120 mm from a destination* of the roadmap. Mover 23 has nothing to replan (its route is its destination), and mover 25 is sealed in anyway.
 
-The trap is not caused by Reciprocal: under Improved the same runs take other paths. A blueprint with a narrower aisle or a different seed can lead any profile into it.
+**The same mechanism explains the `MAS-demonstrator` seed-42 gap** (Reciprocal: 10 products against 16 with the other seed, one stuck mover at the end, with and without passing). From about tick 26,600 mover 0 stands at (1024.5, 64.5), 3 mm from its own parking place, carrying a product for (870, 473). The wall is above it, a blocked cell to its left, parked mover 1 to its right and mover 4, idle at its parking place with a product, below it. It holds its product until the end of the run.
+
+So a standstill near a destination is a **mover sealed in by neighbors that are parked, often idle while holding a product, and that never make way**, followed by more movers queuing against it. Neither steering profile nor passing causes it; the floor plan (rows of parking places along walls and below producer cells) and parked movers do. The existing remedies do not cover it:
+
+- PARKING TRAFFIC stages a mover returning to park while its place lies on *another mover's route*. It raises `MAS-demonstrator` seed 42 from 10 to 15 products ([parking traffic table](../../labs/i4sim/tests/README.md#motion-benchmark)), but in the 48-run harness it ends with a stuck mover in 4 runs instead of 2.
+- RECOVERY (route recovery with `kinetra::Navigation` around blocked cells and movers) cannot find a way that does not exist while the neighbors stay parked; in the 48 runs with RECOVERY on, 7 end stuck. Six of them are a different failure: mover 18 on `4320x2400` under Improved at (800.5, 1757.5), whose recovery detour runs straight to (800.5, 1359.5) past the corner of the blocked cell at (600, 1560) with 3 mm to spare, which the border constraint then refuses.
 
 ## Goals and non-goals
 
@@ -96,7 +100,7 @@ The trap is not caused by Reciprocal: under Improved the same runs take other pa
 - Passing that rechecks its maneuver while it runs: a mover that enters, crosses or stops in a lane makes the participant wait, and an obstruction that does not clear ends the plan, under one fixed priority.
 - The pressure scenarios end without contacts and with every mover arrived, under Reciprocal and Improved, and become required outcomes.
 - With passing on, Reciprocal shows no regression in the benchmark against passing off.
-- A mover boxed in by stationary movers on its route finds the way out that exists.
+- Explain the standstill near a destination, and either resolve it or document it as a limit with a remedy for the user to decide on.
 
 **Non-goals:**
 - Making Improved contact-free. Its jostling episodes happen without passing; they are a profile limit.
@@ -123,7 +127,7 @@ The trap is not caused by Reciprocal: under Improved the same runs take other pa
 | Oncoming mover in the lane ✱ | Ends the plan at once as `obstructed` instead of waiting | The other large group of expired waits: a mover that drives toward the participant does not leave its lane while the participant waits for it |
 | New end reason ✱ | `PassingEnd::obstructed`, after `traffic_control` and before `no_progress` in the order of checks | The event log must say why a plan was abandoned; `no_progress` would hide the guard |
 | Passing default ✱ | Stays off | Reciprocal now gains in every run, but Improved, the default profile, stays mixed: fewer contacts on the large floor, more on MAS seed 42, and 4–5 times the waiting of passing off ([step 3](#step-3-measured-result)). A default that helps one profile and not the other is the user's call |
-| Boxed-in mover ✱ | When the stall replanning finds the route still obstructed by stationary movers, plan a `Navigation` route around the bodies, as route recovery does, even with RECOVERY off | The existing refinement cannot leave the grid route's topology; Navigation plans in free space and finds the way back east |
+| Standstill near a destination ✱ | Documented as a limit, with *make way* as the proposed remedy for the user's decision; no behavior change in this phase | The sealed mover has no way out while its neighbors stay parked, so no routing or steering change can free it. Freeing it means moving parked movers, some of which hold a product while they wait for a producer: a new traffic policy that changes production behavior, worth a decision of its own. The first plan, a `Navigation` detour for a boxed-in mover, was dropped once the replay showed no way out exists |
 
 ## Design
 
@@ -133,7 +137,7 @@ The trap is not caused by Reciprocal: under Improved the same runs take other pa
 | --- | --- | --- |
 | 1 Causes | `test/i4sim-passing-causes` | None: diagnostics, a new pressure case that records today's outcome, this document |
 | 2–3 Guarded passing, measured | `fix/i4sim-guarded-passing` | Passing only: retry, guard, progress per participant; pressure lines become required outcomes; benchmark before and after |
-| 4 Standstill | `fix/i4sim-destination-standstill` | Stall replanning of a boxed-in mover |
+| 4 Standstill | `docs/i4sim-destination-standstill` | None: the cause, a documented limit and a proposed remedy |
 
 ### Step 1: diagnostics and a new pressure case
 
@@ -205,15 +209,23 @@ Run time on `8640x4800` under Reciprocal, measured one run after another on an o
 - **Plans:** about half end without completing, mostly as `obstructed` (109 and 73 of 236 and 220 under Reciprocal on `8640x4800`). The guard gives up maneuvers the traffic around them no longer allows; giving up costs less than the old 240-tick standstill before `no_progress`.
 - **`MAS-demonstrator` seed 42:** Reciprocal completes 10 products with or without passing, against 16 with the other seed, and ends with one stuck mover either way. Passing does not cause the gap. It is examined with step 4.
 
-### Step 4: a way out for a boxed-in mover
+### Step 4: a documented limit and a proposed remedy
 
-Planned; refined on its branch. In `MotionStep::follow_route`, after the stall replanning: if the planned route is still obstructed by a stationary mover (the same test `grid_route` uses), the mover gets a route from `recover_route`, which plans with `kinetra::Navigation` around blocked cells and all other bodies. A found route is a detour, as with RECOVERY; without one the mover keeps its route and tries again after the next replanning period.
+No code changes. The cause is recorded in [Problem](#step-4-why-two-movers-stand-still-near-a-destination), the i4sim README states the limit, and the remedy below waits for the user's decision.
+
+**Proposed remedy: make way** (recommended, not built). When a mover has made no route progress for `obstruction_ticks` and its replanned route is still obstructed by stationary movers (the case where `grid_route`'s refinement fails), the simulation asks the parked movers on that route to make way:
+
+- Candidates are idle movers that stand at their own parking place and are not held. A mover idle with a product (waiting for a producer) is a candidate too, since the sealing neighbors in both replays are of that kind; its product stays on it.
+- A candidate gets a temporary goal of a new kind, at `Goals::holding_position` away from the stalled mover's route, and returns to its parking place once the stalled mover has passed or after a fixed time, as parking staging returns today.
+- It would be an optional policy (MAKE WAY), off by default like the other traffic policies, measured with the 48-run harness and the benchmark before any default changes.
+
+Open questions for that decision: whether a mover waiting for a producer may leave its place, how production treats a mover on a make-way goal (it must not lose its product or its queue position), and whether the departure check should rather refuse a route that steering cannot follow past a parked neighbor (the unexplained acceptance at tick 7730).
 
 ## Affected areas
 
 - Step 1: `labs/i4sim/tests/include/i4sim/testing/event_counts.h`, `labs/i4sim/tests/motion_benchmark.cpp`, `labs/i4sim/tests/pressure_tests.cpp`, `labs/i4sim/tests/simulation_tests.cpp`, `labs/i4sim/tests/README.md`, this document and the design index.
 - Step 2: `labs/i4sim/src/simulation/predictive_passing.cpp`, `include/i4sim/simulation/detail/predictive_passing.h`, `include/i4sim/simulation/events.h`, `simulation_constants.h`, the pressure and simulation suites, golden lines if they change, `labs/i4sim/README.md`, `docs/factory-simulation-architecture.md`, the roadmap's Status row.
-- Step 4: `labs/i4sim/src/simulation/motion_step.cpp`, `routing.cpp` and `detail/routing.h`, the simulation suite, golden lines if they change, the i4sim README.
+- Step 4: this document, the i4sim README's open points, the roadmap's Status row.
 
 ## Test plan
 
@@ -227,7 +239,7 @@ Planned; refined on its branch. In `MotionStep::follow_route`, after the stall r
 | Step 2: a completed plan lets its movers form a new plan at once; a cancelled one still waits 120 ticks | `kinetra_i4sim:a completed passing plan lets its movers pass the next oncoming mover at once` (fails before), `...:movers of a cancelled passing plan wait before they form a new one` | Targeted |
 | Step 2: a mover that stops on a remaining leg ends the plan as `obstructed` in the next tick; a crossing mover makes the participant wait and the plan completes; an oncoming mover in the lane ends the plan before any wait could expire | `kinetra_i4sim:a mover that stops on a remaining passing leg ends the plan as obstructed`, `...:a mover crossing a passing lane makes the participant wait and the plan still completes`, `...:a mover driving toward a participant along its lane ends the plan as obstructed` (all fail before the guard; the last also without its oncoming rule) | Targeted |
 | Step 2: no regression for Reciprocal with passing on | Benchmark, both seeds, three layouts | Manual, recorded here |
-| Step 4: the trapped mover of `4320x2400` seed 2026 leaves; the 48-run harness ends without the standstill | A simulation case on a small fixture; the harness | Targeted, manual |
+| Step 4: the cause is reproduced from seed and tick | Replays of `4320x2400` seed 2026 and `MAS-demonstrator` seed 42 (Reciprocal), the 48-run harness with PARKING TRAFFIC and RECOVERY | Manual, recorded in Problem |
 | Everything else keeps its behavior | Golden, simulation, controller suites; changed lines explained | Targeted, then Full |
 
 ## Review
@@ -271,6 +283,14 @@ Planned; refined on its branch. In `MotionStep::follow_route`, after the stall r
 | `cmake --workflow --preset graphics` (Mesa llvmpipe, offscreen) | 305/310. The five failures also fail on `main` on this machine and pass in CI: four Demo crowd characterization lines and the i4sim RVO golden line, all exact floating-point fingerprints of code this branch does not touch (Ubuntu GCC 13 instead of CI's pinned Arch toolchain). No compiler warning |
 | Smoke runs, offscreen, 120 frames: `kinetra --variant demo/dotio/i4sim`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim` | All exit 0 |
 | `/code-review` (medium) | See [Review](#review) |
+| CI | On the pull request |
+
+### Step 4
+
+| Check | Result |
+| --- | --- |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve (Docs level: this branch changes only Markdown) |
+| Replays | `4320x2400` seed 2026 and `MAS-demonstrator` seed 42, Reciprocal, as described in [Problem](#step-4-why-two-movers-stand-still-near-a-destination); 48-run harness with no change (2 stuck runs), PARKING TRAFFIC (4) and RECOVERY (7) |
 | CI | On the pull request |
 
 ## Pull requests
@@ -322,6 +342,24 @@ Title: `fix(i4sim): guard predictive passing while a maneuver runs`
 **Dependencies and merge order.** Stacked on #49 (`test/i4sim-passing-causes`); merge that first. `fix/i4sim-destination-standstill` is stacked on this branch.
 
 **Follow-up.** Step 4, the standstill near a destination.
+
+### Step 4
+
+Title: `docs(i4sim): explain the standstill near a destination`
+
+**Summary.** Roadmap phase 7, step 4. Replays show why two movers stand still about 120 mm from a destination on `4320x2400`, and that the same mechanism explains the `MAS-demonstrator` seed-42 throughput gap under Reciprocal: a mover sealed in by neighbors that stay parked, often idle while holding a product, and never make way. No route exists while they stay, so no routing or steering change frees it; PARKING TRAFFIC and RECOVERY do not resolve it. Documented as a limit, with a MAKE WAY policy proposed for the user's decision. No code change.
+
+**Changes.** Design document (cause with seeds and ticks, the proposed remedy and its open questions, status `implemented`), i4sim README open point, roadmap Status row.
+
+**Design.** `docs/design/2026-11-21-i4sim-passing-under-pressure.md`
+
+**Verification.** Docs check; the replays and the 48-run harness are described in the design document.
+
+**Review notes.** The remedy is a new traffic policy that would move parked movers, including ones waiting with a product, so it is proposed rather than built. The unexplained acceptance of mover 25's departure route is an open point.
+
+**Dependencies and merge order.** Stacked on #58, which is stacked on #49. Merge #49, then #58, then this one.
+
+**Follow-up.** The user's decision on MAKE WAY; then a branch of its own.
 
 ## Measurement harness
 
@@ -379,8 +417,9 @@ For the user's review (decisions taken without the user):
 - The yield order (outside movers, then older plans), ignoring movers behind, ending at once for an oncoming mover, the 20-tick resume and the 240-tick limit before a plan ends as `obstructed`; the new end reason; no retry delay after a completed plan.
 - Passing stays off by default although Reciprocal now gains in every measured run: Improved, the default profile, stays mixed.
 - With seed 42 on `8640x4800` under Reciprocal, more movers are stuck at some point with the guard (11) than without passing (6); throughput and waiting are better. More seeds would show whether this is a trend.
-- A boxed-in mover gets a `Navigation` detour even with RECOVERY off.
+- The standstill near a destination stays a documented limit; *make way* (see [step 4](#step-4-a-documented-limit-and-a-proposed-remedy)) is the proposed remedy, with its open questions.
 
 Known and not addressed here:
+- Why the departure check accepted mover 25's route past parked mover 26 at tick 7730 on `4320x2400` seed 2026, although Reciprocal avoidance could not follow it.
 - Route recovery (RECOVERY) can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, six of the 48 runs with RECOVERY on.
 - Improved's jostling episodes beside parked movers, with or without passing.
