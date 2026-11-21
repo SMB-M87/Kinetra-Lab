@@ -142,8 +142,7 @@ class World {
 
     dotio::Player &GetGhost();
 
-    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear,
-                  bool active);
+    void AddEnemy(dotio::math::Position position, dotio::math::Position target, const float fear);
 
     void AddArrow(dotio::math::Position position, dotio::math::Vector2 velocity);
 

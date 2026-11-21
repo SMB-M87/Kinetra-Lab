@@ -152,10 +152,6 @@ void Grid::HandleGridCollision(dotio::PhysicsObject &object) const {
     dotio::apply_body(object, body);
 }
 
-bool Grid::GridIntersection(const dotio::math::Segment &segment, dotio::math::Point2 &intersection) const {
-    return IsIntersectingAnyCell(segment, intersection);
-}
-
 bool Grid::SegmentIsIntersecingCircle(const dotio::math::Segment &segment, const dotio::math::Point2 center,
                                       const float radius) {
     dotio::math::Point2 hit;

@@ -44,7 +44,7 @@ std::unique_ptr<dotio::World> fixture() {
     world->SetPlayer(dotio::Player(world.get(), {550, 550}, 0));
     world->SetGhost(dotio::Player(world.get(), {550, 550}, 0));
     world->GetPlayer().Cooldown = 0;
-    world->AddEnemy({850, 550}, {550, 550}, 8, true);
+    world->AddEnemy({850, 550}, {550, 550}, 8);
     world->GetEnemies()[0].Initialize();
     return world;
 }

@@ -2,8 +2,6 @@
 #define FUZZY_H
 
 namespace dotio {
-enum class Variable { Distance, Fear, Ammo };
-
 enum class Distance { Close, Average, Far };
 enum class Fear { Anxious, Neutral, Warrior };
 enum class Ammo { Full, Midway, Empty };

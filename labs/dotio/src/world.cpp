@@ -51,7 +51,7 @@ void World::Initialize(std::uint32_t seed, Difficulty difficulty) {
     for (std::size_t i = 0; i < GetEnemies().GetCapacity(); i++) {
         const float fear =
             dotio::math::uniform(behavior_random_, Enemy::spawn_fear_min, Enemy::spawn_fear_max);
-        AddEnemy(grid_.GeneratePosition(placement_random_), GetPlayer().Position, fear, true);
+        AddEnemy(grid_.GeneratePosition(placement_random_), GetPlayer().Position, fear);
         _enemies[i].Initialize();
         // Slots start dormant; player-centered streaming alone chooses spawn density.
         _enemies[i].IsActive = false;
@@ -340,8 +340,7 @@ dotio::Player &World::GetGhost() {
     return _ghost;
 }
 
-void World::AddEnemy(const dotio::math::Position position, dotio::math::Position target, const float fear,
-                     bool) {
+void World::AddEnemy(const dotio::math::Position position, dotio::math::Position target, const float fear) {
     _enemies += Enemy(this, position, target, 0.0f, fear);
 }
 
