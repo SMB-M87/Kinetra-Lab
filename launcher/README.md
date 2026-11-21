@@ -81,4 +81,4 @@ cmake --workflow --preset graphics
 
 ## Open points
 
-- The bundled launcher has no `--seed` option, so a launcher run cannot be replayed exactly; of the direct executables only `kinetra_i4sim` takes one.
+- The bundled launcher has no `--seed` option, so a launcher run cannot be replayed exactly; of the direct executables `kinetra_i4sim` and `kinetra_dotio` take one.

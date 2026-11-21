@@ -16,48 +16,57 @@ The backlog of Kinetra-Lab: application, tool and build work that is wanted but 
 
 Sections, item format and the moves between sections are defined in the [documentation guide](../external/Kinetra/docs/documentation.md#roadmap). The `roadmap` skill adds, shapes and closes items, for example during a brainstorm with the user ([skill](../external/Kinetra/.agents/skills/roadmap/README.md)). A merged item is removed; its design document is the record.
 
-Started on 2026-11-21, while the [quality roadmap](design/2026-11-18-quality-roadmap.md) still runs. Its phases 1 to 4 and 9 are merged; the phases that remain are items below, and the quality roadmap keeps their detailed scope.
+Started on 2026-11-21. The [quality roadmap](design/2026-11-18-quality-roadmap.md) is merged up to phase 7 (phase 6 with #62); what it leaves is listed below: decisions and checks that are the user's, Demo's contact tests, and phase 8.
 
 ## Now
 
-- **Quality roadmap phase 5: Demo** · demo · added 2026-11-21
-  Function bodies out of headers, `Sandbox` operations instead of public fields, a renderer parameter object, named zoom limits, dead code removed, module README.
-  Where: branch `refactor/demo-scene-operations`; [phase 5](design/2026-11-18-quality-roadmap.md#phase-5-demo).
-- **Quality roadmap phase 6: Dotio** · dotio, with Kinetra · added 2026-11-21
-  Seeded, instance-owned state and `kinetra::Navigation` instead of Dotio's own A*, plus invariant tests. Ends with a playtest by the user against the recorded baseline.
-  Where: branches `test/dotio-baseline` and `refactor/dotio-navigation`; [phase 6](design/2026-11-18-quality-roadmap.md#phase-6-dotio); Kinetra item *Navigation search for Dotio*.
-- **Quality roadmap phase 7: predictive passing under pressure** · i4sim · added 2026-11-21
-  Cause of Improved's extra contacts, guarded maneuvers, a measured comparison, and the standstills near a destination.
-  Where: branches `test/i4sim-passing-causes` and `fix/i4sim-guarded-passing` (pull request #49); [phase 7](design/2026-11-18-quality-roadmap.md#phase-7-predictive-passing-under-pressure).
+Nothing in progress.
 
 ## Next
 
+Decisions and checks that only the user can make come first; they close phases 5 to 9.
+
+- **Dotio playtest** · dotio · added 2026-11-21
+  Phase 6 ends with a playtest by the user, and a review of the decisions the agent took alone (planner, Kinetra `search` API, whole routes, four random streams, golden fingerprint).
+  Next step: the user plays with the [playtest checklist](design/2026-11-21-dotio-restructuring.md#playtest-checklist). Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
+- **MAKE WAY for sealed-in movers** · i4sim · added 2026-11-21
+  A mover sealed in by parked neighbors stands still for good; phase 7 documented it as a limit and proposed an optional MAKE WAY policy, off by default.
+  Next step: the user decides whether to build it. Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-why-two-movers-stand-still-near-a-destination).
 - **Windows zip on a desktop** · release · added 2026-11-21
-  Phase 9 is merged, but its done-criterion needs the user: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on a Windows machine without installing anything. First check that the release run on `main` published the zip.
-  Next step: the user's desktop check. Where: [phase 9](design/2026-11-18-quality-roadmap.md#phase-9-easier-try-out), [Windows release zip](design/2026-11-21-windows-release-zip.md).
+  Phase 9 is merged; its done-criterion is the user's: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on Windows without installing anything.
+  Next step: the user's desktop check. Where: [Windows release zip](design/2026-11-21-windows-release-zip.md).
 - **Frame pacing in WSLg** · runtime, build · added 2026-11-21
   The Linux build stutters in WSLg and the Windows build does not; the design document lists three options.
-  Next step: the user chooses an option. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
+  Next step: the user chooses one. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
 - **i4sim session oddities** · i4sim · added 2026-11-21
   `R` drops a `--ups` rate, RESET PARAMETERS sets a horizon of 8 against the default 32, and `create_session` ignores its `output` argument.
-  Next step: the user decides the intended behavior of each. Where: [i4sim open points](../labs/i4sim/README.md#open-points).
+  Next step: the user decides the intended behavior. Where: [i4sim open points](../labs/i4sim/README.md#open-points).
+- **Demo's help overlay** · demo · added 2026-11-21
+  `draw_help` and `toggle_help` are reachable only from tests.
+  Next step: the user decides: remove them, or draw the legend. Where: [Demo open points](../labs/demo/README.md#open-points).
+- **Demo's contact tests to Kinetra** · demo, tests, with Kinetra · added 2026-11-21
+  Phase 5, step 4: Lab drops `labs/demo/tests/contact_tests.cpp` and `kinetra_demo_contact_tests` once Kinetra has the suite. The branches were committed in a session without Kinetra push access and never reached GitHub.
+  Next step: redo the move from the plan, Kinetra first. Where: [Demo restructuring, step 4](design/2026-11-21-demo-restructuring.md#step-4-contact-tests-to-kinetra); Kinetra item *Demo's contact tests in Kinetra*.
+- **Quality roadmap phase 8: shared passing mechanism** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
+  Run the phase 4 pressure scenarios against a Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism. Phases 5 to 7 are done, so it can start.
+  Next step: a design session; the MAKE WAY decision may shape it. Where: [phase 8](design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism); Kinetra item *Shared passing mechanism*.
 
 ## Later
 
-- **Quality roadmap phase 8: shared passing mechanism** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
-  Run the phase 4 pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism. Kinetra's part is its item *Shared passing mechanism*.
-  Depends on: phases 5, 6 and 7. Where: [phase 8](design/2026-11-18-quality-roadmap.md#phase-8-shared-passing-mechanism).
 - **Close the quality roadmap** · docs · added 2026-11-21
-  When phase 8 merges, set the [quality roadmap](design/2026-11-18-quality-roadmap.md) to `implemented` and move its remaining open points here or to their module pages.
+  When phase 8 merges, set the [quality roadmap](design/2026-11-18-quality-roadmap.md) to `implemented`. Its status table still says phase 9 is in review; correct that then.
   Depends on: phase 8.
-- **Reproducible Dotio media** · capture, dotio · added 2026-11-21
-  Once Dotio's randomness is seeded, the Dotio clips and the tour's Dotio chapter can use fixed times instead of a take chosen by eye.
-  Depends on: phase 6. Where: [capture tool open points](../tools/capture/README.md#open-points).
+- **Compiler-sensitive golden fingerprints** · tests · added 2026-11-21
+  Four Demo crowd characterization cases and i4sim's RVO golden case fail on Ubuntu's GCC 13 and pass on CI's Arch toolchain; they are already skipped on Windows. Decide on a tolerance or a per-toolchain fingerprint.
+  Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
+- **Dotio on `kinetra::Vec2`** · dotio · added 2026-11-21
+  `dotio::math::Vec2` duplicates Kinetra's vector with extra operators and seven aliases.
+  Where: [Dotio open points](../labs/dotio/README.md#open-points).
 - **One i4sim session frame helper** · i4sim, capture · added 2026-11-21
   The two i4sim measurements repeat the session's frame order by hand; a helper in the i4sim logic would serve both.
   Where: [capture tool open points](../tools/capture/README.md#open-points).
 - **Launcher `--seed`** · launcher · added 2026-11-21
-  The bundled launcher cannot replay a run exactly; only `kinetra_i4sim` takes a seed.
+  The bundled launcher cannot replay a run exactly; `kinetra_i4sim` and `kinetra_dotio` take a seed.
   Where: [launcher open points](../launcher/README.md#open-points).
 
 ## Ideas

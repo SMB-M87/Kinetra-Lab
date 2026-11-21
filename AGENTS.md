@@ -27,7 +27,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | Write READMEs, diagrams or `///` comments | [Documentation guide](external/Kinetra/docs/documentation.md) |
 | Understand Lab targets and session flow | [System architecture](docs/architecture.md) |
 | Work on one application | Its README and architecture page (see [functionality index](#functionality-index)) |
-| Know what is planned, or record an idea | [Roadmap](docs/roadmap.md) (the backlog; `roadmap` skill), [Kinetra roadmap](external/Kinetra/docs/roadmap.md) for engine work, and the [quality roadmap](docs/design/2026-11-18-quality-roadmap.md) for its running phases |
+| Know what is planned, or record an idea | [Roadmap](docs/roadmap.md) (the backlog; `roadmap` skill), [Kinetra roadmap](external/Kinetra/docs/roadmap.md) for engine work, and the [quality roadmap](docs/design/2026-11-18-quality-roadmap.md) for the scope of phase 8 |
 
 ## Scope
 

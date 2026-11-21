@@ -176,7 +176,7 @@ sequenceDiagram
 | Show other moments in the thumbnail | `moments` in `tour_thumbnail.sh`, in seconds | Run `tour_thumbnail.sh` and look at the PNG |
 | Follow a changed menu or settings layout | The rows in `scenes.h` (`demo_motion_click`, `dotio_debug_clicks`, `i4sim_motion_clicks`, `i4sim_layers_click`), or `SettingsRow` in `stage.h` | The menu cases in `capture_tests.cpp` name the row that moved; then the smoke test and a full refresh |
 
-Pitfalls: a script clicks rows by number. The debug-menu rows are checked by tests, but the settings rows are not, and no test sees a picture, so look at every refreshed capture. A pointer left on a menu highlights a row; scripts park it in the bottom-right corner before a shot. A Dotio capture differs per run: render the debug clip a few times and keep a take in which the enemies stay around the player.
+Pitfalls: a script clicks rows by number. The debug-menu rows are checked by tests, but the settings rows are not, and no test sees a picture, so look at every refreshed capture. A pointer left on a menu highlights a row; scripts park it in the bottom-right corner before a shot. Dotio's captures are reproducible since its randomness comes from the seed ([media guide](../../docs/media/README.md)); only the tour's Dotio chapter still differs per run.
 
 ## Tests
 
@@ -193,7 +193,6 @@ cmake --build --preset graphics --target kinetra_capture && ctest --preset graph
 ## Open points
 
 - A frame read-back helper on Kinetra's `Runtime` would replace the `glReadPixels` code here and in the graphics tests.
-- Dotio captures are not reproducible until Dotio's randomness is seeded. Until then the debug clip waits for a recovery instead of a fixed time, and its take is chosen by eye.
 - The tour is only checked in full by looking at it: its smoke test plays seven seconds, and a wrong click later on shows as a scene that does not match its caption. A missing row stops it.
 - Dotio's part of the tour differs per run, like its captures.
 - The thumbnail's moments are fixed times. When a tour change moves a chapter, a tile can show another scene than intended; only a look at the thumbnail catches that.

@@ -23,25 +23,25 @@ Lab gets a standing backlog in `docs/roadmap.md`, in the format Kinetra defines,
 
 The user asked whether the quality roadmap is finished, and for one place where planned work, brainstorm ideas and to-do lists end up.
 
-Inventory on 2026-11-21 (Lab `main` at `c77f11a`):
+Inventory on 2026-11-21, first at Lab `main` `c77f11a`, refreshed against `0bc3eb4` plus #62 (`docs/dotio-module`), which merges before this branch:
 
 | Phase | State |
 | --- | --- |
 | 1–4 | Merged |
-| 5 Demo | In progress, branch `refactor/demo-scene-operations` |
-| 6 Dotio | In progress, branches `test/dotio-baseline` and `refactor/dotio-navigation`, with a Kinetra navigation change |
-| 7 Predictive passing | In progress, pull request #49 (`fix/i4sim-guarded-passing`) and `test/i4sim-passing-causes` |
-| 8 Shared passing | Not started; depends on 5–7 |
+| 5 Demo | Merged (#52, #54, #55), except step 4: the contact tests to Kinetra were committed in a session without Kinetra push access and never reached GitHub |
+| 6 Dotio | Merged (#50, #51, #53, #56, #57, #62, Kinetra #17); the user's playtest is open |
+| 7 Predictive passing | Merged (#49, #58, #59, #60); the MAKE WAY policy waits for the user's decision |
+| 8 Shared passing | Not started; can start now |
 | 9 Easier try-out | Merged (#47, #48); the desktop check on Windows is open |
 | Documentation cleanup | Done except the skill READMEs (Kinetra) |
 
-So the quality roadmap is not finished. Further open work sits in the [WSLg frame pacing](2026-11-20-wslg-frame-pacing.md) draft and in the open points of the i4sim, launcher and capture pages.
+So the quality roadmap is not finished: phase 8 and a few decisions and checks by the user remain. Further open work sits in the [WSLg frame pacing](2026-11-20-wslg-frame-pacing.md) draft and in the open points of the module pages.
 
 ## Goals and non-goals
 
 - Goal: `docs/roadmap.md` with every remaining item, so the user can start from it.
 - Goal: the user's ideas recorded: Kinetra-Lab on Android, and a 3D lab based on the Skatepark repository.
-- Non-goal: changing the quality roadmap. Other sessions update its status table for phases 5 to 7.
+- Non-goal: changing the quality roadmap. Other sessions were updating its status table for phases 5 to 7.
 
 ## Decisions
 
@@ -56,7 +56,7 @@ The roadmap follows the [format](../../external/Kinetra/docs/documentation.md#ro
 
 ## Affected areas
 
-`docs/roadmap.md` (new), `AGENTS.md`, `docs/README.md`, the design index, this document, and the `external/Kinetra` pointer (Kinetra `docs/roadmap-backlog`).
+`docs/roadmap.md` (new), `AGENTS.md`, `docs/README.md`, the design index, this document, two stale lines found while checking (`tools/capture/README.md` still called Dotio's captures irreproducible; `launcher/README.md` named only `kinetra_i4sim` as taking a seed), and the `external/Kinetra` pointer (Kinetra `docs/roadmap-backlog`, SMB-M87/Kinetra#18). The pointer on `main` names `3622849`, the branch commit of Kinetra #17 rather than its merge commit; the new pointer descends from both.
 
 ## Test plan
 
@@ -76,12 +76,12 @@ Checked that every item links its source, and that the phase items repeat no sco
 **docs(roadmap): add a backlog with the remaining work and ideas**
 
 - **Summary:** `docs/roadmap.md` lists the work left after the quality roadmap and the user's ideas; agents keep it current with Kinetra's new `roadmap` skill.
-- **Changes:** the roadmap; rows in AGENTS.md and the documentation index; the Kinetra pointer.
+- **Changes:** the roadmap; rows in AGENTS.md and the documentation index; two stale lines in the capture and launcher READMEs; the Kinetra pointer.
 - **Design:** this document and the Kinetra design.
 - **Verification:** Docs level in both repositories.
-- **Dependencies and merge order:** Kinetra `docs/roadmap-backlog` merges first, with a merge commit; then move the pointer to the merge commit.
+- **Dependencies and merge order:** after #62. Kinetra SMB-M87/Kinetra#18 merges first, with a merge commit; then move the pointer to that merge commit.
 - **Follow-up:** the items in the roadmap.
 
 ## Open points
 
-- The phase items under *Now* are maintained by the phase branches once this merges; until then those branches do not know the roadmap exists.
+- After the Kinetra merge, the pointer moves to Kinetra's merge commit before this pull request merges.
