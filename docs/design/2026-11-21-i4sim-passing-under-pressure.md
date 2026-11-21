@@ -199,8 +199,10 @@ To be filled per step.
 | Check | Result |
 | --- | --- |
 | `cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_pressure_tests kinetra_i4sim_motion_benchmark` | Built, no warning |
-| `ctest --preset release -R '^kinetra_i4sim'` | See the pull request |
+| `ctest --preset release -R '^kinetra_i4sim'` | All pass except the RVO golden line, which also fails on `main` on this machine (Ubuntu GCC 13 instead of CI's pinned Arch toolchain) |
 | Benchmark with `contact_episodes` | Every count of the baseline unchanged |
+| `cmake --workflow --preset graphics` (Mesa llvmpipe, offscreen) | 297/302; the five failures (four Demo crowd characterization lines, the i4sim RVO golden line) also fail on `main` here and pass in CI. No compiler warning |
+| CI (format, docs, `headless`, `ci`, native Windows) | Green on Lab #49 |
 
 ## Pull requests
 
