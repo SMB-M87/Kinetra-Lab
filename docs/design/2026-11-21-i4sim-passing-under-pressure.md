@@ -19,6 +19,7 @@ The user asked for the phase while away and asked not to wait for answers: every
   - [Steps](#steps)
   - [Step 1: diagnostics and a new pressure case](#step-1-diagnostics-and-a-new-pressure-case)
   - [Step 2: guarded maneuvers](#step-2-guarded-maneuvers)
+  - [Step 3: measured result](#step-3-measured-result)
   - [Step 4: a way out for a boxed-in mover](#step-4-a-way-out-for-a-boxed-in-mover)
 - [Affected areas](#affected-areas)
 - [Test plan](#test-plan)
@@ -231,7 +232,19 @@ Planned; refined on its branch. In `MotionStep::follow_route`, after the stall r
 
 ## Review
 
-To be filled per step.
+### Steps 2 and 3
+
+`/code-review` (medium) on the branch diff against `test/i4sim-passing-causes`:
+
+| Finding | Resolution |
+| --- | --- |
+| A crossing intruder found first hid an oncoming mover found later in the same tick | Fixed: every mover is classified |
+| The heading came from the first leg, which runs mostly sideways before crossing, so an oncoming mover could be taken for a crossing one | Fixed: ahead, behind and oncoming are judged along the lane axis (entry to exit); the oncoming test was rebuilt so it fails without the rule |
+| The hold point assumed full deceleration over half the braking distance the lane reserves; the participant could overshoot and back up | Fixed: the hold point lies `braking_distance` ahead along the velocity |
+| A stationary mover behind a participant, within clearance, ended the plan | Fixed: movers behind are ignored, stationary or not |
+| Predictions skipped the last ticks of a horizon that is not a multiple of four | Fixed: the horizon itself is always checked |
+| The parked-mover test indexed a two-element array with any mover id | Fixed: positions of all movers |
+| `obstructed` documents "240 ticks" instead of the constant's name | Kept: the neighboring `no_progress` documents its 240 ticks the same way, and the header is public while the constant is internal |
 
 ## Verification
 
@@ -253,7 +266,10 @@ To be filled per step.
 | Pressure lines | Changed deliberately in three scenarios (three oncoming, lane intrusion, lane stop); all ten cases now require no contact, every mover arrived and no stuck mover |
 | `cmake --build --preset dev` with `KINETRA_LAB_WARNINGS` for the changed targets | No warning |
 | Benchmark | [Step 3](#step-3-measured-result); passing off identical to the baseline |
-| `cmake --workflow --preset graphics` | See the pull request |
+| `cmake --workflow --preset graphics` (Mesa llvmpipe, offscreen) | 305/310. The five failures also fail on `main` on this machine and pass in CI: four Demo crowd characterization lines and the i4sim RVO golden line, all exact floating-point fingerprints of code this branch does not touch (Ubuntu GCC 13 instead of CI's pinned Arch toolchain). No compiler warning |
+| Smoke runs, offscreen, 120 frames: `kinetra --variant demo/dotio/i4sim`, `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim` | All exit 0 |
+| `/code-review` (medium) | See [Review](#review) |
+| CI | On the pull request |
 
 ## Pull requests
 
