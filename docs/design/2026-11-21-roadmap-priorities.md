@@ -45,7 +45,8 @@ The user wants one plan that everyone can read: no more references to the qualit
 | Blocked items | In Later with *Depends on*, even when important | The roadmap format: Next holds only what nothing blocks |
 | Shared passing mechanism | After the stall remedies | Share what i4sim has proven, as the quality roadmap decided for passing |
 | Stacking in Kinetra | Two stacked pull requests: the rule, then the roadmap | They edit the same index and skills overview, and Lab records one pointer that needs both |
-| Lab branch | One branch, `ccr-cc3e854a-v10cnx` | The session may push only this Lab branch; the change is documentation only |
+| Lab branch | One branch, `ccr-cc3e854a-v10cnx` | The session may push only this Lab branch |
+| CI during the archive outage | `ci.yml` falls back to the current Arch packages when the Arch Linux Archive does not answer, with a *Toolchain not pinned* warning; a separate commit on this branch. `release.yml` stays pinned | From 18:11 UTC on 2026-11-21 `archive.archlinux.org` did not answer GitHub's runners, and every `checks` job failed in its first step, re-runs included. The user suggested the current, non-archived Arch as fallback. A release should come from the pinned toolchain, so it waits for the archive ([Kinetra design](../../external/Kinetra/docs/design/2026-11-21-ci-mirror-fallback.md)) |
 
 ## Design
 
@@ -80,11 +81,11 @@ The agent's view on the new wishes, as the starting point of the discussion.
 
 ## Affected areas
 
-`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer.
+`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`.
 
 ## Test plan
 
-Documentation only, plus a pointer to a Kinetra commit with documentation changes only: the Docs level in both repositories. The pointer row of the verification table asks for the Full level for engine sources; here the Kinetra diff is Markdown only (`git -C external/Kinetra diff --stat 8896a19 31e9a9f` lists only `.md` files), so no build changes.
+Documentation, the CI install step, and a pointer to a Kinetra commit without engine sources: the Docs level in both repositories, plus each pull request's CI. The pointer row of the verification table asks for the Full level for engine sources; here the Kinetra diff (`git -C external/Kinetra diff --stat 8896a19 3ac0c81`) holds only `.md` files and Kinetra's own `ci.yml`, which Lab's build does not use, so no build changes.
 
 ## Review
 
@@ -95,6 +96,7 @@ Documentation only, plus a pointer to a Kinetra commit with documentation change
 
 - `python3 external/Kinetra/tools/check_docs.py` in Lab: all links resolve.
 - `python3 tools/check_docs.py` in `external/Kinetra` on `docs/stacked-pull-requests` and on `docs/roadmap-priorities`: all links resolve.
+- `ci.yml` parses as YAML and its install step as `sh` (`sh -n`); the fallback itself is verified by this pull request's CI, because the agent's session cannot reach any Arch host.
 
 ## Pull request
 
