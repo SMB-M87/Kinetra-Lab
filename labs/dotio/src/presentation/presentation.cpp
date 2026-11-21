@@ -9,8 +9,8 @@ namespace dotio {
 using namespace kinetra;
 Color wall_color(int absolute_row, int absolute_column) {
     // Echo the original row/column gradient without dark corners or hard color resets.
-    return {0.32f + 0.12f * std::sin(absolute_row * 0.055f),
-            0.36f + 0.14f * std::sin(absolute_column * 0.055f + 2.094f),
+    return {0.32f + 0.12f * std::sin(static_cast<float>(absolute_row) * 0.055f),
+            0.36f + 0.14f * std::sin(static_cast<float>(absolute_column) * 0.055f + 2.094f),
             float(0.42 + 0.15 * std::sin((double(absolute_row) + absolute_column) * 0.035 + 4.189))};
 }
 
@@ -117,7 +117,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     const int column_offset = int(std::lround(offset.x / dotio::Grid::cell_size));
     for (int row = first_row; row <= last_row; ++row)
         for (int column = first_col; column <= last_col; ++column) {
-            const auto center = to_world({column * 100.f + 50, row * 100.f + 50});
+            const auto center =
+                to_world({static_cast<float>(column) * 100.f + 50, static_cast<float>(row) * 100.f + 50});
             if (!world.terrain_cell(row, column))
                 continue;
             runtime.box(center, {2, 2}, 0, wall_color(row + row_offset, column + column_offset));
@@ -221,11 +222,11 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     const float scale = std::min({2.f, runtime.camera.viewport.x / 270, runtime.camera.viewport.y / 240});
     auto &player = world.get_player();
     const std::array values{player.health / player.max_health, player.mana / player.max_mana,
-                            (player.kills - 1) / player.max_bullet_kills};
+                            static_cast<float>(player.kills - 1) / player.max_bullet_kills};
     const std::array colors{Color{0.8f, 0, 0}, Color{0, 0.3f, 1}, Color{0.3f, 0.9f, 0}};
     const std::array<std::string_view, 3> labels{"HEALTH", "MANA", "BULLET SPEED"};
     for (std::size_t i = 0; i < values.size(); ++i) {
-        const float y = runtime.camera.viewport.y - (62 - i * 18) * scale;
+        const float y = runtime.camera.viewport.y - (62.f - static_cast<float>(i) * 18) * scale;
         panel(runtime, {100 * scale, y}, {92 * scale, 7 * scale}, {0.1f, 0.1f, 0.1f});
         const float width = 184 * scale * std::clamp(values[i], 0.f, 1.f);
         if (width > 0)
@@ -243,15 +244,17 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 "AGENTS " + std::to_string(counts.loaded) + " ACTIVE " + std::to_string(counts.active);
         }
         const auto columns = std::max(rates.size(), population.size());
-        const float statistics_scale = std::min(scale, runtime.camera.viewport.x / (columns * 6 + 16));
+        const float statistics_scale =
+            std::min(scale, runtime.camera.viewport.x / static_cast<float>(columns * 6 + 16));
         // On narrow windows, place the block above the health/mana HUD instead of over its bars.
         const bool overlaps_hud =
-            runtime.camera.viewport.x - (columns * 6 + 8) * statistics_scale < 200 * scale;
+            runtime.camera.viewport.x - static_cast<float>(columns * 6 + 8) * statistics_scale < 200 * scale;
         const float baseline = runtime.camera.viewport.y - (overlaps_hud ? 80 : 18) * statistics_scale;
         const auto draw_row = [&](const std::string &text, float y) {
-            draw_text(runtime, text,
-                      {runtime.camera.viewport.x - (text.size() * 6 + 8) * statistics_scale, y},
-                      statistics_scale, {1, 1, 0});
+            draw_text(
+                runtime, text,
+                {runtime.camera.viewport.x - static_cast<float>(text.size() * 6 + 8) * statistics_scale, y},
+                statistics_scale, {1, 1, 0});
         };
         if (!population.empty())
             draw_row(population, baseline - 12 * statistics_scale);

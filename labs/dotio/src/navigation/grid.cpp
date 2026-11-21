@@ -204,8 +204,8 @@ dotio::math::Position Grid::generate_position(std::mt19937 &random) const {
         row = margin + dotio::math::index(random, choices);
         column = margin + dotio::math::index(random, choices);
     } while (cells_[row][column] != 0);
-    float pos_x = column * dotio::Grid::cell_size + (dotio::Grid::cell_size * 0.5f);
-    float pos_y = row * dotio::Grid::cell_size + (dotio::Grid::cell_size * 0.5f);
+    float pos_x = static_cast<float>(column) * dotio::Grid::cell_size + (dotio::Grid::cell_size * 0.5f);
+    float pos_y = static_cast<float>(row) * dotio::Grid::cell_size + (dotio::Grid::cell_size * 0.5f);
     return {pos_x, pos_y};
 }
 } // namespace dotio

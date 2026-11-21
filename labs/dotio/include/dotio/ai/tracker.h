@@ -27,7 +27,7 @@ struct Tracker {
     explicit Tracker(T *instances, const size_t size, const size_t index)
         : instances_(instances), size_(size), index_(index), instance_(&instances_[0]) {}
 
-    T &operator[](const int index) { return get_instances()[index % size_]; }
+    T &operator[](const std::size_t index) { return get_instances()[index % size_]; }
 
     void add_instance(T instance)
         requires Activatable<T>
@@ -66,7 +66,7 @@ template <typename T, size_t size> struct TrackerData {
     Tracker<T> tracker_;
 
   public:
-    T &operator[](const int index) { return tracker_[index % size]; }
+    T &operator[](const std::size_t index) { return tracker_[index % size]; }
 
     void operator+=(T instance) { return tracker_.add_instance(instance); }
 
