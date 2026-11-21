@@ -1,5 +1,4 @@
-#ifndef PLAYER_H
-#define PLAYER_H
+#pragma once
 
 #include "dotio/entities/physics_object.h"
 #include "dotio/navigation/grid.h"
@@ -9,20 +8,20 @@ class World;
 
 class Player final : public PhysicsObject {
   private:
-    World *_world{};
+    World *world_{};
 
   public:
-    float Speed{1.0f};
-    float Health{100.0f};
-    float MaxHealth{100.0f};
-    float Mana{100.0f};
-    float MaxMana{100.0f};
-    float Cooldown{20.0f};
-    float MaxCooldown{20.0f};
-    float BoltSpeed{10.0f};
-    int Kills{1};
-    float MaxBulletKills{100.0f};
-    dotio::math::Vec2 Heading;
+    float speed{1.0f};
+    float health{100.0f};
+    float max_health{100.0f};
+    float mana{100.0f};
+    float max_mana{100.0f};
+    float cooldown{20.0f};
+    float max_cooldown{20.0f};
+    float bolt_speed{10.0f};
+    int kills{1};
+    float max_bullet_kills{100.0f};
+    dotio::math::Vec2 heading;
 
     Player();
 
@@ -30,12 +29,10 @@ class Player final : public PhysicsObject {
 
     ~Player() override = default;
 
-    void Update(float delta) override;
+    void update(float delta) override;
 
-    void Draw(dotio::Renderer &renderer) override;
+    void draw(dotio::Renderer &renderer) override;
 
-    void Shoot(const dotio::math::Coordinates mouse, const bool debug);
+    void shoot(const dotio::math::Coordinates mouse, const bool debug);
 };
 } // namespace dotio
-
-#endif // PLAYER_H

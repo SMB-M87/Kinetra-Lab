@@ -357,28 +357,29 @@ struct OpenDotioWorld {
     kinetra::Camera2D camera;
 
     OpenDotioWorld() {
-        world().grid().Fill(0);
-        for (auto &enemy : world().GetEnemies())
-            enemy.IsActive = false;
+        world().grid().fill(0);
+        for (auto &enemy : world().get_enemies())
+            enemy.is_active = false;
         camera.viewport = {960, 540};
         camera.pixels_per_unit = 25;
-        camera.position = dotio::to_world(player().Position);
+        camera.position = dotio::to_world(player().position);
     }
     dotio::World &world() { return application.world(); }
-    dotio::Player &player() { return world().GetPlayer(); }
+    dotio::Player &player() { return world().get_player(); }
     /// Puts the enemy of pool slot `slot` at `offset` from the player, alive and simulated.
     dotio::Enemy &place(int slot, dotio::math::Vec2 offset, dotio::math::Vec2 velocity = {}) {
-        auto &enemy = world().GetEnemies()[slot];
-        enemy.Reset();
-        enemy.Frozen = false;
-        enemy.Position = player().Position + offset;
-        enemy.Velocity = velocity;
+        auto &enemy = world().get_enemies()[slot];
+        enemy.reset();
+        enemy.frozen = false;
+        enemy.position = player().position + offset;
+        enemy.velocity = velocity;
         return enemy;
     }
     /// Blocks the grid cell that holds the point at `offset` from the player.
     void wall(dotio::math::Vec2 offset) {
-        const auto point = player().Position + offset;
-        world().grid().SetCell(int(point.Y / dotio::Grid::CellSize), int(point.X / dotio::Grid::CellSize), 1);
+        const auto point = player().position + offset;
+        world().grid().set_cell(int(point.y / dotio::Grid::cell_size), int(point.x / dotio::Grid::cell_size),
+                                1);
     }
 };
 } // namespace
@@ -387,34 +388,34 @@ TEST_CASE("lead_offset aims where a bolt meets a moving target, and at the targe
     constexpr float bolt = 6;
     SUBCASE("a resting target is aimed at directly") {
         const auto aim = capture::lead_offset({300, -40}, {}, bolt);
-        CHECK(aim.X == doctest::Approx(300));
-        CHECK(aim.Y == doctest::Approx(-40));
+        CHECK(aim.x == doctest::Approx(300));
+        CHECK(aim.y == doctest::Approx(-40));
     }
     SUBCASE("a crossing target is led to the point both reach at the same time") {
         const dotio::math::Vec2 offset{300, 0}, velocity{0, 2};
         const auto aim = capture::lead_offset(offset, velocity, bolt);
-        CHECK(aim.X == doctest::Approx(300));
-        CHECK(aim.Y > 0);
+        CHECK(aim.x == doctest::Approx(300));
+        CHECK(aim.y > 0);
         // The target needs as long to its part of the way as the bolt to the whole.
-        const float target_ticks = (aim.Y - offset.Y) / velocity.Y;
-        CHECK(aim.GetLength() / bolt == doctest::Approx(target_ticks));
+        const float target_ticks = (aim.y - offset.y) / velocity.y;
+        CHECK(aim.get_length() / bolt == doctest::Approx(target_ticks));
     }
     SUBCASE("a target that outruns the bolt is aimed at directly") {
         const auto aim = capture::lead_offset({300, 0}, {7, 0}, bolt);
-        CHECK(aim.X == doctest::Approx(300));
-        CHECK(aim.Y == doctest::Approx(0));
+        CHECK(aim.x == doctest::Approx(300));
+        CHECK(aim.y == doctest::Approx(0));
     }
     SUBCASE("a flight longer than the longest lead is not led") {
         // 5 px per tick closing speed against 600 px: 120 ticks.
         const auto aim = capture::lead_offset({600, 0}, {1, 0}, bolt);
         CHECK(600 / (bolt - 1) > capture::longest_lead_ticks);
-        CHECK(aim.X == doctest::Approx(600));
+        CHECK(aim.x == doctest::Approx(600));
     }
     SUBCASE("a target as fast as the bolt is caught only when it comes closer") {
         const auto approaching = capture::lead_offset({300, 0}, {-bolt, 0}, bolt);
-        CHECK(approaching.X == doctest::Approx(150));
+        CHECK(approaching.x == doctest::Approx(150));
         const auto fleeing = capture::lead_offset({300, 0}, {bolt, 0}, bolt);
-        CHECK(fleeing.X == doctest::Approx(300));
+        CHECK(fleeing.x == doctest::Approx(300));
     }
 }
 
@@ -428,13 +429,13 @@ TEST_CASE("the scripted Dotio player targets the nearest enemy it can see") {
     // Nearer candidates that do not count: behind a wall, frozen, dead, and off screen.
     auto &hidden = world.place(1, {-200, 0});
     world.wall({-100, 0});
-    world.place(2, {0, 120}).Frozen = true;
-    world.place(3, {0, -120}).IsActive = false;
+    world.place(2, {0, 120}).frozen = true;
+    world.place(3, {0, -120}).is_active = false;
     world.place(4, {0, 280});
     CHECK(capture::dotio_target(world.application, world.camera) == &far);
 
     // Without the wall the hidden enemy is the nearest in sight.
-    world.world().grid().Fill(0);
+    world.world().grid().fill(0);
     CHECK(capture::dotio_target(world.application, world.camera) == &hidden);
 }
 
@@ -442,16 +443,16 @@ TEST_CASE("the scripted Dotio player does not shoot through a crate") {
     OpenDotioWorld world;
     // Twice as wide a view as the game's own, so the room's crate and the cell behind it fit.
     world.camera.pixels_per_unit = 12.5f;
-    const auto player = world.player().Position;
+    const auto player = world.player().position;
     const dotio::World &read_only = world.world();
-    REQUIRE_FALSE(read_only.GetObjects().empty());
+    REQUIRE_FALSE(read_only.get_objects().empty());
     dotio::math::Vec2 crate{};
     float nearest = 400;
-    for (const auto &object : read_only.GetObjects())
+    for (const auto &object : read_only.get_objects())
         if (const auto offset = dotio::legacy_vector(object.body.position) - player;
-            offset.GetLength() < nearest) {
+            offset.get_length() < nearest) {
             crate = offset;
-            nearest = offset.GetLength();
+            nearest = offset.get_length();
         }
     REQUIRE_MESSAGE(nearest < 400, "the seeded world has no crate near the player's start");
     // Behind the crate on the same line, and as far away to the other side.
@@ -465,15 +466,15 @@ TEST_CASE("dotio_bolt_speed is the speed of the bolt the player fires") {
     auto &player = world.player();
     for (const int kills : {1, 40}) {
         CAPTURE(kills);
-        player.Kills = kills;
-        player.Cooldown = 0;
-        for (auto &bolt : world.world().GetBolts())
-            bolt.IsActive = false;
-        player.Shoot(player.Position + dotio::math::Vec2{100, 0}, true);
+        player.kills = kills;
+        player.cooldown = 0;
+        for (auto &bolt : world.world().get_bolts())
+            bolt.is_active = false;
+        player.shoot(player.position + dotio::math::Vec2{100, 0}, true);
         float fired = 0;
-        for (auto &bolt : world.world().GetBolts())
-            if (bolt.IsActive)
-                fired = bolt.Velocity.GetLength();
+        for (auto &bolt : world.world().get_bolts())
+            if (bolt.is_active)
+                fired = bolt.velocity.get_length();
         CHECK(fired == doctest::Approx(capture::dotio_bolt_speed(player)));
     }
 }
@@ -487,15 +488,15 @@ TEST_CASE("dotio_aim points at the target on screen, ahead of one that moves, in
     CHECK(aim->y == doctest::Approx(270));
 
     // Legacy Y points down, as the screen's does: a target moving down is led downward.
-    enemy.Velocity = {0, 2};
+    enemy.velocity = {0, 2};
     aim = capture::dotio_aim(world.application, world.camera);
     REQUIRE(aim.has_value());
     CHECK(aim->x == doctest::Approx(480 + 300));
     CHECK(aim->y > 270 + 50);
 
     // A lead that runs past the window's edge stops at the edge.
-    enemy.Position = world.player().Position + dotio::math::Vec2{460, 0};
-    enemy.Velocity = {0.5f, 0};
+    enemy.position = world.player().position + dotio::math::Vec2{460, 0};
+    enemy.velocity = {0.5f, 0};
     aim = capture::dotio_aim(world.application, world.camera);
     REQUIRE(aim.has_value());
     CHECK(aim->x == doctest::Approx(960));
@@ -505,12 +506,12 @@ TEST_CASE("dotio_recovery_in_view finds a recovering enemy on screen, inside the
     OpenDotioWorld world;
     auto &enemy = world.place(0, {300, 0});
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
-    enemy.SetState(enemy.GetRecoverState());
+    enemy.set_state(enemy.get_recover_state());
     CHECK(capture::dotio_recovery_in_view(world.application, world.camera, 0));
     // 180 pixels from the right edge of the 960-pixel window.
     CHECK(capture::dotio_recovery_in_view(world.application, world.camera, 170));
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 190));
-    enemy.Position = world.player().Position + dotio::math::Vec2{0, 400};
+    enemy.position = world.player().position + dotio::math::Vec2{0, 400};
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
 }
 

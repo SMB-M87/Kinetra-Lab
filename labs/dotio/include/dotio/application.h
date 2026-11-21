@@ -19,7 +19,7 @@
 namespace dotio {
 
 inline kinetra::Vec2 to_world(dotio::math::Vec2 point) {
-    return {point.X / 25, -point.Y / 25};
+    return {point.x / 25, -point.y / 25};
 }
 inline dotio::math::Vec2 from_world(kinetra::Vec2 point) {
     return {point.x * 25, -point.y * 25};
@@ -227,22 +227,22 @@ class Application {
     /// The player and every enemy, arrow and bolt slot, in a fixed order: the objects that
     /// move each tick and that drawing interpolates. Pointers stay valid as long as the world.
     std::vector<dotio::StaticObject *> moving_objects() {
-        std::vector<dotio::StaticObject *> result{&world_->GetPlayer()};
-        for (auto &enemy : world_->GetEnemies())
+        std::vector<dotio::StaticObject *> result{&world_->get_player()};
+        for (auto &enemy : world_->get_enemies())
             result.push_back(&enemy);
-        for (auto &arrow : world_->GetArrows())
+        for (auto &arrow : world_->get_arrows())
             result.push_back(&arrow);
-        for (auto &bolt : world_->GetBolts())
+        for (auto &bolt : world_->get_bolts())
             result.push_back(&bolt);
         return result;
     }
     /// Positions of moving_objects() including the world offset, so a streaming shift between
     /// two snapshots cancels out; empty for an inactive slot.
     std::vector<std::optional<dotio::math::Vec2>> moving_positions() {
-        const auto offset = world_->WorldOffset();
+        const auto offset = world_->world_offset();
         std::vector<std::optional<dotio::math::Vec2>> result;
         for (const auto *object : moving_objects())
-            result.push_back(object->IsActive ? std::optional{object->Position + offset} : std::nullopt);
+            result.push_back(object->is_active ? std::optional{object->position + offset} : std::nullopt);
         return result;
     }
     /// moving_positions() before and after the last tick, for drawing between them.
@@ -253,7 +253,7 @@ class Application {
     double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
     /// A world for `seed` at `difficulty`; the same seed and the same commands give the same run.
     explicit Application(std::uint32_t seed, dotio::Difficulty difficulty = dotio::Difficulty::medium) {
-        world_->Initialize(seed, difficulty);
+        world_->initialize(seed, difficulty);
     }
 
     struct AgentCounts {
@@ -262,31 +262,31 @@ class Application {
     /// Count resident live enemies, including frozen residents; unused pool slots are excluded.
     AgentCounts agent_counts() const {
         AgentCounts counts;
-        for (const auto &enemy : world_->GetEnemies())
-            if (enemy.IsActive) {
+        for (const auto &enemy : world_->get_enemies())
+            if (enemy.is_active) {
                 ++counts.loaded;
-                counts.active += !enemy.Frozen;
+                counts.active += !enemy.frozen;
             }
         return counts;
     }
     dotio::World &world() { return *world_; }
     /// Reject destinations overlapping terrain, physical props or active enemies.
     bool teleport_clear(dotio::math::Position point, float radius) {
-        if (!std::isfinite(point.X) || !std::isfinite(point.Y) || std::abs(point.X) > 10000000 ||
-            std::abs(point.Y) > 10000000)
+        if (!std::isfinite(point.x) || !std::isfinite(point.y) || std::abs(point.x) > 10000000 ||
+            std::abs(point.y) > 10000000)
             return false;
-        auto candidate = physics_body(world_->GetPlayer());
+        auto candidate = physics_body(world_->get_player());
         candidate.position = physics_vector(point);
         candidate.radius = radius;
         const auto area = kinetra::bounds(candidate);
-        const float cell = dotio::Grid::CellSize;
+        const float cell = dotio::Grid::cell_size;
         const int first_row = int(std::floor(area.min.y / cell));
         const int last_row = int(std::floor(area.max.y / cell));
         const int first_col = int(std::floor(area.min.x / cell));
         const int last_col = int(std::floor(area.max.x / cell));
         for (int row = first_row; row <= last_row; ++row)
             for (int col = first_col; col <= last_col; ++col) {
-                if (!world_->TeleportCell(row, col))
+                if (!world_->teleport_cell(row, col))
                     continue;
                 kinetra::Body wall;
                 wall.shape = kinetra::Shape::box;
@@ -295,10 +295,10 @@ class Application {
                 if (kinetra::collide(candidate, wall))
                     return false;
             }
-        for (const auto &enemy : world_->GetEnemies())
-            if (enemy.IsActive && kinetra::collide(candidate, physics_body(enemy)))
+        for (const auto &enemy : world_->get_enemies())
+            if (enemy.is_active && kinetra::collide(candidate, physics_body(enemy)))
                 return false;
-        for (const auto &object : world_->GetObjects())
+        for (const auto &object : world_->get_objects())
             if (kinetra::collide(candidate, object.body))
                 return false;
         return true;
@@ -306,11 +306,11 @@ class Application {
 
     void advance(double elapsed, const Commands &commands, kinetra::Camera2D &camera) {
         if (debug && ghost && commands.teleport) {
-            auto &player = world_->GetPlayer();
+            auto &player = world_->get_player();
             const auto candidate = from_world(commands.teleport_target);
-            if (teleport_clear(candidate, player.Radius)) {
-                player.Position = candidate;
-                player.Velocity = {};
+            if (teleport_clear(candidate, player.radius)) {
+                player.position = candidate;
+                player.velocity = {};
             }
         }
         if (!debug)
@@ -322,11 +322,11 @@ class Application {
         zoom.observe(camera);
         if (ghost) {
             const auto pan = kinetra::normalized(commands.camera_pan + commands.direction);
-            world_->GetGhost().Position +=
+            world_->get_ghost().position +=
                 from_world(pan * (float(std::min(elapsed, 0.1)) * 400.f / camera.pixels_per_unit));
         }
-        const auto initial_shift = world_->StreamAroundPlayer();
-        const auto center = world_->GetPlayer().Position;
+        const auto initial_shift = world_->stream_around_player();
+        const auto center = world_->get_player().position;
         // A single tick runs in a paused world: exactly one, whatever time has passed.
         const bool single_tick = paused && std::exchange(step_requested_, false);
         const bool running = !paused || single_tick;
@@ -334,10 +334,10 @@ class Application {
         const int scaled_steps = clock_.advance(elapsed * static_cast<double>(time_scale));
         const int steps = single_tick ? 1 : scaled_steps;
         // Legacy coordinates use 25 pixels per world unit: 0.9 * 25 / (2 * 2.5) = 4.5.
-        world_->StreamEnemies(center, {camera.viewport.x * 0.5f, camera.viewport.y * 0.5f},
-                              {camera.viewport.x * 4.5f, camera.viewport.y * 4.5f},
-                              {camera.viewport.x * 6.25f, camera.viewport.y * 6.25f},
-                              running ? float(steps * clock_.step()) : 0.f);
+        world_->stream_enemies(center, {camera.viewport.x * 0.5f, camera.viewport.y * 0.5f},
+                               {camera.viewport.x * 4.5f, camera.viewport.y * 4.5f},
+                               {camera.viewport.x * 6.25f, camera.viewport.y * 6.25f},
+                               running ? float(steps * clock_.step()) : 0.f);
         auto aim = from_world(commands.aim) - initial_shift;
         frame_rate.count();
         // Snapshots from before a pause would draw the first running frames behind the state
@@ -347,49 +347,49 @@ class Application {
         was_paused_ = paused;
         std::uint64_t resets_before_tick = 0;
         for (int step = 0; step < steps; ++step) {
-            auto &player = world_->GetPlayer();
-            player.Heading =
+            auto &player = world_->get_player();
+            player.heading =
                 ghost ? dotio::math::Vec2{} : dotio::math::Vec2{commands.direction.x, -commands.direction.y};
             if (!running)
                 continue;
             if (step == steps - 1) {
                 before_tick_ = moving_positions();
-                resets_before_tick = world_->ResetCount();
+                resets_before_tick = world_->reset_count();
             }
-            player.Speed = 1;
-            player.Update(1);
+            player.speed = 1;
+            player.update(1);
             update_rate.count();
-            aim -= world_->StreamAroundPlayer();
-            world_->grid().HandleGridCollision(player);
+            aim -= world_->stream_around_player();
+            world_->grid().handle_grid_collision(player);
             if (commands.shoot && !ghost)
-                player.Shoot(aim, debug && invulnerable);
+                player.shoot(aim, debug && invulnerable);
             if (++tick_ == 3) {
                 tick_ = 0;
                 decision_rate.count();
-                for (auto &enemy : world_->GetEnemies())
-                    if (enemy.IsActive && !enemy.Frozen) {
-                        enemy.Debug = debug && invulnerable;
-                        enemy.Tick();
+                for (auto &enemy : world_->get_enemies())
+                    if (enemy.is_active && !enemy.frozen) {
+                        enemy.debug = debug && invulnerable;
+                        enemy.tick();
                     }
             }
-            world_->UpdateEnemies(1, debug && invulnerable);
-            world_->UpdateObjects(1);
-            world_->UpdateBolts(1);
-            world_->UpdateArrows(1, debug && invulnerable);
+            world_->update_enemies(1, debug && invulnerable);
+            world_->update_objects(1);
+            world_->update_bolts(1);
+            world_->update_arrows(1, debug && invulnerable);
             // Clamp rewards from contact kills as well as projectile kills.
-            player.Health = std::clamp(player.Health, 0.f, player.MaxHealth);
-            player.Mana = std::clamp(player.Mana, 0.f, player.MaxMana);
+            player.health = std::clamp(player.health, 0.f, player.max_health);
+            player.mana = std::clamp(player.mana, 0.f, player.max_mana);
             if (step == steps - 1) {
                 after_tick_ = moving_positions();
                 // A death respawned the player and cleared the projectiles: nothing to blend.
-                if (world_->ResetCount() != resets_before_tick)
+                if (world_->reset_count() != resets_before_tick)
                     before_tick_ = after_tick_;
             }
         }
         frame_rate.advance(elapsed);
         update_rate.advance(elapsed);
         decision_rate.advance(elapsed);
-        camera.position = to_world(ghost ? world_->GetGhost().Position : world_->GetPlayer().Position);
+        camera.position = to_world(ghost ? world_->get_ghost().position : world_->get_player().position);
     }
 };
 } // namespace dotio

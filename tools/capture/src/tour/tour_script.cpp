@@ -264,7 +264,7 @@ void dotio_fight(Tour &tour, double seconds, bool roam) {
 /// window; the middle itself when none is free.
 Vec2 free_teleport_point(Tour &tour) {
     auto &application = dotio_application(tour);
-    const float radius = application.world().GetPlayer().Radius;
+    const float radius = application.world().get_player().radius;
     for (const Vec2 fraction : {Vec2{.56f, .46f}, Vec2{.44f, .56f}, Vec2{.62f, .60f}, Vec2{.38f, .40f},
                                 Vec2{.50f, .34f}, Vec2{.50f, .66f}, Vec2{.68f, .44f}, Vec2{.32f, .56f}}) {
         const Vec2 point = at(tour, fraction.x, fraction.y);

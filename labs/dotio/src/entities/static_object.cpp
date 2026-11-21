@@ -2,10 +2,10 @@
 
 namespace dotio {
 StaticObject::~StaticObject() = default;
-StaticObject::StaticObject(const dotio::math::Position position, const float direction, bool active)
-    : IsActive(active), Position(position), Direction(direction) {
+StaticObject::StaticObject(const dotio::math::Position start, const float start_direction, bool active)
+    : is_active(active), position(start), direction(start_direction) {
 }
 
-void StaticObject::Draw(dotio::Renderer &) {
+void StaticObject::draw(dotio::Renderer &) {
 }
 } // namespace dotio

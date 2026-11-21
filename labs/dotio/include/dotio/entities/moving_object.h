@@ -1,27 +1,19 @@
-#ifndef MOVING_OBJECT_H
-#define MOVING_OBJECT_H
+#pragma once
 
 #include "dotio/entities/static_object.h"
 
 namespace dotio {
 class MovingObject : public StaticObject {
   public:
-    dotio::math::Vector2 Velocity{};
-    float AngularVelocity{};
+    dotio::math::Vector2 velocity{};
+    float angular_velocity{};
 
     explicit MovingObject(dotio::math::Position position, float direction, bool active);
 
     MovingObject();
 
-    virtual void Update(float delta);
+    virtual void update(float delta);
 
-    virtual void Tick();
-
-    [[nodiscard]] dotio::math::Vector2 GetVelocity() const;
-    void SetVelocity(dotio::math::Vec2 velocity);
-
-    [[nodiscard]] dotio::math::Vector2 GetNextPosition() const;
+    virtual void tick();
 };
 } // namespace dotio
-
-#endif // MOVING_OBJECT_H

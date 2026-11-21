@@ -33,7 +33,7 @@ flowchart TD
     Launcher --> Host["Kinetra::Launcher"]
     Factory --> Host
     Demo --> DemoLogic["Demo application"]
-    Dotio --> DotioLogic["Dotio logic and gmath"]
+    Dotio --> DotioLogic["Dotio logic"]
     Factory --> FactoryLogic["i4sim simulation"]
     DemoLogic --> Simulation["Kinetra::Simulation"]
     DotioLogic --> Simulation

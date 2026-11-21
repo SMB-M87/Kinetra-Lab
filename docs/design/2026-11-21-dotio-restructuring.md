@@ -295,6 +295,13 @@ Reading it:
 
 ## Review
 
+### Step 6
+
+- The renames ran through clang-tidy's `readability-identifier-naming` in two passes (functions and private suffixes with the repository's configuration, then members and class constants with extra options), exported per translation unit and merged with `clang-apply-replacements`, so declarations and uses change together. Grid's and Bolt's class constants, two capture files and the member accesses of the capture tool's tests were renamed by hand afterwards.
+- The golden fingerprint caught one real regression on the way: `Bolt` and `Arrow` constructors assigned `velocity = velocity` once parameter and member had the same name. Every constructor parameter that matched a member is renamed now, and `-Wshadow` reports none of them.
+- Kept PascalCase on purpose: type names and the type aliases of `Vec2` (`Position`, `Point2`, …). Folding those aliases into one type is part of the `kinetra::Vec2` open point.
+- The fuzzy classifiers became `classify_distance`, `classify_fear` and `classify_ammo`; under the new names they clashed with their parameters.
+
 ### Step 5
 
 - The menu-click case (`the debug menu toggles a row once per click at every size`) keeps using the header-only panel; it now includes `<kinetra/runtime/debug_view.h>` itself, with a comment, instead of getting it through `application.h`.
@@ -315,6 +322,14 @@ Reading it:
 - `wander.cpp`'s `signed_unit` now uses the shared `math::unit`; `unit * 2 - 1` and the old `bits / 2^23 - 1` give the same float for every 24-bit value, so steering wander is unchanged (its tests pass unchanged).
 
 ## Verification
+
+### Step 6
+
+| Check | Result |
+| --- | --- |
+| `cmake --build --preset graphics` (everything) | passed |
+| `ctest --test-dir build-graphics -R 'dotio\|capture\|menu\|kinetra_graphics'` (offscreen) | 101/101 passed, golden fingerprint unchanged |
+| `python3 external/Kinetra/tools/check_docs.py` | passed |
 
 ### Step 5
 

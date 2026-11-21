@@ -13,100 +13,100 @@ namespace dotio {
 Enemy::Enemy() : PhysicsObject() {
 }
 
-Enemy::Enemy(World *world, dotio::math::Position position, dotio::math::Position target,
-             const float direction, const float fear)
-    : PhysicsObject(60.0f, dotio::Grid::CellSize * 0.2, 0.2f, 0.2f, position, direction, true), _world(world),
-      Target(target), Path{}, Fear(fear) {
+Enemy::Enemy(World *world, dotio::math::Position start, dotio::math::Position first_target,
+             const float start_direction, const float start_fear)
+    : PhysicsObject(60.0f, dotio::Grid::cell_size * 0.2, 0.2f, 0.2f, start, start_direction, true),
+      world_(world), target(first_target), path{}, fear(start_fear) {
 }
 
-void Enemy::Update(const float delta) {
-    if (Frozen || Target == Position)
+void Enemy::update(const float delta) {
+    if (frozen || target == position)
         return;
 
-    _state->Execute(delta);
-    SpatialPartitioning(delta);
+    state_->execute(delta);
+    spatial_partitioning(delta);
 }
 
-void Enemy::Tick() {
-    if (Frozen || Target == Position)
+void Enemy::tick() {
+    if (frozen || target == position)
         return;
 
-    if (_cooldown > 0.0f)
-        _cooldown -= _world->GetTickRate();
-    if (_cooldown < 0.0f)
-        _cooldown = 0.0f;
+    if (cooldown_ > 0.0f)
+        cooldown_ -= world_->get_tick_rate();
+    if (cooldown_ < 0.0f)
+        cooldown_ = 0.0f;
 
-    PlayerBumpedIntoEnemy();
-    if (!IsActive || Frozen)
+    player_bumped_into_enemy();
+    if (!is_active || frozen)
         return;
-    LineOfSight = IsInLineOfSight();
-    _state->Update();
+    line_of_sight = is_in_line_of_sight();
+    state_->update();
 }
 
-void Enemy::Draw(dotio::Renderer &renderer) {
+void Enemy::draw(dotio::Renderer &renderer) {
     dotio::math::RGBA red = {1.0f, 0.0f, 0.0f, 1.0f};
     dotio::math::RGBA orange = {1.0f, 0.65f, 0.0f, 1.0f};
     dotio::math::RGBA kamikaze = {1.0f, 0.3f, 0.3f, 1.0f};
     dotio::math::RGBA green = {0.0f, 1.0f, 0.0f, 1.0f};
     dotio::math::RGBA blue = {0.0f, 0.5f, 1.0f, 1.0f};
-    renderer.DrawCircle(Position, Radius,
-                        IsKamikazing()   ? kamikaze
-                        : !Debug         ? red
-                        : IsRecovering() ? green
-                        : IsAttacking()  ? red
-                        : IsPursueing()  ? orange
-                                         : blue);
+    renderer.draw_circle(position, radius,
+                         is_kamikazing()   ? kamikaze
+                         : !debug          ? red
+                         : is_recovering() ? green
+                         : is_attacking()  ? red
+                         : is_pursueing()  ? orange
+                                           : blue);
 }
 
-void Enemy::PlayerBumpedIntoEnemy() {
-    if (sqrt(pow(Position.X - _world->GetPlayer().Position.X, 2) +
-             pow(Position.Y - _world->GetPlayer().Position.Y, 2)) < (Radius * 2)) {
-        if (IsKamikazing()) {
-            if (!Debug)
-                _world->GetPlayer().Health -= 30.0f;
-            if (Debug && _world->GetPlayer().Health <= 0.0f)
-                _world->GetPlayer().Health = 0.1f;
-            else if (_world->GetPlayer().Health <= 0.0f)
-                _world->Reset();
+void Enemy::player_bumped_into_enemy() {
+    if (sqrt(pow(position.x - world_->get_player().position.x, 2) +
+             pow(position.y - world_->get_player().position.y, 2)) < (radius * 2)) {
+        if (is_kamikazing()) {
+            if (!debug)
+                world_->get_player().health -= 30.0f;
+            if (debug && world_->get_player().health <= 0.0f)
+                world_->get_player().health = 0.1f;
+            else if (world_->get_player().health <= 0.0f)
+                world_->reset();
         } else {
-            if (_world->GetPlayer().Mana < _world->GetPlayer().MaxMana)
-                _world->GetPlayer().Mana += IsRecovering() ? 40.0f : 20.0f;
-            if (IsRecovering() && _world->GetPlayer().Health < _world->GetPlayer().MaxHealth)
-                _world->GetPlayer().Health += 40.0f;
+            if (world_->get_player().mana < world_->get_player().max_mana)
+                world_->get_player().mana += is_recovering() ? 40.0f : 20.0f;
+            if (is_recovering() && world_->get_player().health < world_->get_player().max_health)
+                world_->get_player().health += 40.0f;
         }
-        IsActive = false;
+        is_active = false;
     }
 
-    if (!IsActive) {
+    if (!is_active) {
         // All replacements go through timed offscreen spawning, including contact kills.
-        Frozen = true;
-        Path.clear();
-        Velocity = {};
+        frozen = true;
+        path.clear();
+        velocity = {};
     }
 }
 
-void Enemy::SpatialPartitioning(const float delta) {
+void Enemy::spatial_partitioning(const float delta) {
     auto motion = dotio::physics_body(*this);
-    kinetra::integrate(motion, delta, _friction);
-    Velocity = dotio::legacy_vector(motion.velocity);
+    kinetra::integrate(motion, delta, friction_);
+    velocity = dotio::legacy_vector(motion.velocity);
 
-    dotio::math::Vector2 next{Position + Velocity};
-    uint8_t p =
-        dotio::math::GridEntry::GetSquarePartition(next, Radius, dotio::Grid::Origin, dotio::Grid::CellSize);
+    dotio::math::Vector2 next{position + velocity};
+    uint8_t p = dotio::math::GridEntry::get_square_partition(next, radius, dotio::Grid::origin,
+                                                             dotio::Grid::cell_size);
     dotio::math::GridEntry partitions[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
 
-    dotio::math::GridEntry::GetPartitions(p, next, dotio::Grid::Origin, dotio::Grid::CellSize,
-                                          dotio::Grid::GridSize, partitions);
+    dotio::math::GridEntry::get_partitions(p, next, dotio::Grid::origin, dotio::Grid::cell_size,
+                                           dotio::Grid::grid_size, partitions);
 
     bool keep[4]{false, false, false, false};
 
     for (int i = 0; i < 4; i++) {
         dotio::math::GridEntry *np = &partitions[i];
 
-        if (_world->EnemyPartitionMap.contains(*np))
-            for (auto o : _world->EnemyPartitionMap[*np]) {
+        if (world_->enemy_partition_map.contains(*np))
+            for (auto o : world_->enemy_partition_map[*np]) {
                 dotio::Enemy &other = *(dotio::Enemy *)o;
-                if (!other.IsActive || other.Frozen)
+                if (!other.is_active || other.frozen)
                     continue;
 
                 if (&other == this)
@@ -123,21 +123,21 @@ void Enemy::SpatialPartitioning(const float delta) {
             }
     }
 
-    Velocity = next - Position;
+    velocity = next - position;
 
     motion = dotio::physics_body(*this);
     kinetra::integrate(motion, delta);
     dotio::apply_body(*this, motion);
 
-    p = dotio::math::GridEntry::GetSquarePartition(Position, Radius, dotio::Grid::Origin,
-                                                   dotio::Grid::CellSize);
+    p = dotio::math::GridEntry::get_square_partition(position, radius, dotio::Grid::origin,
+                                                     dotio::Grid::cell_size);
     partitions[0] = {-1, -1};
     partitions[1] = {-1, -1};
     partitions[2] = {-1, -1};
     partitions[3] = {-1, -1};
 
-    dotio::math::GridEntry::GetPartitions(p, Position, dotio::Grid::Origin, dotio::Grid::CellSize,
-                                          dotio::Grid::GridSize, partitions);
+    dotio::math::GridEntry::get_partitions(p, position, dotio::Grid::origin, dotio::Grid::cell_size,
+                                           dotio::Grid::grid_size, partitions);
 
     keep[0] = false;
     keep[1] = false;
@@ -147,37 +147,37 @@ void Enemy::SpatialPartitioning(const float delta) {
     for (int i = 0; i < 4; i++) {
         dotio::math::GridEntry *np = &partitions[i];
 
-        if (np->Row == -1)
+        if (np->row == -1)
             continue;
 
-        if (_world->EnemyPartitionMap[*np].contains(this))
+        if (world_->enemy_partition_map[*np].contains(this))
             keep[i] = true;
     }
 
     for (int i = 0; i < 4; i++) {
         dotio::math::GridEntry *np = &partitions[i];
-        dotio::math::GridEntry *lp = &LastPartition[i];
+        dotio::math::GridEntry *lp = &last_partition[i];
 
-        if (np->Row != lp->Row || np->Column != lp->Column) {
-            if (np->Row == -1 || np->Column == -1) {
-                if (_world->EnemyPartitionMap.contains(*lp))
-                    _world->EnemyPartitionMap[*lp].erase(this);
+        if (np->row != lp->row || np->column != lp->column) {
+            if (np->row == -1 || np->column == -1) {
+                if (world_->enemy_partition_map.contains(*lp))
+                    world_->enemy_partition_map[*lp].erase(this);
 
-                if (_world->EnemyPartitionMap[*lp].empty())
-                    _world->EnemyPartitionMap.erase(*lp);
+                if (world_->enemy_partition_map[*lp].empty())
+                    world_->enemy_partition_map.erase(*lp);
 
                 *lp = *np;
                 continue;
             }
 
             if (!keep[i]) {
-                if (_world->EnemyPartitionMap.contains(*lp))
-                    _world->EnemyPartitionMap[*lp].erase(this);
+                if (world_->enemy_partition_map.contains(*lp))
+                    world_->enemy_partition_map[*lp].erase(this);
 
-                _world->EnemyPartitionMap[*np].insert(this);
+                world_->enemy_partition_map[*np].insert(this);
 
-                if (_world->EnemyPartitionMap[*lp].empty())
-                    _world->EnemyPartitionMap.erase(*lp);
+                if (world_->enemy_partition_map[*lp].empty())
+                    world_->enemy_partition_map.erase(*lp);
             }
 
             *lp = *np;
@@ -185,116 +185,116 @@ void Enemy::SpatialPartitioning(const float delta) {
     }
 }
 
-void Enemy::Initialize() {
-    HitsRemaining = _world->difficulty_settings().enemy_hits;
-    RandomizeWander(*this);
-    if (_state == nullptr) {
-        _state = &_wander;
-        _attack.SetEnemy(*this);
-        _wander.SetEnemy(*this);
-        _pursue.SetEnemy(*this);
-        _recover.SetEnemy(*this);
-        _kamikaze.SetEnemy(*this);
+void Enemy::initialize() {
+    hits_remaining = world_->difficulty_settings().enemy_hits;
+    randomize_wander(*this);
+    if (state_ == nullptr) {
+        state_ = &wander_;
+        attack_.set_enemy(*this);
+        wander_.set_enemy(*this);
+        pursue_.set_enemy(*this);
+        recover_.set_enemy(*this);
+        kamikaze_.set_enemy(*this);
     }
 }
 
-World &Enemy::GetWorld() {
-    return *_world;
+World &Enemy::get_world() {
+    return *world_;
 }
 
-State &Enemy::GetState() {
-    return *_state;
+State &Enemy::get_state() {
+    return *state_;
 }
-void Enemy::SetState(State &state) {
-    _state = &state;
-}
-
-State &Enemy::GetAttackState() {
-    return _attack;
-}
-State &Enemy::GetWanderState() {
-    return _wander;
-}
-State &Enemy::GetPursueState() {
-    return _pursue;
-}
-State &Enemy::GetRecoverState() {
-    return _recover;
-}
-State &Enemy::GetKamikazeState() {
-    return _kamikaze;
+void Enemy::set_state(State &state) {
+    state_ = &state;
 }
 
-bool Enemy::IsAttacking() {
-    return &GetState() == &GetAttackState();
+State &Enemy::get_attack_state() {
+    return attack_;
 }
-bool Enemy::IsWandering() {
-    return &GetState() == &GetWanderState();
+State &Enemy::get_wander_state() {
+    return wander_;
 }
-bool Enemy::IsPursueing() {
-    return &GetState() == &GetPursueState();
+State &Enemy::get_pursue_state() {
+    return pursue_;
 }
-bool Enemy::IsRecovering() {
-    return &GetState() == &GetRecoverState();
+State &Enemy::get_recover_state() {
+    return recover_;
 }
-bool Enemy::IsKamikazing() {
-    return &GetState() == &GetKamikazeState();
+State &Enemy::get_kamikaze_state() {
+    return kamikaze_;
 }
-bool Enemy::IsInLineOfSight() {
+
+bool Enemy::is_attacking() {
+    return &get_state() == &get_attack_state();
+}
+bool Enemy::is_wandering() {
+    return &get_state() == &get_wander_state();
+}
+bool Enemy::is_pursueing() {
+    return &get_state() == &get_pursue_state();
+}
+bool Enemy::is_recovering() {
+    return &get_state() == &get_recover_state();
+}
+bool Enemy::is_kamikazing() {
+    return &get_state() == &get_kamikaze_state();
+}
+bool Enemy::is_in_line_of_sight() {
     if (dotio::math::Point2 _;
-        _world->grid().IsIntersectingAnyCell({Position, _world->GetPlayer().Position}, _))
+        world_->grid().is_intersecting_any_cell({position, world_->get_player().position}, _))
         return false;
     else {
         return true;
     }
 }
-bool Enemy::IsOutOfAmmo() const {
-    return _ammo >= ammo_capacity;
+bool Enemy::is_out_of_ammo() const {
+    return ammo_ >= ammo_capacity;
 }
-bool Enemy::HasReloadedAmmo() const {
-    return _ammo <= 1;
+bool Enemy::has_reloaded_ammo() const {
+    return ammo_ <= 1;
 }
-bool Enemy::PursueCountdownPassed() const {
-    return _countdown >= _world->difficulty_settings().pursuit_cycles;
-}
-
-int Enemy::GetAmmo() const {
-    return _ammo;
-}
-float Enemy::GetCooldown() const {
-    return _cooldown;
-}
-float Enemy::AmmoUsedRatio() const {
-    return _ammo / static_cast<float>(ammo_capacity);
-}
-float Enemy::Distance() const {
-    return std::max(std::abs(Position.X - Target.X), std::abs(Position.Y - Target.Y));
+bool Enemy::pursue_countdown_passed() const {
+    return countdown_ >= world_->difficulty_settings().pursuit_cycles;
 }
 
-void Enemy::AmmoFired() {
-    _ammo += 1;
+int Enemy::get_ammo() const {
+    return ammo_;
 }
-void Enemy::AmmoRecovered() {
-    _ammo -= 2;
+float Enemy::get_cooldown() const {
+    return cooldown_;
 }
-void Enemy::PursueCountdown() {
-    _countdown += 1;
+float Enemy::ammo_used_ratio() const {
+    return ammo_ / static_cast<float>(ammo_capacity);
 }
-void Enemy::ResetCooldown() {
-    _cooldown = _maxCooldown * _world->difficulty_settings().fire_interval_multiplier;
+float Enemy::distance() const {
+    return std::max(std::abs(position.x - target.x), std::abs(position.y - target.y));
 }
-void Enemy::ResetPursue() {
-    _countdown = 0;
+
+void Enemy::ammo_fired() {
+    ammo_ += 1;
 }
-void Enemy::Reset() {
-    HitsRemaining = _world->difficulty_settings().enemy_hits;
-    Fear = dotio::math::uniform(_world->behavior_random(), spawn_fear_min, spawn_fear_max);
-    _state = &_wander;
-    RandomizeWander(*this);
-    IsActive = true;
-    ResetCooldown();
-    _ammo = 1;
-    _countdown = 0;
-    Path.clear();
+void Enemy::ammo_recovered() {
+    ammo_ -= 2;
+}
+void Enemy::pursue_countdown() {
+    countdown_ += 1;
+}
+void Enemy::reset_cooldown() {
+    cooldown_ = max_cooldown_ * world_->difficulty_settings().fire_interval_multiplier;
+}
+void Enemy::reset_pursue() {
+    countdown_ = 0;
+}
+void Enemy::reset() {
+    hits_remaining = world_->difficulty_settings().enemy_hits;
+    fear = dotio::math::uniform(world_->behavior_random(), spawn_fear_min, spawn_fear_max);
+    state_ = &wander_;
+    randomize_wander(*this);
+    is_active = true;
+    reset_cooldown();
+    ammo_ = 1;
+    countdown_ = 0;
+    path.clear();
 }
 } // namespace dotio

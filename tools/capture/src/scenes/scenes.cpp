@@ -212,8 +212,8 @@ void dotio_start(Stage &stage, bool debug) {
 bool dotio_fight_in_view(Stage &stage) {
     if (!dotio_target(stage.dotio(), stage.runtime().camera))
         return false;
-    for (auto &bolt : stage.dotio().world().GetBolts())
-        if (bolt.IsActive)
+    for (auto &bolt : stage.dotio().world().get_bolts())
+        if (bolt.is_active)
             return true;
     return false;
 }

@@ -11,7 +11,7 @@
 namespace dotio {
 namespace {
 kinetra::Vec2 planner_point(dotio::math::Vec2 point) {
-    return {point.X, point.Y};
+    return {point.x, point.y};
 }
 
 Route route_of(const std::vector<kinetra::Vec2> &points) {
@@ -25,7 +25,7 @@ Route route_of(const std::vector<kinetra::Vec2> &points) {
 /// Cell of `point`, or {-1, -1} outside the grid.
 dotio::math::GridEntry cell_of(dotio::math::Vec2 point) {
     dotio::math::GridEntry cell;
-    if (!dotio::math::GridEntry::FromWorld(point, Grid::Origin, Grid::CellSize, Grid::GridSize, cell))
+    if (!dotio::math::GridEntry::from_world(point, Grid::origin, Grid::cell_size, Grid::grid_size, cell))
         return {-1, -1};
     return cell;
 }
@@ -78,30 +78,30 @@ void Route::clear() {
 }
 
 Route plan_route(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 to) {
-    return route_of(grid.Navigation().path(planner_point(from), planner_point(to)));
+    return route_of(grid.navigation().path(planner_point(from), planner_point(to)));
 }
 
 Route plan_shelter(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 player, float fear) {
     const auto start = cell_of(from);
     const auto hunter = cell_of(player);
-    if (start.Row < 0 || hunter.Row < 0)
+    if (start.row < 0 || hunter.row < 0)
         return {};
-    const int rows = start.Row - hunter.Row, columns = start.Column - hunter.Column;
+    const int rows = start.row - hunter.row, columns = start.column - hunter.column;
     const Sides sides{rows <= 0, rows >= 0, columns <= 0, columns >= 0};
     const auto enter = [&](int id) {
-        const int row = id / Grid::Columns - hunter.Row, column = id % Grid::Columns - hunter.Column;
+        const int row = id / Grid::columns - hunter.row, column = id % Grid::columns - hunter.column;
         // Next to the player is no shelter, and no way past it either.
         return sides.admit(row, column) && (std::abs(row) > 1 || std::abs(column) > 1);
     };
     int hidden = 0;
     const auto accept = [&](int id) {
-        const auto center = grid.Navigation().center(id);
+        const auto center = grid.navigation().center(id);
         dotio::math::Point2 hit{};
-        if (!grid.IsIntersectingAnyCell({{center.x, center.y}, player}, hit))
+        if (!grid.is_intersecting_any_cell({{center.x, center.y}, player}, hit))
             return false;
         // The count includes this cell; a fear of 2.5 takes the third hidden cell.
         return float(++hidden) > fear;
     };
-    return route_of(grid.Navigation().search(planner_point(from), accept, enter));
+    return route_of(grid.navigation().search(planner_point(from), accept, enter));
 }
 } // namespace dotio

@@ -2,35 +2,24 @@
 #include "dotio/entities/physics_adapter.h"
 
 namespace dotio {
-MovingObject::MovingObject(const dotio::math::Position position, const float direction, bool active)
-    : StaticObject(position, direction, active) {
+MovingObject::MovingObject(const dotio::math::Position start, const float start_direction, bool active)
+    : StaticObject(start, start_direction, active) {
 }
 
 MovingObject::MovingObject() : MovingObject({}, 0.0f, false) {
 }
 
-void MovingObject::Update(const float delta) {
+void MovingObject::update(const float delta) {
     kinetra::Body body;
-    body.position = dotio::physics_vector(Position);
-    body.velocity = dotio::physics_vector(Velocity);
-    body.angle = Direction;
-    body.angular_velocity = AngularVelocity;
+    body.position = dotio::physics_vector(position);
+    body.velocity = dotio::physics_vector(velocity);
+    body.angle = direction;
+    body.angular_velocity = angular_velocity;
     kinetra::integrate(body, delta);
-    Position = dotio::legacy_vector(body.position);
-    Direction = body.angle;
+    position = dotio::legacy_vector(body.position);
+    direction = body.angle;
 }
 
-void MovingObject::Tick() {
-}
-
-dotio::math::Vector2 MovingObject::GetVelocity() const {
-    return Velocity;
-}
-void MovingObject::SetVelocity(const dotio::math::Vec2 velocity) {
-    Velocity = velocity;
-}
-
-dotio::math::Vector2 MovingObject::GetNextPosition() const {
-    return Position + Velocity;
+void MovingObject::tick() {
 }
 } // namespace dotio
