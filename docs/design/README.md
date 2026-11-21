@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-21 | [Record Kinetra main after the weighted grid search](2026-11-21-record-kinetra-weighted-grid-search.md): `55e690e` instead of its branch commit `3622849` | implemented |
 | 2026-11-21 | [Demo restructuring](2026-11-21-demo-restructuring.md): roadmap phase 5, bodies out of headers, scene operations, contact tests to Kinetra, module README | implemented |
 | 2026-11-21 | [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md): roadmap phase 7, causes from replayed runs first, then guarded passing (Reciprocal gains with passing on; off by default) and the standstill near a destination, documented as a limit | implemented |
 | 2026-11-21 | [Dotio restructuring](2026-11-21-dotio-restructuring.md): roadmap phase 6, seeded statistics baseline first, routes on Kinetra's weighted grid | implemented |
