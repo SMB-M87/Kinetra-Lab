@@ -12,13 +12,13 @@ class MovingObject : public StaticObject {
 
     MovingObject();
 
-    virtual void Update(float delta);
+    virtual void update(float delta);
 
-    virtual void Tick();
+    virtual void tick();
 
-    [[nodiscard]] dotio::math::Vector2 GetVelocity() const;
-    void SetVelocity(dotio::math::Vec2 velocity);
+    [[nodiscard]] dotio::math::Vector2 get_velocity() const;
+    void set_velocity(dotio::math::Vec2 velocity);
 
-    [[nodiscard]] dotio::math::Vector2 GetNextPosition() const;
+    [[nodiscard]] dotio::math::Vector2 get_next_position() const;
 };
 } // namespace dotio

@@ -6,6 +6,6 @@ StaticObject::StaticObject(const dotio::math::Position position, const float dir
     : IsActive(active), Position(position), Direction(direction) {
 }
 
-void StaticObject::Draw(dotio::Renderer &) {
+void StaticObject::draw(dotio::Renderer &) {
 }
 } // namespace dotio

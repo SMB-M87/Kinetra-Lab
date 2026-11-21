@@ -30,16 +30,16 @@
 namespace {
 // --- Access to the world. The only part that follows changes of Dotio's interface. -----
 
-constexpr int rows = dotio::Grid::Rows, columns = dotio::Grid::Columns;
+constexpr int rows = dotio::Grid::rows, columns = dotio::Grid::columns;
 constexpr float cell = 100; // Legacy pixels per grid cell.
 
 bool wall(dotio::Application &application, int row, int column) {
-    return application.world().grid().Cell(row, column) != 0;
+    return application.world().grid().cell(row, column) != 0;
 }
 
 bool sight_blocked(dotio::Application &application, dotio::math::Vec2 from, dotio::math::Vec2 to) {
     dotio::math::Point2 hit{};
-    return application.world().grid().IsIntersectingAnyCell({from, to}, hit);
+    return application.world().grid().is_intersecting_any_cell({from, to}, hit);
 }
 
 bool route_empty(const dotio::Enemy &enemy) {
@@ -65,19 +65,19 @@ class Player {
 
     dotio::Commands commands(dotio::Application &application) {
         auto &world = application.world();
-        const auto position = world.GetPlayer().Position;
-        const auto offset = world.WorldOffset();
-        if (offset.X != offset_.X || offset.Y != offset_.Y || world.ResetCount() != resets_) {
+        const auto position = world.get_player().Position;
+        const auto offset = world.world_offset();
+        if (offset.X != offset_.X || offset.Y != offset_.Y || world.reset_count() != resets_) {
             route_.clear(); // The window moved or the player respawned: the route is stale.
             offset_ = offset;
-            resets_ = world.ResetCount();
+            resets_ = world.reset_count();
         }
         if (next_ >= route_.size() || ++waiting_ > player_patience_ticks)
             plan(application, position);
         dotio::Commands commands;
         if (next_ < route_.size()) {
             auto to = route_[next_] - position;
-            const float distance = to.GetLength();
+            const float distance = to.get_length();
             if (distance < best_) {
                 best_ = distance;
                 waiting_ = 0;
@@ -125,10 +125,10 @@ class Player {
     const dotio::Enemy *nearest_visible_enemy(dotio::Application &application, dotio::math::Vec2 position) {
         const dotio::Enemy *nearest = nullptr;
         float nearest_distance = shooting_range;
-        for (const auto &enemy : application.world().GetEnemies()) {
+        for (const auto &enemy : application.world().get_enemies()) {
             if (!enemy.IsActive || enemy.Frozen)
                 continue;
-            const float distance = (enemy.Position - position).GetLength();
+            const float distance = (enemy.Position - position).get_length();
             if (distance < nearest_distance && !sight_blocked(application, position, enemy.Position)) {
                 nearest = &enemy;
                 nearest_distance = distance;
@@ -154,11 +154,11 @@ constexpr std::array<const char *, state_count> state_names{"wander", "attack", 
                                                             "kamikaze"};
 
 State state_of(dotio::Enemy &enemy) {
-    return enemy.IsAttacking()    ? State::attack
-           : enemy.IsPursueing()  ? State::pursue
-           : enemy.IsRecovering() ? State::recover
-           : enemy.IsKamikazing() ? State::kamikaze
-                                  : State::wander;
+    return enemy.is_attacking()    ? State::attack
+           : enemy.is_pursueing()  ? State::pursue
+           : enemy.is_recovering() ? State::recover
+           : enemy.is_kamikazing() ? State::kamikaze
+                                   : State::wander;
 }
 
 /// Ticks a moving enemy may stay within stuck_radius of one point before it counts as stuck.
@@ -255,20 +255,20 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
     camera.pixels_per_unit = dotio::initial_zoom;
     Player player(seed);
     Totals totals;
-    std::vector<Slot> slots(world.GetEnemies().GetCapacity());
-    std::vector<bool> arrows(world.GetArrows().GetCapacity());
+    std::vector<Slot> slots(world.get_enemies().get_capacity());
+    std::vector<bool> arrows(world.get_arrows().get_capacity());
     const int ticks = int(seconds * ticks_per_second);
     for (int tick = 0; tick < ticks; ++tick) {
         const auto commands = player.commands(*application);
-        const float health = world.GetPlayer().Health;
-        const int kills = world.GetPlayer().Kills;
-        const auto resets = world.ResetCount();
-        const auto offset_before = world.WorldOffset();
-        const auto player_before = world.GetPlayer().Position;
+        const float health = world.get_player().Health;
+        const int kills = world.get_player().Kills;
+        const auto resets = world.reset_count();
+        const auto offset_before = world.world_offset();
+        const auto player_before = world.get_player().Position;
         application->advance(1.0 / ticks_per_second, commands, camera);
-        const bool reset = world.ResetCount() != resets;
-        const auto shift = world.WorldOffset() - offset_before;
-        auto &self = world.GetPlayer();
+        const bool reset = world.reset_count() != resets;
+        const auto shift = world.world_offset() - offset_before;
+        auto &self = world.get_player();
         totals.ticks += 1;
         totals.deaths += reset;
         if (!reset) {
@@ -276,18 +276,18 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
             totals.kills += std::max(0, self.Kills - kills);
         }
         std::size_t index = 0;
-        for (const auto &arrow : world.GetArrows()) {
+        for (const auto &arrow : world.get_arrows()) {
             totals.arrows += arrow.IsActive && !arrows[index];
             arrows[index++] = arrow.IsActive;
         }
         index = 0;
-        for (auto &enemy : world.GetEnemies()) {
+        for (auto &enemy : world.get_enemies()) {
             auto &slot = slots[index++];
             slot.position -= shift;
             slot.anchor -= shift;
             if (!enemy.IsActive) {
                 if (slot.active && !reset) {
-                    const float gap = (slot.position - (player_before - shift)).GetLength();
+                    const float gap = (slot.position - (player_before - shift)).get_length();
                     if (gap < 2 * enemy.Radius + 12) {
                         ++totals.contacts;
                         totals.kamikaze_contacts += slot.state == State::kamikaze;
@@ -341,10 +341,10 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
                 totals.routeless_ticks += route_empty(enemy);
             }
             if (state == State::attack) {
-                totals.attack_distance += (enemy.Position - self.Position).GetLength();
+                totals.attack_distance += (enemy.Position - self.Position).get_length();
                 ++totals.attack_distance_ticks;
             }
-            if ((enemy.Position - slot.anchor).GetLength() > stuck_radius) {
+            if ((enemy.Position - slot.anchor).get_length() > stuck_radius) {
                 slot.anchor = enemy.Position;
                 slot.anchor_tick = tick;
                 slot.stuck = false;

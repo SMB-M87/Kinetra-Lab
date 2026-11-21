@@ -12,11 +12,11 @@ Bolt::Bolt(dotio::math::Position position, dotio::math::Vector2 velocity) : Movi
 Bolt::Bolt() : Bolt({}, {}) {
 }
 
-void Bolt::Update(float delta) {
-    MovingObject::Update(delta);
+void Bolt::update(float delta) {
+    MovingObject::update(delta);
 }
 
-void Bolt::Draw(dotio::Renderer &renderer) {
-    renderer.DrawCircle({Position}, Radius, {1.0f, 0.3f, 0.0f, 1.0f});
+void Bolt::draw(dotio::Renderer &renderer) {
+    renderer.draw_circle({Position}, radius, {1.0f, 0.3f, 0.0f, 1.0f});
 }
 } // namespace dotio

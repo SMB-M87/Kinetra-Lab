@@ -13,11 +13,12 @@ Arrow::Arrow(dotio::math::Position position, dotio::math::Vector2 velocity)
 Arrow::Arrow() : Arrow({}, {}) {
 }
 
-void Arrow::Update(float delta) {
-    MovingObject::Update(delta);
+void Arrow::update(float delta) {
+    MovingObject::update(delta);
 }
 
-void Arrow::Draw(dotio::Renderer &renderer) {
-    renderer.DrawSegment({Position, Position - (Velocity).GetNormalized() * 30.0f}, {1.0f, 0.8f, 0.8f, 1.0f});
+void Arrow::draw(dotio::Renderer &renderer) {
+    renderer.draw_segment({Position, Position - (Velocity).get_normalized() * 30.0f},
+                          {1.0f, 0.8f, 0.8f, 1.0f});
 }
 } // namespace dotio

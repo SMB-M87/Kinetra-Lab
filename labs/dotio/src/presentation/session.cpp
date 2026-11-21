@@ -33,8 +33,8 @@ class DotioSession final : public Session {
             menu_.visible ? application_.debug_entries() : std::vector<kinetra::DebugEntry>{};
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         if (!was_ghost && application_.ghost) {
-            application_.world().GetGhost().Position = application_.world().GetPlayer().Position;
-            application_.world().GetGhost().Velocity = {};
+            application_.world().get_ghost().Position = application_.world().get_player().Position;
+            application_.world().get_ghost().Velocity = {};
         }
         auto commands = dotio::read_commands(modal ? kinetra::Input{} : input, camera);
         commands.zoom_steps = application_.debug && !modal && !captured ? input.wheel : 0;

@@ -15,7 +15,7 @@ inline kinetra::Body physics_body(const dotio::PhysicsObject &object) {
     body.position = physics_vector(object.Position);
     body.velocity = physics_vector(object.Velocity);
     body.radius = object.Radius;
-    body.mass = object.GetMass();
+    body.mass = object.get_mass();
     body.angle = object.Direction;
     body.angular_velocity = object.AngularVelocity;
     body.motion = kinetra::Motion::controlled;

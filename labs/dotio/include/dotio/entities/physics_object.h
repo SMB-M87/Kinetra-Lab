@@ -17,21 +17,21 @@ class PhysicsObject : public MovingObject {
 
     PhysicsObject();
 
-    explicit PhysicsObject(float mass, float radius, float friction, float rotationalFriction,
+    explicit PhysicsObject(float mass, float radius, float friction, float rotational_friction,
                            dotio::math::Position position, float direction, bool active);
 
     virtual ~PhysicsObject();
 
-    void ApplyForce(const dotio::math::Vector2 &force, float mass);
+    void apply_force(const dotio::math::Vector2 &force, float mass);
 
-    void Update(float delta) override;
+    void update(float delta) override;
 
-    void Tick() override;
+    void tick() override;
 
-    float GetDiameter() const;
+    float get_diameter() const;
 
-    [[nodiscard]] float GetFriction() const;
+    [[nodiscard]] float get_friction() const;
 
-    [[nodiscard]] float GetMass() const;
+    [[nodiscard]] float get_mass() const;
 };
 } // namespace dotio

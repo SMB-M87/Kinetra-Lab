@@ -9,7 +9,7 @@ MovingObject::MovingObject(const dotio::math::Position position, const float dir
 MovingObject::MovingObject() : MovingObject({}, 0.0f, false) {
 }
 
-void MovingObject::Update(const float delta) {
+void MovingObject::update(const float delta) {
     kinetra::Body body;
     body.position = dotio::physics_vector(Position);
     body.velocity = dotio::physics_vector(Velocity);
@@ -20,17 +20,17 @@ void MovingObject::Update(const float delta) {
     Direction = body.angle;
 }
 
-void MovingObject::Tick() {
+void MovingObject::tick() {
 }
 
-dotio::math::Vector2 MovingObject::GetVelocity() const {
+dotio::math::Vector2 MovingObject::get_velocity() const {
     return Velocity;
 }
-void MovingObject::SetVelocity(const dotio::math::Vec2 velocity) {
+void MovingObject::set_velocity(const dotio::math::Vec2 velocity) {
     Velocity = velocity;
 }
 
-dotio::math::Vector2 MovingObject::GetNextPosition() const {
+dotio::math::Vector2 MovingObject::get_next_position() const {
     return Position + Velocity;
 }
 } // namespace dotio

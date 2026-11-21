@@ -1,23 +1,23 @@
 #pragma once
 
 namespace dotio {
-enum class Distance { Close, Average, Far };
-enum class Fear { Anxious, Neutral, Warrior };
-enum class Ammo { Full, Midway, Empty };
+enum class Distance { close, average, far };
+enum class Fear { anxious, neutral, warrior };
+enum class Ammo { full, midway, empty };
 
 /// Original distance/fear/ammunition membership classifications and kamikaze rule.
 class Fuzzy {
   public:
-    static bool Evaluate(float distance, float fear, float ammo);
+    static bool evaluate(float distance, float fear, float ammo);
     /// Sugeno spawn rate (0..1 enemies/second) from finite nonnegative nearby load.
     /// Sparse, occupied and crowded memberships blend rates 1, 0.25 and 0.
-    static float SpawnRate(float nearby_load);
+    static float spawn_rate(float nearby_load);
 
   private:
-    static float Triangle(float x, float a, float b, float c);
-    static float Trapezoid(float x, float a, float b, float c, float d);
-    static float Distance(float distance, Distance &result);
-    static float Fear(float fear, Fear &result);
-    static float Ammo(int ammo, Ammo &result);
+    static float triangle(float x, float a, float b, float c);
+    static float trapezoid(float x, float a, float b, float c, float d);
+    static float classify_distance(float distance, Distance &result);
+    static float classify_fear(float fear, Fear &result);
+    static float classify_ammo(int ammo, Ammo &result);
 };
 } // namespace dotio

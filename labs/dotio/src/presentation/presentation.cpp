@@ -44,13 +44,13 @@ class RuntimeRenderer final : public dotio::Renderer {
   public:
     explicit RuntimeRenderer(Runtime &runtime)
         : runtime_(runtime), half_view_(runtime.camera.viewport / (2 * runtime.camera.pixels_per_unit)) {}
-    void DrawCircle(dotio::math::Position center, float radius, dotio::math::RGBA color) override {
+    void draw_circle(dotio::math::Position center, float radius, dotio::math::RGBA color) override {
         const auto position = to_world(center);
         const float world_radius = radius / 25;
         if (visible(position, {world_radius, world_radius}))
             runtime_.circle(position, world_radius, {color.R, color.G, color.B, color.A});
     }
-    void DrawSegment(dotio::math::Segment segment, dotio::math::RGBA color) override {
+    void draw_segment(dotio::math::Segment segment, dotio::math::RGBA color) override {
         const auto start = to_world(segment.Start), end = to_world(segment.End);
         const Vec2 half{std::abs(end.x - start.x) / 2 + 0.03f, std::abs(end.y - start.y) / 2 + 0.03f};
         if (visible((start + end) / 2, half))
@@ -58,11 +58,11 @@ class RuntimeRenderer final : public dotio::Renderer {
     }
 };
 Color color_of_state(dotio::Enemy &enemy) {
-    return enemy.IsKamikazing()   ? state_color::kamikaze
-           : enemy.IsRecovering() ? state_color::recover
-           : enemy.IsPursueing()  ? state_color::pursue
-           : enemy.IsAttacking()  ? state_color::attack
-                                  : state_color::wander;
+    return enemy.is_kamikazing()   ? state_color::kamikaze
+           : enemy.is_recovering() ? state_color::recover
+           : enemy.is_pursueing()  ? state_color::pursue
+           : enemy.is_attacking()  ? state_color::attack
+                                   : state_color::wander;
 }
 void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
     runtime.box(runtime.camera.screen_to_world(center), half / runtime.camera.pixels_per_unit, 0, color);
@@ -73,7 +73,7 @@ PresentedPositions::PresentedPositions(Application &application) {
     const auto &before = application.before_tick();
     const auto &after = application.after_tick();
     const auto objects = application.moving_objects();
-    const auto offset = application.world().WorldOffset();
+    const auto offset = application.world().world_offset();
     const auto blend = float(application.interpolation());
     for (std::size_t i = 0; i < objects.size() && i < before.size() && i < after.size(); ++i) {
         auto *object = objects[i];
@@ -98,10 +98,11 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     auto &world = application.world();
     // The camera follows the drawn player, not the simulated one, or the player would jitter
     // on screen; Ghost moves per frame and needs no correction. Restored after the frame.
-    const auto simulated_player = to_world(world.GetPlayer().Position);
+    const auto simulated_player = to_world(world.get_player().Position);
     const PresentedPositions presented(application);
     const kinetra_lab::ScopedCameraShift follow_drawn_player(
-        runtime.camera, application.ghost ? Vec2{} : to_world(world.GetPlayer().Position) - simulated_player);
+        runtime.camera,
+        application.ghost ? Vec2{} : to_world(world.get_player().Position) - simulated_player);
     runtime.begin({0, 0, 0});
     RuntimeRenderer renderer(runtime);
     // Cull generated arena geometry against the active camera.
@@ -111,29 +112,29 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     const int last_row = int(std::floor(bottom_right.Y / 100)) + 1;
     const int first_col = int(std::floor(top_left.X / 100)) - 1;
     const int last_col = int(std::floor(bottom_right.X / 100)) + 1;
-    const auto offset = world.WorldOffset();
-    const int row_offset = int(std::lround(offset.Y / dotio::Grid::CellSize));
-    const int column_offset = int(std::lround(offset.X / dotio::Grid::CellSize));
+    const auto offset = world.world_offset();
+    const int row_offset = int(std::lround(offset.Y / dotio::Grid::cell_size));
+    const int column_offset = int(std::lround(offset.X / dotio::Grid::cell_size));
     for (int row = first_row; row <= last_row; ++row)
         for (int column = first_col; column <= last_col; ++column) {
             const auto center = to_world({column * 100.f + 50, row * 100.f + 50});
-            if (!world.TerrainCell(row, column))
+            if (!world.terrain_cell(row, column))
                 continue;
             runtime.box(center, {2, 2}, 0, wall_color(row + row_offset, column + column_offset));
             if (application.debug && application.collisions)
                 draw_debug_box(runtime, center, {2, 2}, 0, {0.6f, 0.8f, 1});
         }
-    for (const auto &prop : world.GetObjects()) {
+    for (const auto &prop : world.get_objects()) {
         const auto center = to_world(legacy_vector(prop.body.position));
-        renderer.DrawCircle(legacy_vector(prop.body.position), prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
+        renderer.draw_circle(legacy_vector(prop.body.position), prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
         if (application.debug && application.vectors)
             draw_debug_vector(runtime, center, to_world(legacy_vector(prop.body.velocity)), {1, 0.8f, 0.2f});
         if (application.debug && application.collisions)
             draw_debug_circle(runtime, center, prop.body.radius / 25, {1, 0.8f, 0.2f});
     }
-    world.Draw(renderer);
+    world.draw(renderer);
     if (application.debug) {
-        for (auto &enemy : world.GetEnemies()) {
+        for (auto &enemy : world.get_enemies()) {
             if (!enemy.IsActive)
                 continue;
             const auto position = to_world(enemy.Position);
@@ -144,11 +145,11 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (application.collisions)
                 draw_debug_circle(runtime, position, enemy.Radius / 25, layer_color::collisions);
             if (application.ai) {
-                const std::string_view label = enemy.IsKamikazing()   ? "KAMIKAZE"
-                                               : enemy.IsRecovering() ? "RECOVER"
-                                               : enemy.IsPursueing()  ? "PURSUE"
-                                               : enemy.IsAttacking()  ? "ATTACK"
-                                                                      : "WANDER";
+                const std::string_view label = enemy.is_kamikazing()   ? "KAMIKAZE"
+                                               : enemy.is_recovering() ? "RECOVER"
+                                               : enemy.is_pursueing()  ? "PURSUE"
+                                               : enemy.is_attacking()  ? "ATTACK"
+                                                                       : "WANDER";
                 const auto screen = runtime.camera.world_to_screen(position);
                 if (screen.x >= 0 && screen.y >= 0 && screen.x < runtime.camera.viewport.x &&
                     screen.y < runtime.camera.viewport.y) {
@@ -161,24 +162,24 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             }
         }
         if (application.vectors)
-            draw_debug_vector(runtime, to_world(world.GetPlayer().Position),
-                              to_world(world.GetPlayer().Velocity) * 0.3f, layer_color::vectors);
+            draw_debug_vector(runtime, to_world(world.get_player().Position),
+                              to_world(world.get_player().Velocity) * 0.3f, layer_color::vectors);
     }
     if (application.debug && application.collisions) {
-        draw_debug_circle(runtime, to_world(world.GetPlayer().Position), world.GetPlayer().Radius / 25,
+        draw_debug_circle(runtime, to_world(world.get_player().Position), world.get_player().Radius / 25,
                           layer_color::collisions);
-        for (const auto &bolt : world.GetBolts())
+        for (const auto &bolt : world.get_bolts())
             if (bolt.IsActive)
-                draw_debug_circle(runtime, to_world(bolt.Position), dotio::Bolt::Radius / 25, {1, 1, 0});
+                draw_debug_circle(runtime, to_world(bolt.Position), dotio::Bolt::radius / 25, {1, 1, 0});
     }
     if (application.debug)
-        for (auto &enemy : world.GetEnemies()) {
+        for (auto &enemy : world.get_enemies()) {
             if (!enemy.IsActive)
                 continue;
             const auto &p = application.paths;
             if (p[0] && !enemy.Frozen &&
-                ((p[1] && enemy.IsWandering()) || (p[2] && enemy.IsPursueing()) ||
-                 (p[3] && enemy.IsKamikazing()) || (p[4] && enemy.IsRecovering()))) {
+                ((p[1] && enemy.is_wandering()) || (p[2] && enemy.is_pursueing()) ||
+                 (p[3] && enemy.is_kamikazing()) || (p[4] && enemy.is_recovering()))) {
                 auto start = to_world(enemy.Position);
                 for (const auto waypoint : enemy.Path.remaining()) {
                     const auto end = to_world(waypoint);
@@ -192,24 +193,25 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const auto draw_probe = [&](dotio::math::Segment probe) {
                 runtime.line(to_world(probe.Start), to_world(probe.End), 0.04f, color_of_state(enemy));
                 dotio::math::Point2 hit{};
-                if (application.world().grid().IsIntersectingAnyCell(probe, hit))
+                if (application.world().grid().is_intersecting_any_cell(probe, hit))
                     runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
             };
             if (application.probes) {
                 // An enemy that wanders by steering shows the three feelers its steering
                 // tests; every other one the original probes: forward and two to the rear.
-                if (!enemy.Frozen && enemy.IsWandering() &&
+                if (!enemy.Frozen && enemy.is_wandering() &&
                     world.enemy_tuning().wander == dotio::WanderMode::steering)
-                    for (const auto &feeler : dotio::WanderFeelers(enemy))
+                    for (const auto &feeler : dotio::wander_feelers(enemy))
                         draw_probe(feeler);
                 else
                     for (const float angle : {0.f, 2.35619449f, -2.35619449f})
                         draw_probe({enemy.Position, from_world(position + rotated(heading, angle) *
                                                                               (angle == 0 ? 4.f : 1.2f))});
             }
-            if (p[5] && enemy.IsRecovering()) {
+            if (p[5] && enemy.is_recovering()) {
                 dotio::math::Point2 hit{};
-                if (application.world().grid().IsIntersectingAnyCell({enemy.Position, enemy.Target}, hit)) {
+                if (application.world().grid().is_intersecting_any_cell({enemy.Position, enemy.Target},
+                                                                        hit)) {
                     runtime.line(to_world(enemy.Position), to_world(enemy.Target), 0.04f,
                                  layer_color::hiding_hits);
                     runtime.circle(to_world(hit), 0.2f, {1, 1, 0});
@@ -217,7 +219,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             }
         }
     const float scale = std::min({2.f, runtime.camera.viewport.x / 270, runtime.camera.viewport.y / 240});
-    auto &player = world.GetPlayer();
+    auto &player = world.get_player();
     const std::array values{player.Health / player.MaxHealth, player.Mana / player.MaxMana,
                             (player.Kills - 1) / player.MaxBulletKills};
     const std::array colors{Color{0.8f, 0, 0}, Color{0, 0.3f, 1}, Color{0.3f, 0.9f, 0}};
@@ -264,7 +266,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
 }
 
 std::string status_text(Application &application) {
-    auto &player = application.world().GetPlayer();
+    auto &player = application.world().get_player();
     return std::string(application.world().difficulty_settings().name) + " | " +
            std::string(application.paused ? "PAUSED" : "playing") + " | health " +
            std::to_string(int(player.Health)) + " | mana " + std::to_string(int(player.Mana)) + " | kills " +

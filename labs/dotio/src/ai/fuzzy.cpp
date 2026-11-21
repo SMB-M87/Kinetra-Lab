@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 namespace dotio {
-float Fuzzy::Triangle(float x, float a, float b, float c) {
+float Fuzzy::triangle(float x, float a, float b, float c) {
     if (x <= a || x >= c)
         return 0.0;
     if (x == b)
@@ -15,7 +15,7 @@ float Fuzzy::Triangle(float x, float a, float b, float c) {
     return (c - x) / (c - b);
 }
 
-float Fuzzy::Trapezoid(float x, float a, float b, float c, float d) {
+float Fuzzy::trapezoid(float x, float a, float b, float c, float d) {
     if (x <= a || x >= d)
         return 0.0;
     if (x >= b && x <= c)
@@ -25,79 +25,79 @@ float Fuzzy::Trapezoid(float x, float a, float b, float c, float d) {
     return (d - x) / (d - c);
 }
 
-float Fuzzy::Distance(float distance, dotio::Distance &result) {
-    float close = Triangle(distance, 0, dotio::Grid::CellSize * 4.0f, dotio::Grid::CellSize * 5.0f);
-    float neutral = Trapezoid(distance, dotio::Grid::CellSize * 3.0f, dotio::Grid::CellSize * 5.0f,
-                              dotio::Grid::CellSize * 8.0f, dotio::Grid::CellSize * 10.0f);
-    float farr = Triangle(distance, dotio::Grid::CellSize * 10.0f, dotio::Grid::CellSize * 20.0f,
-                          dotio::Grid::CellSize * 100.0f);
+float Fuzzy::classify_distance(float distance, dotio::Distance &result) {
+    float close = triangle(distance, 0, dotio::Grid::cell_size * 4.0f, dotio::Grid::cell_size * 5.0f);
+    float neutral = trapezoid(distance, dotio::Grid::cell_size * 3.0f, dotio::Grid::cell_size * 5.0f,
+                              dotio::Grid::cell_size * 8.0f, dotio::Grid::cell_size * 10.0f);
+    float farr = triangle(distance, dotio::Grid::cell_size * 10.0f, dotio::Grid::cell_size * 20.0f,
+                          dotio::Grid::cell_size * 100.0f);
 
     if (close > neutral && close > farr) {
-        result = Distance::Close;
+        result = Distance::close;
         return close;
     } else if (neutral > farr) {
-        result = Distance::Average;
+        result = Distance::average;
         return neutral;
     } else {
-        result = Distance::Far;
+        result = Distance::far;
         return farr;
     }
 }
 
-float Fuzzy::Fear(float fear, dotio::Fear &result) {
-    float anxious = Triangle(fear, 6.5f, 10.0f, 10.0f);
-    float neutral = Trapezoid(fear, 4.0f, 4.5f, 6.0f, 7.0f);
-    float chad = Triangle(fear, 1.5f, 4.5f, 4.5f);
+float Fuzzy::classify_fear(float fear, dotio::Fear &result) {
+    float anxious = triangle(fear, 6.5f, 10.0f, 10.0f);
+    float neutral = trapezoid(fear, 4.0f, 4.5f, 6.0f, 7.0f);
+    float chad = triangle(fear, 1.5f, 4.5f, 4.5f);
 
     if (anxious > neutral && anxious > chad) {
-        result = Fear::Anxious;
+        result = Fear::anxious;
         return anxious;
     } else if (neutral > chad) {
-        result = Fear::Neutral;
+        result = Fear::neutral;
         return neutral;
     } else {
-        result = Fear::Warrior;
+        result = Fear::warrior;
         return chad;
     }
 }
 
-float Fuzzy::Ammo(int ammo, dotio::Ammo &result) {
-    float full = Triangle(static_cast<float>(ammo), 0.0f, 1.0f, 2.0f);
-    float midway = Trapezoid(static_cast<float>(ammo), 1.0f, 4.0f, 6.0f, 7.0f);
-    float empty = Triangle(static_cast<float>(ammo), 6.0f, 10.0f, 10.0f);
+float Fuzzy::classify_ammo(int ammo, dotio::Ammo &result) {
+    float full = triangle(static_cast<float>(ammo), 0.0f, 1.0f, 2.0f);
+    float midway = trapezoid(static_cast<float>(ammo), 1.0f, 4.0f, 6.0f, 7.0f);
+    float empty = triangle(static_cast<float>(ammo), 6.0f, 10.0f, 10.0f);
 
     if (full > midway && full > empty) {
-        result = Ammo::Full;
+        result = Ammo::full;
         return full;
     } else if (midway > empty) {
-        result = Ammo::Midway;
+        result = Ammo::midway;
         return midway;
     } else {
-        result = Ammo::Empty;
+        result = Ammo::empty;
         return empty;
     }
 }
 
-float Fuzzy::SpawnRate(float nearby_load) {
+float Fuzzy::spawn_rate(float nearby_load) {
     if (!std::isfinite(nearby_load) || nearby_load < 0)
         throw std::invalid_argument("Nearby enemy load must be finite and nonnegative");
     const float sparse = std::clamp((3 - nearby_load) / 2, 0.f, 1.f);
-    const float occupied = Triangle(nearby_load, 1, 3, 5);
+    const float occupied = triangle(nearby_load, 1, 3, 5);
     const float crowded = std::clamp((nearby_load - 3) / 2, 0.f, 1.f);
     return (sparse + occupied * 0.25f) / (sparse + occupied + crowded);
 }
 
-bool Fuzzy::Evaluate(float distance, float fear, float ammo) {
-    dotio::Distance distanceResult;
-    dotio::Fear fearResult;
-    dotio::Ammo ammoResult;
+bool Fuzzy::evaluate(float distance, float fear, float ammo) {
+    dotio::Distance distance_result;
+    dotio::Fear fear_result;
+    dotio::Ammo ammo_result;
 
-    Distance(distance, distanceResult);
-    Fear(fear, fearResult);
-    Ammo(ammo, ammoResult);
+    classify_distance(distance, distance_result);
+    classify_fear(fear, fear_result);
+    classify_ammo(static_cast<int>(ammo), ammo_result);
 
-    if (distanceResult == dotio::Distance::Close && fearResult == Fear::Warrior &&
-        ammoResult == Ammo::Midway) {
+    if (distance_result == dotio::Distance::close && fear_result == Fear::warrior &&
+        ammo_result == Ammo::midway) {
         return true;
     }
 

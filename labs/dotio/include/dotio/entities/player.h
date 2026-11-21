@@ -8,7 +8,7 @@ class World;
 
 class Player final : public PhysicsObject {
   private:
-    World *_world{};
+    World *world_{};
 
   public:
     float Speed{1.0f};
@@ -29,10 +29,10 @@ class Player final : public PhysicsObject {
 
     ~Player() override = default;
 
-    void Update(float delta) override;
+    void update(float delta) override;
 
-    void Draw(dotio::Renderer &renderer) override;
+    void draw(dotio::Renderer &renderer) override;
 
-    void Shoot(const dotio::math::Coordinates mouse, const bool debug);
+    void shoot(const dotio::math::Coordinates mouse, const bool debug);
 };
 } // namespace dotio

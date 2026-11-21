@@ -80,7 +80,7 @@ std::vector<unsigned char> frame_pixels() {
 // Toggles AI labels on an enemy at the camera center and checks the changed pixels: a
 // centered label of fixed screen size with fixed clearance above the body, at every zoom.
 void ai_label_placement(Runtime &runtime, dotio::Application &application) {
-    auto &enemy = application.world().GetEnemies()[0];
+    auto &enemy = application.world().get_enemies()[0];
     enemy.IsActive = true;
     enemy.Position = dotio::from_world(runtime.camera.position);
     application.debug = true;
@@ -90,9 +90,9 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
         for (const bool kamikaze : {false, true}) {
             CAPTURE(kamikaze);
             if (kamikaze)
-                enemy.SetState(enemy.GetKamikazeState());
+                enemy.set_state(enemy.get_kamikaze_state());
             else
-                enemy.SetState(enemy.GetWanderState());
+                enemy.set_state(enemy.get_wander_state());
             application.ai = false;
             dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
             dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
@@ -153,9 +153,9 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
     CHECK(application.interpolation() == doctest::Approx(0.5).epsilon(0.01));
     const auto objects = application.moving_objects().size();
     REQUIRE((application.before_tick().size() == objects && application.after_tick().size() == objects));
-    auto &player = application.world().GetPlayer();
+    auto &player = application.world().get_player();
     const auto simulated = player.Position;
-    const auto offset = application.world().WorldOffset();
+    const auto offset = application.world().world_offset();
     REQUIRE(application.after_tick()[0]);
     CHECK_MESSAGE((application.after_tick()[0]->X == simulated.X + offset.X &&
                    application.after_tick()[0]->Y == simulated.Y + offset.Y),
@@ -226,7 +226,7 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
         return bytes;
     };
     const auto baseline_bytes = geometry_bytes();
-    auto &enemy = application.world().GetEnemies()[0];
+    auto &enemy = application.world().get_enemies()[0];
     enemy.IsActive = true;
     enemy.Position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
     CHECK_MESSAGE(geometry_bytes() == baseline_bytes, "Offscreen enemy still submits circle geometry");
@@ -234,7 +234,7 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     enemy.Position = dotio::from_world(reopened.camera.position + Vec2{half_width + 0.2f, 0});
     CHECK_MESSAGE(geometry_bytes() > baseline_bytes, "Culling removed an edge-crossing enemy circle");
     enemy.IsActive = false;
-    auto &arrow = application.world().GetArrows()[0];
+    auto &arrow = application.world().get_arrows()[0];
     arrow.IsActive = true;
     arrow.Velocity = {1, 0};
     arrow.Position = dotio::from_world(reopened.camera.position + Vec2{1000, 1000});
@@ -265,9 +265,9 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "Dotio debug rendering failed");
     application.debug = application.ghost = true;
-    application.world().GetGhost().Position = application.world().GetPlayer().Position;
-    application.world().GetGhost().Position.X += 1000;
-    reopened.camera.position = dotio::to_world(application.world().GetGhost().Position);
+    application.world().get_ghost().Position = application.world().get_player().Position;
+    application.world().get_ghost().Position.X += 1000;
+    reopened.camera.position = dotio::to_world(application.world().get_ghost().Position);
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(ghost_marker_pixels() == 0, "Ghost camera still draws a purple player marker");

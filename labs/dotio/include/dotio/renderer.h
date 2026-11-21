@@ -6,7 +6,7 @@ namespace dotio {
 class Renderer {
   public:
     virtual ~Renderer() = default;
-    virtual void DrawCircle(dotio::math::Position center, float radius, dotio::math::RGBA color) = 0;
-    virtual void DrawSegment(dotio::math::Segment segment, dotio::math::RGBA color) = 0;
+    virtual void draw_circle(dotio::math::Position center, float radius, dotio::math::RGBA color) = 0;
+    virtual void draw_segment(dotio::math::Segment segment, dotio::math::RGBA color) = 0;
 };
 } // namespace dotio

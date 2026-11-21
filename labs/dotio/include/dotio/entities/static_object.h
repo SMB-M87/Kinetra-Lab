@@ -13,6 +13,6 @@ class StaticObject {
 
     virtual ~StaticObject();
 
-    virtual void Draw(dotio::Renderer &renderer);
+    virtual void draw(dotio::Renderer &renderer);
 };
 } // namespace dotio

@@ -25,36 +25,36 @@ Vec2::Vec2(const float s) : Vec2(s, s) {
 Vec2::Vec2() : Vec2(0.0f) {
 }
 
-void Vec2::Set(const float x, const float y) {
+void Vec2::set(const float x, const float y) {
     X = x;
     Y = y;
 }
-void Vec2::Set(const Vec2 &&vector) {
-    Set(vector.X, vector.Y);
+void Vec2::set(const Vec2 &&vector) {
+    set(vector.X, vector.Y);
 }
 
-void Vec2::Set(const Vec2 &vector) {
-    Set(vector.X, vector.Y);
+void Vec2::set(const Vec2 &vector) {
+    set(vector.X, vector.Y);
 }
 
-float Vec2::DotProduct(const Vec2 &other) const {
+float Vec2::dot_product(const Vec2 &other) const {
     return kinetra::dot({X, Y}, {other.X, other.Y});
 }
 
-float Vec2::Determinant(const Vec2 &other) const {
+float Vec2::determinant(const Vec2 &other) const {
     return kinetra::cross({X, Y}, {other.X, other.Y});
 }
 
-float Vec2::SignedAngleDifference(const Vec2 &other) const {
+float Vec2::signed_angle_difference(const Vec2 &other) const {
     return kinetra::signed_angle({X, Y}, {other.X, other.Y});
 }
 
-float Vec2::SignedAngleDifference(const Vec2 &heading, const Vec2 &other) const {
-    return heading.SignedAngleDifference(other - *this);
+float Vec2::signed_angle_difference(const Vec2 &heading, const Vec2 &other) const {
+    return heading.signed_angle_difference(other - *this);
 }
 
-float Vec2::Intercept(const float velocityA, const float velocityB, const float angleDifference) {
-    float a = sinf(angleDifference) * velocityA / velocityB;
+float Vec2::intercept(const float velocity_a, const float velocity_b, const float angle_difference) {
+    float a = sinf(angle_difference) * velocity_a / velocity_b;
 
     if (a > 1)
         a = 1;
@@ -65,11 +65,11 @@ float Vec2::Intercept(const float velocityA, const float velocityB, const float 
     return asinf(a);
 }
 
-Vec2 Vec2::GetDifference(const Vec2 &other) const {
-    return (*this - other).GetAbs();
+Vec2 Vec2::get_difference(const Vec2 &other) const {
+    return (*this - other).get_abs();
 }
 
-Vec2 Vec2::GetAbs() const {
+Vec2 Vec2::get_abs() const {
     return {std::abs(X), std::abs(Y)};
 }
 
@@ -124,19 +124,19 @@ Vec2 &Vec2::operator*=(float n) {
 }
 
 bool Vec2::operator<(float value) const {
-    return (GetLength() < value);
+    return (get_length() < value);
 }
 
 bool Vec2::operator>(float value) const {
-    return (GetLength() > value);
+    return (get_length() > value);
 }
 
 bool Vec2::operator<=(float value) const {
-    return (GetLength() <= value);
+    return (get_length() <= value);
 }
 
 bool Vec2::operator>=(float value) const {
-    return (GetLength() >= value);
+    return (get_length() >= value);
 }
 
 Vec2 Vec2::operator*(const Vec2 &other) const {
@@ -167,80 +167,80 @@ Vec2 Vec2::operator-() const {
     return legacy(-canonical(*this));
 }
 
-Vec2 &Vec2::Round() {
+Vec2 &Vec2::round() {
     X = roundf(X);
     Y = roundf(Y);
     return *this;
 }
 
-Vec2 Vec2::GetRounded() const {
+Vec2 Vec2::get_rounded() const {
     return {roundf(X), roundf(Y)};
 }
 
-Vec2 &Vec2::Ceil() {
+Vec2 &Vec2::ceil() {
     X = ceilf(X);
     Y = ceilf(Y);
     return *this;
 }
-Vec2 Vec2::GetCeiled() const {
+Vec2 Vec2::get_ceiled() const {
     return {ceilf(X), ceilf(Y)};
 }
 
-Vec2 &Vec2::Floor() {
+Vec2 &Vec2::floor() {
     X = floorf(X);
     Y = floorf(Y);
     return *this;
 }
-Vec2 Vec2::GetFloored() const {
+Vec2 Vec2::get_floored() const {
     return {floorf(X), floorf(Y)};
 }
 
-float Vec2::GetLength() const {
+float Vec2::get_length() const {
     return kinetra::length({X, Y});
 }
 
-float Vec2::GetDirection() const {
+float Vec2::get_direction() const {
     return atan2f(Y, X);
 }
 
-Vec2 &Vec2::Translate(const Vec2 &vector) {
-    Set(*this + vector);
+Vec2 &Vec2::translate(const Vec2 &vector) {
+    set(*this + vector);
     return *this;
 }
 
-Vec2 Vec2::GetSigned() const {
+Vec2 Vec2::get_signed() const {
     return {fabsf(X), fabsf(Y)};
 }
 
-Vec2 Vec2::GetModulo(const float divisor) const {
+Vec2 Vec2::get_modulo(const float divisor) const {
     return {fmodf(X, divisor), fmodf(Y, divisor)};
 }
 
-Vec2 &Vec2::Modulo(const float divisor) {
+Vec2 &Vec2::modulo(const float divisor) {
     X = fmodf(X, divisor);
     Y = fmodf(Y, divisor);
     return *this;
 }
 
-Vec2 Vec2::GetNormalized() const {
+Vec2 Vec2::get_normalized() const {
     const auto value = kinetra::normalized({X, Y});
     return {value.x, value.y};
 }
 
-Vec2 &Vec2::Normalize() {
-    if (GetLength() > 0)
-        Set(GetNormalized());
+Vec2 &Vec2::normalize() {
+    if (get_length() > 0)
+        set(get_normalized());
     return *this;
 }
 
-Vec2 &Vec2::Rotate(const float radians) {
+Vec2 &Vec2::rotate(const float radians) {
     const auto value = kinetra::rotated({X, Y}, radians);
     X = value.x;
     Y = value.y;
     return *this;
 }
 
-float Vec2::GetDistance(const Vec2 &other) const {
+float Vec2::get_distance(const Vec2 &other) const {
     return kinetra::distance(canonical(*this), canonical(other));
 }
 
@@ -248,7 +248,7 @@ Segment::Segment() : Start({}), End({}) {
 }
 Segment::Segment(Point2 from, Point2 to) : Start(from), End(to) {
 }
-float Segment::GetSlope() const {
+float Segment::get_slope() const {
     return (End.Y - Start.Y) / (End.X - Start.X);
 }
 
@@ -258,128 +258,128 @@ GridEntry::GridEntry(const int row, const int column) : Row(row), Column(column)
 }
 GridEntry::GridEntry(const int size) : GridEntry(size, size) {
 }
-Coordinates GridEntry::ToWorld(const int row, const int column, const float cellSize,
-                               const Coordinates &origin) {
-    return {(static_cast<float>(column) * cellSize) + origin.X,
-            (static_cast<float>(row) * cellSize) + origin.Y};
+Coordinates GridEntry::to_world(const int row, const int column, const float cell_size,
+                                const Coordinates &origin) {
+    return {(static_cast<float>(column) * cell_size) + origin.X,
+            (static_cast<float>(row) * cell_size) + origin.Y};
 }
 
-bool GridEntry::InBounds(const GridEntry &entry, const GridEntry &size) {
+bool GridEntry::in_bounds(const GridEntry &entry, const GridEntry &size) {
     return !(entry.Row >= size.Row || entry.Column >= size.Column || entry.Row < 0 || entry.Column < 0);
 }
 
-bool GridEntry::FromWorld(const Position &position, const Coordinates &origin, const float cellSize,
-                          const GridEntry &gridSize, GridEntry &output) {
+bool GridEntry::from_world(const Position &position, const Coordinates &origin, const float cell_size,
+                           const GridEntry &grid_size, GridEntry &output) {
     // clang-format off
         const GridEntry temp = {
-            static_cast<int>(floorf((position.Y - origin.Y) / cellSize)),
-            static_cast<int>(floorf((position.X - origin.X) / cellSize))
+            static_cast<int>(floorf((position.Y - origin.Y) / cell_size)),
+            static_cast<int>(floorf((position.X - origin.X) / cell_size))
         };
     // clang-format on
 
     output = temp;
 
-    return InBounds(temp, gridSize);
+    return in_bounds(temp, grid_size);
 }
 
-Position GridEntry::GetCellPosition(const Position &position, const Coordinates &origin,
-                                    const float cellSize) {
-    return Vec2{position - origin}.Modulo(cellSize);
+Position GridEntry::get_cell_position(const Position &position, const Coordinates &origin,
+                                      const float cell_size) {
+    return Vec2{position - origin}.modulo(cell_size);
 }
 
-uint8_t GridEntry::GetSquarePartition(const Position &position, const float semiWidth,
-                                      const Coordinates &origin, float cellSize) {
-    const Position cellPosition = GetCellPosition(position, origin, cellSize);
+uint8_t GridEntry::get_square_partition(const Position &position, const float semi_width,
+                                        const Coordinates &origin, float cell_size) {
+    const Position cell_position = get_cell_position(position, origin, cell_size);
     uint8_t result{};
 
-    if (cellPosition.X > cellSize - semiWidth) {
+    if (cell_position.X > cell_size - semi_width) {
         result |= 0b00000001;
     }
 
-    else if (cellPosition.X < semiWidth) {
+    else if (cell_position.X < semi_width) {
         result |= 0b00000011;
     }
 
-    if (cellPosition.Y > cellSize - semiWidth) {
+    if (cell_position.Y > cell_size - semi_width) {
         result |= 0b0000100;
 
-        if (cellPosition.X >= cellSize - semiWidth) {
+        if (cell_position.X >= cell_size - semi_width) {
             result |= 0b00010000;
         }
 
-        else if (cellPosition.X < semiWidth) {
+        else if (cell_position.X < semi_width) {
             result |= 0b00110000;
         }
     }
 
-    else if (cellPosition.Y < semiWidth) {
+    else if (cell_position.Y < semi_width) {
         result |= 0b00001100;
 
-        if (cellPosition.X > cellSize - semiWidth) {
+        if (cell_position.X > cell_size - semi_width) {
             result |= 0b01110000;
         }
 
-        else if (cellPosition.X < semiWidth) {
+        else if (cell_position.X < semi_width) {
             result |= 0b01010000;
         }
     }
 
     return result;
 }
-void GridEntry::GetPartitions(uint8_t partition, const Position &position, const Coordinates &origin,
-                              const float cellSize, const GridEntry &gridSize, GridEntry output[4]) {
+void GridEntry::get_partitions(uint8_t partition, const Position &position, const Coordinates &origin,
+                               const float cell_size, const GridEntry &grid_size, GridEntry output[4]) {
     GridEntry cell;
 
-    if (!FromWorld(position, origin, cellSize, gridSize, cell))
+    if (!from_world(position, origin, cell_size, grid_size, cell))
         return;
 
     output[0] = cell;
 
     if (partition & 0b00000001) {
         if ((partition & 0b00000010) == 0b00000010) {
-            if (const GridEntry t{cell.Row, cell.Column - 1}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row, cell.Column - 1}; in_bounds(t, grid_size))
                 output[1] = t;
         }
 
         else {
-            if (const GridEntry t{cell.Row, cell.Column + 1}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row, cell.Column + 1}; in_bounds(t, grid_size))
                 output[1] = t;
         }
     }
 
     if (partition & 0b00000100) {
         if ((partition & 0b00001000) == 0b00001000) {
-            if (const GridEntry t{cell.Row - 1, cell.Column}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row - 1, cell.Column}; in_bounds(t, grid_size))
                 output[2] = t;
         }
 
         else {
-            if (const GridEntry t{cell.Row + 1, cell.Column}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row + 1, cell.Column}; in_bounds(t, grid_size))
                 output[2] = t;
         }
     }
 
     if (partition & 0b00010000) {
         if ((partition & 0b01100000) == 0b01100000) {
-            if (const GridEntry t{cell.Row - 1, cell.Column + 1}; InBounds(t, gridSize)) {
+            if (const GridEntry t{cell.Row - 1, cell.Column + 1}; in_bounds(t, grid_size)) {
                 output[3] = t;
             }
         }
 
         else if ((partition & 0b01000000) == 0b01000000) {
-            if (const GridEntry t{cell.Row - 1, cell.Column - 1}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row - 1, cell.Column - 1}; in_bounds(t, grid_size))
                 output[3] = t;
 
         }
 
         else if ((partition & 0b00100000) == 0b00100000) {
-            if (const GridEntry t{cell.Row + 1, cell.Column - 1}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row + 1, cell.Column - 1}; in_bounds(t, grid_size))
                 output[3] = t;
 
         }
 
         else {
-            if (const GridEntry t{cell.Row + 1, cell.Column + 1}; InBounds(t, gridSize))
+            if (const GridEntry t{cell.Row + 1, cell.Column + 1}; in_bounds(t, grid_size))
                 output[3] = t;
         }
     }
@@ -389,5 +389,5 @@ bool GridEntry::operator==(const GridEntry &other) const {
     return this->Row == other.Row && this->Column == other.Column;
 }
 
-GridEntry GridEntry::NullGridEntry = {-1, -1};
+GridEntry GridEntry::null_grid_entry = {-1, -1};
 } // namespace dotio::math

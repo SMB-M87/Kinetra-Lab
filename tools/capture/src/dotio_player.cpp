@@ -20,11 +20,11 @@ bool on_screen(const dotio::Enemy &enemy, const kinetra::Camera2D &camera, float
 /// stops a bolt that comes within the bolt's radius of it (World::UpdateBolts).
 bool clear_shot(const dotio::World &world, dotio::math::Vec2 from, dotio::math::Vec2 to) {
     dotio::math::Point2 hit{};
-    if (world.grid().IsIntersectingAnyCell({from, to}, hit))
+    if (world.grid().is_intersecting_any_cell({from, to}, hit))
         return false;
-    for (const auto &crate : world.GetObjects())
+    for (const auto &crate : world.get_objects())
         if (kinetra::segment_circle(dotio::physics_vector(from), dotio::physics_vector(to),
-                                    crate.body.position, crate.body.radius + dotio::Bolt::Radius))
+                                    crate.body.position, crate.body.radius + dotio::Bolt::radius))
             return false;
     return true;
 }
@@ -36,13 +36,13 @@ float dotio_bolt_speed(const dotio::Player &player) {
 
 dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camera2D &camera) {
     auto &world = application.world();
-    const auto player = world.GetPlayer().Position;
+    const auto player = world.get_player().Position;
     dotio::Enemy *nearest = nullptr;
     float nearest_distance = std::numeric_limits<float>::infinity();
-    for (auto &enemy : world.GetEnemies()) {
+    for (auto &enemy : world.get_enemies()) {
         if (!on_screen(enemy, camera))
             continue;
-        const float distance = (enemy.Position - player).GetLength();
+        const float distance = (enemy.Position - player).get_length();
         if (distance < nearest_distance && clear_shot(world, player, enemy.Position)) {
             nearest = &enemy;
             nearest_distance = distance;
@@ -75,7 +75,7 @@ std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const ki
     const auto *enemy = dotio_target(application, camera);
     if (!enemy)
         return std::nullopt;
-    const auto &player = application.world().GetPlayer();
+    const auto &player = application.world().get_player();
     const auto point = player.Position + lead_offset(enemy->Position - player.Position, enemy->Velocity,
                                                      dotio_bolt_speed(player));
     const auto screen = camera.world_to_screen(dotio::to_world(point));
@@ -85,8 +85,8 @@ std::optional<kinetra::Vec2> dotio_aim(dotio::Application &application, const ki
 }
 
 bool dotio_recovery_in_view(dotio::Application &application, const kinetra::Camera2D &camera, float margin) {
-    for (auto &enemy : application.world().GetEnemies())
-        if (on_screen(enemy, camera, margin) && enemy.IsRecovering())
+    for (auto &enemy : application.world().get_enemies())
+        if (on_screen(enemy, camera, margin) && enemy.is_recovering())
             return true;
     return false;
 }

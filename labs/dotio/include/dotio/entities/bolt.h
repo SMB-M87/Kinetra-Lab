@@ -8,13 +8,13 @@
 
 namespace dotio {
 struct Bolt : MovingObject {
-    static constexpr float Radius = 5.f;
+    static constexpr float radius = 5.f;
     explicit Bolt(dotio::math::Position position, dotio::math::Vector2 velocity);
 
     Bolt();
 
-    void Update(float delta) override;
+    void update(float delta) override;
 
-    void Draw(dotio::Renderer &renderer) override;
+    void draw(dotio::Renderer &renderer) override;
 };
 } // namespace dotio

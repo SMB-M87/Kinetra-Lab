@@ -27,7 +27,7 @@ float wrapped(float heading) {
 /// WanderFeelers() and the directions a blocked enemy tries.
 std::array<dotio::math::Segment, 3> feelers_at(dotio::math::Position position, float heading) {
     const auto feeler = [&](float angle, float cells) {
-        return dotio::math::Segment{position, position + direction(angle) * (cells * Grid::CellSize)};
+        return dotio::math::Segment{position, position + direction(angle) * (cells * Grid::cell_size)};
     };
     return {{feeler(heading, wander_forward_feeler_cells),
              feeler(heading + wander_side_feeler_angle_rad, wander_side_feeler_cells),
@@ -36,7 +36,7 @@ std::array<dotio::math::Segment, 3> feelers_at(dotio::math::Position position, f
 
 bool blocked(const Grid &grid, const dotio::math::Segment &feeler) {
     dotio::math::Point2 hit{};
-    return grid.IsIntersectingAnyCell(feeler, hit);
+    return grid.is_intersecting_any_cell(feeler, hit);
 }
 
 /// Uniform value in [-1, 1) from one draw (see math/random.h).
@@ -49,7 +49,7 @@ float signed_unit(std::mt19937 &random) {
 /// instead of turning back into the wall it just left.
 void turn_to_free_direction(Enemy &enemy) {
     const auto free_at = [&](float heading) {
-        return !blocked(enemy.GetWorld().grid(), feelers_at(enemy.Position, heading)[wander_forward_feeler]);
+        return !blocked(enemy.get_world().grid(), feelers_at(enemy.Position, heading)[wander_forward_feeler]);
     };
     for (const float turn : wander_fan_rad)
         for (const float side : {enemy.WanderSide, -enemy.WanderSide})
@@ -65,26 +65,26 @@ void turn_to_free_direction(Enemy &enemy) {
 }
 } // namespace
 
-std::array<dotio::math::Segment, 3> WanderFeelers(const Enemy &enemy) {
+std::array<dotio::math::Segment, 3> wander_feelers(const Enemy &enemy) {
     return feelers_at(enemy.Position, enemy.WanderHeading);
 }
 
-void RandomizeWander(Enemy &enemy) {
-    auto &random = enemy.GetWorld().wander_random();
+void randomize_wander(Enemy &enemy) {
+    auto &random = enemy.get_world().wander_random();
     enemy.WanderHeading = signed_unit(random) * pi;
     enemy.WanderSide = signed_unit(random) < 0 ? -1.f : 1.f;
 }
 
-void DriftWanderHeading(Enemy &enemy) {
-    enemy.WanderHeading =
-        wrapped(enemy.WanderHeading + signed_unit(enemy.GetWorld().wander_random()) * wander_drift_limit_rad);
+void drift_wander_heading(Enemy &enemy) {
+    enemy.WanderHeading = wrapped(enemy.WanderHeading +
+                                  signed_unit(enemy.get_world().wander_random()) * wander_drift_limit_rad);
 }
 
-void SteerWander(Enemy &enemy, const float delta) {
+void steer_wander(Enemy &enemy, const float delta) {
     // A path planned while WanderMode::path was selected must not be drawn or followed later.
     enemy.Path.clear();
-    const auto feelers = WanderFeelers(enemy);
-    const auto &grid = enemy.GetWorld().grid();
+    const auto feelers = wander_feelers(enemy);
+    const auto &grid = enemy.get_world().grid();
     if (blocked(grid, feelers[wander_forward_feeler])) {
         turn_to_free_direction(enemy);
     } else {
@@ -98,9 +98,9 @@ void SteerWander(Enemy &enemy, const float delta) {
         }
     }
     enemy.WanderHeading = wrapped(enemy.WanderHeading);
-    auto &world = enemy.GetWorld();
+    auto &world = enemy.get_world();
     const dotio::math::Vec2 force = direction(enemy.WanderHeading) * world.enemy_tuning().wander_force;
-    enemy.ApplyForce(force * (delta * world.difficulty_settings().movement_multiplier),
-                     0.5f * enemy.GetMass());
+    enemy.apply_force(force * (delta * world.difficulty_settings().movement_multiplier),
+                      0.5f * enemy.get_mass());
 }
 } // namespace dotio

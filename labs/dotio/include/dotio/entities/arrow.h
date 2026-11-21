@@ -12,8 +12,8 @@ struct Arrow : MovingObject {
 
     Arrow();
 
-    void Update(float delta) override;
+    void update(float delta) override;
 
-    void Draw(dotio::Renderer &renderer) override;
+    void draw(dotio::Renderer &renderer) override;
 };
 } // namespace dotio
