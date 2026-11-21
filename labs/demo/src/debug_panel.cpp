@@ -145,7 +145,7 @@ void DebugPanel::apply(FrameCommands &commands, bool debug_mode, bool pointer_ca
     commands.probes = debug_mode && layers_.probes;
     commands.toggle_vectors = (debug_mode && layers_.vectors) != shown.vectors;
     commands.toggle_paths = (debug_mode && layers_.paths) != shown.paths;
-    commands.toggle_gravity = (debug_mode && gravity_) != (application_.scene().world.gravity.y != 0);
+    commands.toggle_gravity = (debug_mode && gravity_) != (application_.scene().world().gravity.y != 0);
     commands.reciprocal_avoidance = reciprocal_;
     commands.time_scale = time_scale_;
     // The ZOOM row's steps are taken even outside debug mode, so none is left over for the

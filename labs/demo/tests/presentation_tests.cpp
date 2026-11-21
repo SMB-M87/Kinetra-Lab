@@ -64,7 +64,7 @@ TEST_CASE("help overlay routes and steering probes render at every camera zoom")
     probes.probes = true;
     probes.toggle_paths = probes.toggle_vectors = true;
     application.advance(0, probes, reopened.camera);
-    const auto &player = application.scene().world.body(application.scene().player);
+    const auto &player = application.scene().world().body(application.scene().player());
     for (float zoom : {5.f, 73.f}) {
         CAPTURE(zoom);
         reopened.camera.pixels_per_unit = zoom;

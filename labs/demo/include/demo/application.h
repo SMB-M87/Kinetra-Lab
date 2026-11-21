@@ -21,9 +21,9 @@ class Application {
     const Scene &scene() const { return scene_; }
     /// The scene's motion and wander values, for a debug menu to change between frames.
     /// The next tick throws std::invalid_argument for values that validate() rejects.
-    Tuning &tuning() { return scene_.tuning; }
+    Tuning &tuning() { return scene_.tuning(); }
     /// Read-only access to the scene's motion and wander values.
-    const Tuning &tuning() const { return scene_.tuning; }
+    const Tuning &tuning() const { return scene_.tuning(); }
     const PresentationOptions &presentation() const { return presentation_; }
     bool paused() const { return paused_; }
     ActionResult last_action() const { return last_action_; }
