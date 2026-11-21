@@ -149,6 +149,24 @@ void check_lane_intrusion(SteeringProfile profile, const std::string &expected) 
     i4sim::test::check_line("lane intrusion", line, expected);
 }
 
+/// Movers 0 and 1 pass head-on while mover 2 drives to a goal on mover 0's exit target
+/// and stops there. The plan's lanes are checked only when it forms, before mover 2
+/// arrives; the case is the in-plan contact replayed from the 8640x4800 benchmark.
+void check_lane_stop(SteeringProfile profile, const std::string &expected) {
+    // A center within 130 mm of the target puts the stopping mover's body (113 mm square)
+    // on the place mover 0 heads for.
+    bool blocked = false;
+    const auto line =
+        run({"pressure-lane-intrusion", {{1900, 800}, {500, 800}, {1330, 636}}, 5000}, profile,
+            [&](const Simulation &simulation) {
+                const auto target = simulation.passing_target(0);
+                blocked = blocked || (first_pair_passing(simulation) && target &&
+                                      kinetra::distance(simulation.movers()[2].body.position, *target) < 130);
+            });
+    CHECK_MESSAGE(blocked, "The stopping mover never stood on an active passing target");
+    i4sim::test::check_line("lane stop", line, expected);
+}
+
 /// Two head-on pairs on parallel lines 400 mm apart.
 void check_simultaneous(SteeringProfile profile, const std::string &expected) {
     std::size_t most = 0;
@@ -205,6 +223,25 @@ TEST_CASE("a mover crossing passing lanes under improved steering keeps its reco
         SteeringProfile::improved,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
         "arrived=3/3 waiting_ticks=116 stuck=0 fingerprint=07bb0939d96a3673");
+}
+
+// Known failure: after the pass, mover 0 drives on toward its goal and pushes the
+// stopping mover ahead of it through reciprocal avoidance; the stopping mover is stuck for
+// more than 2000 ticks before it returns to its goal.
+TEST_CASE("a mover stopping on a passing target under reciprocal steering keeps its recorded outcome") {
+    check_lane_stop(
+        SteeringProfile::reciprocal,
+        "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
+        "arrived=3/3 waiting_ticks=179 stuck=1 fingerprint=da36f11b08a9ab8a");
+}
+
+// Known failure: mover 0 presses against the stopping mover until the plan ends for lack
+// of progress.
+TEST_CASE("a mover stopping on a passing target under improved steering keeps its recorded outcome") {
+    check_lane_stop(
+        SteeringProfile::improved,
+        "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=no_progress:1 "
+        "arrived=3/3 waiting_ticks=339 stuck=0 fingerprint=e417dcc5aa46946f");
 }
 
 TEST_CASE("simultaneous passing pairs under reciprocal steering keep their recorded outcome") {
