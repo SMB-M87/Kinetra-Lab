@@ -28,7 +28,7 @@ flowchart TD
     DemoExe[kinetra_demo] --> Demo
     DotioExe[kinetra_dotio] --> Dotio
     Demo --> Scene[kinetra_demo_logic]
-    Dotio --> Logic[kinetra_dotio_logic: logic and gmath]
+    Dotio --> Logic[kinetra_dotio_logic]
     Scene --> Sim[Kinetra::Simulation]
     Logic --> Sim
     Launcher --> Runtime[Kinetra::Runtime]
