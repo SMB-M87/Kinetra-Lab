@@ -265,7 +265,8 @@ class Simulation {
     std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
     /// Active predictive passing plans.
     std::size_t predictive_pairs() const;
-    /// The temporary target `mover` follows in a passing plan, if it is in one. Throws
+    /// The temporary target `mover` follows in a passing plan, if it is in one: its braking
+    /// point while it waits for a mover in its lane, otherwise its entry or exit target. Throws
     /// std::out_of_range for an unknown mover.
     std::optional<Vec2> passing_target(std::size_t mover) const;
     /// True when `mover` has made no route progress for 120 ticks while no

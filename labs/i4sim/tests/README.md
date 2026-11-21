@@ -95,7 +95,7 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 - The fingerprint needs exact floating-point results; Release and Debug builds without fast-math reproduce it.
 - The scenarios do not reach every path: heatmap refresh timing and the stalled-pair cancellation of predictive passing leave the values unchanged.
 
-`pressure_tests.cpp` records how predictive passing behaves under pressure. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved; the lane-intrusion fixture serves two scenarios:
+`pressure_tests.cpp` requires that predictive passing stays safe under pressure. Four blueprint fixtures in this directory run with manual goals, passing on and heatmap costs off, under Reciprocal and Improved; the lane-intrusion fixture serves two scenarios:
 
 | Fixture | Situation | The case first checks |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 | `pressure-simultaneous.json` | Two head-on pairs on parallel lines 400 mm apart | both pairs hold plans at the same time |
 | `pressure-narrow-aisle.json` | A 113 mm and a 155 by 235 mm mover meet in a 400 mm aisle | both are in the aisle at the same time |
 
-Each case then compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The lines are today's behavior, not requirements: under Reciprocal, the three-oncoming case leaves two movers shuffling in front of each other without a plan, and in the stopping case the participant pushes the stopped mover ahead of it for about 2000 ticks; under Improved the stopping case ends its plan for lack of progress. Phase 7 turns the lines into required outcomes ([design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md)).
+Each case then requires the outcome (no contact, every mover at its goal, no stuck mover) and compares one recorded line: contacts, contacts during passing, plans formed and crossed, plan ends per reason, movers that arrived, waiting ticks, stuck movers, and a fingerprint of the trajectory and the event log. The requirements date from roadmap phase 7 ([design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md)): before it, under Reciprocal the three-oncoming case left two movers in front of each other until the end, and the stopping case pushed the stopped mover ahead for about 2000 ticks. A deliberate behavior change updates the lines with `KINETRA_PRINT_GOLDEN=1`, as in the golden suite.
 
 ## Controller suite
 
@@ -248,6 +248,27 @@ On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s wit
 - With passing on, Improved waits 11–13 times longer on `8640x4800`, but only 17 and 5 of its 767 and 823 contacts start while a participant is in a plan.
 - On `8640x4800`, about 35–40% of the plans end without completing.
 - Under Reciprocal, passing raises the completed products on `8640x4800` from 95 and 93 to 99 and 103 without a contact; the other four runs complete the same number. Under Improved the results are mixed and contacts increase. That is why the policy stays optional.
+
+**After roadmap phase 7** (guarded passing), measured on 2026-11-21 with the same runs. Passing off is unchanged tick for tick; each cell shows passing **off / on** with the guard. The phase 7 [design](../../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result) compares them with passing on before the guard.
+
+| Profile | Blueprint | Seed | Completed | Contacts (episodes) | Waiting ticks | Stuck movers | Plans (cancelled) | Contacts in a plan |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Reciprocal | MAS-demonstrator | 42 | 10 / 10 | 0 / 0 | 24006 / 23983 | 1 (1) / 1 (1) | 3 (1) | 0 |
+| Reciprocal | MAS-demonstrator | 915839214 | 16 / 16 | 0 / 0 | 12872 / 10663 | 2 (1) / 1 (1) | 3 (0) | 0 |
+| Reciprocal | 3840x2400 | 42 | 59 / 60 | 0 / 0 | 1583 / 1358 | 0 / 0 | 6 (1) | 0 |
+| Reciprocal | 3840x2400 | 915839214 | 61 / 63 | 0 / 0 | 651 / 1811 | 0 / 0 | 6 (1) | 0 |
+| Reciprocal | 8640x4800 | 42 | 95 / 100 | 0 / 0 | 48187 / 41273 | 6 (0) / 11 (1) | 236 (127) | 0 |
+| Reciprocal | 8640x4800 | 915839214 | 93 / 104 | 0 / 0 | 64702 / 33500 | 15 (1) / 11 (0) | 220 (93) | 0 |
+| Improved | MAS-demonstrator | 42 | 16 / 16 | 53 (9) / 134 (11) | 278 / 633 | 0 / 0 | 2 (2) | 0 |
+| Improved | MAS-demonstrator | 915839214 | 16 / 16 | 204 (12) / 203 (11) | 288 / 872 | 0 / 0 | 3 (2) | 0 |
+| Improved | 3840x2400 | 42 | 54 / 59 | 1 (1) / 2 (1) | 853 / 1042 | 1 (0) / 1 (0) | 7 (2) | 0 |
+| Improved | 3840x2400 | 915839214 | 60 / 55 | 18 (4) / 1 (1) | 1055 / 1402 | 1 (0) / 2 (0) | 5 (4) | 0 |
+| Improved | 8640x4800 | 42 | 98 / 99 | 384 (71) / 350 (55) | 2595 / 18281 | 2 (0) / 3 (0) | 212 (116) | 0 |
+| Improved | 8640x4800 | 915839214 | 99 / 102 | 726 (78) / 355 (43) | 2953 / 16117 | 4 (1) / 3 (0) | 197 (108) | 0 |
+
+- Reciprocal with passing on completes as many products as without, or more, in all six runs, without a contact, and waits less on `8640x4800`; with seed 42 more movers are stuck at some point (11 against 6).
+- Improved has no contact in a plan any more; on `8640x4800` it touches less than without passing (350 and 355 against 384 and 726). Its contacts elsewhere come in episodes of one pair beside a parked mover, which also occur without passing, so Improved stays mixed.
+- About half of the plans on `8640x4800` end without completing, mostly as `obstructed`: the guard gives up a maneuver that traffic around it no longer allows.
 
 **Parking traffic**, Reciprocal, the same 50000-tick runs, parking traffic **off / on**:
 
