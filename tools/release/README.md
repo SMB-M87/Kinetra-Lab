@@ -1,6 +1,6 @@
 # Windows release
 
-`package_windows.sh` turns a Windows cross build into `Kinetra-Lab-windows-x64.zip`, which runs without installing anything. The [release workflow](../../.github/workflows/release.yml) builds and publishes it as a GitHub Release asset, so someone who wants to try Kinetra-Lab needs no compiler, dependencies or Git.
+`package_windows.sh` turns a Windows cross build into `Kinetra-Lab-windows-x64.zip`, which runs without installing anything; `needs_build.sh` tells the workflow when a merge cannot change that zip. The [release workflow](../../.github/workflows/release.yml) builds and publishes it as a GitHub Release asset, so someone who wants to try Kinetra-Lab needs no compiler, dependencies or Git.
 
 ## Table of contents
 
@@ -14,7 +14,7 @@
 
 ## Download
 
-- Latest `main`: [Kinetra-Lab-windows-x64.zip](https://github.com/SMB-M87/Kinetra-Lab/releases/download/main-build/Kinetra-Lab-windows-x64.zip) from the [`main-build` pre-release](https://github.com/SMB-M87/Kinetra-Lab/releases/tag/main-build), refreshed on every merge.
+- Latest `main`: [Kinetra-Lab-windows-x64.zip](https://github.com/SMB-M87/Kinetra-Lab/releases/download/main-build/Kinetra-Lab-windows-x64.zip) from the [`main-build` pre-release](https://github.com/SMB-M87/Kinetra-Lab/releases/tag/main-build), refreshed on every merge that can change the zip.
 - Fixed versions: the [releases](https://github.com/SMB-M87/Kinetra-Lab/releases) tagged `v*`.
 
 Unzip, then start `kinetra.exe`. Windows 10 or later with an OpenGL 3.3 driver is enough. The executables are not signed, so SmartScreen may ask for confirmation (*More info*, *Run anyway*).
@@ -39,7 +39,10 @@ The executables link the GCC runtime statically ([toolchain](../../docs/windows.
 
 ```mermaid
 flowchart LR
-    Push["push to main or tag v*"] --> Build["package job: Arch image, MinGW-w64, windows preset, application targets only"]
+    Main["push to main"] --> Changes{"changes job: needs_build.sh since the main-build commit"}
+    Changes -->|"only .md, docs/, .agents/"| Keep["no build; main-build stays"]
+    Changes -->|"anything else, or doubt"| Build
+    Tag["tag v* or workflow_dispatch"] --> Build["package job: Arch image, MinGW-w64, windows preset, application targets only"]
     Build --> Check["DLL import check"] --> Zip["package_windows.sh"]
     Zip --> Artifact["workflow artifact"]
     Artifact --> Publish["publish job"]
@@ -47,14 +50,24 @@ flowchart LR
     Publish -->|v*| Release["release v*"]
 ```
 
-*Takeaway:* the zip is built from exactly the merged commit; tests are not repeated, because the pull request's CI already ran them, natively on Windows included.
+*Takeaway:* the zip is built from exactly the merged commit, unless nothing that goes into it changed since the last build; tests are not repeated, because the pull request's CI already ran them, natively on Windows included.
 
 - The build uses the pinned Arch image and snapshot of [ci.yml](../../.github/workflows/ci.yml); bump them together.
 - Only the four application targets are built. The doctest discovery of the test executables would need to run `.exe` files on Linux.
-- `main-build` is deleted and created again on every push to `main`, so its tag points at the commit the zip came from and its download URL never changes.
+- A push to `main` builds only when the zip can differ from the one `main-build` holds. The `changes` job runs `needs_build.sh` from the commit of the `main-build` tag to the pushed commit: it skips the build only when every changed path is Markdown, `docs/` or `.agents/`, in Lab and in the Kinetra range of a moved pointer (the filter of [ci.yml](../../.github/workflows/ci.yml)'s `changes` job; change both together). A rename counts with its old path, so a source moved into `docs/` builds. Any doubt builds: no tag, a commit that is not an ancestor, a failed diff or Kinetra clone, or a failed `changes` job. The run then shows the notice *Release not rebuilt*.
+- When it builds, `main-build` is deleted and created again, so its tag points at the commit the zip came from and its download URL never changes. A skipped push leaves it on that commit, whose zip is the same apart from the commit in `README.txt`.
+- A tag `v*` and `workflow_dispatch` always build.
 - `workflow_dispatch` on `main` refreshes `main-build` by hand; on another branch it only builds the artifact.
 
 ## Build the zip locally
+
+To see what the workflow would decide for a push, from a Lab checkout with full history (`true` builds, the reason goes to stderr):
+
+```sh
+git fetch --tags origin
+tools/release/needs_build.sh main-build origin/main
+```
+
 
 With the MinGW-w64 cross compiler from the [Windows guide](../../docs/windows.md#quick-start-from-wsl):
 
@@ -69,3 +82,4 @@ tools/release/package_windows.sh build-windows dist/Kinetra-Lab-windows-x64.zip
 - A new application executable goes into `executables` in `package_windows.sh`, into the workflow's build targets, and into the tree above.
 - A new runtime file that the applications read must be copied next to the executables, like `i4sim-blueprints/`.
 - `README-windows.txt` becomes `README.txt` in the zip, with `@COMMIT@` replaced and Windows line endings.
+- A new input of the zip under a path that is Markdown, `docs/` or `.agents/` must be taken out of the filter in `needs_build.sh`, or a change to it would not be released.
