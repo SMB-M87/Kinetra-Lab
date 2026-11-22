@@ -117,7 +117,22 @@ The four application executables (`kinetra`, `kinetra_demo`, `kinetra_dotio`, `k
 
 `cmake --workflow --preset windows` (or `ctest --preset windows` after a build) runs every test through WSL interop on Windows, the graphics tests included: they open their windows on the Windows desktop with the real GPU driver.
 
-The golden and characterization cases run on Windows as on Linux, with the same recorded lines: the Demo crowd characterization, i4sim's golden and pressure lines and Dotio's fingerprint. They hash exact floating-point trajectories, so one last-bit difference in a C-library function changes them. Until 2026-11-22 six of them were excluded here: Windows' C runtime, like glibc before 2.41, rounds `atan2f` and `asinf` differently from the toolchain they were recorded on, and the i4sim RVO line ended at 17582.889 mm instead of 17582.890 mm. Lab's simulation logic now calls Kinetra's `atan2` and `asin`, which round the same on every C library ([design](design/2026-11-22-linux-beyond-arch.md#problem)).
+Five characterization cases are excluded on Windows by the `windows` and `windows-native` test presets:
+
+- the four cases of `kinetra_demo_crowd_characterization`
+- `kinetra_i4sim_golden:the experimental RVO profile reproduces its recorded summary`
+
+Their recorded summaries hash exact floating-point trajectories, and Windows' C runtime rounds some float functions differently in the last bit from the glibc they were recorded with. Lab's simulation logic takes `atan2` and `asin` from Kinetra, which round the same on every C library ([design](design/2026-11-22-linux-beyond-arch.md#problem)); that made Dotio's fingerprint and the i4sim RVO distance (17582.890 mm) match on Windows, and the five cases above match on Ubuntu. On Windows they still differ, so another function of the C runtime, among `sinf`, `cosf`, `expf`, `powf` and `hypot`, still rounds differently there. The values CI's Windows job printed on 2026-11-22, against the recorded ones:
+
+| Case | Windows | Recorded |
+| --- | --- | --- |
+| Demo, dense idle crowd, steering | `avoidance_limited=3033 trajectory=46662a8c1f8c9a8a` | `avoidance_limited=3047 trajectory=25eff655f7a75f9e` |
+| Demo, dense idle crowd, route | `trajectory=0a7aac9c2cebb83a` | `trajectory=17080ac73d99bce9` |
+| Demo, streamed chunks, steering | `trajectory=d91c9b3e85598f97` | `trajectory=377eeb3999727f88` |
+| Demo, streamed chunks, route | `avoidance_limited=2765 trajectory=2a8136005183850f` | `avoidance_limited=2756 trajectory=37e262315f729cfb` |
+| i4sim, experimental RVO profile | `trajectory=1711fa90f8217485` | `trajectory=bc246a58724f4083` |
+
+Every other golden, characterization and pressure case, Dotio's fingerprint included, runs on Windows with the same recorded value as on Linux. Linux CI runs all of them.
 
 ## Continuous integration
 
@@ -136,4 +151,4 @@ The `windows` job in [ci.yml](../.github/workflows/ci.yml) runs on `windows-late
 - **Update SDL2 or nlohmann_json:** change the version and SHA-256 in [WindowsDependencies.cmake](../cmake/WindowsDependencies.cmake). The SDL2 digest is shown with the release asset on GitHub; nlohmann_json publishes none, so compute it with `sha256sum` from the downloaded `json.tar.xz`. Delete `build-windows/` and run the `windows` workflow.
 - **Use a local SDL2 copy:** configure with `-DSDL2_DIR=<SDL2-devel-mingw>/cmake`; the download is then skipped.
 - **Add platform-specific code:** keep it behind `#ifdef _WIN32` in a source file, as in `blueprint.cpp`, so headers and logic stay platform-neutral.
-- **A golden case starts to differ on Windows:** first check whether the change is a real behavior change on Linux too. If it is a last-bit floating-point difference, find the C-library function behind it (a float `atan2` or `asin` that bypasses Kinetra's, or another function such as `sinf`) and prefer a function that rounds the same everywhere; exclude the case in both Windows test presets only as a last resort, and list it here.
+- **A golden case starts to differ on Windows:** first check whether the change is a real behavior change on Linux too. If it is a last-bit floating-point difference, find the C-library function behind it (a float `atan2` or `asin` that bypasses Kinetra's, or another function such as `sinf`) and prefer a function that rounds the same everywhere; exclude the case in both Windows test presets only as a last resort, and list it here with its values.

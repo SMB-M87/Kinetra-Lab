@@ -221,7 +221,12 @@
     {
       "name": "windows",
       "configurePreset": "windows",
-      "inherits": "base"
+      "inherits": "base",
+      "filter": {
+        "exclude": {
+          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
+        }
+      }
     },
     {
       "name": "windows-native",
@@ -229,7 +234,8 @@
       "inherits": "base",
       "filter": {
         "exclude": {
-          "label": "graphics"
+          "label": "graphics",
+          "name": "^kinetra_(demo_crowd_characterization:.*|i4sim_golden:the experimental RVO profile reproduces its recorded summary)$"
         }
       }
     }

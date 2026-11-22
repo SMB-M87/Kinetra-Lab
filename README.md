@@ -95,7 +95,7 @@ Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps 
 | Debian, Ubuntu | `sudo apt install build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev` | CI's `ubuntu` job on Ubuntu 24.04 LTS |
 | Fedora | `sudo dnf install gcc-c++ cmake ninja-build ccache SDL2-devel mesa-libGL-devel mesa-libEGL-devel json-devel` | Not tested, and the package names are not yet checked against Fedora's repositories |
 
-Every test, the golden fingerprints included, passes with the same recorded values on each tested system, Windows too ([why](docs/design/2026-11-22-linux-beyond-arch.md#problem)).
+Every test, the golden fingerprints included, passes with the same recorded values on each tested Linux; on Windows five trajectory fingerprints are still excluded ([Windows tests](docs/windows.md#tests)).
 
 Repository layout (every module follows the [directory layout](external/Kinetra/docs/conventions.md#directory-layout)):
 
