@@ -22,6 +22,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | --- | --- |
 | Every task | This file and [Kinetra's AGENTS.md](external/Kinetra/AGENTS.md) |
 | Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); Lab [design documents](docs/design/README.md) |
+| Build or review a change, so known mistakes are not repeated | Lab's [review lessons](docs/review-lessons.md) and [Kinetra's](external/Kinetra/docs/review-lessons.md) |
 | Write or review C++ or CMake | [Conventions](external/Kinetra/docs/conventions.md) |
 | Add tests or pick a verification level | [Testing](external/Kinetra/docs/testing.md) and [verification in Lab](#verification-in-lab) |
 | Write READMEs, diagrams or `///` comments | [Documentation guide](external/Kinetra/docs/documentation.md) |

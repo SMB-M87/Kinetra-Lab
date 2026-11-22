@@ -32,9 +32,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Windows zip on a desktop** · release · added 2026-11-21
   The release workflow is merged; its done-criterion is the user's: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on Windows without installing anything.
   Next step: the user's desktop check. Where: [Windows release zip](design/2026-11-21-windows-release-zip.md).
-- **Pull request review skill** · skills, with Kinetra · added 2026-11-21
-  Decided on 2026-11-22: on the user's request, `/pr-review` reviews one pull request or a whole stack, with the built-in `/code-review` plus a checklist from the rules, and posts inline comments and one summary per pull request with a conclusion and points of attention. It never approves or merges. The session that opened the pull request follows it, carries out or argues each finding with `pr-feedback`, and merges fixes up its stack. Findings that show a kind of mistake that can recur become lessons on `docs/review-lessons.md` in each repository, which agents read before building and reviewing.
-  Next step: branch `feat/pr-review-skill` in Kinetra. Where: Kinetra item of the same name, [design](design/2026-11-21-roadmap-priorities.md#decisions).
 - **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
   A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. A setup script in the cloud environment would install them once per container.
   Next step: the agent proposes the script with the first code task, *i4sim session fixes*; the user approves it in the environment's prompt (agreed on 2026-11-22).

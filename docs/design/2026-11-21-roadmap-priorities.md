@@ -102,7 +102,7 @@ The agent's view on the new wishes, as the starting point of the discussion.
 
 ## Affected areas
 
-`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`.
+`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`. The decisions of 2026-11-22 add `docs/review-lessons.md` (Lab's lessons page, for the `pr-review` skill that Kinetra's `feat/pr-review-skill` adds), its rows in `AGENTS.md` and `docs/README.md`, and remove the roadmap item the skill finishes.
 
 ## Test plan
 
