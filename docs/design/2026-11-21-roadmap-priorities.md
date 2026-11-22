@@ -69,6 +69,8 @@ Settled with the user on 2026-11-22 in a grilling session. ⚑ marks answers tha
 | Phase 7's decisions | Confirmed; the detection step measures stalls over more seeds, with passing on as well | Shows whether the guard's 11 stuck movers against 6 is a trend |
 | Phase 6's decisions | Confirmed or changed after the Dotio playtest | What the playtest shows may change a decision |
 | Linux beyond Arch | One extra CI job on Ubuntu LTS; Fedora documented only | Covers the Debian family and the cloud sessions |
+| Linux release format | A tarball first; an AppImage can follow | A cosmetic choice the agent listed and the user accepted without comment: a tarball needs no extra tooling, an AppImage adds packaging |
+| Departure check (phase 7's third question) | Open for the user, after the detection step explains the accepted route at tick 7730 | Found missing by the first agent review of #67: the closed decision item listed three questions and only two were answered |
 | CI image | A Later item | Removes the dependency on the archive, but needs the archive to be built |
 
 ## Design
@@ -104,7 +106,7 @@ The agent's view on the new wishes, as the starting point of the discussion.
 
 ## Affected areas
 
-`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`. The decisions of 2026-11-22 add `docs/review-lessons.md` (Lab's lessons page, for the `pr-review` skill that Kinetra's `feat/pr-review-skill` adds), its rows in `AGENTS.md` and `docs/README.md`, and remove the roadmap item the skill finishes.
+`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`. The decisions of 2026-11-22 add `docs/review-lessons.md` (Lab's lessons page, for the `pr-review` skill that Kinetra #24 added), its rows in `AGENTS.md` and `docs/README.md`, and remove the roadmap item the skill finishes.
 
 ## Test plan
 
@@ -121,6 +123,7 @@ Documentation, the CI install step, and a pointer to a Kinetra commit without en
 - `python3 tools/check_docs.py` in `external/Kinetra` on `docs/stacked-pull-requests` and on `docs/roadmap-priorities`: all links resolve.
 - `ci.yml` parses as YAML and its install step as `sh` (`sh -n`); the fallback itself is verified by this pull request's CI, because the agent's session cannot reach any Arch host.
 - #65 merged with the pointer at Kinetra 3ac0c81, the top of the stack. A follow-up pointer pull request records c03a36d, the merge commit of Kinetra #21 on Kinetra `main`; `git -C external/Kinetra diff --stat 3ac0c81 c03a36d` is empty, so this verification stands.
+- #67 (the decisions of 2026-11-22, the lessons page, the merge order): `python3 external/Kinetra/tools/check_docs.py` in Lab, all links resolve. The pointer moves from c03a36d to 909081d, Kinetra `main` after #23, #24 and #25; `git -C external/Kinetra diff --stat c03a36d 909081d` lists only Markdown and skill files (the `pr-review` skill, Kinetra's AGENTS.md, workflow and design documents), no engine sources and no CMake, so Lab's build does not change and the Docs level plus CI covers it, although the verification table asks for the Full level on a pointer move. `git -C external/Kinetra diff --stat 097c7b2 909081d` is empty.
 
 ## Pull request
 
@@ -133,6 +136,8 @@ Documentation, the CI install step, and a pointer to a Kinetra commit without en
 - **Review notes:** the order in *Next* is the agent's proposal and is discussed with the user; changes follow in new commits.
 - **Dependencies and merge order:** Kinetra `docs/stacked-pull-requests`, then Kinetra `docs/roadmap-priorities` (stacked), both with a merge commit; then move this branch's pointer to the Kinetra merge commit and merge this one.
 - **Follow-up:** the first items of *Next*.
+
+Follow-ups on the same branch: #66 recorded the Kinetra merge commit of #21; #67 records the decisions of 2026-11-22, Lab's review lessons page and the merge order with the pointer, and was the first pull request reviewed under the review loop.
 
 ## Open points
 

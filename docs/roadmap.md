@@ -58,7 +58,8 @@ The user's checks come first: each is short and unblocks the items after it. The
 
 - **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
   A mover recognizes that it is stalled and why (sealed in by parked neighbors, a standoff with another mover, sliding back and forth), and the simulation answers with optional remedies, off by default and measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness). Decided on 2026-11-22, as a stack: (1) detection and its events without behavior change, shown in the inspector, measured over more seeds and with passing on as well, so phase 7's 11-against-6 stuck movers turns out a trend or not; (2) MAKE WAY: parked neighbors on the stalled mover's route make way, also a mover that waits for a producer with a product, which keeps its product and its place in the queue and returns when the stalled mover has passed or after a fixed time; (3) a temporary motion fallback whose motion type and return rule the user chooses from the detection data. The documented standstill needs MAKE WAY: no motion type gets out while the neighbors stay parked.
-  Depends on: *Agent inspector overlay*. Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy).
+  Open question for the user, phase 7's third: should the departure check refuse a route that steering cannot follow past a parked neighbor? The detection step first explains why it accepted mover 25's route past parked mover 26 (`4320x2400`, seed 2026, tick 7730); the user decides with that cause in hand, before MAKE WAY is built.
+  Depends on: *Agent inspector overlay*. Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy), [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
 - **RECOVERY detour past a corner** · i4sim · added 2026-11-21
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
@@ -76,7 +77,7 @@ The user's checks come first: each is short and unblocks the items after it. The
   Next step: the user's choice, when they come back to it. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
 - **CI image with the toolchain built in** · CI, with Kinetra · added 2026-11-22
   CI installs the pinned toolchain from the Arch Linux Archive in every run and falls back to the current packages when the archive does not answer, as on 2026-11-21. An image with the pinned packages installed, on GitHub's container registry, would make CI independent of the archive and faster; it can only be built while the archive answers.
-  Where: Kinetra item of the same name.
+  Next step: Kinetra's item leads: a design of who builds and publishes the image, and how a snapshot bump updates it; Lab's `ci.yml` and `release.yml` then use the same image. Where: Kinetra item of the same name.
 - **Impact-based verification script** · tools · added 2026-11-21
   One command that reads the changed paths and runs the level, targets and CTest regex of the table in [verification in Lab](../AGENTS.md#verification-in-lab), with that table in a file both the script and the page use. The `verify` skill and developers then run the same selection, and a forgotten target becomes rare.
   Next step: a design: where the table lives, and how Kinetra's own table joins it.
