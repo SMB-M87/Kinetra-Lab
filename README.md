@@ -87,7 +87,15 @@ Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps 
 
 **Try it on Windows without building:** download [Kinetra-Lab-windows-x64.zip](https://github.com/SMB-M87/Kinetra-Lab/releases/download/main-build/Kinetra-Lab-windows-x64.zip) (built from the latest `main`), unzip it and start `kinetra.exe`. It needs Windows 10 or later with an OpenGL 3.3 driver and nothing else; the i4sim blueprints are included. Fixed versions are on the [releases page](https://github.com/SMB-M87/Kinetra-Lab/releases); how the zip is made is in the [release tool](tools/release/README.md).
 
-**Build from source.** Requires a C++20 compiler, CMake 3.16+ and a build tool, SDL2 and OpenGL development files with an OpenGL 3.3 context, and the header-only nlohmann JSON package 3.11+ (i4sim needs it in every build, headless included). The [CMake presets](CMakePresets.json) also need CMake 3.25+, Ninja and ccache. Linux is supported, and Windows through a MinGW-w64 cross build from WSL or Linux, or natively in an MSYS2 shell ([Windows](docs/windows.md)). On Artix/Arch: `pacman -S --needed base-devel cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json`, the same set CI uses (`clang` provides clang-format). On Debian, the JSON package is `nlohmann-json3-dev`.
+**Build from source.** Requires a C++20 compiler, CMake 3.16+ and a build tool, SDL2 and OpenGL development files with an OpenGL 3.3 context, and the header-only nlohmann JSON package 3.11+ (i4sim needs it in every build, headless included). The [CMake presets](CMakePresets.json) also need CMake 3.25+, Ninja and ccache. Linux is supported, and Windows through a MinGW-w64 cross build from WSL or Linux, or natively in an MSYS2 shell ([Windows](docs/windows.md)). Install the dependencies per distribution family:
+
+| Family | Command | Tested |
+| --- | --- | --- |
+| Arch, Artix | `pacman -S --needed base-devel cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json` | CI's `checks` job, on a pinned snapshot that is the reference for warnings and formatting; `clang` provides clang-format |
+| Debian, Ubuntu | `sudo apt install build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev` | CI's `ubuntu` job on Ubuntu 24.04 LTS |
+| Fedora | `sudo dnf install gcc-c++ cmake ninja-build ccache SDL2-devel mesa-libGL-devel mesa-libEGL-devel json-devel` | Not tested, and the package names are not yet checked against Fedora's repositories |
+
+Every test, the golden fingerprints included, passes with the same recorded values on each tested system, Windows too ([why](docs/design/2026-11-22-linux-beyond-arch.md#problem)).
 
 Repository layout (every module follows the [directory layout](external/Kinetra/docs/conventions.md#directory-layout)):
 
@@ -137,7 +145,7 @@ ctest --test-dir build --output-on-failure
 ./build/kinetra_i4sim
 ```
 
-With the presets, `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`. CI ([ci.yml](.github/workflows/ci.yml)) checks formatting with clang-format, runs `python3 external/Kinetra/tools/check_docs.py`, then `cmake --workflow --preset headless` and `cmake --workflow --preset ci`, which runs the graphics tests and smoke runs too; a second job builds and tests on Windows ([Windows](docs/windows.md#continuous-integration)). All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
+With the presets, `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`. CI ([ci.yml](.github/workflows/ci.yml)) checks formatting with clang-format, runs `python3 external/Kinetra/tools/check_docs.py`, then `cmake --workflow --preset headless` and `cmake --workflow --preset ci`, which runs the graphics tests and smoke runs too; a second job builds and tests the same on Ubuntu 24.04 LTS with engine warnings reported instead of errors, and a third on Windows ([Windows](docs/windows.md#continuous-integration)). All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
 
 `./build.sh` builds and tests both Kinetra and Lab. When the MinGW-w64 cross compiler, Ninja and ccache are installed, it also builds the Windows executables in `build-windows/` without running their tests ([Windows](docs/windows.md#quick-start-from-wsl)); otherwise it says it skipped them. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
