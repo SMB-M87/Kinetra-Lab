@@ -68,7 +68,7 @@ Non-goals:
 
 - **Call sites.** Demo's `Agent` (heading from velocity, the heading home) and `Scene` (turn rate) and Dotio's `Vec2::get_direction` and lead angle use `kinetra::atan2` and `kinetra::asin`. With Kinetra's own uses in `signed_angle` and `tangent_steer`, every float `atan2` and `asin` in simulation logic then rounds correctly. i4sim has no call of its own; its RVO line moves through Kinetra.
 - **Pointer.** `external/Kinetra` records the tip of Kinetra's `build/linux-beyond-arch` (#33), which contains #32.
-- **Windows.** The `windows` and `windows-native` test presets lose their name filter; `windows-native` keeps excluding the `graphics` label. [Windows](../windows.md#tests) and the Dotio test's comment say so.
+- **Windows.** The `windows` and `windows-native` test presets first lost their name filter. CI's Windows job then passed Dotio's fingerprint and still failed the other five (see [verification](#verification)), so their exclusion came back and Dotio's stays removed. [Windows](../windows.md#tests) and the Dotio test's comment say so.
 - **CI.** A job `ubuntu` in `ci.yml` on `ubuntu-24.04`, with the same skip condition as `checks` and `windows`: the Debian and Ubuntu packages of the README, then `cmake --workflow --preset headless`, `cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF`, its build and `ctest --preset ci`.
 - **Docs.** The README's quick start gives the three families' commands and says which CI tests. Demo's README no longer says the recorded lines depend on the compiler.
 
@@ -91,10 +91,10 @@ Self-review of the branch diff against `main`:
 
 - Every float `atan2` and `asin` in Lab's logic now goes through Kinetra (`grep -rnE "\b(std::)?(atan2|asin)f?\("` over `labs/` finds only a comment in Dotio's header and a test in `terrain_tests.cpp` that computes a turn angle for an assertion with a tolerance). i4sim's logic has no call of its own.
 - No recorded value changed: the fix keeps Arch's results, and every fingerprint was compared against its existing expected value, not re-recorded.
-- The Windows step is a trial: if CI's Windows job still fails a case, its exclusion comes back in a new commit, with the values recorded here and in [Windows](../windows.md#tests).
+- The Windows step was a trial: CI's Windows job passed Dotio's fingerprint and failed the other five, so their exclusion came back in a new commit, with the values in [Windows](../windows.md#tests). The README and Demo's README, which the first version made say *Windows too*, now say what holds where.
 - Copies: "skipped on Windows" and "depend on the compiler" were stated in [Windows](../windows.md#tests), Demo's README (twice), the Dotio test's comment, two open points of the [Demo](2026-11-21-demo-restructuring.md#open-points) and [Dotio](2026-11-21-dotio-restructuring.md#open-points) restructurings, and the Dotio playtest item of the roadmap, and all now say the same. The Full level's list of CI checks changed in Lab's AGENTS.md and, in Kinetra #33, in AGENTS.md, testing and the `verify` skill; the Kinetra testing page's copy was found during this review and fixed on #33.
 - The `ubuntu` job uses the same condition as `checks` and `windows`, so a pointer-only pull request skips it, and it is not a required status.
-- [Windows](../windows.md#tests) used to say five cases were excluded while the presets excluded six (Dotio's too); the new text names all of them.
+- [Windows](../windows.md#tests) used to say five cases were excluded while the presets excluded six (Dotio's too); it now names the five that stay excluded and says that Dotio's runs.
 
 ## Verification
 
@@ -111,15 +111,17 @@ On Ubuntu 24.04 (GCC 13.3, glibc 2.39), with Kinetra at `build/linux-beyond-arch
 
 The pull request's CI is the Full level: `checks` on the pinned Arch toolchain, the new `ubuntu` job and `windows`.
 
+**Windows trial.** CI's `windows` job at `052adb8`, with no exclusion: 292 of 297. Dotio's fingerprint and every other golden and pressure case passed; the four Demo crowd characterization cases and i4sim's RVO case failed. i4sim's distance now matches (17582.890 mm, against 17582.889 mm before), its trajectory hash does not; the Demo lines also differ from Ubuntu's old ones. So Kinetra's `atan2` and `asin` closed part of the Windows difference, and another C-runtime function closes the rest. The exclusion of these five came back; the values are in [Windows](../windows.md#tests).
+
 ## Pull request
 
 Title: `fix: golden fingerprints on every toolchain, Ubuntu CI and Linux per distribution`
 
-**Summary.** Lab's trajectory fingerprints held only on CI's Arch toolchain: they failed on Ubuntu and were skipped on Windows. The cause is the C library's float `atan2f` and `asinf`, not GCC 13. With Kinetra's `atan2` and `asin`, which round the same on every C library ([Kinetra #32](https://github.com/SMB-M87/Kinetra/pull/32)), the recorded values hold unchanged on Ubuntu; this pull request moves Lab's calls to them, runs the fingerprints on Windows again, adds an Ubuntu LTS job to CI and documents the dependencies per distribution.
+**Summary.** Lab's trajectory fingerprints held only on CI's Arch toolchain: they failed on Ubuntu and were skipped on Windows. The cause is the C library's float `atan2f` and `asinf`, not GCC 13. With Kinetra's `atan2` and `asin`, which round the same on every C library ([Kinetra #32](https://github.com/SMB-M87/Kinetra/pull/32)), the recorded values hold unchanged on Ubuntu; this pull request moves Lab's calls to them, runs Dotio's fingerprint on Windows again, adds an Ubuntu LTS job to CI and documents the dependencies per distribution.
 
 **Changes.**
 - Demo (`Agent`, `Scene`) and Dotio (`Vec2`) call `kinetra::atan2` and `kinetra::asin`.
-- `CMakePresets.json`: the Windows test presets no longer exclude the six fingerprints.
+- `CMakePresets.json`: the Windows test presets no longer exclude Dotio's fingerprint; the five other fingerprints stay excluded, because Windows still differs (tried in this pull request, values in `docs/windows.md`).
 - CI: job `ubuntu` on Ubuntu 24.04: headless workflow, the `ci` preset with engine warnings reported, every test with graphics, smoke and soak cases.
 - Docs: dependency commands per distribution family in the README, the Full level's CI checks in AGENTS.md, Windows tests, Demo README, the Dotio test comment, two older open points, the roadmap (both items removed, *Linux release* unblocked).
 - `external/Kinetra` at Kinetra's `build/linux-beyond-arch` (#33 on top of #32).
@@ -128,12 +130,13 @@ Title: `fix: golden fingerprints on every toolchain, Ubuntu CI and Linux per dis
 
 **Verification.** On Ubuntu 24.04 the five fingerprints that fail on `main` pass with Arch's recorded values; 321 of 321 with the soak, graphics and smoke cases; headless 259 of 259. The pull request's CI on Arch, Ubuntu and Windows is the Full level.
 
-**Review notes.** No expected value changed. The Windows step is a trial the user approved: a case that still fails there gets its exclusion back in a new commit. The Dotio playtest item listed "the golden fingerprint skipped on Windows" among the decisions for the user's review; that decision is gone. The Fedora command is not checked against Fedora's repositories.
+**Review notes.** No expected value changed. The Windows step was a trial the user approved: Dotio's fingerprint passed; the Demo crowd cases and i4sim's RVO case still differ, so their exclusion came back, with the values recorded. The Dotio playtest item listed "the golden fingerprint skipped on Windows" among the decisions for the user's review; that decision is gone. The Fedora command is not checked against Fedora's repositories.
 
 **Dependencies and merge order.** Kinetra [#32](https://github.com/SMB-M87/Kinetra/pull/32), then [#33](https://github.com/SMB-M87/Kinetra/pull/33), each with a merge commit; then this pull request with its pointer at the Kinetra branch commit it was verified with; then a pointer-only pull request to Kinetra's merge commit on `main`. Changes CI and the agent rules, so it waits for the user.
 
-**Follow-up.** *Linux release* is unblocked. Making `CI / ubuntu` a required check, and a Fedora job, stay with the user.
+**Follow-up.** *Golden tests on Windows* (roadmap) for the five cases still excluded. *Linux release* is unblocked. Making `CI / ubuntu` a required check, and a Fedora job, stay with the user.
 
 ## Open points
 
+- Five fingerprints still differ on Windows; which C-runtime function causes it, and whether to route it through Kinetra too, is the roadmap item *Golden tests on Windows*. Doing so for `sinf` or `cosf` would move the recorded lines on Linux as well, because glibc's versions of those are not correctly rounded either: the user decides.
 - The Fedora command comes from Kinetra's development page, whose package names this session could not check against Fedora.
