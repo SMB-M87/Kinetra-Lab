@@ -60,6 +60,11 @@ if(KINETRA_BUILD_RUNTIME)
     target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_presentation)
 endif()
 if(BUILD_TESTING)
+    add_test(NAME kinetra_i4sim_inspector_trace COMMAND ${CMAKE_COMMAND}
+        "-DPROGRAM=$<TARGET_FILE:kinetra_i4sim>"
+        "-DARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3;--inspect;APM4220_west"
+        "-DTICKS=3" "-DEXPECTED=CURRENT WAIT"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
     # The i4sim test helpers (recorder, event counts, showcase files) in tests/include.
     add_library(kinetra_i4sim_testing INTERFACE)
     target_include_directories(kinetra_i4sim_testing INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/tests/include)

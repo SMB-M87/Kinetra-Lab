@@ -7,6 +7,7 @@
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/flow_metrics.h"
+#include "i4sim/simulation/inspector.h"
 #include "i4sim/simulation/simulation.h"
 #include "i4sim/testing/event_counts.h"
 #include "i4sim/testing/recorder.h"
@@ -28,6 +29,16 @@
 #include <vector>
 
 using namespace i4sim;
+
+namespace {
+std::string inspection_value(const kinetra::InspectorSnapshot &snapshot, std::string_view label) {
+    for (const auto &group : snapshot.groups)
+        for (const auto &row : group.rows)
+            if (row.label == label)
+                return row.value;
+    return {};
+}
+} // namespace
 
 namespace {
 /// A 2400 by 1600 factory with one APM4220 mover at (1000, 700) and four producers in
@@ -719,6 +730,7 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
                               "Retreat exceeded acceleration limits or replaced a goal");
                 if (!m.coordination.corridor_retreating)
                     continue;
+                CHECK(inspection_value(inspect_mover(trial, i), "COORDINATION") == "CORRIDOR RETREAT");
                 saw_retreat = true;
                 saw_reverse =
                     saw_reverse || kinetra::dot(m.body.velocity, m.destination - m.body.position) < -1;
@@ -1049,10 +1061,16 @@ TEST_CASE("the event log records why a passing plan ends") {
 
 TEST_CASE("turning predictive passing off ends a plan as disabled") {
     auto pair = passing_pair(SteeringProfile::reciprocal);
+    CHECK(inspection_value(inspect_mover(pair, 0), "PLAN") == "NONE");
     run_until_pair(pair);
+    const auto inspecting = inspect_mover(pair, 0);
+    CHECK(inspecting.title == pair.movers()[0].definition.id);
+    CHECK(inspection_value(inspecting, "PHASE") == "ENTRY");
+    CHECK(inspection_value(inspecting, "PARTNER") == pair.movers()[1].definition.id);
     auto settings = pair.motion_settings();
     settings.predictive_passing = false;
     pair.configure_motion(settings);
+    CHECK(inspection_value(inspect_mover(pair, 0), "PLAN") == "NONE");
     CHECK(pair.predictive_pairs() == 0);
     REQUIRE(!pair.events().empty());
     const auto &end = pair.events().back();
