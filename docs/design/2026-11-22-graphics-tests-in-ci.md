@@ -41,6 +41,8 @@ CI compiled Lab's graphics tests but did not run them, and the smoke runs of the
 | The local rule once CI runs graphics | CI is the Full level; locally the targeted builds and tests, graphics cases only as quick feedback or to reproduce a CI failure | The user's choice of 2026-11-22, in the Kinetra design |
 | Smoke runs | CTest entries `kinetra_smoke:<name>`, label `graphics`, registered next to each executable with `kinetra_lab_add_smoke` | The user's choice of 2026-11-22: no manual step, and the local `graphics` preset runs exactly what CI runs |
 | Kinetra and Lab | Both, Kinetra first; Lab's pointer follows Kinetra's branch | The user's choice of 2026-11-22 |
+| The reviewer | `pr-review` reviews code and comments only, and starts once CI is green; a screenshot of a changed scene is the author's | The user's choice of 2026-11-22, a Kinetra rule ([Kinetra `AGENTS.md`](../../external/Kinetra/AGENTS.md#git)); Lab has no copy of it |
+| Wheel input | Kinetra's runtime reads `wheel.preciseY`, so the mouse-input case passes under `sdl2-compat` and smooth wheels zoom in fractional steps in every application | The user's choice of 2026-11-22, in Kinetra #30; Lab's sessions pass `Input::wheel` to `zoom` unchanged |
 | How CI runs them | The `ci` test preset runs everything with the offscreen environment, from a hidden `software-gl` preset shared with `graphics`, as in Kinetra | `build-ci` already builds the graphics tests; no second build |
 | Smoke names | Without spaces (`launcher-demo`, `i4sim-run`) | Spaces in `add_test` names need policy CMP0110, which `cmake_minimum_required(VERSION 3.16)` leaves unset; CTest then refused to run them |
 | Which smoke runs | `launcher` (the menu), `launcher-demo` (`--agents 12`), `launcher-dotio` (`--difficulty medium`), `launcher-i4sim`, `demo`, `dotio` (`--difficulty medium`), `i4sim` (blueprint screen), `i4sim-run` (`3840x2400.json` with `--run --ups 200`) | The README's commands, plus the launcher menu and a running factory, so every executable and every session starts once |
@@ -104,5 +106,7 @@ To be filled in after the agent review.
 **Follow-up.** None.
 
 ## Open points
+
+- Smooth wheels and touchpads now zoom in fractional steps in Demo, Dotio and i4sim (Kinetra's runtime change); the user's playtest on a desktop.
 
 - The four Demo crowd characterization cases and i4sim's RVO golden case still fail with GCC 13 in a cloud session (*Golden tests on every toolchain*); CI is not affected, because it uses the pinned Arch toolchain.
