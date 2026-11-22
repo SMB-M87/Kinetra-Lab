@@ -59,6 +59,9 @@ kinetra::InspectorSnapshot inspect_mover(const Simulation &simulation, std::size
     return {mover.definition.id,
             {{"STATE",
               {{"LIFECYCLE", lifecycle_name(mover.lifecycle)},
+               {"COORDINATION", mover.coordination.corridor_retreating ? "CORRIDOR RETREAT"
+                                : mover.coordination.passing           ? "PASSING DETOUR"
+                                                                       : "NONE"},
                {"HELD", mover.held ? "YES" : "NO"},
                {"PRODUCT", mover.product ? std::to_string(*mover.product) : "NONE"},
                {"STALLED", simulation.stalled(index) ? "YES" : "NO"},
