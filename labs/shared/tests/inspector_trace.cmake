@@ -5,6 +5,7 @@ if(NOT result EQUAL 0)
     message(FATAL_ERROR "Inspector trace failed: ${diagnostics}")
 endif()
 
+string(REPLACE "\r\n" "\n" output "${output}")
 string(STRIP "${output}" output)
 string(REPLACE "\n" ";" records "${output}")
 list(LENGTH records count)
