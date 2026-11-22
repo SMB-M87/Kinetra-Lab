@@ -79,12 +79,19 @@ bool PredictivePassing::enabled(const MotionSettings &motion) {
 }
 
 std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {
+    if (const auto plan = details(mover))
+        return plan->target;
+    return std::nullopt;
+}
+
+std::optional<Simulation::PassingDetails> PredictivePassing::details(std::size_t mover) const {
     for (const auto &plan : plans_)
         for (std::size_t side = 0; side < 2; ++side)
             if (plan.movers[side] == mover)
-                return plan.waiting[side] ? plan.hold[side]
-                       : plan.crossing    ? plan.exit[side]
-                                          : plan.entry[side];
+                return Simulation::PassingDetails{
+                    plan.id, plan.movers[1 - side], plan.crossing, plan.waiting[side],
+                    plan.waiting[side] ? plan.hold[side]
+                                       : (plan.crossing ? plan.exit[side] : plan.entry[side])};
     return std::nullopt;
 }
 

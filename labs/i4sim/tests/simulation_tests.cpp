@@ -7,10 +7,12 @@
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/flow_metrics.h"
+#include "i4sim/simulation/inspector.h"
 #include "i4sim/simulation/simulation.h"
 #include "i4sim/testing/event_counts.h"
 #include "i4sim/testing/recorder.h"
 #include "i4sim/testing/showcase.h"
+#include "kinetra_lab/inspector_trace.h"
 
 #include <doctest/doctest.h>
 
@@ -19,6 +21,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <optional>
 #include <sstream>
@@ -28,6 +31,16 @@
 #include <vector>
 
 using namespace i4sim;
+
+namespace {
+std::string inspection_value(const kinetra::InspectorSnapshot &snapshot, std::string_view label) {
+    for (const auto &group : snapshot.groups)
+        for (const auto &row : group.rows)
+            if (row.label == label)
+                return row.value;
+    return {};
+}
+} // namespace
 
 namespace {
 /// A 2400 by 1600 factory with one APM4220 mover at (1000, 700) and four producers in
@@ -719,6 +732,7 @@ TEST_CASE("retreat recovery resolves a corridor standstill in every orientation"
                               "Retreat exceeded acceleration limits or replaced a goal");
                 if (!m.coordination.corridor_retreating)
                     continue;
+                CHECK(inspection_value(inspect_mover(trial, i), "COORDINATION") == "CORRIDOR RETREAT");
                 saw_retreat = true;
                 saw_reverse =
                     saw_reverse || kinetra::dot(m.body.velocity, m.destination - m.body.position) < -1;
@@ -1049,10 +1063,16 @@ TEST_CASE("the event log records why a passing plan ends") {
 
 TEST_CASE("turning predictive passing off ends a plan as disabled") {
     auto pair = passing_pair(SteeringProfile::reciprocal);
+    CHECK(inspection_value(inspect_mover(pair, 0), "PLAN") == "NONE");
     run_until_pair(pair);
+    const auto inspecting = inspect_mover(pair, 0);
+    CHECK(inspecting.title == "MOVER 0 / " + pair.movers()[0].definition.id);
+    CHECK(inspection_value(inspecting, "PHASE") == "ENTRY");
+    CHECK(inspection_value(inspecting, "PARTNER") == pair.movers()[1].definition.id);
     auto settings = pair.motion_settings();
     settings.predictive_passing = false;
     pair.configure_motion(settings);
+    CHECK(inspection_value(inspect_mover(pair, 0), "PLAN") == "NONE");
     CHECK(pair.predictive_pairs() == 0);
     REQUIRE(!pair.events().empty());
     const auto &end = pair.events().back();
@@ -1397,6 +1417,22 @@ TEST_CASE("flow metrics count no waiting or stuck mover on a free trip") {
     CHECK(flow.stuck_now() == 0);
 }
 
+TEST_CASE("corridor snapshots for the inspector trace") {
+    const auto path = test::showcase_blueprint("corridor-passing");
+    Simulation simulation(load_blueprint(path), 42);
+    const auto scenario = load_scenario(path);
+    REQUIRE(scenario);
+    apply_scenario(*scenario, simulation);
+    simulation.updates_per_second(200);
+    simulation.run();
+    for (int i = 0; i < 3; ++i) {
+        simulation.tick();
+        const auto snapshot = inspect_mover(simulation, 0);
+        std::cout << "TRACE_RECORD ";
+        kinetra_lab::write_inspector_tick(std::cout, simulation.ticks(), "APM4220_west", &snapshot);
+    }
+}
+
 TEST_CASE("flow metrics count a head-on corridor standstill as waiting and stuck") {
     Simulation standstill(corridor_fixture());
     start_corridor(standstill, false, {1900, 700}, {300, 700});
@@ -1409,6 +1445,23 @@ TEST_CASE("flow metrics count a head-on corridor standstill as waiting and stuck
     CHECK(flow.waiting_ticks() > 0);
     CHECK(flow.stuck_movers() == 2);
     CHECK(flow.stuck_now() == 2);
+    const auto &a = standstill.movers()[0], &b = standstill.movers()[1];
+    CHECK(a.total_wait_ticks + b.total_wait_ticks == flow.waiting_ticks());
+    const auto previous_total = a.total_wait_ticks;
+    CHECK(a.current_wait_ticks > 0);
+    standstill.toggle_mover(0);
+    standstill.tick();
+    CHECK(a.current_wait_ticks == 0);
+    CHECK(a.total_wait_ticks == previous_total);
+    CHECK(inspection_value(inspect_mover(standstill, 0), "CURRENT WAIT") == "0 TICKS");
+    standstill.toggle_mover(0);
+    for (int tick = 0; tick < 100 && a.current_wait_ticks == 0; ++tick)
+        standstill.tick();
+    CHECK(a.current_wait_ticks == 1);
+    CHECK(a.total_wait_ticks == previous_total + 1);
+    standstill = Simulation(corridor_fixture());
+    CHECK(inspection_value(inspect_mover(standstill, 0), "TOTAL WAIT") == "0 TICKS");
+    CHECK(inspection_value(inspect_mover(standstill, 0), "CURRENT WAIT") == "0 TICKS");
 }
 
 TEST_CASE("flow metrics ignore a held mover") {

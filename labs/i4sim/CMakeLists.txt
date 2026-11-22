@@ -1,9 +1,8 @@
-find_package(nlohmann_json 3.11 REQUIRED)
 # Headless: the simulation, its loaders and the session's controller.
 add_library(kinetra_i4sim_logic src/controller.cpp
     src/blueprint/blueprint.cpp src/blueprint/scenario.cpp
     src/simulation/flow_metrics.cpp src/simulation/floor_plan.cpp src/simulation/geometry.cpp
-    src/simulation/goals.cpp src/simulation/motion_step.cpp src/simulation/predictive_passing.cpp
+    src/simulation/goals.cpp src/simulation/inspector.cpp src/simulation/motion_step.cpp src/simulation/predictive_passing.cpp
     src/simulation/production.cpp src/simulation/routing.cpp src/simulation/shuttle.cpp
     src/simulation/simulation.cpp src/simulation/simulation_core.cpp src/simulation/traffic.cpp)
 target_include_directories(kinetra_i4sim_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -49,7 +48,7 @@ function(kinetra_i4sim_bundle_blueprints target)
     add_dependencies(${target} kinetra_i4sim_blueprints)
 endfunction()
 add_executable(kinetra_i4sim src/main.cpp)
-target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_logic)
+target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_logic nlohmann_json::nlohmann_json)
 kinetra_i4sim_bundle_blueprints(kinetra_i4sim)
 kinetra_executable_icon(kinetra_i4sim)
 if(KINETRA_BUILD_RUNTIME)
@@ -70,6 +69,14 @@ if(KINETRA_BUILD_RUNTIME)
     endif()
 endif()
 if(BUILD_TESTING)
+    add_test(NAME kinetra_i4sim_inspector_trace COMMAND ${CMAKE_COMMAND}
+        "-DPROGRAM=$<TARGET_FILE:kinetra_i4sim>"
+        "-DARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3;--inspect;0"
+        "-DEQUIVALENT_ARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3;--inspect;APM4220_west"
+        "-DNORMAL_ARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3"
+        "-DORACLE=$<TARGET_FILE:kinetra_i4sim_tests>" "-DORACLE_CASE=corridor snapshots for the inspector trace"
+        "-DTICKS=3" "-DEXPECTED=CURRENT WAIT"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
     # The i4sim test helpers (recorder, event counts, showcase files) in tests/include.
     add_library(kinetra_i4sim_testing INTERFACE)
     target_include_directories(kinetra_i4sim_testing INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/tests/include)
@@ -83,7 +90,7 @@ if(BUILD_TESTING)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_testing)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
     kinetra_add_doctest(kinetra_i4sim_tests PREFIX kinetra_i4sim
-        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_testing)
+        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_testing nlohmann_json::nlohmann_json)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)
     kinetra_add_doctest(kinetra_i4sim_golden_tests PREFIX kinetra_i4sim_golden
         SOURCES tests/golden_tests.cpp LIBRARIES kinetra_i4sim_testing)

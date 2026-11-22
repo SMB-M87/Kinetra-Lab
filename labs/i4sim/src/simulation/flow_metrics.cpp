@@ -35,7 +35,7 @@ void FlowMetrics::observe(const Simulation &simulation) {
         }
         const float remaining = kinetra::distance(mover.body.position, mover.destination);
         const bool arriving = remaining <= limits_.arrival_distance;
-        if (kinetra::length(mover.body.velocity) < limits_.waiting_speed && !arriving)
+        if (waiting_for_progress(mover, limits_))
             ++waiting_ticks_;
         // Progress is measured against the best distance so far, not the latest one, so
         // moving back and forth without getting closer counts as no progress. A new goal

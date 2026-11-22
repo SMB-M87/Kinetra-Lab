@@ -73,9 +73,10 @@ class FactoryController {
 
     /// Which debug layers are selected.
     const ViewLayers &layers() const { return layers_; }
-    /// The mover that is inspected, by index into Simulation::movers(). At most one of the
-    /// mover and the producer is selected.
+    /// The mover that is inspected, by index into Simulation::movers().
     std::optional<std::size_t> selected_mover() const { return selected_mover_; }
+    /// Close the inspector and forget the mover targeted by the next Shift+click.
+    void clear_selected_mover() { selected_mover_.reset(); }
     /// The producer that is inspected, by index into Simulation::producers().
     std::optional<std::size_t> selected_producer() const { return selected_producer_; }
 
@@ -110,9 +111,9 @@ class FactoryController {
     /// camera; 1 to 6 toggle grid, heatmap, paths, forces, borders and detection; Q and E
     /// halve and double the update rate within 1..10000. The camera pans with WASD or the
     /// arrows, and zooms with the wheel as `panels` allows and by the steps the menu's ZOOM
-    /// row collected. A click selects the mover or
-    /// producer under it, or clears the selection; a right click also holds or blocks it;
-    /// Shift-click sends the selected mover there. Pointer commands are skipped while
+    /// row collected. A click selects the mover or producer under it. On empty ground,
+    /// a left click clears only the producer selection. Right-click also holds or blocks
+    /// the target. Shift-click sends the selected mover there. Pointer commands are skipped while
     /// `panels.pointer_captured`.
     ///
     /// A scene whose scenario repeats by `ScenarioRepeat::restart` restarts as with R once its

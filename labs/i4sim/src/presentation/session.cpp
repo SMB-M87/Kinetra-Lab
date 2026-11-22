@@ -4,7 +4,9 @@
 #include "i4sim/presentation/detail/blueprint_screen.h"
 #include "i4sim/presentation/detail/hud.h"
 #include "i4sim/presentation/detail/world_view.h"
+#include "i4sim/simulation/inspector.h"
 
+#include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/debug_view.h>
 #include <kinetra/runtime/settings_view.h>
@@ -49,7 +51,17 @@ class FactorySession final : public kinetra_lab::Session {
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         if (modal)
             return;
-        controller_.handle_input(elapsed, input, camera, {captured, debug_});
+        const auto before = controller_.selected_mover();
+        InspectorInput inspection;
+        if (before && !captured) {
+            const auto area = kinetra_lab::inspector_area(menu_, camera.viewport, frame_times_);
+            inspection = inspector_.update(input, inspect_mover(controller_.simulation(), *before), area);
+            if (inspection.close)
+                controller_.clear_selected_mover();
+        }
+        controller_.handle_input(elapsed, input, camera, {captured || inspection.captured, debug_});
+        if (before != controller_.selected_mover())
+            inspector_.reset();
     }
 
     void render(Runtime &runtime) override {
@@ -64,13 +76,17 @@ class FactorySession final : public kinetra_lab::Session {
         // Outside debug mode the layers keep their selection but are not drawn.
         draw_world(runtime, simulation, debug_ ? controller_.layers() : ViewLayers::none(),
                    controller_.selected_mover());
-        draw_hud(runtime, simulation,
-                 {statistics_, controller_.selected_mover(), controller_.selected_producer(),
-                  controller_.description(), controller_.message()});
+        draw_hud(
+            runtime, simulation,
+            {statistics_, controller_.selected_producer(), controller_.description(), controller_.message()});
         if (menu_.visible)
             menu_.draw(runtime, controller_.menu(layer_color));
-        if (frame_times_)
-            draw_frame_times(runtime, runtime.frame_times());
+        const auto selected = controller_.selected_mover();
+        const auto snapshot = selected && !settings_.visible()
+                                  ? std::optional{inspect_mover(simulation, *selected)}
+                                  : std::nullopt;
+        kinetra_lab::draw_inspector(runtime, menu_, &inspector_, snapshot ? &*snapshot : nullptr,
+                                    frame_times_ ? &runtime.frame_times() : nullptr);
         settings_.draw(runtime);
         runtime.end();
     }
@@ -133,6 +149,7 @@ class FactorySession final : public kinetra_lab::Session {
     /// Requests from the blueprint screen: back to the launcher, and end the program.
     bool leave_{}, exit_{};
     DebugMenu menu_;
+    InspectorView inspector_;
     bool statistics_{true}, debug_{true}, frame_times_{};
     kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.

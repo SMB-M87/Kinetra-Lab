@@ -35,19 +35,6 @@ constexpr float parameter_step = 1.25f, shortest_horizon = 1;
 /// starts with; which of the two is meant is an open point in the module README.
 constexpr float reset_speed = 2, reset_force = .6f, reset_horizon = 8;
 
-const char *profile_name(SteeringProfile profile) {
-    switch (profile) {
-    case SteeringProfile::original:
-        return "ORIGINAL";
-    case SteeringProfile::experimental_rvo:
-        return "RVO EXPERIMENT";
-    case SteeringProfile::reciprocal:
-        return "RECIPROCAL";
-    default:
-        return "IMPROVED";
-    }
-}
-
 /// The choices of the PLANNER list, in menu order: two settings of MotionSettings shown as
 /// one list, because the heatmap only matters while routes are planned.
 enum class Planner { heat_astar, astar, off };
@@ -305,16 +292,12 @@ void FactoryController::pick(Vec2 point, bool toggle) {
     for (std::size_t i = 0; i < simulation_->producers().size(); ++i)
         if (distance(point, simulation_->producers()[i].definition.position) <= radius) {
             selected_producer_ = i;
-            selected_mover_.reset();
             if (toggle)
                 simulation_->toggle_producer(i);
             return;
         }
-    // A right click on empty floor keeps the selection, so a goal can still follow.
-    if (!toggle) {
-        selected_mover_.reset();
+    if (!toggle)
         selected_producer_.reset();
-    }
 }
 
 void FactoryController::handle_pointer(const Input &input, const Camera2D &camera) {

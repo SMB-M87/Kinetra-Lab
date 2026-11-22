@@ -45,3 +45,7 @@ No lessons yet.
 ## Media and tools
 
 No lessons yet.
+
+
+- **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
+  Display formatting and clipping can change an identifier even when the inspector and trace share a row builder. Pass the identifier shown to the user into the real executable.
