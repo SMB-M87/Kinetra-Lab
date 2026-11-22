@@ -48,6 +48,31 @@ The user wants one plan that everyone can read: no more references to the qualit
 | Lab branch | One branch, `ccr-cc3e854a-v10cnx` | The session may push only this Lab branch |
 | CI during the archive outage | `ci.yml` falls back to the current Arch packages when the Arch Linux Archive does not answer, with a *Toolchain not pinned* warning; a separate commit on this branch. `release.yml` stays pinned | From 18:11 UTC on 2026-11-21 `archive.archlinux.org` did not answer GitHub's runners, and every `checks` job failed in its first step, re-runs included. The user suggested the current, non-archived Arch as fallback. A release should come from the pinned toolchain, so it waits for the archive ([Kinetra design](../../external/Kinetra/docs/design/2026-11-21-ci-mirror-fallback.md)) |
 
+Settled with the user on 2026-11-22 in a grilling session. ⚑ marks answers that differ from the agent's recommendation; the decisions on the review skill are recorded in full in the [Kinetra design](../../external/Kinetra/docs/design/2026-11-22-roadmap-decisions.md).
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| What comes first | Process and tooling (review skill, cloud setup, golden tests, graphics tests in CI), then the inspector overlay | Every later pull request becomes cheaper to verify |
+| Stalled movers | A stack: detection without behavior change, then MAKE WAY, then a temporary motion fallback; optional policies, off by default | Detection shows which stalls occur; MAKE WAY solves the documented standstill, the fallback fits standoffs |
+| MAKE WAY and waiting movers | A mover that waits for a producer with a product may make way; it keeps its product and its place in the queue | Both measured standstills are sealed in by exactly such movers |
+| Motion fallback | Its motion type and return rule are chosen after the detection data | No guess before it is known which stalls occur |
+| Pull request review | After every pull request, started by its author in a separate session; the pull request waits for its conclusion | Chosen *on request* first (⚑), then changed by the user later the same day ([Kinetra design](../../external/Kinetra/docs/design/2026-11-22-pr-review-loop.md)) |
+| Review comments | The author's session follows its pull requests and answers each finding at once: a fix or an argument; at most two rounds per point, then it stays open for the user | The user's rule: reviewer and author may discuss |
+| Merges ⚑ | The author's agent merges when nothing is open; changes to agent rules, CI or releases, and pull requests with a check by the user, wait for the user | The user's change of the rule that agents never merge |
+| Review goals | The reviewer checks every goal of the roadmap item and the design document, and runs what CI does not cover (graphics tests, a screenshot) | The user asked whether the reviewer checks the functionality and the goal |
+| Lessons from reviews (added by the user) | A lessons page per repository, patterns only, added on the reviewed pull request | Agents do not repeat each other's mistakes |
+| Cloud setup | The agent proposes the setup script with the first code task | It can be tried with a real build then |
+| i4sim session behavior | All four are bugs: `R` keeps `--ups`, RESET PARAMETERS restores 32, the unused `output` argument goes, messages age without a blueprint | The intended behavior is the default each setting starts with |
+| Demo's help overlay | Removed | Reachable only from tests; the settings panel already shows the help lines |
+| Order of the small fixes | Right after the review skill and the cloud setup | Small first code changes that also try out the setup |
+| Frame pacing in WSLg ⚑ | Left open, moved to Later | The user's choice; the agent recommended measuring option 1 |
+| Phase 7's decisions | Confirmed; the detection step measures stalls over more seeds, with passing on as well | Shows whether the guard's 11 stuck movers against 6 is a trend |
+| Phase 6's decisions | Confirmed or changed after the Dotio playtest | What the playtest shows may change a decision |
+| Linux beyond Arch | One extra CI job on Ubuntu LTS; Fedora documented only | Covers the Debian family and the cloud sessions |
+| Linux release format | A tarball first; an AppImage can follow | A cosmetic choice the agent listed and the user accepted without comment: a tarball needs no extra tooling, an AppImage adds packaging |
+| Departure check (phase 7's third question) | Open for the user, after the detection step explains the accepted route at tick 7730 | Found missing by the first agent review of #67: the closed decision item listed three questions and only two were answered |
+| CI image | A Later item | Removes the dependency on the archive, but needs the archive to be built |
+
 ## Design
 
 The roadmap keeps its four sections. Every open point that waits for someone is an item, with its source under *Where*:
@@ -81,7 +106,7 @@ The agent's view on the new wishes, as the starting point of the discussion.
 
 ## Affected areas
 
-`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`.
+`docs/roadmap.md`, `docs/design/2026-11-18-quality-roadmap.md`, `docs/design/2026-11-21-demo-restructuring.md`, this document, the design index, `AGENTS.md`, `README.md`, `docs/README.md`, `labs/demo/README.md`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `tools/capture/README.md`, and the `external/Kinetra` pointer. The CI commit changes the install step of `.github/workflows/ci.yml`. The decisions of 2026-11-22 add `docs/review-lessons.md` (Lab's lessons page, for the `pr-review` skill that Kinetra #24 added), its rows in `AGENTS.md` and `docs/README.md`, and remove the roadmap item the skill finishes.
 
 ## Test plan
 
@@ -98,6 +123,7 @@ Documentation, the CI install step, and a pointer to a Kinetra commit without en
 - `python3 tools/check_docs.py` in `external/Kinetra` on `docs/stacked-pull-requests` and on `docs/roadmap-priorities`: all links resolve.
 - `ci.yml` parses as YAML and its install step as `sh` (`sh -n`); the fallback itself is verified by this pull request's CI, because the agent's session cannot reach any Arch host.
 - #65 merged with the pointer at Kinetra 3ac0c81, the top of the stack. A follow-up pointer pull request records c03a36d, the merge commit of Kinetra #21 on Kinetra `main`; `git -C external/Kinetra diff --stat 3ac0c81 c03a36d` is empty, so this verification stands.
+- #67 (the decisions of 2026-11-22, the lessons page, the merge order): `python3 external/Kinetra/tools/check_docs.py` in Lab, all links resolve. The pointer moves from c03a36d to 909081d, Kinetra `main` after #23, #24 and #25; `git -C external/Kinetra diff --stat c03a36d 909081d` lists only Markdown and skill files (the `pr-review` skill, Kinetra's AGENTS.md, workflow and design documents), no engine sources and no CMake, so Lab's build does not change and the Docs level plus CI covers it, although the verification table asks for the Full level on a pointer move. `git -C external/Kinetra diff --stat 097c7b2 909081d` is empty.
 
 ## Pull request
 
@@ -111,6 +137,8 @@ Documentation, the CI install step, and a pointer to a Kinetra commit without en
 - **Dependencies and merge order:** Kinetra `docs/stacked-pull-requests`, then Kinetra `docs/roadmap-priorities` (stacked), both with a merge commit; then move this branch's pointer to the Kinetra merge commit and merge this one.
 - **Follow-up:** the first items of *Next*.
 
+Follow-ups on the same branch: #66 recorded the Kinetra merge commit of #21; #67 records the decisions of 2026-11-22, Lab's review lessons page and the merge order with the pointer, and was the first pull request reviewed under the review loop.
+
 ## Open points
 
-- The user confirms or changes the order of *Next* and *Later*.
+- Settled on 2026-11-22 (see [Decisions](#decisions)), except frame pacing in WSLg, which the user keeps open.

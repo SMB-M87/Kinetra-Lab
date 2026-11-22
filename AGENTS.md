@@ -22,6 +22,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | --- | --- |
 | Every task | This file and [Kinetra's AGENTS.md](external/Kinetra/AGENTS.md) |
 | Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); Lab [design documents](docs/design/README.md) |
+| Build or review a change, so known mistakes are not repeated | Lab's [review lessons](docs/review-lessons.md) and [Kinetra's](external/Kinetra/docs/review-lessons.md) |
 | Write or review C++ or CMake | [Conventions](external/Kinetra/docs/conventions.md) |
 | Add tests or pick a verification level | [Testing](external/Kinetra/docs/testing.md) and [verification in Lab](#verification-in-lab) |
 | Write READMEs, diagrams or `///` comments | [Documentation guide](external/Kinetra/docs/documentation.md) |
@@ -91,6 +92,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. Push the Kinetra branch and open its pull request before pushing Lab.
 - The Lab pull request links the Kinetra pull request. It states that Kinetra merges first, with a merge commit rather than a squash, so the pointer stays reachable.
 - Lab `main` records a commit on Kinetra `main`. Once the Kinetra pull request is merged, move the pointer on the Lab branch to the Kinetra merge commit and push it before the Lab pull request is merged. When the trees are identical (`git -C external/Kinetra diff --stat <old> <new>` is empty) the earlier verification stands; otherwise verify again. If the Lab pull request was merged first, record Kinetra `main` in a small pointer pull request right away. *Why:* a pointer to the branch commit is reachable but not on `main`, so the submodule on `main` shows as modified in Lab.
+- When the author's agent merges under Kinetra's [merge rule](external/Kinetra/AGENTS.md#git), the order is fixed: the Kinetra pull request first, then the pointer commit on the Lab branch (pushed, CI green, and reviewed again if the trees differ), then the Lab pull request. Until the pointer has moved, a Lab pull request that waits for it is a draft or says "do not merge yet" ([lesson](docs/review-lessons.md#submodule-and-merge-order)).
 - The manual steps and commands are in [External dependencies](external/README.md).
 
 ## Documentation in Lab
