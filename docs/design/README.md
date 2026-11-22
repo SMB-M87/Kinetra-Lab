@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-22 | [Demo agent inspector](2026-11-22-demo-agent-inspector.md) | implemented |
 | 2026-11-22 | [Agent inspector overlay](2026-11-22-agent-inspector-overlay.md) | implemented |
 | 2026-11-22 | [Graphics tests in CI](2026-11-22-graphics-tests-in-ci.md): the `ci` preset runs the graphics cases and a smoke run of every executable with software OpenGL; CI becomes the whole Full level | implemented |
 | 2026-11-22 | [Skip the release build when the zip cannot change](2026-11-22-release-skip-docs.md): a push to `main` with only Markdown, docs or skills, in Lab and the Kinetra range, publishes nothing new | implemented |

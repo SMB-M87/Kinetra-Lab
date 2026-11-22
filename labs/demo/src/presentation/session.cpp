@@ -3,7 +3,9 @@
 #include "demo/debug_panel.h"
 #include "demo/input/mapping.h"
 #include "demo/presentation/renderer.h"
+#include "demo/world/inspector.h"
 #include "kinetra_lab/input.h"
+#include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/timing.h>
 
@@ -16,6 +18,7 @@ class DemoSession final : public Session {
     // Declared after the application it borrows.
     demo::DebugPanel panel_{application_};
     kinetra::DebugMenu menu_;
+    kinetra::InspectorView inspector_;
     bool debug_{true}, statistics_{true}, frame_times_{};
     kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
@@ -45,16 +48,29 @@ class DemoSession final : public Session {
         const bool modal = settings_.update(input, camera);
         const auto entries = menu_rows();
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
+        const auto before = application_.scene().selected_agent();
+        kinetra::InspectorInput examination;
+        if (before && !modal && !captured)
+            if (const auto snapshot = inspect_agent(application_.scene()))
+                examination = inspector_.update(
+                    input, *snapshot, kinetra_lab::inspector_area(menu_, camera.viewport, frame_times_));
         auto commands = demo::read_commands(modal ? kinetra::Input{} : input);
         commands.toggle_pause =
             pause_.update(settings_.visible(), application_.paused()) != application_.paused();
-        panel_.apply(commands, debug_, captured, modal ? 0 : input.wheel);
+        panel_.apply(commands, debug_, captured || examination.captured, modal ? 0 : input.wheel);
+        if (examination.close)
+            commands.pointer = PointerCommand{PointerAction::clear_selection, input.mouse};
         application_.advance(elapsed, commands, camera);
+        const auto after = application_.scene().selected_agent();
+        if (bool(before) != bool(after) ||
+            (before && after && (before->x != after->x || before->y != after->y)))
+            inspector_.reset();
         panel_.observe(camera);
     }
     void render(kinetra::Runtime &runtime) override {
         frame_limit_.apply(runtime);
         const auto entries = menu_rows();
+        const auto snapshot = settings_.visible() ? std::nullopt : inspect_agent(application_.scene());
         demo::render(runtime, application_, panel_.layers(debug_),
                      {.menu = &menu_,
                       .entries = entries,
@@ -62,7 +78,9 @@ class DemoSession final : public Session {
                       .fps = fps_.rate(),
                       .time_scale = panel_.time_scale(),
                       .settings = &settings_,
-                      .frame_times = frame_times_ ? &runtime.frame_times() : nullptr});
+                      .frame_times = frame_times_ ? &runtime.frame_times() : nullptr,
+                      .inspector = &inspector_,
+                      .inspection = snapshot ? &*snapshot : nullptr});
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Demo"; }
