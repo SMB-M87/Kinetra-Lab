@@ -3,6 +3,7 @@
 // poses, and agents that stay around the player and clear of terrain, without a window.
 #include "demo/application.h"
 #include "demo/input/mapping.h"
+#include "demo/world/inspector.h"
 
 #include <kinetra/simulation/avoidance.h>
 #include <kinetra/simulation/steering.h>
@@ -471,6 +472,16 @@ TEST_CASE("clicking the same agent keeps it selected and closing clears the sele
     CHECK_MESSAGE(scene.selected_agent().has_value(), "Left click did not select an agent");
     application.advance(0, read_commands(input), camera);
     CHECK(scene.selected_agent().has_value());
+    const auto wandering = inspect_agent(scene);
+    REQUIRE(wandering);
+    CHECK(wandering->groups.front().rows.front().value == "WANDERING");
+    auto goal_click = input;
+    goal_click.mouse = camera.world_to_screen({10000, 10000});
+    application.advance(0, read_commands(goal_click), camera);
+    const auto commanded = inspect_agent(scene);
+    REQUIRE(commanded);
+    CHECK(commanded->title == wandering->title);
+    CHECK(commanded->groups.front().rows.front().value == "COMMANDED");
 
     const auto start = player_position(application);
     input.clicked = false;
