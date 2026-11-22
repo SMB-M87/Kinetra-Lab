@@ -6,6 +6,7 @@
 #include "dotio/ai/fuzzy.h"
 #include "dotio/ai/wander.h"
 #include "dotio/application.h"
+#include "kinetra_lab/inspector_trace.h"
 
 // The header-only panel, to click the rows the way the session does; it needs no window.
 #include <kinetra/runtime/debug_view.h>
@@ -16,6 +17,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <numbers>
@@ -1689,4 +1691,55 @@ TEST_CASE("path mode still plans wander paths and steering drops them again") {
     enemy.path = dotio::Route({cell_center(15, 15)});
     world->update_enemies(1, false);
     CHECK_MESSAGE(enemy.path.empty(), "Steering wander kept a path from path mode");
+}
+TEST_CASE("the inspector selection expires when a live enemy is replaced in its slot") {
+    dotio::Application application(42);
+    auto &enemies = application.world().get_enemies();
+    auto &first = enemies[0];
+    auto &second = enemies[1];
+    first.reset();
+    first.position = {100, 200};
+    second.reset();
+    second.position = {200, 200};
+    application.select_enemy(dotio::to_world(first.position));
+    REQUIRE(application.selected_enemy() == &first);
+    const auto wandering = application.inspect_enemy();
+    REQUIRE(wandering);
+    CHECK(wandering->groups.front().rows.front().value == "WANDER");
+    first.set_state(first.get_attack_state());
+    const auto attacking = application.inspect_enemy();
+    REQUIRE(attacking);
+    CHECK(attacking->title == wandering->title);
+    CHECK(attacking->groups.front().rows.front().value == "ATTACK");
+    application.select_enemy(dotio::to_world(second.position));
+    REQUIRE(application.selected_enemy() == &second);
+    second.is_active = false;
+    CHECK_FALSE(application.inspect_enemy());
+    second.reset();
+    CHECK_FALSE(application.inspect_enemy());
+    application.select_enemy(dotio::to_world(second.position));
+    CHECK(application.selected_enemy() == &second);
+    application.clear_selected_enemy();
+    CHECK_FALSE(application.inspect_enemy());
+}
+
+TEST_CASE("fixed-cadence Dotio snapshots for the inspector trace") {
+    dotio::Application application(42);
+    kinetra::Camera2D camera;
+    camera.pixels_per_unit = dotio::initial_zoom;
+    bool spawned = false;
+    for (std::uint64_t tick = 1; tick <= 300; ++tick) {
+        application.advance(dotio::Application::tick_seconds, {}, camera);
+        const auto snapshot = application.inspect_enemy(0, 1);
+        if (tick == 1)
+            CHECK_FALSE(snapshot);
+        if (snapshot) {
+            spawned = true;
+            CHECK(snapshot->title == "ENEMY 0-1");
+        }
+        CHECK_FALSE(application.inspect_enemy(0, 2));
+        std::cout << "TRACE_RECORD ";
+        kinetra_lab::write_inspector_tick(std::cout, tick, "ENEMY 0-1", snapshot ? &*snapshot : nullptr);
+    }
+    CHECK(spawned);
 }

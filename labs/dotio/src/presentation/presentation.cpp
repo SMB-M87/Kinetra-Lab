@@ -3,6 +3,7 @@
 #include "dotio/entities/physics_adapter.h"
 #include "kinetra_lab/camera.h"
 #include "kinetra_lab/input.h"
+#include "kinetra_lab/inspector.h"
 #include <kinetra/runtime/help_view.h>
 
 namespace dotio {
@@ -94,11 +95,12 @@ PresentedPositions::~PresentedPositions() {
 }
 
 void render(Runtime &runtime, Application &application, const SettingsOverlay &settings,
-            const DebugMenu &menu) {
+            const DebugMenu &menu, const InspectorView *inspector) {
     auto &world = application.world();
     // The camera follows the drawn player, not the simulated one, or the player would jitter
     // on screen; Ghost moves per frame and needs no correction. Restored after the frame.
     const auto simulated_player = to_world(world.get_player().position);
+    const auto snapshot = inspector && !settings.visible() ? application.inspect_enemy() : std::nullopt;
     const PresentedPositions presented(application);
     const kinetra_lab::ScopedCameraShift follow_drawn_player(
         runtime.camera,
@@ -134,6 +136,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             draw_debug_circle(runtime, center, prop.body.radius / 25, {1, 0.8f, 0.2f});
     }
     world.draw(renderer);
+    if (const auto *enemy = application.selected_enemy())
+        draw_debug_circle(runtime, to_world(enemy->position), enemy->radius / 25 + 0.1f, {1, 1, 0});
     if (application.debug) {
         for (auto &enemy : world.get_enemies()) {
             if (!enemy.is_active)
@@ -262,8 +266,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     }
     if (menu.visible)
         menu.draw(runtime, application.debug_entries());
-    if (application.frame_times)
-        draw_frame_times(runtime, runtime.frame_times());
+    kinetra_lab::draw_inspector(runtime, menu, inspector, snapshot ? &*snapshot : nullptr,
+                                application.frame_times ? &runtime.frame_times() : nullptr);
     settings.draw(runtime);
     runtime.end();
 }
