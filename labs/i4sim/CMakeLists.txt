@@ -71,7 +71,10 @@ endif()
 if(BUILD_TESTING)
     add_test(NAME kinetra_i4sim_inspector_trace COMMAND ${CMAKE_COMMAND}
         "-DPROGRAM=$<TARGET_FILE:kinetra_i4sim>"
-        "-DARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3;--inspect;APM4220_west"
+        "-DARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3;--inspect;0"
+        "-DEQUIVALENT_ARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3;--inspect;APM4220_west"
+        "-DNORMAL_ARGS=--blueprint;${CMAKE_CURRENT_SOURCE_DIR}/blueprints/showcase/corridor-passing.json;--ticks;3"
+        "-DORACLE=$<TARGET_FILE:kinetra_i4sim_tests>" "-DORACLE_CASE=corridor snapshots for the inspector trace"
         "-DTICKS=3" "-DEXPECTED=CURRENT WAIT"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
     # The i4sim test helpers (recorder, event counts, showcase files) in tests/include.
@@ -87,7 +90,7 @@ if(BUILD_TESTING)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_testing)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
     kinetra_add_doctest(kinetra_i4sim_tests PREFIX kinetra_i4sim
-        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_testing)
+        SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_testing nlohmann_json::nlohmann_json)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)
     kinetra_add_doctest(kinetra_i4sim_golden_tests PREFIX kinetra_i4sim_golden
         SOURCES tests/golden_tests.cpp LIBRARIES kinetra_i4sim_testing)

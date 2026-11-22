@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
             else
                 throw std::invalid_argument(
                     "Usage: kinetra_i4sim [--blueprint FILE] [--blueprints DIR] [--ticks N] [--output DIR] "
-                    "[--seed N] [--frames N] [--run] [--ups N] [--inspect MOVER_ID]");
+                    "[--seed N] [--frames N] [--run] [--ups N] [--inspect MOVER_ID_OR_INDEX]");
         }
         if (ups == 0)
             throw std::invalid_argument("UPS must be in 1..10000");
@@ -75,16 +75,25 @@ int main(int argc, char **argv) {
                 const auto &movers = simulation.movers();
                 const auto found = std::find_if(movers.begin(), movers.end(),
                                                 [&](const auto &m) { return m.definition.id == *inspect; });
-                if (found == movers.end())
+                if (found != movers.end()) {
+                    mover = static_cast<std::size_t>(found - movers.begin());
+                } else if (!inspect->empty() &&
+                           std::ranges::all_of(*inspect, [](char c) { return c >= '0' && c <= '9'; })) {
+                    const auto index = argument(*inspect, movers.size());
+                    if (index >= movers.size())
+                        throw std::invalid_argument("Unknown mover index: " + *inspect);
+                    mover = static_cast<std::size_t>(index);
+                } else {
                     throw std::invalid_argument("Unknown mover ID: " + *inspect);
-                mover = static_cast<std::size_t>(found - movers.begin());
+                }
             }
             simulation.run();
             for (std::uint64_t i = 0; i < ticks && simulation.running(); ++i) {
                 simulation.tick();
                 if (mover) {
                     const auto snapshot = i4sim::inspect_mover(simulation, *mover);
-                    kinetra_lab::write_inspector_tick(std::cout, simulation.ticks(), *inspect, &snapshot);
+                    kinetra_lab::write_inspector_tick(std::cout, simulation.ticks(),
+                                                      simulation.movers()[*mover].definition.id, &snapshot);
                 }
             }
             if (output)

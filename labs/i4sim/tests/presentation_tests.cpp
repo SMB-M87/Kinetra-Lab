@@ -6,6 +6,7 @@
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "i4sim/presentation/session.h"
 #include "i4sim/testing/showcase.h"
+#include "kinetra_lab/inspector.h"
 
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/debug_view.h>
@@ -99,6 +100,12 @@ TEST_CASE("the mover inspector and debug pause work together") {
     };
     click(runtime.camera.world_to_screen({300, -700}));
     CHECK(title_visible());
+    const float zoom_before_scroll = runtime.camera.pixels_per_unit;
+    Input scroll;
+    scroll.mouse = {1220, 70};
+    scroll.wheel = -3;
+    session->advance(0, scroll, runtime.camera);
+    CHECK(runtime.camera.pixels_per_unit == zoom_before_scroll);
     click(runtime.camera.world_to_screen({1900, -700}));
     CHECK(title_visible());
     click(runtime.camera.world_to_screen({1300, -700}), true);
@@ -113,6 +120,49 @@ TEST_CASE("the mover inspector and debug pause work together") {
     click({1260, 20});
     session->render(runtime);
     CHECK_FALSE(title_visible());
+}
+
+TEST_CASE("the inspector and frame graph fit alongside debug in a narrow window") {
+    Runtime runtime("Narrow inspector", 320, 240);
+    DebugMenu menu;
+    menu.visible = true;
+    menu.screen_origin = {8, 32};
+    bool running = true;
+    const auto entries = std::array{debug_check("RUNNING", running)};
+    InspectorView view;
+    const InspectorSnapshot snapshot{
+        "MOVER 0", {{"MOTION", {{"LONG VALUE", std::string(100, 'A')}, {"LAST", "0 MM/TICK"}}}}};
+    FrameTimes times;
+    for (std::size_t i = 0; i < FrameTimes::capacity; ++i)
+        times.record(0.01);
+    const auto viewport = runtime.camera.viewport;
+    const auto area = kinetra_lab::inspector_area(menu, viewport, true);
+    const auto box = view.bounds(snapshot, area);
+    const float scale = kinetra_lab::inspector_graph_scale(menu, viewport);
+    REQUIRE(scale < 1);
+    REQUIRE(box.min.x >= area.min.x);
+    runtime.begin({0, 0, 0});
+    menu.draw(runtime, entries);
+    kinetra_lab::draw_inspector(runtime, menu, &view, &snapshot, &times);
+    runtime.end();
+    const float green_y = box.max.y + 12 + (FrameTimeGraph::height - 4) * scale;
+    const int row = static_cast<int>(viewport.y - 1 - green_y);
+    bool green_bar = false;
+    for (const auto buffer : {GL_FRONT, GL_BACK}) {
+        std::array<unsigned char, 4> pixel{};
+        glReadBuffer(buffer);
+        glReadPixels(295, row, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
+        green_bar = green_bar || (pixel[0] < 120 && pixel[1] > 180 && pixel[2] < 140);
+    }
+    CHECK(green_bar);
+    Input click;
+    click.clicked = true;
+    click.mouse = menu.screen_origin + Vec2{16, DebugMenu::row_top(0) + 8} * DebugMenu::scale(viewport);
+    CHECK_FALSE(view.update(click, snapshot, area).captured);
+    CHECK(menu.update(click, viewport, entries));
+    CHECK_FALSE(running);
+    click.mouse = {box.max.x - 12, box.min.y + 12};
+    CHECK(view.update(click, snapshot, area).close);
 }
 
 TEST_CASE("the session renders its overlays and handles input and catalog recovery") {

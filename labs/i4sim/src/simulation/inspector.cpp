@@ -56,7 +56,7 @@ kinetra::InspectorSnapshot inspect_mover(const Simulation &simulation, std::size
     } else {
         passing.rows.push_back({"PLAN", "NONE"});
     }
-    return {mover.definition.id,
+    return {"MOVER " + std::to_string(index) + " / " + mover.definition.id,
             {{"STATE",
               {{"LIFECYCLE", lifecycle_name(mover.lifecycle)},
                {"COORDINATION", mover.coordination.corridor_retreating ? "CORRIDOR RETREAT"
