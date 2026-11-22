@@ -32,6 +32,9 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Windows zip on a desktop** · release · added 2026-11-21
   The release workflow is merged; its done-criterion is the user's: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on Windows without installing anything.
   Next step: the user's desktop check. Where: [Windows release zip](design/2026-11-21-windows-release-zip.md).
+- **Smooth-wheel zoom on a desktop** · demo, dotio, i4sim, with Kinetra · added 2026-11-22
+  Kinetra's runtime now reads `wheel.preciseY` ([Kinetra #30](https://github.com/SMB-M87/Kinetra/pull/30)), so a touchpad or smooth wheel zooms Demo, Dotio and i4sim in fractional steps instead of whole notches; a notched wheel zooms as before. Software rendering cannot judge the feel. Kinetra also asks for one run of its `graphics` workflow under WSL2, to confirm the cause of its old mouse-input failure.
+  Next step: the user's playtest with a touchpad and with a notched wheel. Where: [graphics tests in CI, open points](design/2026-11-22-graphics-tests-in-ci.md#open-points).
 - **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
   A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. A setup script in the cloud environment would install them once per container.
   Next step: the agent proposes the script with the first code task, *i4sim session fixes*; the user approves it in the environment's prompt (agreed on 2026-11-22).
@@ -42,11 +45,8 @@ The user's checks come first: each is short and unblocks the items after it. The
   Decided on 2026-11-22: `draw_help`, `toggle_help` and `PresentationOptions::help`, reachable only from tests, go with their tests; the help lines stay in the settings panel, so nothing changes on screen.
   Next step: branch `refactor/demo-help-overlay`. Where: [Demo open points](../labs/demo/README.md#open-points).
 - **Golden tests on every toolchain** · tests · added 2026-11-21
-  Four Demo crowd characterization cases and i4sim's RVO golden case hold only for CI's pinned Arch toolchain. They fail with Ubuntu's GCC 13, the compiler of cloud sessions, and are skipped on Windows; so the local Full level fails there although nothing changed, and *Linux beyond Arch* cannot start. Choose between a tolerance, observable totals instead of trajectory fingerprints, and a fingerprint per toolchain.
+  Four Demo crowd characterization cases and i4sim's RVO golden case hold only for CI's pinned Arch toolchain. They fail with Ubuntu's GCC 13, the compiler of cloud sessions, and are skipped on Windows; so a local run of those suites fails there although nothing changed, and *Linux beyond Arch* cannot start. Choose between a tolerance, observable totals instead of trajectory fingerprints, and a fingerprint per toolchain.
   Next step: record which values differ on GCC 13, and by how much. Where: [Demo restructuring, open points](design/2026-11-21-demo-restructuring.md#open-points), [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
-- **Graphics tests in CI** · tests, CI, with Kinetra · added 2026-11-21
-  CI compiles Lab's graphics tests and smoke runs but does not run them. The `graphics` preset already renders with SDL's offscreen driver and software Mesa, as the capture tool does, and needs no GPU. Running it in CI checks presentation, launcher and overlay changes on every pull request: the inspector overlay below needs that, and so do agents in cloud sessions without a display.
-  Next step: run `cmake --workflow --preset graphics` in CI's Arch image, together with Kinetra's item of the same name.
 - **Agent inspector overlay** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
   Click an agent to see its details in an overlay: motion profile and parameters, goal and route, state, speed and forces, and in i4sim its passing plan and waiting time. The rows are headless logic, tested without a window like the debug menu's rows, and a command-line option can print the same rows per tick, so a test or an agent sees what the user sees. i4sim and Demo already select an agent (`FactoryController::selected_mover`, `Scene::selected_agent`); Dotio does not yet.
   Next step: a design session; then a stack of Kinetra's overlay, i4sim, Demo and Dotio. Where: Kinetra item of the same name.

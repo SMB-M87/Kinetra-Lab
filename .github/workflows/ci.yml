@@ -7,7 +7,9 @@
 # the current Arch packages and says so in a warning (Kinetra's testing.md).
 # Bump ARCH_SNAPSHOT and the image tag together, in both repositories. Lab
 # warnings are reported but not errors until each module's roadmap phase makes it
-# warning-free. Graphics tests are compiled, not run (no GPU).
+# warning-free. The `ci` test preset runs every test, the graphics cases and the smoke
+# runs of every executable included, with SDL's offscreen driver and software Mesa: an
+# OpenGL context without a GPU or display, the backend of the local `graphics` preset.
 # The workflow name "CI" and job id "checks" are required status checks on main.
 #
 # The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
@@ -125,7 +127,7 @@ jobs:
       - name: Headless build and test (application logic without SDL2/OpenGL)
         run: cmake --workflow --preset headless
 
-      - name: Full build and test (applications, graphics tests compiled, engine warnings as errors)
+      - name: Full build and test (applications, engine warnings as errors, graphics tests and smoke runs with software OpenGL)
         run: cmake --workflow --preset ci
 
   windows:

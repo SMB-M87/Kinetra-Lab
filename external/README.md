@@ -54,15 +54,12 @@ The submodule fetches over HTTPS. To push engine branches with an SSH key, let G
 git config --global url."git@github.com:".pushInsteadOf "https://github.com/"
 ```
 
-Edit `external/Kinetra`, then test the engine on its own and Lab against the same sources. `./build.sh` runs both (`build-core/` and `build/`); the Lab presets give the [verification level](../AGENTS.md#verification-in-lab) that the change needs:
+Edit `external/Kinetra`, then build and test the changed areas, in the engine and in Lab against the same sources, at the targeted level: Lab's table in [verification in Lab](../AGENTS.md#verification-in-lab), Kinetra's in [choosing targeted tests](Kinetra/docs/testing.md#choosing-targeted-tests). The Full level is the pull requests' CI, graphics cases included; run `ci`, `headless`, `graphics` or `windows` locally only to reproduce a CI failure.
 
 ```sh
-./build.sh
-cmake --workflow --preset headless
-cmake --workflow --preset ci
+cmake --build --preset dev --target <targets>
+ctest --preset dev -R '<regex>'
 ```
-
-For runtime changes, also run Kinetra's [graphics execution](Kinetra/docs/development.md#graphics-execution) and Lab's `cmake --workflow --preset graphics` ([tests and resources](../README.md#tests-and-resources)).
 
 Commit the engine change in Kinetra, push its branch and open the Kinetra pull request:
 

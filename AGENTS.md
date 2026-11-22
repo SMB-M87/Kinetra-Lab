@@ -62,7 +62,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | --- | --- |
 | Docs | `python3 external/Kinetra/tools/check_docs.py` |
 | Targeted | `cmake --build --preset dev --target <targets>` and `ctest --preset dev -R '<regex>'`, using the table below (configure once with `cmake --preset dev`) |
-| Full | Locally `cmake --workflow --preset graphics` and the smoke runs in the [README](README.md#tests-and-resources); then the pull request's CI (format, docs, `headless`, `ci`, native Windows). Verified only when both pass. Run `ci`, `headless` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
+| Full | Locally the targeted builds and tests of every changed area, from the table below; then the pull request's CI (format, docs, `headless`, `ci` with the graphics cases and the smoke runs of every executable on software OpenGL, native Windows). Verified only when CI passes. Run `ci`, `headless`, `graphics` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
@@ -71,8 +71,8 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | `labs/dotio/` logic (everything outside `presentation/`) | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/shared/` | `kinetra_lab_tests` | `^kinetra_lab:` |
 | `launcher/include/launcher/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
-| `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`) | `^kinetra_capture` |
-| Any `presentation/` folder, launcher loop, `main.cpp` | Full level with graphics | |
+| `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then, as quick feedback, the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`), which CI also runs | `^kinetra_capture` |
+| Any `presentation/` folder, launcher loop, `main.cpp` | Full level. Locally, build the area's `*_presentation_tests` (or `kinetra_runtime_tests`) and its executable in the `graphics` preset; running them there with `ctest --preset graphics -L graphics -R '<regex>'` is optional quick feedback, CI runs them | `<suite>_graphics\|kinetra_smoke:<name>` |
 | `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks; a pointer move whose Kinetra range is only Markdown, `docs/` or `.agents/` is the Docs level, and CI runs only the docs check for it | |
 | `tools/release/`, `.github/workflows/release.yml` | Docs level, plus the local cross build and `package_windows.sh` from the [release tool](tools/release/README.md#build-the-zip-locally); the workflow itself runs only after a merge on `main` or a tag | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level; CI's `windows` job builds natively. Only a change to the WSL cross build itself (`cmake/toolchains/`, the `windows` preset) also needs `cmake --workflow --preset windows` from WSL, which CI does not run ([Windows](docs/windows.md)) | |

@@ -91,7 +91,7 @@
     },
     {
       "name": "ci",
-      "displayName": "CI: Release, everything compiled, engine warnings as errors, Lab warnings reported",
+      "displayName": "CI: Release, engine warnings as errors, Lab warnings reported, every test including graphics (offscreen SDL, software Mesa)",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -200,8 +200,8 @@
       "inherits": "base"
     },
     {
-      "name": "graphics",
-      "configurePreset": "graphics",
+      "name": "software-gl",
+      "hidden": true,
       "inherits": "base",
       "environment": {
         "SDL_VIDEODRIVER": "offscreen",
@@ -209,9 +209,14 @@
       }
     },
     {
+      "name": "graphics",
+      "configurePreset": "graphics",
+      "inherits": "software-gl"
+    },
+    {
       "name": "ci",
       "configurePreset": "ci",
-      "inherits": "no-graphics"
+      "inherits": "software-gl"
     },
     {
       "name": "windows",
