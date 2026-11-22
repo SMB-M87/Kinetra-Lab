@@ -30,7 +30,54 @@ env:
   ARCH_SNAPSHOT: "2026/11/17"
 
 jobs:
+  # Decides whether this pull request only moves the Kinetra pointer to Kinetra changes in
+  # Markdown, docs or skills. Then the build and test jobs below are skipped (a skipped
+  # job counts as passed for the required "checks" status) and only the docs check runs
+  # here. Any doubt, such as a failed Kinetra fetch, means a full run.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_build: ${{ steps.decide.outputs.skip_build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether build and tests are needed
+        id: decide
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          skip=false
+          git cat-file -e "$HEAD" 2>/dev/null || git fetch -q origin "$HEAD" || true
+          if mb=$(git merge-base "$BASE" "$HEAD" 2>/dev/null); then
+            files=$(git diff --name-only "$mb" "$HEAD")
+            printf 'Changed in this pull request:\n%s\n' "$files"
+            if [ "$files" = "external/Kinetra" ]; then
+              old=$(git rev-parse "$mb:external/Kinetra")
+              new=$(git rev-parse "$HEAD:external/Kinetra")
+              if git clone -q --filter=blob:none --no-checkout https://github.com/SMB-M87/Kinetra.git "$RUNNER_TEMP/kinetra" \
+                && kfiles=$(git -C "$RUNNER_TEMP/kinetra" diff --name-only "$old" "$new"); then
+                printf 'Kinetra %s..%s changed:\n%s\n' "$old" "$new" "${kfiles:-(nothing)}"
+                if ! printf '%s\n' "$kfiles" | grep -v -E '(\.md$|^docs/|^\.agents/)' | grep -q .; then
+                  skip=true
+                fi
+              fi
+            fi
+          fi
+          echo "skip_build=$skip"
+          echo "skip_build=$skip" >> "$GITHUB_OUTPUT"
+
+      - name: Documentation links (pointer-only pull request)
+        if: steps.decide.outputs.skip_build == 'true'
+        run: |
+          git submodule update --init --recursive
+          python3 external/Kinetra/tools/check_docs.py
+
   checks:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.skip_build != 'true' }}
     runs-on: ubuntu-latest
     container: archlinux:base-devel-20261108.0.623074
     steps:
@@ -70,6 +117,8 @@ jobs:
         run: cmake --workflow --preset ci
 
   windows:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.skip_build != 'true' }}
     runs-on: windows-latest
     defaults:
       run:
