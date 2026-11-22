@@ -71,8 +71,17 @@ jobs:
     steps:
       - name: Install pinned toolchain and the MinGW-w64 cross compiler
         run: |
+          # As in ci.yml: when the Arch Linux Archive does not answer, the image's own mirrors
+          # serve the current packages instead; such a zip is not built with the pinned
+          # toolchain, so the run says so in a warning, and the versions below show what it got.
+          packages="git cmake ninja ccache mingw-w64-gcc"
+          cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.image
           echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
-          pacman -Syyuu --noconfirm --needed git cmake ninja ccache mingw-w64-gcc
+          if ! pacman -Syyuu --noconfirm --needed $packages; then
+            echo "::warning title=Toolchain not pinned::The Arch Linux Archive did not answer, so this zip is built with the current Arch packages instead of snapshot ${ARCH_SNAPSHOT}."
+            cp /etc/pacman.d/mirrorlist.image /etc/pacman.d/mirrorlist
+            pacman -Syyuu --noconfirm --needed $packages
+          fi
           x86_64-w64-mingw32-g++ --version | head -1; cmake --version | head -1
 
       - uses: actions/checkout@v7

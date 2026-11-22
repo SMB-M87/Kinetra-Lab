@@ -52,7 +52,7 @@ flowchart LR
 
 *Takeaway:* the zip is built from exactly the merged commit, unless nothing that goes into it changed since the last build; tests are not repeated, because the pull request's CI already ran them, natively on Windows included.
 
-- The build uses the pinned Arch image and snapshot of [ci.yml](../../.github/workflows/ci.yml); bump them together.
+- The build uses the pinned Arch image and snapshot of [ci.yml](../../.github/workflows/ci.yml); bump them together. As there, when the Arch Linux Archive does not answer, the image's own mirrors serve the current packages and the run warns *Toolchain not pinned*; the DLL import check still guards the zip.
 - Only the four application targets are built. The doctest discovery of the test executables would need to run `.exe` files on Linux.
 - A push to `main` builds only when the zip can differ from the one `main-build` holds. The `changes` job runs `needs_build.sh` from the commit of the `main-build` tag to the pushed commit: it skips the build only when every changed path is Markdown, `docs/` or `.agents/`, in Lab and in the Kinetra range of a moved pointer (the filter of [ci.yml](../../.github/workflows/ci.yml)'s `changes` job; change both together). A rename counts with its old path, so a source moved into `docs/` builds. Any doubt builds: no tag, a commit that is not an ancestor, a failed diff or Kinetra clone, or a failed `changes` job. The run then shows the notice *Release not rebuilt*.
 - When it builds, `main-build` is deleted and created again, so its tag points at the commit the zip came from and its download URL never changes. A skipped push leaves it on that commit, whose zip is the same apart from the commit in `README.txt`.
