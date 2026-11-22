@@ -59,6 +59,15 @@ if(KINETRA_BUILD_RUNTIME)
     target_link_libraries(kinetra_i4sim_presentation PUBLIC kinetra_i4sim_logic kinetra_lab Kinetra::Launcher)
     target_compile_definitions(kinetra_i4sim PRIVATE I4SIM_RUNTIME)
     target_link_libraries(kinetra_i4sim PRIVATE kinetra_i4sim_presentation)
+    # The blueprint screen, and a loaded factory that runs and draws its movers.
+    kinetra_lab_add_smoke(i4sim kinetra_i4sim)
+    kinetra_lab_add_smoke(i4sim-run kinetra_i4sim
+        --blueprint ${CMAKE_CURRENT_SOURCE_DIR}/blueprints/3840x2400.json --run --ups 200)
+    # A blueprint that fails to load leaves the session on the blueprint screen and still
+    # exits with 0; report_error's "i4sim: " line on stderr is the sign of it.
+    if(TEST kinetra_smoke:i4sim-run)
+        set_tests_properties(kinetra_smoke:i4sim-run PROPERTIES FAIL_REGULAR_EXPRESSION "i4sim: ")
+    endif()
 endif()
 if(BUILD_TESTING)
     # The i4sim test helpers (recorder, event counts, showcase files) in tests/include.
