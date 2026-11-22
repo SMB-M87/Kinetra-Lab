@@ -20,16 +20,14 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Linux beyond Arch, with golden tests on every toolchain** · build, docs, CI, tests, with Kinetra · added 2026-11-21
-  The trajectory fingerprints held only on CI's Arch toolchain because glibc before 2.41 rounds `atan2f` and `asinf` differently, not because of GCC 13 (measured on 2026-11-22). Kinetra's new `atan2` and `asin` round the same on every C library; Lab uses them, runs its fingerprints on Windows again if they hold there, gets an Ubuntu LTS job in CI next to the pinned Arch job (the reference for warnings and formatting), and documents dependencies per distribution family (Fedora documented, not tested).
-  Where: [design](design/2026-11-22-linux-beyond-arch.md), branch `ccr-915142f6-86mj8n`, after Kinetra [#32](https://github.com/SMB-M87/Kinetra/pull/32) and [#33](https://github.com/SMB-M87/Kinetra/pull/33).
+Nothing in progress.
 
 ## Next
 
 The user's checks come first: each is short and unblocks the items after it. The agent's work follows, in the order settled on 2026-11-22.
 
 - **Dotio playtest and phase 6's decisions** · dotio · added 2026-11-21
-  Phase 6 ends with a playtest by the user and a review of what the agent decided alone: route planning on Kinetra's `WeightedGrid` instead of `Navigation`; Kinetra's new `search`, which picks a shelter on route cost only, so an enemy may choose a slightly different place than before; whole routes without the old 50-cell cap; four random streams from the world seed, with `--seed` on `kinetra_dotio`; the golden fingerprint skipped on Windows; and refreshed Dotio captures without a new tour video. Recovery is too rare in the benchmark to compare shelter searches, so the playtest should watch it.
+  Phase 6 ends with a playtest by the user and a review of what the agent decided alone: route planning on Kinetra's `WeightedGrid` instead of `Navigation`; Kinetra's new `search`, which picks a shelter on route cost only, so an enemy may choose a slightly different place than before; whole routes without the old 50-cell cap; four random streams from the world seed, with `--seed` on `kinetra_dotio`; and refreshed Dotio captures without a new tour video. Recovery is too rare in the benchmark to compare shelter searches, so the playtest should watch it.
   Next step: the user plays with the [playtest checklist](design/2026-11-21-dotio-restructuring.md#playtest-checklist), then confirms or changes the decisions (agreed on 2026-11-22: after the playtest, not before). Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
 - **Windows zip on a desktop** · release · added 2026-11-21
   The release workflow is merged; its done-criterion is the user's: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on Windows without installing anything.
@@ -67,7 +65,7 @@ The user's checks come first: each is short and unblocks the items after it. The
   Depends on: *Stall detection and remedies in i4sim*. Where: [Kinetra roadmap](../external/Kinetra/docs/roadmap.md#later), *Shared passing mechanism*.
 - **Linux release** · release · added 2026-11-21
   A download for Linux next to the Windows zip: the launcher and the three applications with `i4sim-blueprints/` and the licenses, built on an older distribution (for example Ubuntu 22.04) so that its C library runs on current ones, first as a tarball with SDL2 inside and OpenGL from the system; an AppImage can follow. The release workflow gets a second job, and the README a second link.
-  Depends on: *Linux beyond Arch*. Where: [release tool](../tools/release/README.md).
+  Unblocked by *Linux beyond Arch* (2026-11-22); it stays here until the user orders it. Where: [release tool](../tools/release/README.md).
 - **Frame pacing in WSLg** · runtime, build · added 2026-11-21
   The Linux build stutters in WSLg and the Windows build does not; the design document lists three options and recommends measuring option 1 (Wayland with frame callbacks) first. On 2026-11-22 the user kept the choice open.
   Next step: the user's choice, when they come back to it. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).

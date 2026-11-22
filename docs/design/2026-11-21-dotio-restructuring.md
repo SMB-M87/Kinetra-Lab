@@ -421,7 +421,7 @@ For the user, against the tour video's Dotio chapter (the old behavior). Play ea
 ## Open points
 
 - **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, the four random streams, the golden fingerprint (skipped on Windows), and refreshing the Dotio captures in step 7.
-- The Demo crowd characterization and i4sim RVO golden cases fail on Ubuntu's GCC 13 (locally, before and after this phase) and pass on CI's Arch toolchain. Trajectory fingerprints are compiler-sensitive; the Dotio golden fingerprint may become one too on another compiler.
+- The Demo crowd characterization and i4sim RVO golden cases failed on Ubuntu 24.04 (locally, before and after this phase) and passed on CI's Arch toolchain. Resolved on 2026-11-22: the cause was the C library's `atan2f` and `asinf`, not the compiler; Dotio's `Vec2` uses Kinetra's `atan2` and `asin` since then, and its fingerprint runs on Windows again ([Linux beyond Arch](2026-11-22-linux-beyond-arch.md)).
 - Route following passes waypoints by distance and does not cut corners that are already in sight; a raster version of Kinetra's `route_target` would make pursuers smoother (module README, open points).
 - Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly, and the playtest should look at it.
 - `<kinetra/runtime/timing.h>` (`FixedClock`, `RateCounter`) is header-only and headless but sits under `runtime/`; Demo, Dotio and i4sim logic include it. Moving it to `view/` or `simulation/` is a Kinetra include-layout change for later.
