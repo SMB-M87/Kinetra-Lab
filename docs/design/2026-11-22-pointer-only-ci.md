@@ -70,7 +70,8 @@ flowchart LR
 
 ## Review
 
-The decision script falls back to a full run on every error path, and the build jobs use `!cancelled()`, so a failed `changes` job does not skip them.
+- The decision script falls back to a full run on every error path, and the build jobs use `!cancelled()`, so a failed `changes` job does not skip them.
+- The agent review of the Kinetra rules found the ban on pointer commits wider than intended, and the squash case open. Lab's `AGENTS.md` and `external/README.md` now say what Kinetra says: only the move to the Kinetra merge commit goes in a pointer-only pull request; following a Kinetra branch during review stays a pointer commit on the Lab branch; a squash is not allowed, and if one happened, the Lab pull request's pointer moves to the squashed commit before it merges.
 
 ## Verification
 

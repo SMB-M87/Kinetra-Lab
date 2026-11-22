@@ -82,7 +82,7 @@ git commit -m "<type>(<scope>): <summary>"
 git push -u origin <type>/<topic>
 ```
 
-The Lab pull request merges with the pointer at the Kinetra branch commit it was verified with, after the Kinetra pull request merged. Right after, [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main) in a separate pointer-only pull request, so Lab `main` records a commit on Kinetra `main` again ([rule](../AGENTS.md#git-with-the-engine-submodule)). The branch commit stays reachable after a merge-commit merge, but it is not the tip of `main`, so until then a submodule on `main` shows as modified. Never push the pointer move onto the reviewed Lab pull request: its CI would run again. The same steps move the pointer to a squashed commit when the Kinetra pull request was squashed.
+The Lab pull request merges with the pointer at the Kinetra branch commit it was verified with, after the Kinetra pull request merged. Right after, [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main) in a separate pointer-only pull request, so Lab `main` records a commit on Kinetra `main` again ([rule](../AGENTS.md#git-with-the-engine-submodule)). The branch commit stays reachable after a merge-commit merge, but it is not the tip of `main`, so until then a submodule on `main` shows as modified. Never push that move onto the reviewed Lab pull request: its CI would run again. While the Kinetra pull request is still in review and its branch moves, the Lab branch does follow it with a pointer commit. A Kinetra squash is not allowed; if one happened anyway, its branch commit can become unreachable, so the Lab pull request's own pointer moves to the squashed commit before it merges, and its CI runs again.
 
 ## Change Kinetra in a standalone checkout
 
