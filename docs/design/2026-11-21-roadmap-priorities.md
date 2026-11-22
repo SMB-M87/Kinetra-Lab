@@ -97,6 +97,7 @@ Documentation, the CI install step, and a pointer to a Kinetra commit without en
 - `python3 external/Kinetra/tools/check_docs.py` in Lab: all links resolve.
 - `python3 tools/check_docs.py` in `external/Kinetra` on `docs/stacked-pull-requests` and on `docs/roadmap-priorities`: all links resolve.
 - `ci.yml` parses as YAML and its install step as `sh` (`sh -n`); the fallback itself is verified by this pull request's CI, because the agent's session cannot reach any Arch host.
+- #65 merged with the pointer at Kinetra 3ac0c81, the top of the stack. A follow-up pointer pull request records c03a36d, the merge commit of Kinetra #21 on Kinetra `main`; `git -C external/Kinetra diff --stat 3ac0c81 c03a36d` is empty, so this verification stands.
 
 ## Pull request
 
