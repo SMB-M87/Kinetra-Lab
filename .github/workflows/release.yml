@@ -2,9 +2,13 @@
 # i4sim blueprints, licenses) as a GitHub Release asset, so trying Kinetra-Lab
 # needs no compiler. See tools/release/README.md.
 #
-# - Every push to main refreshes the pre-release "main-build"; its zip has a
-#   fixed download URL that the README links to.
-# - A tag v* publishes a release of its own with the same zip.
+# - A push to main refreshes the pre-release "main-build"; its zip has a fixed
+#   download URL that the README links to. The "changes" job skips the build when
+#   nothing that goes into the zip changed since the commit main-build was built
+#   from (only Markdown, docs/ or .agents/, in Lab and in a moved Kinetra range;
+#   tools/release/needs_build.sh). main-build then stays on that commit.
+# - A tag v* publishes a release of its own with the same zip, always built.
+# - workflow_dispatch always builds; on main it also refreshes main-build.
 #
 # The zip comes from the MinGW-w64 cross build (the "windows" preset), on the
 # same pinned Arch toolchain as ci.yml: it links the GCC runtime statically and
@@ -31,7 +35,37 @@ env:
   PACKAGE: Kinetra-Lab-windows-x64
 
 jobs:
+  # Only for a push to main: compares HEAD with the commit of the main-build tag. Any doubt
+  # (no tag, a failed decision) builds, because package runs unless this job succeeded and
+  # said "false".
+  changes:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether the zip can have changed since main-build
+        id: decide
+        run: |
+          if base=$(git rev-parse -q --verify 'refs/tags/main-build^{commit}'); then
+            build=$(tools/release/needs_build.sh "$base" "$GITHUB_SHA")
+          else
+            echo "No main-build tag; the zip is built."
+            build=true
+          fi
+          if [ "$build" = false ]; then
+            echo "::notice title=Release not rebuilt::Only Markdown, docs/ or .agents/ changed since ${base::7}; main-build keeps the zip built from that commit."
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   package:
+    needs: changes
+    # changes is skipped for a tag or workflow_dispatch; that, or a failed decision, builds.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.build != 'false') }}
     runs-on: ubuntu-latest
     container: archlinux:base-devel-20261108.0.623074
     steps:
@@ -75,6 +109,8 @@ jobs:
 
   publish:
     needs: package
+    # Explicit: the default success() also looks at changes, which is skipped for a tag.
+    if: ${{ !cancelled() && needs.package.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,4 +140,4 @@ jobs:
             --prerelease \
             --target "${GITHUB_SHA}" \
             --title "Kinetra-Lab main build" \
-            --notes "Windows build of main at ${GITHUB_SHA::7}, refreshed on every merge. Unzip and start kinetra.exe; see README.txt in the zip. For a fixed version, use a release tagged v*."
+            --notes "Windows build of main at ${GITHUB_SHA::7}, refreshed on every merge that can change the zip. Unzip and start kinetra.exe; see README.txt in the zip. For a fixed version, use a release tagged v*."
