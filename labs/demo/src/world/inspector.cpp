@@ -31,11 +31,14 @@ std::optional<kinetra::InspectorSnapshot> inspect_agent(const Scene &scene, kine
     for (const auto point : agent->route())
         route.rows.push_back({std::to_string(++i), inspector_vector(point, " UNIT")});
     constexpr int id_precision = std::numeric_limits<float>::max_digits10;
+    const auto selector =
+        inspector_number(home.x, id_precision) + "," + inspector_number(home.y, id_precision);
     return kinetra::InspectorSnapshot{
-        "AGENT " + inspector_number(home.x, id_precision) + "," + inspector_number(home.y, id_precision),
+        "AGENT " + selector,
         {{"STATE",
           {{"ACTIVITY", !agent->active() ? "DORMANT" : (agent->wandering() ? "WANDERING" : "COMMANDED")},
-           {"HOME", inspector_vector(home, " UNIT")}}},
+           {"HOME", inspector_vector(home, " UNIT")},
+           {"CLI SELECTOR", selector}}},
          {"MOTION",
           {{"PROFILE", scene.reciprocal_avoidance() ? "RECIPROCAL" : "LEGACY"},
            {"WANDER MODE", wander.mode == WanderMode::steering ? "STEERING" : "ROUTE"},

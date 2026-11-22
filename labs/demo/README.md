@@ -59,7 +59,7 @@ The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuni
 
 The camera follows the player by default. Ghost moves only the camera; clicking teleports the player and clears momentum/routes after validating destination clearance. No swept teleport path is required. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
 
-For a fixed-seed run without opening a window, use `kinetra_demo --seed N --ticks N --inspect X,Y` with the home coordinates from the inspector title. Standard output holds one JSON record per 120 Hz tick. The `groups` field is null when that agent is absent.
+For a fixed-seed run without opening a window, use `kinetra_demo --seed N --ticks N --inspect X,Y` with the exact coordinates shown in the inspector’s CLI SELECTOR row. Standard output holds one JSON record per 120 Hz tick. The `groups` field is null when that agent is absent.
 
 ## Concepts
 
