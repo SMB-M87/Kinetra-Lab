@@ -239,7 +239,7 @@ Commanded travel always plans a route, because its goal can lie behind obstacles
 - **A new tunable value.** Add it to `MotionTuning` or `WanderTuning` with a default equal to today's literal, and check it in `validate`. Give it a `tuning_step` and a row in `DebugPanel`, and have `prepare_tick` or `Agent` read it. Test the default and the limits in `application_tests.cpp`; the characterization lines must stay unchanged.
 - **A new debug layer.** Add a flag to `DebugLayers` and a color to `layer_color`, a row in `DebugPanel::add_layer_entries`, and the drawing in `render`. `debug_panel_tests.cpp` checks the rows.
 - **A test with exact geometry.** Build a `Scene`, then `arrange` the movers, the player and the obstacles, rather than relying on seeded terrain; `terrain_tests.cpp` has examples.
-- **A deliberate behavior change.** The crowd characterization lines will change. Print the new lines with `KINETRA_PRINT_GOLDEN=1` on the CI toolchain (the recorded lines depend on the compiler and its math library), copy them into `crowd_characterization_tests.cpp`, and explain the change in the commit message.
+- **A deliberate behavior change.** The crowd characterization lines will change. Print the new lines with `KINETRA_PRINT_GOLDEN=1`, copy them into `crowd_characterization_tests.cpp`, and explain the change in the commit message.
 - **Pitfalls.** Changing the order of floating-point operations in `update` or `stream` changes the characterization lines even when the change looks equivalent. Streaming renumbers bodies, so a reference from `world()` or `moving_body()` is only valid until the next `stream`.
 
 ## Tests
@@ -265,7 +265,7 @@ ctest --test-dir build-release -R '^kinetra_demo' -LE soak
 
 `-LE soak` skips the five 60-second crowd runs; with CMake 3.28 it works with `--test-dir` but not with `--preset`. In the Debug `dev` preset the soak cases take minutes. One case runs on its own through CTest (`-R 'kinetra_demo_terrain:a ghost camera'`) or the executable (`./build-release/kinetra_demo_terrain_tests --test-case='a ghost camera*'`).
 
-The characterization lines are recorded with CI's pinned Arch Linux toolchain; another compiler or math library produces other lines, which is why the `windows` presets exclude these cases. To prove locally that a refactor keeps behavior, compare the lines a branch prints with those `main` prints on the same machine.
+The characterization lines hold on CI's pinned Arch toolchain, on Ubuntu LTS and on Windows. They hash exact trajectories, so the logic computes angles with `kinetra::atan2` and `kinetra::asin`, which round the same on every C library, never with `std::atan2` or `std::asin` on floats ([design](../../docs/design/2026-11-22-linux-beyond-arch.md#problem)). If a line differs on one platform only, look for such a call first.
 
 For `kinetra_demo_graphics`, use the `graphics` preset ([tests and resources](../../README.md#tests-and-resources)): `cmake --workflow --preset graphics` builds everything and runs every suite with a software OpenGL context.
 
