@@ -383,6 +383,7 @@ Pitfalls:
 | `kinetra_i4sim_golden`, `kinetra_i4sim_pressure` | Ten seeded runs and ten passing cases under pressure (five scenarios, two profiles), each pinned to one recorded line; the pressure cases also require no contact and every mover arrived | Exact floating point |
 | `kinetra_i4sim_controller` | Loading, keys, pointer, camera, modal pause and the debug-menu entries | Nothing |
 | `kinetra_i4sim_graphics` | The session as a whole: blueprint screen, panels, rendered overlays, catalog recovery, showcase scenes | An OpenGL context |
+| `kinetra_smoke:i4sim`, `kinetra_smoke:i4sim-run` | `kinetra_i4sim --frames 120` on the blueprint screen, and with `3840x2400.json` running, starts, draws and exits with 0; the running one also fails when its blueprint does not load | An OpenGL context |
 | `kinetra_i4sim_relocation` | The catalog is found beside a relocated executable | Nothing |
 
 ```sh

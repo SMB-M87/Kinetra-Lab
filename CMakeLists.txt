@@ -20,6 +20,16 @@ add_subdirectory("${KINETRA_SOURCE_DIR}" kinetra-core)
 set(BUILD_TESTING ${lab_testing})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+# Registers a bounded run of a graphical executable, `<target> <args> --frames 120`, as the
+# CTest entry `kinetra_smoke:<name>` with the label `graphics`. It passes when the program
+# starts, draws 120 frames and exits with 0, so the graphics preset and CI start every
+# executable once. A no-op unless graphics tests are on.
+function(kinetra_lab_add_smoke name target)
+    if(BUILD_TESTING AND KINETRA_LAB_BUILD_RUNTIME AND KINETRA_TEST_GRAPHICS)
+        add_test(NAME kinetra_smoke:${name} COMMAND $<TARGET_FILE:${target}> ${ARGN} --frames 120)
+        set_tests_properties(kinetra_smoke:${name} PROPERTIES LABELS "graphics;unit" TIMEOUT 120)
+    endif()
+endfunction()
 # Application CMake uses this local switch for its existing presentation targets.
 set(KINETRA_BUILD_RUNTIME ${KINETRA_LAB_BUILD_RUNTIME})
 add_subdirectory(labs)

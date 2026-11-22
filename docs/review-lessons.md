@@ -39,6 +39,9 @@ No lessons yet.
 - **A check that runs only on a skip path must still fail a required status** · added 2026-11-22 · source: #69
   The docs check of a skipped pull request ran in a job that is not required, so its failure would have left the required, skipped job counting as passed. Let the required job run when the deciding job fails.
 
+- **Make a smoke run fail when the program falls back instead of doing what its arguments ask** · added 2026-11-22 · source: #73
+  `kinetra_smoke:i4sim-run` passed on exit code 0 whether or not its blueprint loaded, because i4sim falls back to the blueprint screen. Check the outcome the run is named for, with a failure pattern or an exit code.
+
 ## Media and tools
 
 No lessons yet.

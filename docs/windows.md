@@ -87,7 +87,7 @@ Build and test with the `windows-native` workflow. It uses the `ci` settings: Re
 cmake --workflow --preset windows-native
 ```
 
-The `windows-native` test preset skips the graphics tests, because the CI runner has no GPU. On a desktop with an OpenGL 3.3 driver, run them afterwards:
+The `windows-native` test preset skips the graphics tests and the smoke runs (label `graphics`): the Windows runner has no OpenGL 3.3 driver, and Linux CI's setup, SDL's offscreen driver with software Mesa, is not set up there. On a desktop with an OpenGL 3.3 driver, run them afterwards:
 
 ```sh
 ctest --test-dir build-windows-native --output-on-failure -L graphics
@@ -126,7 +126,7 @@ Their recorded summaries hash exact floating-point trajectories. They were recor
 
 ## Continuous integration
 
-The `windows` job in [ci.yml](../.github/workflows/ci.yml) runs on `windows-latest` with MSYS2 (UCRT64): GCC, CMake, Ninja, SDL2 and nlohmann_json from MSYS2's packages, then `cmake --workflow --preset windows-native`. That builds everything with the `ci` settings (engine warnings as errors, Lab warnings reported) and runs the non-graphics tests natively. The runner has no GPU for OpenGL 3.3, so the graphics tests are compiled only. The cross build itself is not run in CI; it uses the same compiler family.
+The `windows` job in [ci.yml](../.github/workflows/ci.yml) runs on `windows-latest` with MSYS2 (UCRT64): GCC, CMake, Ninja, SDL2 and nlohmann_json from MSYS2's packages, then `cmake --workflow --preset windows-native`. That builds everything with the `ci` settings (engine warnings as errors, Lab warnings reported) and runs the non-graphics tests natively. The runner has no OpenGL 3.3 driver and no software Mesa, so the graphics tests and smoke runs are compiled and registered but not run; Linux CI runs them. The cross build itself is not run in CI; it uses the same compiler family.
 
 ## Limits
 
