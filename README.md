@@ -137,7 +137,7 @@ ctest --test-dir build --output-on-failure
 ./build/kinetra_i4sim
 ```
 
-With the presets, `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`. CI ([ci.yml](.github/workflows/ci.yml)) checks formatting with clang-format, runs `python3 external/Kinetra/tools/check_docs.py`, then `cmake --workflow --preset headless` and `cmake --workflow --preset ci`; a second job builds and tests on Windows ([Windows](docs/windows.md#continuous-integration)). All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
+With the presets, `cmake --workflow --preset dev` configures, builds and tests a Debug build with warnings in `build-dev/`. CI ([ci.yml](.github/workflows/ci.yml)) checks formatting with clang-format, runs `python3 external/Kinetra/tools/check_docs.py`, then `cmake --workflow --preset headless` and `cmake --workflow --preset ci`, which runs the graphics tests and smoke runs too; a second job builds and tests on Windows ([Windows](docs/windows.md#continuous-integration)). All presets are described in [Kinetra development](external/Kinetra/docs/development.md#presets).
 
 `./build.sh` builds and tests both Kinetra and Lab. When the MinGW-w64 cross compiler, Ninja and ccache are installed, it also builds the Windows executables in `build-windows/` without running their tests ([Windows](docs/windows.md#quick-start-from-wsl)); otherwise it says it skipped them. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
@@ -149,17 +149,17 @@ Lab records one exact Kinetra commit in the `external/Kinetra` submodule. An eng
 
 ## Tests and resources
 
-`BUILD_TESTING` defaults to ON. `KINETRA_TEST_GRAPHICS=ON` adds presentation and launcher integration tests requiring a real OpenGL context; CTest labels them `graphics`. The `graphics` preset turns it on and runs CTest with SDL offscreen and software Mesa:
+`BUILD_TESTING` defaults to ON. `KINETRA_TEST_GRAPHICS=ON` adds presentation and launcher integration tests requiring a real OpenGL context, and a smoke run of every graphical executable: `kinetra_smoke:<name>` starts it with `--frames 120` and passes when it exits with 0 (`launcher`, `launcher-demo`, `launcher-dotio`, `launcher-i4sim`, `demo`, `dotio`, `i4sim`, `i4sim-run`). CTest labels them `graphics`. The `graphics` and `ci` presets turn it on and run CTest with SDL offscreen and software Mesa, so CI runs them on every pull request:
 
 ```sh
-cmake --workflow --preset graphics      # build-graphics/: everything, including graphics tests
+cmake --workflow --preset graphics      # build-graphics/: everything, including graphics tests and smoke runs
 cmake --workflow --preset headless      # build-headless/: logic and its tests, no SDL2/OpenGL
-SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ./build-graphics/kinetra --variant demo --frames 120
+ctest --preset graphics -R '^kinetra_smoke:'   # only the smoke runs
 ```
 
 Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb. Software rendering does not establish desktop feel or performance.
 
-The `headless` preset builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`, which omits the launcher and graphical executables. The `dev`, `release` and `ci` test presets skip the `graphics` label.
+The `headless` preset builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`, which omits the launcher and graphical executables. The `dev` and `release` test presets skip the `graphics` label.
 
 Every Lab test program is a [doctest](external/Kinetra/docs/testing.md#writing-a-doctest-suite) suite. CTest names every case `<suite>:<case>`, for example `kinetra_dotio:a failed escape triggers kamikaze only at exactly one health`. Select a suite or a single case with `-R`, and skip the two 60-second Demo crowd cases with `-LE soak`:
 

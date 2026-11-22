@@ -50,4 +50,5 @@ if(KINETRA_BUILD_RUNTIME)
             "-DTICKS=300" "-DEXPECTED=STATE FORCE"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
     endif()
+    kinetra_lab_add_smoke(dotio kinetra_dotio --difficulty medium --seed 42)
 endif()

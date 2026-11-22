@@ -73,6 +73,7 @@ Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README
 | --- | --- | --- |
 | `kinetra_menu` | Registration names and order, Dotio's difficulties and default, hover and keyboard selection, picking at resized viewports | Runtime build, no window |
 | `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), FRAME LIMIT, LAUNCHER and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
+| `kinetra_smoke:launcher*` | `kinetra` starts in the menu and with each `--variant`, draws 120 frames and exits with 0 | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 
 ```sh
 ctest --preset dev -R '^kinetra_menu'
