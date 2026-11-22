@@ -29,8 +29,7 @@ It is not a collision-free crowd simulation. Steering and navigation use conserv
 | WASD / arrows | Move player; move camera only in debug Ghost |
 | Q/E or Shift+Left/Right | Rotate; manual input cancels walking |
 | Click | Select agent, command selected agent, otherwise walk player |
-| Click selected agent again | Clear selection |
-| Right-click | Clear selection |
+| Inspector X | Close the inspector and clear the selection |
 | Click in Ghost | Teleport real player to free visible destination, when settings is closed |
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
@@ -58,7 +57,9 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 
 The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within limits the steering code accepts (`tuning_step` in [debug_panel.h](include/demo/debug_panel.h)); the defaults are the values the scene used as constants before. Debug Mode gates layers, gravity and Ghost; leaving it restores player following. The tuned values, the avoidance model and the time scale persist outside Debug Mode. CLICK SETS GOAL makes a click command every awake agent; switch it off for individual selection. LEGACY compares the nearest-obstacle steering with the reciprocal avoidance in the same scene. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
 
-The camera follows the player by default. Ghost moves only the camera; clicking teleports the player and clears momentum/routes after validating destination clearance. No swept teleport path is required. A yellow outline identifies the selected agent. Overlay pointer capture precedes gameplay mapping.
+The camera follows the player by default. Ghost moves only the camera; clicking teleports the player and clears momentum/routes after validating destination clearance. No swept teleport path is required. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
+
+For a fixed-seed run without opening a window, use `kinetra_demo --seed N --ticks N --inspect X,Y` with the home coordinates from the inspector title. Standard output holds one JSON record per 120 Hz tick. The `groups` field is null when that agent is absent.
 
 ## Concepts
 

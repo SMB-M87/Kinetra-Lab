@@ -15,9 +15,7 @@ FrameCommands read_commands(const kinetra::Input &input) {
     commands.camera_pan = commands.player.direction;
     commands.zoom_steps = input.wheel;
 
-    if (input.right_clicked)
-        commands.pointer = PointerCommand{PointerAction::clear_selection, input.mouse};
-    else if (input.clicked)
+    if (input.clicked)
         commands.pointer = PointerCommand{PointerAction::walk, input.mouse};
     return commands;
 }

@@ -456,7 +456,7 @@ TEST_CASE("pointer commands report walking teleport route and agent results") {
         "Teleport before reset failed");
 }
 
-TEST_CASE("a right click in ghost mode clears the selection without teleporting") {
+TEST_CASE("clicking the same agent keeps it selected and closing clears the selection in Ghost") {
     Application application(6, 42);
     Camera2D camera;
     application.advance(0, {}, camera);
@@ -469,6 +469,8 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
     input.mouse = camera.world_to_screen(scene.world().body(agent->body_id()).position);
     application.advance(0, read_commands(input), camera);
     CHECK_MESSAGE(scene.selected_agent().has_value(), "Left click did not select an agent");
+    application.advance(0, read_commands(input), camera);
+    CHECK(scene.selected_agent().has_value());
 
     const auto start = player_position(application);
     input.clicked = false;
@@ -477,9 +479,12 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
     auto commands = read_commands(input);
     commands.debug = commands.ghost = true;
     application.advance(0, commands, camera);
+    CHECK(scene.selected_agent().has_value());
+    commands.pointer = PointerCommand{PointerAction::clear_selection, input.mouse};
+    application.advance(0, commands, camera);
     CHECK_MESSAGE((!scene.selected_agent() && length(player_position(application) - start) == 0 &&
                    application.last_action() == ActionResult::none),
-                  "Right click must clear the selection without teleporting the player");
+                  "Closing the inspector must clear the selection without teleporting the player");
 }
 
 TEST_CASE("opposing held rotation cancels navigation without rotating") {

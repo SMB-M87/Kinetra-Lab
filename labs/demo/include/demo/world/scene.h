@@ -120,11 +120,11 @@ class Scene {
     bool walk_to(kinetra::Vec2 destination);
 
     /// A click at `destination`: on an awake agent (within one unit) it selects it, or
-    /// deselects it when it was selected; elsewhere it commands the selected agent there.
+    /// keeps it selected when clicked again; elsewhere it commands the selected agent there.
     /// Returns false when the click did neither, so the caller can walk the player.
     bool select_or_target(kinetra::Vec2 destination);
 
-    /// Commands every awake agent to `destination` and clears the selection.
+    /// Commands every awake agent to `destination`; the selection stays available.
     void target_agents(kinetra::Vec2 destination);
 
     /// Follow the latest player pose, including while paused or after teleportation.

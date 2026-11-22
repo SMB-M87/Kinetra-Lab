@@ -7,7 +7,7 @@ namespace demo {
 
 /// What a click asks for.
 enum class PointerAction {
-    /// Select or deselect the agent under the pointer, command the selected agent there, or
+    /// Select the agent under the pointer, command the selected agent there, or
     /// else walk the player there.
     walk,
     /// Move the player there at once; only with the ghost camera.
