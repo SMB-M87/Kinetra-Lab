@@ -8,6 +8,7 @@ Mistakes that reviews and CI found in Kinetra-Lab work and that can happen again
 - [Roadmap and decisions](#roadmap-and-decisions)
 - [Submodule and merge order](#submodule-and-merge-order)
 - [Applications](#applications)
+- [CI](#ci)
 - [Media and tools](#media-and-tools)
 
 [Documentation index](README.md) · [Agent rules](../AGENTS.md) · [Roadmap](roadmap.md)
@@ -23,12 +24,20 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Submodule and merge order
 
-- **Mark a pull request "do not merge yet" while it still needs a commit after another merges** · added 2026-11-22 · source: #65
-  #65 was to move its pointer to the Kinetra merge commit after Kinetra #21 merged, but it was merged in that same minute, before the pointer commit arrived, and #66 had to follow. State it in the description, or make the pull request a draft until the last commit is pushed, and say when it is ready.
+- **Move the pointer in a pointer-only pull request of its own, never as the last commit of a reviewed one** · added 2026-11-22 · source: #65, #67, #68
+  #65 was to move its pointer to the Kinetra merge commit after Kinetra #21 merged, but it was merged in that same minute and #66 had to follow; #67 merged before Kinetra #26 and #68 followed. A late pointer commit also runs a reviewed pull request's CI again. Since 2026-11-22 the rule is a separate pointer-only pull request, merged by the agent; a pull request that must not merge yet for another reason is still a draft until it is ready.
 
 ## Applications
 
 No lessons yet.
+
+## CI
+
+- **A path filter that lets CI skip work must list both sides of a rename** · added 2026-11-22 · source: #69
+  `git diff --name-only` detects renames by default and prints only the new path, so a source moved into `docs/` passed a docs-only filter. Use `--no-renames`, and test a rename case.
+
+- **A check that runs only on a skip path must still fail a required status** · added 2026-11-22 · source: #69
+  The docs check of a skipped pull request ran in a job that is not required, so its failure would have left the required, skipped job counting as passed. Let the required job run when the deciding job fails.
 
 ## Media and tools
 

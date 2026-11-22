@@ -82,19 +82,7 @@ git commit -m "<type>(<scope>): <summary>"
 git push -u origin <type>/<topic>
 ```
 
-Once Kinetra merges, move the pointer on the Lab branch to Kinetra's merge commit before the Lab pull request merges, so Lab `main` always records a commit on Kinetra `main` ([rule](../AGENTS.md#git-with-the-engine-submodule)). The branch commit stays reachable after a merge-commit merge, but it is not the tip of `main`, so a submodule on `main` would show as modified:
-
-```sh
-git -C external/Kinetra fetch origin
-git -C external/Kinetra switch main
-git -C external/Kinetra pull --ff-only
-git -C external/Kinetra diff --stat <recorded commit> HEAD   # empty: the verification stands
-git add external/Kinetra
-git commit -m "build(deps): record Kinetra main (<commit>)"
-git push
-```
-
-When the diff is not empty, Kinetra `main` gained other changes; verify the Lab branch again before pushing. If the Kinetra pull request was squashed, the same steps move the pointer to the squashed commit. If the Lab pull request merged first, [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main) in a small pointer pull request.
+The Lab pull request merges with the pointer at the Kinetra branch commit it was verified with, after the Kinetra pull request merged. Right after, [put the submodule on Kinetra main](#put-the-submodule-on-kinetra-main) in a separate pointer-only pull request, so Lab `main` records a commit on Kinetra `main` again ([rule](../AGENTS.md#git-with-the-engine-submodule)). The branch commit stays reachable after a merge-commit merge, but it is not the tip of `main`, so until then a submodule on `main` shows as modified. Never push that move onto the reviewed Lab pull request: its CI would run again. While the Kinetra pull request is still in review and its branch moves, the Lab branch does follow it with a pointer commit. A Kinetra squash is not allowed; if one happened anyway, its branch commit can become unreachable, so the Lab pull request's own pointer moves to the squashed commit before it merges, and its CI runs again.
 
 ## Change Kinetra in a standalone checkout
 
@@ -168,4 +156,4 @@ git commit -m "build: update Kinetra to its main"
 git push -u origin build/<topic>
 ```
 
-Open the pull request with `gh pr create`; it merges like any Lab change. In lazygit, stage `external/Kinetra` in the Lab Files panel with space, commit with `c` and push with `P`, after creating the branch in the Branches panel with `n`. Stage the pointer on purpose: a moved submodule is easy to commit by accident together with other Lab changes.
+Open the pull request with `gh pr create`. It is a pointer-only pull request: it needs no agent review, and the agent merges it once CI passes. CI runs only the docs check when Kinetra changed only Markdown, `docs/` or `.agents/` between the two pointers (`git -C external/Kinetra diff --name-only <old> <new>` shows what changed); otherwise the full CI runs. In lazygit, stage `external/Kinetra` in the Lab Files panel with space, commit with `c` and push with `P`, after creating the branch in the Branches panel with `n`. Stage the pointer on purpose: a moved submodule is easy to commit by accident together with other Lab changes.
