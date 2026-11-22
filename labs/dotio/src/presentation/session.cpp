@@ -2,6 +2,7 @@
 #include "dotio/difficulty.h"
 #include "dotio/presentation/presentation.h"
 #include "kinetra_lab/input.h"
+#include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
 #include <stdexcept>
 namespace dotio {
@@ -11,13 +12,15 @@ class DotioSession final : public Session {
     kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the application and the switch whose flags it borrows.
     kinetra::SettingsOverlay settings_{
-        kinetra_lab::settings_rows(
-            application_.statistics, application_.debug, application_.frame_times, frame_limit_.enabled,
-            {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"}, {"GHOST CLICK  TELEPORT"}),
+        kinetra_lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
+                                   frame_limit_.enabled,
+                                   {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
+                                   {"GHOST CLICK  TELEPORT", "SHIFT + RIGHT CLICK  INSPECT"}),
         &application_.debug};
     kinetra_lab::ModalPause pause_;
     /// The debug panel; the application supplies its rows.
     kinetra::DebugMenu menu_;
+    kinetra::InspectorView inspector_;
 
   public:
     DotioSession(std::uint32_t seed, dotio::Difficulty difficulty) : application_(seed, difficulty) {}
@@ -32,22 +35,47 @@ class DotioSession final : public Session {
         const auto entries =
             menu_.visible ? application_.debug_entries() : std::vector<kinetra::DebugEntry>{};
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
+        const auto *before = application_.selected_enemy();
+        const auto generation = before ? before->generation() : 0;
+        kinetra::InspectorInput examination;
+        if (!modal && !captured) {
+            if (const auto snapshot = application_.inspect_enemy())
+                examination = inspector_.update(
+                    input, *snapshot,
+                    kinetra_lab::inspector_area(menu_, camera.viewport, application_.frame_times));
+            if (examination.close)
+                application_.clear_selected_enemy();
+            else if (!examination.captured && input.right_clicked &&
+                     (input.down(kinetra::Key::shift) || input.hit(kinetra::Key::shift))) {
+                const auto simulated_player = to_world(application_.world().get_player().position);
+                const PresentedPositions presented(application_);
+                const auto offset =
+                    application_.ghost
+                        ? kinetra::Vec2{}
+                        : to_world(application_.world().get_player().position) - simulated_player;
+                application_.select_enemy(camera.screen_to_world(input.mouse) + offset);
+            }
+        }
         if (!was_ghost && application_.ghost) {
             application_.world().get_ghost().position = application_.world().get_player().position;
             application_.world().get_ghost().velocity = {};
         }
         auto commands = dotio::read_commands(modal ? kinetra::Input{} : input, camera);
-        commands.zoom_steps = application_.debug && !modal && !captured ? input.wheel : 0;
+        commands.zoom_steps =
+            application_.debug && !modal && !captured && !examination.captured ? input.wheel : 0;
         application_.paused = pause_.update(settings_.visible(), application_.paused);
-        if (captured) {
+        if (captured || examination.captured) {
             commands.shoot = false;
             commands.teleport = false;
         }
         application_.advance(elapsed, commands, camera);
+        const auto *after = application_.selected_enemy();
+        if (before != after || (after && after->generation() != generation))
+            inspector_.reset();
     }
     void render(kinetra::Runtime &runtime) override {
         frame_limit_.apply(runtime);
-        dotio::render(runtime, application_, settings_, menu_);
+        dotio::render(runtime, application_, settings_, menu_, &inspector_);
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Dotio"; }

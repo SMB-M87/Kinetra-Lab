@@ -4,6 +4,8 @@
 #include "dotio/entities/physics_object.h"
 #include "dotio/navigation/route.h"
 
+#include <cstdint>
+
 namespace dotio {
 class World;
 
@@ -32,6 +34,8 @@ class Enemy final : public PhysicsObject {
     PursueState pursue_;
     RecoverState recover_;
     KamikazeState kamikaze_;
+    std::uint64_t generation_{};
+    dotio::math::Vec2 steering_{};
 
     void player_bumped_into_enemy();
     void spatial_partitioning(const float delta);
@@ -75,6 +79,10 @@ class Enemy final : public PhysicsObject {
                    float direction, float fear);
 
     ~Enemy() override = default;
+    /// Lifetime counter for this pool slot. reset() begins a new lifetime.
+    std::uint64_t generation() const { return generation_; }
+    /// Velocity change applied by the AI state during the latest update, in legacy pixels/update.
+    dotio::math::Vec2 steering() const { return steering_; }
 
     /// Movement of one update: the current state's execute(), then separation from the
     /// neighbors in its partition cells. Does nothing while frozen.

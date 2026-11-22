@@ -6,6 +6,10 @@
 #include <utility>
 #include <vector>
 
+namespace kinetra {
+class InspectorView;
+}
+
 namespace dotio {
 /// Smooth, bounded wall gradient in absolute cell coordinates; stable across rebasing.
 kinetra::Color wall_color(int absolute_row, int absolute_column);
@@ -30,7 +34,7 @@ class PresentedPositions {
 /// and, last, the settings overlay. Moving objects are drawn between their last two ticks
 /// (PresentedPositions).
 void render(kinetra::Runtime &runtime, Application &application, const kinetra::SettingsOverlay &settings,
-            const kinetra::DebugMenu &menu);
+            const kinetra::DebugMenu &menu, const kinetra::InspectorView *inspector = nullptr);
 /// State summary for DotioSession::status(): difficulty, pause, health, mana, kills and
 /// the debug and ghost modes.
 std::string status_text(Application &application);

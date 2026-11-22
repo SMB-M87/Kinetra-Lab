@@ -56,6 +56,8 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels di
 | --- | --- |
 | WASD / arrows | Move player; move only camera in Ghost |
 | Hold left click | Aim and shoot |
+| Shift+right-click | Inspect the enemy under the pointer |
+| Inspector X | Close the inspector and clear the selection |
 | Click in Ghost | Teleport real player, when settings is closed; suppress shooting |
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
@@ -66,6 +68,10 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels di
 | Settings Launcher / Exit | Return to bundled launcher / exit the application |
 
 Settings shows the help lines of SIM CONTROLS and DEBUG CONTROLS only after a click on their heading, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action.
+
+The inspector opens at the top right and follows one enemy at a time. Shift+right-click another enemy to switch. The selected enemy has a yellow outline. The inspector closes if the enemy despawns. Use the debug menu's RUNNING row to pause or resume while inspecting. The frame-time graph moves below the inspector.
+
+`kinetra_dotio --seed N --ticks N --inspect SLOT-GENERATION` runs a fixed-seed inspection without opening a window. For a title of ENEMY 0-1, pass `--inspect 0-1`. Standard output holds one JSON record per 60 Hz update, with null `groups` before that enemy spawns and after it disappears.
 
 No reset or click-navigation binding exists. F/P/R/G/Tab/C and V/Shift+V have no gameplay effects. Debug Mode gates vectors, shapes, AI labels, steering probes, active markers and paths; leaving it restores player following. Ghost has no purple player marker. Teleport checks walls, props and live enemies, then clears velocity.
 

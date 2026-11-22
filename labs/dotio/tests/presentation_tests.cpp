@@ -4,6 +4,7 @@
 // time, so they form one case. CTest labels the suite `graphics`.
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/presentation/presentation.h"
+#include "dotio/presentation/session.h"
 
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/engine.h>
@@ -28,6 +29,38 @@ kinetra::SettingsOverlay settings_for(dotio::Application &application) {
 } // namespace
 
 using namespace kinetra;
+
+TEST_CASE("Shift and right-click select a Dotio enemy while the debug menu stays usable") {
+    Runtime runtime("Dotio inspector", 1280, 800);
+    auto session = dotio::create_session(42, dotio::default_difficulty);
+    session->advance(0, {}, runtime.camera);
+    auto &application = session->application();
+    auto &enemy = application.world().get_enemies()[0];
+    enemy.reset();
+    enemy.position = application.world().get_player().position + dotio::math::Vec2{80, 0};
+    Input pick;
+    pick.mouse = runtime.camera.world_to_screen(dotio::to_world(enemy.position));
+    pick.right_clicked = true;
+    session->advance(0, pick, runtime.camera);
+    CHECK_FALSE(application.selected_enemy());
+    pick.held[std::size_t(Key::shift)] = true;
+    session->advance(0, pick, runtime.camera);
+    REQUIRE(application.selected_enemy() == &enemy);
+
+    Input debug_menu;
+    debug_menu.pressed[std::size_t(Key::shift)] = debug_menu.pressed[std::size_t(Key::control)] = true;
+    session->advance(0, debug_menu, runtime.camera);
+    Input click;
+    click.clicked = true;
+    click.mouse =
+        Vec2{8, 32} + Vec2{12, DebugMenu::row_top(1) + 8} * DebugMenu::scale(runtime.camera.viewport);
+    session->advance(0, click, runtime.camera);
+    CHECK(application.paused);
+    CHECK(application.selected_enemy() == &enemy);
+    click.mouse = {1260, 20};
+    session->advance(0, click, runtime.camera);
+    CHECK_FALSE(application.selected_enemy());
+}
 
 namespace {
 // Inspect the statistics area in both swap buffers, including offscreen SDL backends.

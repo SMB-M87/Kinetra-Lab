@@ -1690,3 +1690,26 @@ TEST_CASE("path mode still plans wander paths and steering drops them again") {
     world->update_enemies(1, false);
     CHECK_MESSAGE(enemy.path.empty(), "Steering wander kept a path from path mode");
 }
+TEST_CASE("the inspector selection expires when a live enemy is replaced in its slot") {
+    dotio::Application application(42);
+    auto &enemies = application.world().get_enemies();
+    auto &first = enemies[0];
+    auto &second = enemies[1];
+    first.reset();
+    first.position = {100, 200};
+    second.reset();
+    second.position = {200, 200};
+    application.select_enemy(dotio::to_world(first.position));
+    REQUIRE(application.selected_enemy() == &first);
+    REQUIRE(application.inspect_enemy());
+    application.select_enemy(dotio::to_world(second.position));
+    REQUIRE(application.selected_enemy() == &second);
+    second.is_active = false;
+    CHECK_FALSE(application.inspect_enemy());
+    second.reset();
+    CHECK_FALSE(application.inspect_enemy());
+    application.select_enemy(dotio::to_world(second.position));
+    CHECK(application.selected_enemy() == &second);
+    application.clear_selected_enemy();
+    CHECK_FALSE(application.inspect_enemy());
+}

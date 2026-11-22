@@ -20,10 +20,13 @@ Enemy::Enemy(World *world, dotio::math::Position start, dotio::math::Position fi
 }
 
 void Enemy::update(const float delta) {
+    steering_ = {};
     if (frozen || target == position)
         return;
 
+    const auto initial_velocity = velocity;
     state_->execute(delta);
+    steering_ = velocity - initial_velocity;
     spatial_partitioning(delta);
 }
 
@@ -287,6 +290,8 @@ void Enemy::reset_pursue() {
     countdown_ = 0;
 }
 void Enemy::reset() {
+    ++generation_;
+    steering_ = {};
     hits_remaining = world_->difficulty_settings().enemy_hits;
     fear = dotio::math::uniform(world_->behavior_random(), spawn_fear_min, spawn_fear_max);
     state_ = &wander_;

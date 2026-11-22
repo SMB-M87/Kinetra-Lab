@@ -10,6 +10,7 @@ add_library(kinetra_dotio_logic
     src/entities/physics_object.cpp
     src/entities/player.cpp
     src/entities/static_object.cpp
+    src/inspector.cpp
     src/math/cell.cpp
     src/math/vector.cpp
     src/navigation/grid.cpp
@@ -40,6 +41,6 @@ if(BUILD_TESTING AND KINETRA_BUILD_RUNTIME AND KINETRA_TEST_GRAPHICS)
 endif()
 if(KINETRA_BUILD_RUNTIME)
     add_executable(kinetra_dotio src/main.cpp)
-    target_link_libraries(kinetra_dotio PRIVATE kinetra_dotio_presentation)
+    target_link_libraries(kinetra_dotio PRIVATE kinetra_dotio_presentation nlohmann_json::nlohmann_json)
     kinetra_executable_icon(kinetra_dotio)
 endif()
