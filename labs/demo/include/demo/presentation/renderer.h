@@ -3,6 +3,7 @@
 #include "demo/application.h"
 #include "demo/debug_panel.h"
 #include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/inspector_view.h>
 #include <kinetra/runtime/settings_view.h>
 #include <span>
 #include <string>
@@ -24,6 +25,9 @@ struct FrameOverlays {
     const kinetra::SettingsOverlay *settings{};
     /// The frame-time graph.
     const kinetra::FrameTimes *frame_times{};
+    /// Inspector and its current snapshot, or null when there is no selected agent.
+    const kinetra::InspectorView *inspector{};
+    const kinetra::InspectorSnapshot *inspection{};
 };
 
 /// Present the latest scene without changing application state: the bodies between their

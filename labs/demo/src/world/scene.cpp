@@ -188,7 +188,13 @@ bool Scene::evict_distant(Aabb retained) {
             remap[i] = retained_bodies.size();
             retained_bodies.push_back(world_.body(i));
         }
-    std::erase_if(agents_, [&](const Agent &a) { return discard[a.body_id()]; });
+    std::erase_if(agents_, [&](const Agent &a) {
+        if (!discard[a.body_id()])
+            return false;
+        if (selected_agent_ && a.home().x == selected_agent_->x && a.home().y == selected_agent_->y)
+            clear_selection();
+        return true;
+    });
     for (auto &agent : agents_)
         agent.remap_body(remap[agent.body_id()]);
     player_ = remap[player_];
@@ -279,10 +285,7 @@ bool Scene::walk_to(Vec2 destination) {
 bool Scene::select_or_target(Vec2 destination) {
     for (auto &agent : agents_)
         if (agent.active() && length(world_.body(agent.body_id()).position - destination) < 1.f) {
-            if (selected_agent_ && length(*selected_agent_ - agent.home()) < 0.001f)
-                selected_agent_.reset();
-            else
-                selected_agent_ = agent.home();
+            selected_agent_ = agent.home();
             return true;
         }
     if (selected_agent_) {
@@ -297,7 +300,6 @@ bool Scene::select_or_target(Vec2 destination) {
 }
 
 void Scene::target_agents(Vec2 destination) {
-    selected_agent_.reset();
     for (auto &agent : agents_)
         agent.retarget(destination);
 }

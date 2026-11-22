@@ -3,6 +3,8 @@
 // because only one may exist at a time, so they form one case. CTest labels it `graphics`.
 #include "demo/presentation/help_overlay.h"
 #include "demo/presentation/renderer.h"
+#include "demo/presentation/session.h"
+#include "demo/zoom.h"
 
 #include <kinetra/runtime/engine.h>
 
@@ -10,9 +12,61 @@
 #include <doctest/doctest.h>
 #include <glad/glad.h>
 
+#include <algorithm>
 #include <string>
 
 using namespace kinetra;
+
+TEST_CASE("Demo inspector coexists with group goals, Ghost teleport and debug pause") {
+    Runtime runtime("Demo inspector", 1280, 800);
+    auto session = demo::create_session(6, 42);
+    auto &camera = runtime.camera;
+    camera.pixels_per_unit = demo::initial_zoom;
+    session->advance(0, {}, camera);
+    const auto &application = session->application();
+    const auto &scene = application.scene();
+    Input menu;
+    menu.pressed[std::size_t(Key::shift)] = menu.pressed[std::size_t(Key::control)] = true;
+    session->advance(0, menu, camera);
+    const auto click = [&](Vec2 point) {
+        Input input;
+        input.clicked = true;
+        input.mouse = point;
+        session->advance(0, input, camera);
+    };
+    const auto row = [&](std::string_view label) {
+        const auto rows = session->debug_rows();
+        const auto found = std::ranges::find(rows, label, &kinetra_lab::DebugRow::label);
+        REQUIRE(found != rows.end());
+        click(Vec2{8, 32} + Vec2{20, DebugMenu::row_top(std::size_t(found - rows.begin())) + 8} *
+                                DebugMenu::scale(camera.viewport));
+    };
+    const auto agents = scene.agents();
+    const auto active = std::ranges::find_if(agents, [&](const auto &agent) {
+        const auto position = camera.world_to_screen(scene.world().body(agent.body_id()).position);
+        return agent.active() && position.x > 350 && position.x < 900 && position.y > 300 && position.y < 700;
+    });
+    REQUIRE(active != agents.end());
+    click(camera.world_to_screen(scene.world().body(active->body_id()).position));
+    REQUIRE(scene.selected_agent());
+    row("AGENTS");
+    row("CLICK SETS GOAL");
+    click(camera.world_to_screen({0, 0}));
+    CHECK(application.last_action() == demo::ActionResult::agent_goals_set);
+    CHECK(scene.selected_agent());
+    row("GHOST CAMERA");
+    click(camera.world_to_screen({0, 0}));
+    REQUIRE(application.last_action() == demo::ActionResult::teleported);
+    REQUIRE(scene.selected_agent());
+    const auto player = scene.world().body(scene.player()).position;
+    row("SIMULATION");
+    row("RUNNING");
+    CHECK(application.paused());
+    click({1260, 20});
+    CHECK_FALSE(scene.selected_agent());
+    CHECK(length(scene.world().body(scene.player()).position - player) == 0);
+    CHECK(application.last_action() == demo::ActionResult::teleported);
+}
 
 TEST_CASE("help overlay routes and steering probes render at every camera zoom") {
     Runtime reopened("Demo graphics", 160, 120);

@@ -3,6 +3,9 @@
 // poses, and agents that stay around the player and clear of terrain, without a window.
 #include "demo/application.h"
 #include "demo/input/mapping.h"
+#include "demo/world/inspector.h"
+#include "demo/zoom.h"
+#include "kinetra_lab/inspector_trace.h"
 
 #include <kinetra/simulation/avoidance.h>
 #include <kinetra/simulation/steering.h>
@@ -11,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -456,7 +460,7 @@ TEST_CASE("pointer commands report walking teleport route and agent results") {
         "Teleport before reset failed");
 }
 
-TEST_CASE("a right click in ghost mode clears the selection without teleporting") {
+TEST_CASE("clicking the same agent keeps it selected and closing clears the selection in Ghost") {
     Application application(6, 42);
     Camera2D camera;
     application.advance(0, {}, camera);
@@ -469,6 +473,18 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
     input.mouse = camera.world_to_screen(scene.world().body(agent->body_id()).position);
     application.advance(0, read_commands(input), camera);
     CHECK_MESSAGE(scene.selected_agent().has_value(), "Left click did not select an agent");
+    application.advance(0, read_commands(input), camera);
+    CHECK(scene.selected_agent().has_value());
+    const auto wandering = inspect_agent(scene);
+    REQUIRE(wandering);
+    CHECK(wandering->groups.front().rows.front().value == "WANDERING");
+    auto goal_click = input;
+    goal_click.mouse = camera.world_to_screen({10000, 10000});
+    application.advance(0, read_commands(goal_click), camera);
+    const auto commanded = inspect_agent(scene);
+    REQUIRE(commanded);
+    CHECK(commanded->title == wandering->title);
+    CHECK(commanded->groups.front().rows.front().value == "COMMANDED");
 
     const auto start = player_position(application);
     input.clicked = false;
@@ -477,9 +493,51 @@ TEST_CASE("a right click in ghost mode clears the selection without teleporting"
     auto commands = read_commands(input);
     commands.debug = commands.ghost = true;
     application.advance(0, commands, camera);
+    CHECK(scene.selected_agent().has_value());
+    commands.pointer = PointerCommand{PointerAction::clear_selection, input.mouse};
+    application.advance(0, commands, camera);
     CHECK_MESSAGE((!scene.selected_agent() && length(player_position(application) - start) == 0 &&
                    application.last_action() == ActionResult::none),
-                  "Right click must clear the selection without teleporting the player");
+                  "Closing the inspector must clear the selection without teleporting the player");
+}
+
+TEST_CASE("seeded resident Demo snapshots for the inspector trace") {
+    Application application(48, 42);
+    Camera2D camera;
+    camera.pixels_per_unit = initial_zoom;
+    application.advance(0, {}, camera);
+    REQUIRE_FALSE(application.scene().agents().empty());
+    const auto home = application.scene().agents().front().home();
+    const auto initial = inspect_agent(application.scene(), home);
+    REQUIRE(initial);
+    const auto &selector = initial->groups.front().rows.back().value;
+    CHECK(initial->title == "AGENT " + selector);
+    std::cout << "TRACE_SELECTOR " << selector << '\n';
+    for (std::uint64_t tick = 1; tick <= 3; ++tick) {
+        application.advance(kinetra::FixedClock{}.step(), {}, camera);
+        const auto snapshot = inspect_agent(application.scene(), home);
+        REQUIRE(snapshot);
+        std::cout << "TRACE_RECORD ";
+        kinetra_lab::write_inspector_tick(std::cout, tick, snapshot->title, &*snapshot);
+    }
+}
+
+TEST_CASE("the Demo inspector shows a dormant agent until it is evicted") {
+    Scene scene(1, 42);
+    Camera2D camera;
+    scene.stream(camera);
+    const auto &agent = scene.agents().front();
+    const auto home = agent.home();
+    const auto body = agent.body_id();
+    const auto player = scene.world().body(scene.player()).position;
+    scene.moving_body(body).position = player + Vec2{100, 0};
+    scene.stream(camera);
+    const auto dormant = inspect_agent(scene, home);
+    REQUIRE(dormant);
+    CHECK(dormant->groups.front().rows.front().value == "DORMANT");
+    scene.moving_body(body).position = player + Vec2{200, 0};
+    scene.stream(camera);
+    CHECK_FALSE(inspect_agent(scene, home));
 }
 
 TEST_CASE("opposing held rotation cancels navigation without rotating") {

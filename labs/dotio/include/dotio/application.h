@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <kinetra/runtime/timing.h>
 #include <kinetra/view/camera.h>
+#include <kinetra/view/inspector.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -74,7 +75,7 @@ struct Commands {
 /// now sequentially on the main thread rather than racing the update/render loop.
 class Application {
     std::unique_ptr<dotio::World> world_ = std::make_unique<dotio::World>();
-    kinetra::FixedClock clock_{1.0 / 60, 8};
+    kinetra::FixedClock clock_{tick_seconds, 8};
     int tick_{};
     /// moving_positions() before and after the last tick; presentation only.
     std::vector<std::optional<dotio::math::Vec2>> before_tick_, after_tick_;
@@ -82,6 +83,12 @@ class Application {
     bool was_paused_{};
     /// Set by the SINGLE TICK row; the next advance() runs one tick of the paused world.
     bool step_requested_{};
+    /// The selected pool slot and lifetime. A respawn in the same slot expires it.
+    struct EnemySelection {
+        std::size_t slot;
+        std::uint64_t generation;
+    };
+    std::optional<EnemySelection> selected_enemy_;
 
     /// A check row for a debug layer that is drawn in one color.
     static kinetra::DebugEntry layer_row(std::string label, bool &flag, kinetra::Color color, int depth = 1) {
@@ -270,6 +277,18 @@ class Application {
         return counts;
     }
     dotio::World &world() { return *world_; }
+    /// Select the nearest live enemy under a camera-world point, preserving the current selection on a miss.
+    void select_enemy(kinetra::Vec2 point);
+    /// Close the inspector and forget the selected enemy.
+    void clear_selected_enemy() { selected_enemy_.reset(); }
+    /// The live selection, borrowed until the next simulation update, or null if it expired.
+    const Enemy *selected_enemy() const;
+    /// Read the current selection's details without advancing the simulation.
+    std::optional<kinetra::InspectorSnapshot> inspect_enemy() const;
+    /// Snapshot of a particular slot and lifetime, or empty when it is absent.
+    std::optional<kinetra::InspectorSnapshot> inspect_enemy(std::size_t slot, std::uint64_t generation) const;
+    /// Simulated seconds per update in a running world.
+    static constexpr double tick_seconds = 1.0 / 60;
     /// Reject destinations overlapping terrain, physical props or active enemies.
     bool teleport_clear(dotio::math::Position point, float radius) {
         if (!std::isfinite(point.x) || !std::isfinite(point.y) || std::abs(point.x) > 10000000 ||
