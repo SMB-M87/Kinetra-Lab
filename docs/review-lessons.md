@@ -5,6 +5,7 @@ Mistakes that reviews and CI found in Kinetra-Lab work and that can happen again
 ## Table of contents
 
 - [Format](#format)
+- [Roadmap and decisions](#roadmap-and-decisions)
 - [Submodule and merge order](#submodule-and-merge-order)
 - [Applications](#applications)
 - [Media and tools](#media-and-tools)
@@ -14,6 +15,11 @@ Mistakes that reviews and CI found in Kinetra-Lab work and that can happen again
 ## Format
 
 As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one list item per lesson, under its topic, with the date and the pull request it came from. The author adds a lesson in a commit on the pull request where it was found; a lesson that keeps coming back is proposed to the user as a rule.
+
+## Roadmap and decisions
+
+- **When a decision session closes a roadmap item, carry every question it listed into a decision or a remaining item** · added 2026-11-22 · source: #67
+  The removed item *Decide on making way and a temporary motion fallback* listed three questions; the session answered two, and the third (the departure check) dropped out of the plan until the agent review found it. Before removing such an item, tick off each of its questions against the Decisions table.
 
 ## Submodule and merge order
 
