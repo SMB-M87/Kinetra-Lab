@@ -8,6 +8,7 @@ Mistakes that reviews and CI found in Kinetra-Lab work and that can happen again
 - [Roadmap and decisions](#roadmap-and-decisions)
 - [Submodule and merge order](#submodule-and-merge-order)
 - [Applications](#applications)
+- [CI](#ci)
 - [Media and tools](#media-and-tools)
 
 [Documentation index](README.md) · [Agent rules](../AGENTS.md) · [Roadmap](roadmap.md)
@@ -29,6 +30,14 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 ## Applications
 
 No lessons yet.
+
+## CI
+
+- **A path filter that lets CI skip work must list both sides of a rename** · added 2026-11-22 · source: #69
+  `git diff --name-only` detects renames by default and prints only the new path, so a source moved into `docs/` passed a docs-only filter. Use `--no-renames`, and test a rename case.
+
+- **A check that runs only on a skip path must still fail a required status** · added 2026-11-22 · source: #69
+  The docs check of a skipped pull request ran in a job that is not required, so its failure would have left the required, skipped job counting as passed. Let the required job run when the deciding job fails.
 
 ## Media and tools
 
