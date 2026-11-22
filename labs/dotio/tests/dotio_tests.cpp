@@ -6,6 +6,7 @@
 #include "dotio/ai/fuzzy.h"
 #include "dotio/ai/wander.h"
 #include "dotio/application.h"
+#include "kinetra_lab/inspector_trace.h"
 
 // The header-only panel, to click the rows the way the session does; it needs no window.
 #include <kinetra/runtime/debug_view.h>
@@ -16,6 +17,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <numbers>
@@ -1719,4 +1721,25 @@ TEST_CASE("the inspector selection expires when a live enemy is replaced in its 
     CHECK(application.selected_enemy() == &second);
     application.clear_selected_enemy();
     CHECK_FALSE(application.inspect_enemy());
+}
+
+TEST_CASE("fixed-cadence Dotio snapshots for the inspector trace") {
+    dotio::Application application(42);
+    kinetra::Camera2D camera;
+    camera.pixels_per_unit = dotio::initial_zoom;
+    bool spawned = false;
+    for (std::uint64_t tick = 1; tick <= 300; ++tick) {
+        application.advance(dotio::Application::tick_seconds, {}, camera);
+        const auto snapshot = application.inspect_enemy(0, 1);
+        if (tick == 1)
+            CHECK_FALSE(snapshot);
+        if (snapshot) {
+            spawned = true;
+            CHECK(snapshot->title == "ENEMY 0-1");
+        }
+        CHECK_FALSE(application.inspect_enemy(0, 2));
+        std::cout << "TRACE_RECORD ";
+        kinetra_lab::write_inspector_tick(std::cout, tick, "ENEMY 0-1", snapshot ? &*snapshot : nullptr);
+    }
+    CHECK(spawned);
 }

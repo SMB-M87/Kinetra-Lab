@@ -6,7 +6,7 @@ Status: implemented · [Inspector design](2026-11-22-agent-inspector-overlay.md)
 
 Shift+right-click picks a live enemy from the displayed positions. The inspector remembers the pool slot and its generation so the selection expires when an enemy retires or a new enemy takes the slot. The panel shows the AI state, movement parameters and steering, plus its remaining route or heading where applicable. Left-click remains available for firing and Ghost teleport. Use RUNNING in the debug menu to pause during inspection.
 
-The headless trace uses the slot and generation from the inspector title to observe the same rows after each 60 Hz update.
+The headless trace uses the slot and generation from the inspector title to observe the same rows after each 60 Hz update. Its fixed viewport is 1280 × 800, it uses neutral input, and it advances one update per frame. Equivalence is tested for this cadence. A graphical frame with multiple updates credits its spawning budget before running those updates.
 
 ## Verification
 
