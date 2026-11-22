@@ -35,4 +35,11 @@ if(KINETRA_BUILD_RUNTIME)
     add_executable(kinetra_demo src/main.cpp)
     target_link_libraries(kinetra_demo PRIVATE kinetra_demo_presentation nlohmann_json::nlohmann_json)
     kinetra_executable_icon(kinetra_demo)
+    if(BUILD_TESTING)
+        add_test(NAME kinetra_demo_inspector_trace COMMAND ${CMAKE_COMMAND}
+            "-DPROGRAM=$<TARGET_FILE:kinetra_demo>"
+            "-DARGS=--seed;42;--ticks;3;--inspect;12345,67890"
+            "-DTICKS=3" "-DEXPECTED=AGENT 12345,67890"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
+    endif()
 endif()
