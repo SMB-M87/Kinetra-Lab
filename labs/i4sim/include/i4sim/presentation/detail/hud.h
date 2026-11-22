@@ -15,8 +15,8 @@ namespace i4sim {
 struct HudContent {
     /// Whether the two statistics lines at the bottom show.
     bool statistics{true};
-    /// Mover and producer to inspect, by index; an index must be inside its list.
-    std::optional<std::size_t> selected_mover, selected_producer;
+    /// Producer to inspect, by index into the producer list.
+    std::optional<std::size_t> selected_producer;
     /// One line about the scene that runs; empty for none.
     std::string_view description;
     /// A message for the operator, such as a rejected goal; empty for none.

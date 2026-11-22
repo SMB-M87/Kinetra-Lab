@@ -73,9 +73,10 @@ class FactoryController {
 
     /// Which debug layers are selected.
     const ViewLayers &layers() const { return layers_; }
-    /// The mover that is inspected, by index into Simulation::movers(). At most one of the
-    /// mover and the producer is selected.
+    /// The mover that is inspected, by index into Simulation::movers().
     std::optional<std::size_t> selected_mover() const { return selected_mover_; }
+    /// Close the inspector and forget the mover targeted by the next Shift+click.
+    void clear_selected_mover() { selected_mover_.reset(); }
     /// The producer that is inspected, by index into Simulation::producers().
     std::optional<std::size_t> selected_producer() const { return selected_producer_; }
 

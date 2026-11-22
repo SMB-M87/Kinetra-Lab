@@ -21,6 +21,12 @@ struct FlowLimits {
     std::uint64_t stuck_ticks{2000};
 };
 
+/// Whether a mover with an active goal is below the waiting speed and outside its final approach.
+inline bool waiting_for_progress(const Mover &mover, const FlowLimits &limits = {}) {
+    return mover.moving() && !mover.held && kinetra::length(mover.body.velocity) < limits.waiting_speed &&
+           kinetra::distance(mover.body.position, mover.destination) > limits.arrival_distance;
+}
+
 /// Measures traffic flow of one running simulation from its public state.
 ///
 /// Call `observe` once after every `Simulation::tick`, always with the same simulation.

@@ -2,6 +2,8 @@
 
 How Lab composes Kinetra's launcher, session requests and settings overlay into one program, and which overlay policy every Lab application shares. The mechanisms themselves (menu, `SessionHost`, `run_launcher`, `SettingsOverlay`, `DebugMenu`) are Kinetra's; their contracts are in [launcher, sessions and overlays](../external/Kinetra/docs/engine/launcher-overlays.md).
 
+The agent inspector uses the application's current selection and opens at the top right while the debug menu stays usable on the left. Wheel input over the inspector scrolls its rows. Its X clears the selection. The optional frame-time graph moves below the inspector. An open settings panel takes input priority.
+
 ## Table of contents
 
 - [Composition](#composition)

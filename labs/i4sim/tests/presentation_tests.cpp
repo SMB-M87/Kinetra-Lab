@@ -10,6 +10,7 @@
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/debug_view.h>
 #include <kinetra/runtime/launcher.h>
+#include <kinetra/runtime/overlay_style.h>
 #include <kinetra/runtime/settings_view.h>
 
 #include <SDL2/SDL.h>
@@ -66,6 +67,53 @@ constexpr unsigned plain_a_star = 6;
 constexpr unsigned corridor = 4, junction = 5, parking = 6, predictive = 7;
 } // namespace menu_row
 } // namespace
+
+TEST_CASE("the mover inspector and debug pause work together") {
+    Runtime runtime("i4sim inspector", 1280, 800);
+    auto session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
+                                         i4sim::test::showcase_blueprint("corridor-passing"));
+    session->render(runtime);
+    Input debug_menu;
+    debug_menu.pressed[std::size_t(Key::shift)] = debug_menu.pressed[std::size_t(Key::control)] = true;
+    session->advance(0, debug_menu, runtime.camera);
+    const auto click = [&](Vec2 point, bool shift = false) {
+        Input input;
+        input.clicked = true;
+        input.mouse = point;
+        input.held[std::size_t(Key::shift)] = shift;
+        session->advance(0, input, runtime.camera);
+    };
+    const auto title_visible = [&] {
+        session->render(runtime);
+        glFinish();
+        for (auto buffer : {GL_FRONT, GL_BACK}) {
+            unsigned char rgb[4]{};
+            glReadBuffer(buffer);
+            glReadPixels(1238, 779, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgb);
+            const auto title = overlay::title_color;
+            if (std::abs(float(rgb[0]) - title.r * 255) < 2 && std::abs(float(rgb[1]) - title.g * 255) < 2 &&
+                std::abs(float(rgb[2]) - title.b * 255) < 2)
+                return true;
+        }
+        return false;
+    };
+    click(runtime.camera.world_to_screen({300, -700}));
+    CHECK(title_visible());
+    click(runtime.camera.world_to_screen({1900, -700}));
+    CHECK(title_visible());
+    click(runtime.camera.world_to_screen({1300, -700}), true);
+    CHECK(title_visible());
+    const auto running =
+        Vec2{8, 32} + Vec2{12, DebugMenu::row_top(1) + 8} * DebugMenu::scale(runtime.camera.viewport);
+    click(running);
+    CHECK(session->status().ends_with("RUNNING"));
+    click(running);
+    CHECK(session->status().ends_with("PAUSED"));
+    CHECK(title_visible());
+    click({1260, 20});
+    session->render(runtime);
+    CHECK_FALSE(title_visible());
+}
 
 TEST_CASE("the session renders its overlays and handles input and catalog recovery") {
     Runtime runtime("i4sim presentation", 640, 480);

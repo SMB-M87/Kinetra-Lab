@@ -1409,6 +1409,14 @@ TEST_CASE("flow metrics count a head-on corridor standstill as waiting and stuck
     CHECK(flow.waiting_ticks() > 0);
     CHECK(flow.stuck_movers() == 2);
     CHECK(flow.stuck_now() == 2);
+    const auto &a = standstill.movers()[0], &b = standstill.movers()[1];
+    CHECK(a.total_wait_ticks + b.total_wait_ticks == flow.waiting_ticks());
+    const auto previous_total = a.total_wait_ticks;
+    CHECK(a.current_wait_ticks > 0);
+    standstill.toggle_mover(0);
+    standstill.tick();
+    CHECK(a.current_wait_ticks == 0);
+    CHECK(a.total_wait_ticks == previous_total);
 }
 
 TEST_CASE("flow metrics ignore a held mover") {

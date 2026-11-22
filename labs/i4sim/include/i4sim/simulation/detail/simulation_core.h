@@ -52,6 +52,7 @@ class SimulationCore {
     std::optional<kinetra::Aabb> corridor_exit_reservation(std::size_t index) const;
     std::size_t predictive_pairs() const { return passing_.pairs(); }
     std::optional<Vec2> passing_target(std::size_t mover) const;
+    std::optional<Simulation::PassingDetails> passing_details(std::size_t mover) const;
     /// True when `mover` has made no route progress for 120 ticks while no
     /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
     /// std::out_of_range for an unknown mover.
