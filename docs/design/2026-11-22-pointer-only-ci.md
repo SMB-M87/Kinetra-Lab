@@ -37,7 +37,9 @@ The user decided on 2026-11-22 how a Kinetra-Lab pull request that only moves th
 | When CI skips | Only `external/Kinetra` changed in the pull request, and the Kinetra range holds no file outside `*.md`, `docs/` and `.agents/` (an identical tree included) | The user's choice (see the Kinetra design) |
 | How | A `changes` job decides; `checks` and `windows` need it and run unless it says to skip; the docs check runs in `changes` for a skipped pull request | `main` requires `CI / checks`: a skipped job reports success, a workflow skipped by a path filter never reports at all |
 | Doubt | Any failure to decide (no merge base, a failed Kinetra clone or diff) means a full run; `checks` and `windows` also run when `changes` failed (`!cancelled()`) | A broken decision must never skip CI by accident |
-| Kinetra diff | A blobless clone of Kinetra in the job | The diff needs only trees; the submodule checkout fetches only one commit |
+| Kinetra diff | A blobless clone of Kinetra in the job, from the URL in `.gitmodules`, with `--no-renames` | The diff needs only trees. A rename must list its old path too, or a source moved into `docs/` or renamed to `.md` would skip the build (found by the agent review) |
+| A failed `changes` job | `checks` and `windows` run whenever `changes` did not succeed | The docs check of a skipped pull request runs in `changes`, which is not required; without this, a failing docs check would leave the required status green (found by the agent review) |
+| Pointer not on Kinetra `main` | `changes` fails with an error, and the full CI runs | Pointer-only pull requests merge without review, so CI is the only check of the rule; a failed `changes` job keeps "CI passes" from being true |
 
 ## Design
 
@@ -65,12 +67,14 @@ flowchart LR
   - #68 (base `143d509`, head `02158d3`, pointer only, Kinetra range Markdown only) gives `skip_build=true`;
   - #67 (base `9280bac`, head `d70f695`, docs and pointer) gives `skip_build=false`.
 - Its file filter: Markdown and skills only give a skip, while a `.cpp` file or `CMakeLists.txt` gives a full run, and an empty range gives a skip.
+- After the agent review, against a local Kinetra copy and a synthetic Lab repository: a docs-only range on `main` gives a skip; the same range not on `main` fails `changes` with *Pointer not on Kinetra main*; `git mv src/runtime/launcher.cpp docs/launcher.cpp` gives a full run (it skipped before `--no-renames`); a code change gives a full run; a bad URL gives a warning and a full run. #68 and #67 still give `true` and `false`.
 - This pull request's own CI: it changes more than the pointer, so `changes` decides on a full run, and `checks` and `windows` run as before.
 - The skip path itself runs on the next pointer-only pull request.
 
 ## Review
 
 - The decision script falls back to a full run on every error path, and the build jobs use `!cancelled()`, so a failed `changes` job does not skip them.
+- The agent review of this pull request (on c0f0a54, *Fix first*) found that a rename could skip the build, that a failing docs check on the skip path left the required status green, that the merge order with Kinetra #27 was missing, and that CI did not check the pointer is on Kinetra `main`. All fixed in the next commits, with two lessons.
 - The agent review of the Kinetra rules found the ban on pointer commits wider than intended, and the squash case open. Lab's `AGENTS.md` and `external/README.md` now say what Kinetra says: only the move to the Kinetra merge commit goes in a pointer-only pull request; following a Kinetra branch during review stays a pointer commit on the Lab branch; a squash is not allowed, and if one happened, the Lab pull request's pointer moves to the squashed commit before it merges.
 
 ## Verification
@@ -87,7 +91,7 @@ flowchart LR
 - **Changes:** `ci.yml` (`changes` job, conditions); `AGENTS.md` (submodule order, pointer-only rule, verification row); `external/README.md`; the lesson of #65; this document.
 - **Design:** this document; the shared rules in Kinetra's pull request of the same date.
 - **Verification:** the decision script on #68 and #67, the filter cases, YAML and `bash -n`, the docs check; this pull request's CI.
-- **Dependencies and merge order:** independent of the Kinetra pull request; both change rules or CI, so the user merges them. Afterwards a pointer-only pull request records Kinetra `main`, and is the first run of the skip.
+- **Dependencies and merge order:** Kinetra #27 first, because Lab's rules point to Kinetra's and must not contradict them; then this pull request; then a pointer-only pull request that records Kinetra `main` and is the first run of the skip. Both change rules or CI, so the user merges them.
 - **Follow-up:** none.
 
 ## Open points
