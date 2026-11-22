@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-22 | [Pointer-only pull requests in Lab](2026-11-22-pointer-only-ci.md): CI runs only the docs check when the pointer brings no engine change; a pointer move is its own pull request | implemented |
 | 2026-11-21 | [One prioritized roadmap](2026-11-21-roadmap-priorities.md): the quality roadmap closed, every open point and the user's new wishes on the roadmap in order of priority | implemented |
 | 2026-11-21 | [Roadmap as a backlog](2026-11-21-roadmap-backlog.md): `docs/roadmap.md` with the work left after the quality roadmap and the user's ideas | implemented |
 | 2026-11-21 | [Demo restructuring](2026-11-21-demo-restructuring.md): roadmap phase 5, bodies out of headers, scene operations, contact tests to Kinetra, module README | implemented |

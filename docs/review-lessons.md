@@ -23,8 +23,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Submodule and merge order
 
-- **Mark a pull request "do not merge yet" while it still needs a commit after another merges** · added 2026-11-22 · source: #65
-  #65 was to move its pointer to the Kinetra merge commit after Kinetra #21 merged, but it was merged in that same minute, before the pointer commit arrived, and #66 had to follow. State it in the description, or make the pull request a draft until the last commit is pushed, and say when it is ready.
+- **Move the pointer in a pointer-only pull request of its own, never as the last commit of a reviewed one** · added 2026-11-22 · source: #65, #67, #68
+  #65 was to move its pointer to the Kinetra merge commit after Kinetra #21 merged, but it was merged in that same minute and #66 had to follow; #67 merged before Kinetra #26 and #68 followed. A late pointer commit also runs a reviewed pull request's CI again. Since 2026-11-22 the rule is a separate pointer-only pull request, merged by the agent; a pull request that must not merge yet for another reason is still a draft until it is ready.
 
 ## Applications
 
