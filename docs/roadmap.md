@@ -32,6 +32,9 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Windows zip on a desktop** · release · added 2026-11-21
   The release workflow is merged; its done-criterion is the user's: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on Windows without installing anything.
   Next step: the user's desktop check. Where: [Windows release zip](design/2026-11-21-windows-release-zip.md).
+- **Smooth-wheel zoom on a desktop** · demo, dotio, i4sim, with Kinetra · added 2026-11-22
+  Kinetra's runtime now reads `wheel.preciseY` ([Kinetra #30](https://github.com/SMB-M87/Kinetra/pull/30)), so a touchpad or smooth wheel zooms Demo, Dotio and i4sim in fractional steps instead of whole notches; a notched wheel zooms as before. Software rendering cannot judge the feel. Kinetra also asks for one run of its `graphics` workflow under WSL2, to confirm the cause of its old mouse-input failure.
+  Next step: the user's playtest with a touchpad and with a notched wheel. Where: [graphics tests in CI, open points](design/2026-11-22-graphics-tests-in-ci.md#open-points).
 - **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
   A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. A setup script in the cloud environment would install them once per container.
   Next step: the agent proposes the script with the first code task, *i4sim session fixes*; the user approves it in the environment's prompt (agreed on 2026-11-22).
