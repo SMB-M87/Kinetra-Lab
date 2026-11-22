@@ -16,7 +16,7 @@ The backlog of Kinetra-Lab: application, tool and build work that is wanted but 
 
 Sections, item format and the moves between sections are defined in the [documentation guide](../external/Kinetra/docs/documentation.md#roadmap). The `roadmap` skill adds, shapes and closes items, for example during a brainstorm with the user ([skill](../external/Kinetra/.agents/skills/roadmap/README.md)). A merged item is removed; its design document is the record.
 
-Within each section the first item comes first. The order was proposed on 2026-11-21 and is settled with the user ([design](design/2026-11-21-roadmap-priorities.md)). The quality roadmap of 2026-11-18 is closed: its phases 1 to 7 and 9 are merged, and everything it left, phase 8 included, is an item on this page.
+Within each section the first item comes first. The order was proposed on 2026-11-21 and settled with the user on 2026-11-22 ([design](design/2026-11-21-roadmap-priorities.md#decisions)). The quality roadmap of 2026-11-18 is closed: its phases 1 to 7 and 9 are merged, and everything it left, phase 8 included, is an item on this page.
 
 ## Now
 
@@ -24,35 +24,26 @@ Nothing in progress.
 
 ## Next
 
-The user's decisions and checks come first: each is short and unblocks the items after it. The agent's work follows.
+The user's checks come first: each is short and unblocks the items after it. The agent's work follows, in the order settled on 2026-11-22.
 
-- **Decide on making way and a temporary motion fallback** · i4sim · added 2026-11-21
-  Phase 7 found that a mover can be sealed in for good by parked neighbors that never make way, and proposed an optional MAKE WAY policy, off by default. The user adds a wish: a mover that recognizes a coming deadlock under its motion settings switches to another motion type for a while, and back once it is free. Both answer one question, what a stalled mover may do, and they shape *Stall detection and remedies in i4sim*.
-  Next step: a design session with the user (`grilling`) on phase 7's open questions (may a mover that waits for a producer leave its place; how production treats a mover that makes way; should the departure check refuse a route that steering cannot follow past a parked neighbor) and on the fallback (in which situations, to which motion type, when to switch back). Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy).
 - **Dotio playtest and phase 6's decisions** · dotio · added 2026-11-21
   Phase 6 ends with a playtest by the user and a review of what the agent decided alone: route planning on Kinetra's `WeightedGrid` instead of `Navigation`; Kinetra's new `search`, which picks a shelter on route cost only, so an enemy may choose a slightly different place than before; whole routes without the old 50-cell cap; four random streams from the world seed, with `--seed` on `kinetra_dotio`; the golden fingerprint skipped on Windows; and refreshed Dotio captures without a new tour video. Recovery is too rare in the benchmark to compare shelter searches, so the playtest should watch it.
-  Next step: the user plays with the [playtest checklist](design/2026-11-21-dotio-restructuring.md#playtest-checklist) and confirms or changes the decisions. Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
-- **Phase 7's decisions** · i4sim · added 2026-11-21
-  Also decided by the agent alone: three stacked pull requests; Improved's extra contacts documented as a profile limit; the yield order (outside movers, then older plans), ignoring movers behind, ending a plan at once for an oncoming mover, the 20-tick resume and the 240-tick limit before a plan ends as `obstructed`; and passing still off by default, although Reciprocal gains in every measured run. With seed 42 on `8640x4800` under Reciprocal the guard leaves more movers stuck at some point (11) than no passing does (6), with better throughput and waiting; more seeds would show whether that is a trend.
-  Next step: the user confirms or changes them. Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
+  Next step: the user plays with the [playtest checklist](design/2026-11-21-dotio-restructuring.md#playtest-checklist), then confirms or changes the decisions (agreed on 2026-11-22: after the playtest, not before). Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
 - **Windows zip on a desktop** · release · added 2026-11-21
   The release workflow is merged; its done-criterion is the user's: download `Kinetra-Lab-windows-x64.zip` from the README link and start the launcher on Windows without installing anything.
   Next step: the user's desktop check. Where: [Windows release zip](design/2026-11-21-windows-release-zip.md).
-- **Frame pacing in WSLg** · runtime, build · added 2026-11-21
-  The Linux build stutters in WSLg and the Windows build does not; the design document lists three options.
-  Next step: the user chooses one. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
-- **i4sim session behavior** · i4sim · added 2026-11-21
-  `R` drops a `--ups` rate, RESET PARAMETERS sets a horizon of 8 against the default 32, `create_session` ignores its `output` argument, and a message such as a rejected goal stays on the blueprint screen when the blueprint is closed within its four seconds.
-  Next step: the user decides the intended behavior. Where: [i4sim open points](../labs/i4sim/README.md#open-points).
-- **Demo's help overlay** · demo · added 2026-11-21
-  `draw_help` and `toggle_help` are reachable only from tests.
-  Next step: the user decides: remove them, or draw the legend. Where: [Demo open points](../labs/demo/README.md#open-points).
 - **Pull request review skill** · skills, with Kinetra · added 2026-11-21
-  The user wants an agent to review every pull request: inline comments and a summary with a conclusion and points of attention, never an approval or a merge. The agent that opened the pull request picks the comments up with `pr-feedback` and merges them up its stack, so the user finds a reviewed pull request whose conflicts are already resolved. The skill lives in Kinetra, like the others.
-  Next step: the design session of Kinetra's item. Where: [Kinetra roadmap](../external/Kinetra/docs/roadmap.md#next), *Pull request review skill*.
+  Decided on 2026-11-22: on the user's request, `/pr-review` reviews one pull request or a whole stack, with the built-in `/code-review` plus a checklist from the rules, and posts inline comments and one summary per pull request with a conclusion and points of attention. It never approves or merges. The session that opened the pull request follows it, carries out or argues each finding with `pr-feedback`, and merges fixes up its stack. Findings that show a kind of mistake that can recur become lessons on `docs/review-lessons.md` in each repository, which agents read before building and reviewing.
+  Next step: branch `feat/pr-review-skill` in Kinetra. Where: Kinetra item of the same name, [design](design/2026-11-21-roadmap-priorities.md#decisions).
 - **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
   A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. A setup script in the cloud environment would install them once per container.
-  Next step: the agent proposes the script in the first session that builds code; the user approves it in the environment's settings prompt.
+  Next step: the agent proposes the script with the first code task, *i4sim session fixes*; the user approves it in the environment's prompt (agreed on 2026-11-22).
+- **i4sim session fixes** · i4sim · added 2026-11-21
+  Decided on 2026-11-22 that all four are bugs: `R` keeps a `--ups` rate, RESET PARAMETERS sets the horizon back to the default of 32 instead of 8, the unused `output` argument of `create_session` goes, and a message such as a rejected goal also ages while no blueprint is loaded. One small pull request, a test per point; the session is presentation code, so it ends at the Full level.
+  Next step: branch `fix/i4sim-session`. Where: [i4sim open points](../labs/i4sim/README.md#open-points).
+- **Remove Demo's help overlay** · demo · added 2026-11-21
+  Decided on 2026-11-22: `draw_help`, `toggle_help` and `PresentationOptions::help`, reachable only from tests, go with their tests; the help lines stay in the settings panel, so nothing changes on screen.
+  Next step: branch `refactor/demo-help-overlay`. Where: [Demo open points](../labs/demo/README.md#open-points).
 - **Golden tests on every toolchain** · tests · added 2026-11-21
   Four Demo crowd characterization cases and i4sim's RVO golden case hold only for CI's pinned Arch toolchain. They fail with Ubuntu's GCC 13, the compiler of cloud sessions, and are skipped on Windows; so the local Full level fails there although nothing changed, and *Linux beyond Arch* cannot start. Choose between a tolerance, observable totals instead of trajectory fingerprints, and a fingerprint per toolchain.
   Next step: record which values differ on GCC 13, and by how much. Where: [Demo restructuring, open points](design/2026-11-21-demo-restructuring.md#open-points), [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
@@ -69,8 +60,8 @@ The user's decisions and checks come first: each is short and unblocks the items
 ## Later
 
 - **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
-  A mover recognizes that it is stalled and why (sealed in by parked neighbors, a standoff with another mover, sliding back and forth), and the simulation answers with the remedies chosen in the decision above: neighbors make way, or the mover drives with another motion type for a while and returns to its setting once it moves again. The documented standstill needs making way: while its neighbors stay parked there is no way out, whatever the motion type. A motion fallback fits standoffs and jostling. The remedies are optional policies, off by default, measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness) and the benchmark; the inspector shows the stall, its cause and the active remedy. Proposed stack: detection and its events without behavior change, making way, the motion fallback.
-  Depends on: *Decide on making way and a temporary motion fallback*, *Agent inspector overlay*. Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-why-two-movers-stand-still-near-a-destination).
+  A mover recognizes that it is stalled and why (sealed in by parked neighbors, a standoff with another mover, sliding back and forth), and the simulation answers with optional remedies, off by default and measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness). Decided on 2026-11-22, as a stack: (1) detection and its events without behavior change, shown in the inspector, measured over more seeds and with passing on as well, so phase 7's 11-against-6 stuck movers turns out a trend or not; (2) MAKE WAY: parked neighbors on the stalled mover's route make way, also a mover that waits for a producer with a product, which keeps its product and its place in the queue and returns when the stalled mover has passed or after a fixed time; (3) a temporary motion fallback whose motion type and return rule the user chooses from the detection data. The documented standstill needs MAKE WAY: no motion type gets out while the neighbors stay parked.
+  Depends on: *Agent inspector overlay*. Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy).
 - **RECOVERY detour past a corner** · i4sim · added 2026-11-21
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
@@ -78,11 +69,17 @@ The user's decisions and checks come first: each is short and unblocks the items
   Formerly phase 8 of the quality roadmap. Move the proven, application-free part of predictive passing (conflict prediction, lane agreement, maneuver guard) into Kinetra; i4sim keeps its factory policy. Run i4sim's pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism and scenarios. Kinetra's item also decides on one agent-motion interface for its four steering models.
   Depends on: *Stall detection and remedies in i4sim*. Where: [Kinetra roadmap](../external/Kinetra/docs/roadmap.md#later), *Shared passing mechanism*.
 - **Linux beyond Arch** · build, docs, CI, with Kinetra · added 2026-11-21
-  The README gives `pacman` for Artix and Arch and one Debian package name, and CI runs only the pinned Arch image. Support Linux in general and keep Artix and Arch working: dependency commands per distribution family (Arch and Artix, Debian and Ubuntu, Fedora), a CI job on Ubuntu LTS next to the pinned Arch job, which stays the reference for warnings and formatting, and docs that name what is tested.
+  The README gives `pacman` for Artix and Arch and one Debian package name, and CI runs only the pinned Arch image. Support Linux in general and keep Artix and Arch working: dependency commands per distribution family (Arch and Artix, Debian and Ubuntu, Fedora), one CI job on Ubuntu LTS next to the pinned Arch job, which stays the reference for warnings and formatting (decided on 2026-11-22; Fedora documented, not tested), and docs that name what is tested.
   Depends on: *Golden tests on every toolchain*; Kinetra's item of the same name. Where: [README, quick start](../README.md#quick-start).
 - **Linux release** · release · added 2026-11-21
-  A download for Linux next to the Windows zip: the launcher and the three applications with `i4sim-blueprints/` and the licenses, built on an older distribution (for example Ubuntu 22.04) so that its C library runs on current ones, as a tarball or an AppImage with SDL2 inside and OpenGL from the system. The release workflow gets a second job, and the README a second link.
+  A download for Linux next to the Windows zip: the launcher and the three applications with `i4sim-blueprints/` and the licenses, built on an older distribution (for example Ubuntu 22.04) so that its C library runs on current ones, first as a tarball with SDL2 inside and OpenGL from the system; an AppImage can follow. The release workflow gets a second job, and the README a second link.
   Depends on: *Linux beyond Arch*. Where: [release tool](../tools/release/README.md).
+- **Frame pacing in WSLg** · runtime, build · added 2026-11-21
+  The Linux build stutters in WSLg and the Windows build does not; the design document lists three options and recommends measuring option 1 (Wayland with frame callbacks) first. On 2026-11-22 the user kept the choice open.
+  Next step: the user's choice, when they come back to it. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
+- **CI image with the toolchain built in** · CI, with Kinetra · added 2026-11-22
+  CI installs the pinned toolchain from the Arch Linux Archive in every run and falls back to the current packages when the archive does not answer, as on 2026-11-21. An image with the pinned packages installed, on GitHub's container registry, would make CI independent of the archive and faster; it can only be built while the archive answers.
+  Where: Kinetra item of the same name.
 - **Impact-based verification script** · tools · added 2026-11-21
   One command that reads the changed paths and runs the level, targets and CTest regex of the table in [verification in Lab](../AGENTS.md#verification-in-lab), with that table in a file both the script and the page use. The `verify` skill and developers then run the same selection, and a forgotten target becomes rare.
   Next step: a design: where the table lives, and how Kinetra's own table joins it.

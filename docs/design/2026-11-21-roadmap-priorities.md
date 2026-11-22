@@ -48,6 +48,27 @@ The user wants one plan that everyone can read: no more references to the qualit
 | Lab branch | One branch, `ccr-cc3e854a-v10cnx` | The session may push only this Lab branch |
 | CI during the archive outage | `ci.yml` falls back to the current Arch packages when the Arch Linux Archive does not answer, with a *Toolchain not pinned* warning; a separate commit on this branch. `release.yml` stays pinned | From 18:11 UTC on 2026-11-21 `archive.archlinux.org` did not answer GitHub's runners, and every `checks` job failed in its first step, re-runs included. The user suggested the current, non-archived Arch as fallback. A release should come from the pinned toolchain, so it waits for the archive ([Kinetra design](../../external/Kinetra/docs/design/2026-11-21-ci-mirror-fallback.md)) |
 
+Settled with the user on 2026-11-22 in a grilling session. ⚑ marks answers that differ from the agent's recommendation; the decisions on the review skill are recorded in full in the [Kinetra design](../../external/Kinetra/docs/design/2026-11-22-roadmap-decisions.md).
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| What comes first | Process and tooling (review skill, cloud setup, golden tests, graphics tests in CI), then the inspector overlay | Every later pull request becomes cheaper to verify |
+| Stalled movers | A stack: detection without behavior change, then MAKE WAY, then a temporary motion fallback; optional policies, off by default | Detection shows which stalls occur; MAKE WAY solves the documented standstill, the fallback fits standoffs |
+| MAKE WAY and waiting movers | A mover that waits for a producer with a product may make way; it keeps its product and its place in the queue | Both measured standstills are sealed in by exactly such movers |
+| Motion fallback | Its motion type and return rule are chosen after the detection data | No guess before it is known which stalls occur |
+| Pull request review ⚑ | Only on the user's request | The user's choice; the agent recommended a review after every pull request |
+| Review comments | The author's session follows its pull requests and processes the comments at once | The pull request does not wait for another request |
+| Lessons from reviews (added by the user) | A lessons page per repository, patterns only, added on the reviewed pull request | Agents do not repeat each other's mistakes |
+| Cloud setup | The agent proposes the setup script with the first code task | It can be tried with a real build then |
+| i4sim session behavior | All four are bugs: `R` keeps `--ups`, RESET PARAMETERS restores 32, the unused `output` argument goes, messages age without a blueprint | The intended behavior is the default each setting starts with |
+| Demo's help overlay | Removed | Reachable only from tests; the settings panel already shows the help lines |
+| Order of the small fixes | Right after the review skill and the cloud setup | Small first code changes that also try out the setup |
+| Frame pacing in WSLg ⚑ | Left open, moved to Later | The user's choice; the agent recommended measuring option 1 |
+| Phase 7's decisions | Confirmed; the detection step measures stalls over more seeds, with passing on as well | Shows whether the guard's 11 stuck movers against 6 is a trend |
+| Phase 6's decisions | Confirmed or changed after the Dotio playtest | What the playtest shows may change a decision |
+| Linux beyond Arch | One extra CI job on Ubuntu LTS; Fedora documented only | Covers the Debian family and the cloud sessions |
+| CI image | A Later item | Removes the dependency on the archive, but needs the archive to be built |
+
 ## Design
 
 The roadmap keeps its four sections. Every open point that waits for someone is an item, with its source under *Where*:
@@ -113,4 +134,4 @@ Documentation, the CI install step, and a pointer to a Kinetra commit without en
 
 ## Open points
 
-- The user confirms or changes the order of *Next* and *Later*.
+- Settled on 2026-11-22 (see [Decisions](#decisions)), except frame pacing in WSLg, which the user keeps open.
