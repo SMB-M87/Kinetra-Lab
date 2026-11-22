@@ -9,7 +9,7 @@ Selecting an i4sim mover currently draws two lines in the [HUD](../../labs/i4sim
 ## Design and delivery order
 
 1. **Kinetra.** Provide the grouped row model, screen layout, drawing and pointer capture described in the engine roadmap.
-2. **i4sim.** Supply one snapshot for the mover selected by the controller. Use its blueprint ID as the title and CLI selector. Include the profile and tuning with units, lifecycle, operator hold, destination, remaining route, speed, steering components, contact ticks, distance travelled, and the active passing plan and waiting time. Keep the existing producer inspection. A change of blueprint clears the selection.
+2. **i4sim.** Supply one snapshot for the mover selected by the controller. Show its index and blueprint ID in the title. The CLI accepts that index or the exact ID and outputs the canonical ID. Include the profile and tuning with units, lifecycle, operator hold, destination, remaining route, speed, steering components, contact ticks, distance travelled, and the active passing plan and waiting time. Keep the existing producer inspection. A change of blueprint clears the selection.
 3. **Demo.** Keep individual destination commands, CLICK SETS GOAL and Ghost teleport available during inspection. Replace click-again and right-click deselection with the inspector's close action. Read the agent's current activity, motion settings, goal, route and last steering result. Check command, wander and sleep states against a seeded scene.
 4. **Dotio.** Add enemy selection while preserving firing and Ghost teleport. The selection must expire when the enemy despawns or its pool slot is reused. Cover shooting, despawn and reuse before exposing this selection in the session.
 

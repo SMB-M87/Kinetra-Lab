@@ -103,7 +103,7 @@ The top-right inspector shows the selected mover's state, settings, goal, route,
 
 The current wait counts consecutive ticks in which the mover has a goal, is free to move, travels below 0.05 mm/tick and is more than 10 mm from its destination. The total adds all such ticks since the run started. STALLED indicates 120 ticks without route progress, with the coordination exceptions described in the simulation contract.
 
-`kinetra_i4sim --blueprint FILE --ticks N --inspect MOVER_ID` writes one JSON object per executed tick to standard output. Use the model-qualified ID from the panel title, such as `APM4220_west`. Every object has a tick number, a mover ID and the same ordered groups of labels and values shown on screen. The run summary goes to standard error.
+`kinetra_i4sim --blueprint FILE --ticks N --inspect MOVER_ID` writes one JSON object per executed tick to standard output. Use the zero-based number at the start of the panel title or the exact model-qualified ID from the blueprint, such as `APM4220_west`. Every object has a tick number, a mover ID and the same ordered groups of labels and values shown on screen. The run summary goes to standard error.
 
 ## Concepts
 
