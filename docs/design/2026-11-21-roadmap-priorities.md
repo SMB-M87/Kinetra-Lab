@@ -56,8 +56,10 @@ Settled with the user on 2026-11-22 in a grilling session. ⚑ marks answers tha
 | Stalled movers | A stack: detection without behavior change, then MAKE WAY, then a temporary motion fallback; optional policies, off by default | Detection shows which stalls occur; MAKE WAY solves the documented standstill, the fallback fits standoffs |
 | MAKE WAY and waiting movers | A mover that waits for a producer with a product may make way; it keeps its product and its place in the queue | Both measured standstills are sealed in by exactly such movers |
 | Motion fallback | Its motion type and return rule are chosen after the detection data | No guess before it is known which stalls occur |
-| Pull request review ⚑ | Only on the user's request | The user's choice; the agent recommended a review after every pull request |
-| Review comments | The author's session follows its pull requests and processes the comments at once | The pull request does not wait for another request |
+| Pull request review | After every pull request, started by its author in a separate session; the pull request waits for its conclusion | Chosen *on request* first (⚑), then changed by the user later the same day ([Kinetra design](../../external/Kinetra/docs/design/2026-11-22-pr-review-loop.md)) |
+| Review comments | The author's session follows its pull requests and answers each finding at once: a fix or an argument; at most two rounds per point, then it stays open for the user | The user's rule: reviewer and author may discuss |
+| Merges ⚑ | The author's agent merges when nothing is open; changes to agent rules, CI or releases, and pull requests with a check by the user, wait for the user | The user's change of the rule that agents never merge |
+| Review goals | The reviewer checks every goal of the roadmap item and the design document, and runs what CI does not cover (graphics tests, a screenshot) | The user asked whether the reviewer checks the functionality and the goal |
 | Lessons from reviews (added by the user) | A lessons page per repository, patterns only, added on the reviewed pull request | Agents do not repeat each other's mistakes |
 | Cloud setup | The agent proposes the setup script with the first code task | It can be tried with a real build then |
 | i4sim session behavior | All four are bugs: `R` keeps `--ups`, RESET PARAMETERS restores 32, the unused `output` argument goes, messages age without a blueprint | The intended behavior is the default each setting starts with |
