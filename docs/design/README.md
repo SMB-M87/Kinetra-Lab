@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-22 | [Skip the release build when the zip cannot change](2026-11-22-release-skip-docs.md): a push to `main` with only Markdown, docs or skills, in Lab and the Kinetra range, publishes nothing new | implemented |
 | 2026-11-22 | [Pointer-only pull requests in Lab](2026-11-22-pointer-only-ci.md): CI runs only the docs check when the pointer brings no engine change; a pointer move is its own pull request | implemented |
 | 2026-11-21 | [One prioritized roadmap](2026-11-21-roadmap-priorities.md): the quality roadmap closed, every open point and the user's new wishes on the roadmap in order of priority | implemented |
 | 2026-11-21 | [Roadmap as a backlog](2026-11-21-roadmap-backlog.md): `docs/roadmap.md` with the work left after the quality roadmap and the user's ideas | implemented |
