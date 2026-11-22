@@ -1701,7 +1701,14 @@ TEST_CASE("the inspector selection expires when a live enemy is replaced in its 
     second.position = {200, 200};
     application.select_enemy(dotio::to_world(first.position));
     REQUIRE(application.selected_enemy() == &first);
-    REQUIRE(application.inspect_enemy());
+    const auto wandering = application.inspect_enemy();
+    REQUIRE(wandering);
+    CHECK(wandering->groups.front().rows.front().value == "WANDER");
+    first.set_state(first.get_attack_state());
+    const auto attacking = application.inspect_enemy();
+    REQUIRE(attacking);
+    CHECK(attacking->title == wandering->title);
+    CHECK(attacking->groups.front().rows.front().value == "ATTACK");
     application.select_enemy(dotio::to_world(second.position));
     REQUIRE(application.selected_enemy() == &second);
     second.is_active = false;

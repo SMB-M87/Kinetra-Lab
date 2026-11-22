@@ -43,4 +43,11 @@ if(KINETRA_BUILD_RUNTIME)
     add_executable(kinetra_dotio src/main.cpp)
     target_link_libraries(kinetra_dotio PRIVATE kinetra_dotio_presentation nlohmann_json::nlohmann_json)
     kinetra_executable_icon(kinetra_dotio)
+    if(BUILD_TESTING)
+        add_test(NAME kinetra_dotio_inspector_trace COMMAND ${CMAKE_COMMAND}
+            "-DPROGRAM=$<TARGET_FILE:kinetra_dotio>"
+            "-DARGS=--seed;42;--ticks;300;--inspect;0-1"
+            "-DTICKS=300" "-DEXPECTED=STATE FORCE"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
+    endif()
 endif()
