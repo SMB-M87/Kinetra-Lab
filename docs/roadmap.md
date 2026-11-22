@@ -20,7 +20,9 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Linux beyond Arch, with golden tests on every toolchain** · build, docs, CI, tests, with Kinetra · added 2026-11-21
+  The trajectory fingerprints held only on CI's Arch toolchain because glibc before 2.41 rounds `atan2f` and `asinf` differently, not because of GCC 13 (measured on 2026-11-22). Kinetra's new `atan2` and `asin` round the same on every C library; Lab uses them, runs its fingerprints on Windows again if they hold there, gets an Ubuntu LTS job in CI next to the pinned Arch job (the reference for warnings and formatting), and documents dependencies per distribution family (Fedora documented, not tested).
+  Where: [design](design/2026-11-22-linux-beyond-arch.md), branch `ccr-915142f6-86mj8n`, after Kinetra [#32](https://github.com/SMB-M87/Kinetra/pull/32) and [#33](https://github.com/SMB-M87/Kinetra/pull/33).
 
 ## Next
 
@@ -44,9 +46,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Remove Demo's help overlay** · demo · added 2026-11-21
   Decided on 2026-11-22: `draw_help`, `toggle_help` and `PresentationOptions::help`, reachable only from tests, go with their tests; the help lines stay in the settings panel, so nothing changes on screen.
   Next step: branch `refactor/demo-help-overlay`. Where: [Demo open points](../labs/demo/README.md#open-points).
-- **Golden tests on every toolchain** · tests · added 2026-11-21
-  Four Demo crowd characterization cases and i4sim's RVO golden case hold only for CI's pinned Arch toolchain. They fail with Ubuntu's GCC 13, the compiler of cloud sessions, and are skipped on Windows; so a local run of those suites fails there although nothing changed, and *Linux beyond Arch* cannot start. Choose between a tolerance, observable totals instead of trajectory fingerprints, and a fingerprint per toolchain.
-  Next step: record which values differ on GCC 13, and by how much. Where: [Demo restructuring, open points](design/2026-11-21-demo-restructuring.md#open-points), [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
 - **Agent inspector overlay** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
   Click an agent to see its details in an overlay: motion profile and parameters, goal and route, state, speed and forces, and in i4sim its passing plan and waiting time. The rows are headless logic, tested without a window like the debug menu's rows, and a command-line option can print the same rows per tick, so a test or an agent sees what the user sees. i4sim and Demo already select an agent (`FactoryController::selected_mover`, `Scene::selected_agent`); Dotio does not yet.
   Next step: a design session; then a stack of Kinetra's overlay, i4sim, Demo and Dotio. Where: Kinetra item of the same name.
@@ -66,9 +65,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Shared passing mechanism** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
   Formerly phase 8 of the quality roadmap. Move the proven, application-free part of predictive passing (conflict prediction, lane agreement, maneuver guard) into Kinetra; i4sim keeps its factory policy. Run i4sim's pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism and scenarios. Kinetra's item also decides on one agent-motion interface for its four steering models.
   Depends on: *Stall detection and remedies in i4sim*. Where: [Kinetra roadmap](../external/Kinetra/docs/roadmap.md#later), *Shared passing mechanism*.
-- **Linux beyond Arch** · build, docs, CI, with Kinetra · added 2026-11-21
-  The README gives `pacman` for Artix and Arch and one Debian package name, and CI runs only the pinned Arch image. Support Linux in general and keep Artix and Arch working: dependency commands per distribution family (Arch and Artix, Debian and Ubuntu, Fedora), one CI job on Ubuntu LTS next to the pinned Arch job, which stays the reference for warnings and formatting (decided on 2026-11-22; Fedora documented, not tested), and docs that name what is tested.
-  Depends on: *Golden tests on every toolchain*; Kinetra's item of the same name. Where: [README, quick start](../README.md#quick-start).
 - **Linux release** · release · added 2026-11-21
   A download for Linux next to the Windows zip: the launcher and the three applications with `i4sim-blueprints/` and the licenses, built on an older distribution (for example Ubuntu 22.04) so that its C library runs on current ones, first as a tarball with SDL2 inside and OpenGL from the system; an AppImage can follow. The release workflow gets a second job, and the README a second link.
   Depends on: *Linux beyond Arch*. Where: [release tool](../tools/release/README.md).
