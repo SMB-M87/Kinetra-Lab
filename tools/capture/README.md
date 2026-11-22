@@ -157,7 +157,7 @@ sequenceDiagram
 
 ## Invariants and contracts
 
-- **Determinism.** Same code, same pixels: seed 42, fixed steps, software rendering. Dotio is the exception: its AI still draws from `std::random_device` and `std::rand` ([quality roadmap](../../docs/design/2026-11-18-quality-roadmap.md)), so its captures differ per run. Its scripts therefore react to the world instead of following a timeline.
+- **Determinism.** Same code, same pixels: seed 42, fixed steps, software rendering. Dotio's scripts react to the world instead of following a timeline, because its AI used to draw from `std::random_device` and `std::rand`. Since phase 6 Dotio draws from its seed and starts with `capture_seed`; whether its captures are now identical per run is not checked yet ([roadmap](../../docs/roadmap.md#later), *Reproducible Dotio captures and a new tour video*).
 - **Input only.** A script changes a session through `kinetra::Input` alone. The scripted player reads Dotio's `Application` between frames and never writes to it.
 - **One Runtime at a time.** Each scene creates and destroys its own `Runtime`; the stage releases a session before it starts the next, because Dotio's world is a singleton.
 - **Names are file names.** A scene's name is its file name in `docs/media`; clip names end in `-clip`. The README gallery and the media guide refer to these names.
