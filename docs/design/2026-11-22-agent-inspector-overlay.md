@@ -13,7 +13,7 @@ Selecting an i4sim mover currently draws two lines in the [HUD](../../labs/i4sim
 3. **Demo.** Keep individual destination commands, CLICK SETS GOAL and Ghost teleport available during inspection. Replace click-again and right-click deselection with the inspector's close action. Read the agent's current activity, motion settings, goal, route and last steering result. Check command, wander and sleep states against a seeded scene.
 4. **Dotio.** Add enemy selection while preserving firing and Ghost teleport. The selection must expire when the enemy despawns or its pool slot is reused. Cover shooting, despawn and reuse before exposing this selection in the session.
 
-The display and CLI use the same row builder at a completed tick. Opening the panel mid-run gives the same values as observing that mover since tick one. The CLI emits a sample per executed tick regardless of presentation frame rate. In i4sim it works with the existing headless blueprint, seed and tick options. An unknown mover ID gives an error before the run begins. Demo uses the home coordinates from the inspector title. Dotio uses the enemy pool slot and generation. Demo and Dotio use a prescribed seed and a neutral input stream. They emit null groups at ticks when the requested agent is absent.
+The display and CLI use the same row builder at a completed tick. Opening the panel mid-run gives the same values as observing that mover since tick one. The CLI emits a sample per executed headless tick. Dotio uses the fixed input cadence documented in its integration. In i4sim it works with the existing headless blueprint, seed and tick options. An unknown mover ID gives an error before the run begins. Demo uses the home coordinates from the inspector title. Dotio uses the enemy pool slot and generation. Demo and Dotio use a prescribed seed and a neutral input stream. They emit null groups at ticks when the requested agent is absent.
 
 ## Interaction decisions
 
@@ -49,6 +49,14 @@ The first graphics run exposed goal clicks landing inside the inspector at 640×
 ## Verification
 
 The i4sim tests cover keeping a selection through producer clicks, explicit close, waiting totals against the flow benchmark and pausing from the debug menu. A headless run of the corridor showcase with `--inspect APM4220_west --ticks 20` produced 20 JSON records. The test also checked an unknown ID and the summary of a run without inspection.
+
+### Review of `4d6ae44`
+
+In `f09caef`, the display provides a numeric mover selector and the trace compares it with the exact mixed-case ID and direct simulation snapshots. The graph fits in the space available beside the debug menu. The waiting test now checks a second wait and reset. The graphics tests cover wheel capture at the active inspector and all three overlays at 320 × 240.
+
+- `cmake --build --preset graphics --target kinetra_i4sim kinetra_i4sim_tests kinetra_i4sim_presentation_tests`
+- `ctest --preset graphics -R 'inspector|head-on corridor standstill' --output-on-failure` passed seven targeted cases, including the equivalent selectors, unknown-ID error and ordinary batch output.
+- Captured the paused predictive-passing showcase at seed 42 using the capture tool's Stage. [Screenshot](media/i4sim-agent-inspector.png)
 
 ## Pull request
 
