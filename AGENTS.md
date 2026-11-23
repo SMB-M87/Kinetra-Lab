@@ -21,7 +21,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | Task | Read |
 | --- | --- |
 | Every task | This file and [Kinetra's AGENTS.md](external/Kinetra/AGENTS.md) |
-| Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); Lab [design documents](docs/design/README.md) |
+| Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); your branch's design document, and an older one only when the roadmap item, a README or the user links it ([rule](external/Kinetra/AGENTS.md#development-cycle)) |
 | Build or review a change, so known mistakes are not repeated | Lab's [review lessons](docs/review-lessons.md) and [Kinetra's](external/Kinetra/docs/review-lessons.md) |
 | Write or review C++ or CMake | [Conventions](external/Kinetra/docs/conventions.md) |
 | Add tests or pick a verification level | [Testing](external/Kinetra/docs/testing.md) and [verification in Lab](#verification-in-lab) |
@@ -81,7 +81,7 @@ At every level, run `python3 external/Kinetra/tools/check_copies.py`, with `--te
 
 The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the five 60-second Demo crowd cases.
 
-**Docs-only pull requests.** CI's `changes` job skips the build and tests, and runs only the docs check, when Lab changed only Markdown, `docs/` or `.agents/` and a moved pointer brings only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` of Kinetra, which Lab's build does not read. The decision is `tools/release/needs_build.sh`, the one the release workflow uses. Such a pull request needs no agent review, and merges once CI is green unless the merge rule leaves it to the user, as for the agent rules ([Kinetra rule](external/Kinetra/AGENTS.md#git)).
+**Docs-only pull requests.** CI's `changes` job skips the build and tests, and runs only the docs check, when Lab changed only Markdown, `docs/` or `.agents/` and a moved pointer brings only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` of Kinetra, which Lab's build does not read. Three Lab paths always build, because a test reads them or the build copies them: `README.md` and `docs/media/` (`kinetra_capture_tests`), and `labs/i4sim/blueprints/`. The decision is `tools/release/needs_build.sh`, the one the release workflow uses. Such a pull request needs no agent review, and merges once CI is green unless the merge rule leaves it to the user, as for the agent rules ([Kinetra rule](external/Kinetra/AGENTS.md#git)).
 
 The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 
@@ -104,10 +104,10 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - **Module READMEs:** `launcher/README.md`, `labs/demo/README.md`, `labs/dotio/README.md` and `labs/i4sim/README.md` are the module READMEs. They follow the [module template](external/Kinetra/docs/documentation.md#module-readme-template).
 - **Thin sub-READMEs:** a navigation-only README in an `include/`, `src/` or `tests/` subdirectory is folded into its module README.
 - **Architecture pages:** the cross-application pages live in [docs/](docs/README.md).
-- **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md).
+- **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md). A docs-only change needs none, and a change across Kinetra and Lab has one, in the repository with most of it ([rule](external/Kinetra/AGENTS.md#development-cycle)).
 - **Roadmap:** application, tool and build work that is planned or only an idea goes in [docs/roadmap.md](docs/roadmap.md); engine work in [Kinetra's roadmap](external/Kinetra/docs/roadmap.md), with a linked item in each when it needs both. Format in the [documentation guide](external/Kinetra/docs/documentation.md#roadmap).
 - **ADRs:** Lab ADRs go in `docs/decisions/`, created with its README when the first Lab ADR is written.
-- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is rendered with `tools/capture/capture_tour.sh`; look at frames from every chapter before committing it.
+- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is not in the repository: `tools/capture/capture_tour.sh` renders it into `build/` for an upload to YouTube, when the user asks for one, and refreshes the thumbnail in `docs/media`.
 
 ## Functionality index
 

@@ -1,6 +1,6 @@
 # Lab design documents
 
-One design document per Lab branch, written before the code and kept after merging. The format, lifecycle and template are shared with Kinetra; see [Kinetra design documents](../../external/Kinetra/docs/design/README.md#template). Changes that touch both repositories get a document in each, and the Lab document links to the Kinetra one.
+One design document per Lab branch, written before the code and kept after merging, except for a docs-only change. The format, lifecycle and template are shared with Kinetra; see [Kinetra design documents](../../external/Kinetra/docs/design/README.md#template). A change that touches both repositories has one document, in the repository with most of the change, which the other pull request links. The index below is for a search by topic: agents read an older design document only when something links it ([rule](../../external/Kinetra/AGENTS.md#development-cycle)).
 
 ## Table of contents
 
@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-23 | [Leaner agentic cycle: the measurement and its first step](2026-11-23-leaner-cycle-first-step.md): CI runs only the docs check for a docs-only pull request or a pointer move Lab's build does not read, with the release workflow's `needs_build.sh`; the pull requests of 18 to 23 November measured | implemented |
+| 2026-11-23 | [Leaner agentic cycle: the measurement and its first step](2026-11-23-leaner-cycle-first-step.md): CI runs only the docs check when no build, test or zip can change, with the release workflow's `needs_build.sh`; the pull requests of 18 to 23 November and the agents' reading measured; the tour video leaves the repository | implemented |
 | 2026-11-23 | [Copies check in Lab](2026-11-23-copies-check-in-lab.md): Lab's verification section names Kinetra's `check_copies.py` | implemented |
 | 2026-11-23 | [Roadmap: GIFs, a Demo scenario menu, a launcher preview, an evolution lab and a leaner cycle](2026-11-23-roadmap-media-labs-cycle.md): the user's wishes of 2026-11-23 as items in both roadmaps | implemented |
 | 2026-11-22 | [Linux beyond Arch and golden tests on every toolchain](2026-11-22-linux-beyond-arch.md): Kinetra's `atan2` and `asin` in the simulation logic, fingerprints on Windows again, an Ubuntu LTS job and dependencies per distribution | implemented |
