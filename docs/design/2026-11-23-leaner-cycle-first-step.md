@@ -27,7 +27,7 @@ This change spans both repositories and has a design document in each, against t
 Two causes, both visible in the last two pull requests:
 
 - **Documentation.** CI's `changes` job only knew pointer-only pull requests. A Lab pull request with only Markdown ran the whole matrix: #82 (one line in `AGENTS.md`) and #80 (the roadmap) waited 7 to 10 minutes for `linux (arch)`, `linux (ubuntu)` and `windows`. The release workflow had skipped such changes since #71, with `tools/release/needs_build.sh`; CI never used that script.
-- **Pointer to Kinetra `main`.** #81 moved the pointer from Kinetra #33's head to Kinetra `main`, which added Kinetra #35 (its CI workflow) and #36 (`tools/check_copies.py`). The filter allowed only Markdown, `docs/` and `.agents/`, so `.github/workflows/ci.yml` and `tools/check_copies.py` started the full run, although Lab's build reads neither. The earlier pointer-only pull requests #68, #70, #77 and #79 brought only documentation and were skipped.
+- **Pointer to Kinetra `main`.** #81 moved the pointer from Kinetra #33's head to Kinetra `main`, which added Kinetra #35 (its CI workflow) and #36 (`tools/check_copies.py`). The filter allowed only Markdown, `docs/` and `.agents/`, so `.github/workflows/ci.yml` and `tools/check_copies.py` started the full run, although Lab's build reads neither. The earlier pointer-only pull requests #70, #77 and #79 brought only documentation and were skipped; #68 came before the skip.
 
 Every docs-only pull request also waited for a separate review session: since the agent review started on 22 November, Kinetra #26 to #29 and Lab #67 each got one, for a diff that cannot change what is built.
 
@@ -37,7 +37,7 @@ And the user noticed that the agents' loaded context keeps growing while the rep
 
 ### Pull requests
 
-All pull requests merged from 18 to 23 November: 57 of Lab's 81 merged into `main` (the others into the branch below them in a stack) and all 36 of Kinetra's. The kind comes from the merge commit's file list, the CI time from the last run on the pull request's head (GitHub Actions, wall clock), and *review fixes* counts commits named after a review round.
+All 36 of Kinetra's merged pull requests (18 to 23 November), and 57 of Lab's 81: #24 to #81 without the unmerged #63, merged into `main` from 19 to 23 November. The session's shallow clone held only that part of Lab's history, so #1 to #23 (18 and 19 November) and #82 are not counted, among them the docs-only #7 and the docs-and-pointer #11, #17 and #22. The kind comes from the merge commit's file list, the CI time from the last run on the pull request's head (GitHub Actions, wall clock), and *review fixes* counts commits named after a review round.
 
 | Repository | Kind | Pull requests | Median open to merge | Last CI run, median | Review fixes |
 | --- | --- | --- | --- | --- | --- |
@@ -90,8 +90,9 @@ The documentation is as large as the code, and the design documents are 60 % of 
 | --- | --- | --- |
 | Which Lab paths skip | Markdown, `docs/` and `.agents/`, as before, but not `README.md`, `docs/media/` and `labs/i4sim/blueprints/`; Lab's `.github/` does not skip | `kinetra_capture_tests` reads the README and the media guide and checks the files in `docs/media/`; the blueprint directory, its README included, is copied next to every executable and into the zip. Lab's `.github/` is its own CI, which a pull request must run to test |
 | Which Kinetra paths skip | Also `.github/` and `tools/` | Kinetra's CI does not run in Lab, and no build step runs `tools/`: Lab builds Kinetra with `BUILD_TESTING` off and never calls its Python helpers. The docs check, which runs on every pull request, uses `tools/check_docs.py` from the new pointer |
-| One decision for CI and the release | ci.yml's `changes` job runs `tools/release/needs_build.sh`, the release workflow's script | The filter was written twice, in `ci.yml` and the script, with a note to change both together; #81 showed how a filter falls behind. The script stays in `tools/release/` to keep the release tool's links |
-| Docs together with a pointer | Skips when the pointer range passes the filter, also when the pointer is on a Kinetra branch | A Lab pull request that follows a Kinetra docs pull request cannot change the build either. The check that the pointer is on Kinetra `main` stays for pointer-only pull requests, which merge without review |
+| One decision for CI and the release | ci.yml's `changes` job runs `tools/release/needs_build.sh`, the release workflow's script, in the merge base's copy | The filter was written twice, in `ci.yml` and the script, with a note to change both together; #81 showed how a filter falls behind. The script stays in `tools/release/` to keep the release tool's links. The base's copy decides, so a pull request that breaks the script cannot skip its own build or the next ones; the old filter builds a change to the script (found by the agent review) |
+| Docs together with a pointer | Skips when the pointer range passes the filter, also when the pointer is on a Kinetra branch | A Lab pull request that follows a Kinetra docs pull request cannot change the build either. A pull request that only moves the pointer to a commit off Kinetra `main` is not pointer-only: it gets a warning and a full run |
+| A pull request with only a pointer to a Kinetra branch commit | Warns *Pointer not on Kinetra main* and runs in full; `changes` does not fail | With one design document per change, a Lab pull request that verifies an engine change in review can hold only the pointer. Failing `changes`, as round 1 made `checks` do, kept it red until Kinetra merged, and its review could not start (found by the agent review). Its review and the merge rule's order guard it; the warning says it is not pointer-only |
 | Doubt | A full run, as before: no merge base, a failed Kinetra clone or diff, a failed `changes` job. An empty `skip_build` counts as a full run | A broken decision must never skip CI |
 | A failed `changes` job | Also fails `checks`; the full run still runs | Found by the agent review: a pointer-only pull request off Kinetra `main` failed only `changes`, which is not required, and `checks` passed on `linux` alone. Auto-merge, planned in *Automatic pointer pull request*, reads only the required status |
 | The release on a README or media change | Rebuilds the zip and moves `main-build`, although the zip cannot differ | One script for both workflows is worth a rare rebuild; a release mode would make the filter differ again |
@@ -124,7 +125,7 @@ flowchart LR
 
 ## Affected areas
 
-`.github/workflows/ci.yml`, `tools/release/needs_build.sh`, `tools/release/README.md`, `tools/capture/capture_tour.sh`, `tools/capture/tour_thumbnail.sh`, `tools/capture/README.md`, `docs/media/` (the video and its guide), `.gitignore`, `README.md`, `AGENTS.md`, `external/README.md`, `docs/roadmap.md`, `docs/design/README.md`, `docs/design/2026-11-19-tour-video.md` (one link), this document; the Kinetra pointer moves to the Kinetra branch of the same name.
+`.github/workflows/ci.yml`, `.github/workflows/release.yml`, `tools/release/needs_build.sh`, `tools/release/README.md`, `tools/capture/capture_tour.sh`, `tools/capture/tests/capture_tests.cpp` (a comment), `tools/capture/tour_thumbnail.sh`, `tools/capture/README.md`, `docs/media/` (the video and its guide), `.gitignore`, `README.md`, `AGENTS.md`, `external/README.md`, `docs/README.md`, `docs/review-lessons.md`, `docs/roadmap.md`, `docs/design/README.md`, `docs/design/2026-11-19-tour-video.md` (one link), this document; the Kinetra pointer moves to the Kinetra branch of the same name.
 
 ## Test plan
 
@@ -133,7 +134,7 @@ flowchart LR
   - #82 (one line in `AGENTS.md`): skip; it ran the full CI before;
   - #78 (code): full run; #36 (the README): full run;
   - pointer-only to Kinetra `main` over engine sources: full run;
-  - pointer-only to a Kinetra commit not on `main`: `changes` fails with *Pointer not on Kinetra main*;
+  - only a pointer to a Kinetra commit not on `main`: warning *Pointer not on Kinetra main*, empty `skip_build`, full run (it failed `changes` before review round 2);
   - Markdown and a pointer to a Kinetra branch commit with only docs: skip; with engine sources: full run;
   - only `docs/roadmap.md`: skip;
   - a line in Lab's `ci.yml`: full run;
@@ -160,12 +161,22 @@ flowchart LR
   - Nit: the media guide's thumbnail row carries the YouTube link again.
   - The pointer follows Kinetra #37's head after its review round.
   - The lesson on *Now* went to the [review lessons](../review-lessons.md#roadmap-and-decisions).
+- Agent review, round 2 (on 638ff67, *Fix first*, five points to fix and four nits), all carried out:
+  - A pull request with only a pointer to a Kinetra branch commit could not pass `checks`: `changes` now warns *Pointer not on Kinetra main* and runs in full instead of failing; the submodule rules and `external/README.md` describe the case. The synthetic case "only a pointer to a commit not on `main`" now gives the warning and a full run.
+  - CI ran the pull request's own `needs_build.sh`: it now runs the merge base's copy.
+  - The sample: *Measurement* now says it is Lab #24 to #81, which the session's shallow clone held; the roadmap item and the design index follow.
+  - The release README's guard names tests and `read_anyway`; `source_text()` in the capture tests says so too.
+  - *Affected areas*, both *Changes* and *Verification* list the round-1 files and the `checks` run.
+  - Nits: #68 came before the skip; a trial tour render keeps its thumbnail next to its video; this section names the automatic pointer pull request's open questions; `release.yml`'s `changes` job checks out without old blobs.
+  - Two lessons added to the [review lessons](../review-lessons.md).
 - Kinetra #37's second review round reached Lab's copies: the roadmap's lead now names a docs-only change's pull request as its record, and the pointer follows Kinetra's head to 2008388.
 
 ## Verification
 
 - `python3 -c "import yaml; …"` parses the workflow; `bash -n` accepts the decision step, `needs_build.sh`, `capture_tour.sh` and `tour_thumbnail.sh`.
 - The test plan's runs, with the results above.
+- The `checks` script on seven combinations of job results: only a rightful skip, and `changes` success with `linux` success, pass.
+- The decision step with the base commit's script, on synthetic commits whose base carries this branch's script (see *Review*, round 2).
 - `python3 external/Kinetra/tools/check_docs.py`: all links resolve.
 - `python3 external/Kinetra/tools/check_copies.py` with the terms above.
 
@@ -174,15 +185,16 @@ flowchart LR
 **Leaner cycle: skip the build of docs-only pull requests and pointer moves, measure the cycle, drop the tour video**
 
 - **Summary:** CI runs only the docs check when no build, test or zip can change: Lab changed only Markdown, `docs/` or `.agents/` (not the README, `docs/media/` or the blueprints) and a moved pointer brings only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` of Kinetra. Such pull requests need no agent review or design document. Fixes #81 and #82 running the full Linux and Windows builds, records the measurement for *Leaner agentic cycle*, and removes the 89 MB tour video from the tree.
-- **Changes:** `ci.yml` (`changes` job on `needs_build.sh`, blobless checkout); `needs_build.sh` (paths that always build, Kinetra filter); the tour video and its scripts, `.gitignore`, the README and media guides; `AGENTS.md`, `external/README.md`, `tools/release/README.md`, the design index; roadmap; this document.
+- **Changes:** `ci.yml` (`changes` job on the base's `needs_build.sh`, blobless checkout, a warning for a pointer off Kinetra `main`, `checks` failing with `changes`); `release.yml` (header, notice, blobless checkout); `needs_build.sh` (paths that always build, Kinetra filter); the tour video and its scripts, `.gitignore`, the README and media guides, a comment in the capture tests; `AGENTS.md`, `external/README.md`, `tools/release/README.md`, `docs/README.md`, the design index; roadmap; three review lessons; this document.
 - **Design:** this document; the [Kinetra design](https://github.com/SMB-M87/Kinetra/blob/main/docs/design/2026-11-23-docs-only-pull-requests.md) for the rules and Kinetra's skip.
-- **Verification:** the decision step on real and synthetic history and in a blobless clone, `needs_build.sh` over the merged docs and pointer pull requests, YAML and `bash -n`, the docs check; this pull request's CI.
+- **Verification:** the decision step on real and synthetic history and in a blobless clone, `needs_build.sh` over the merged docs and pointer pull requests, the `checks` script on seven combinations of job results, YAML and `bash -n`, the docs check; this pull request's CI.
 - **Review notes:** the paths the filters let through and the three that always build; the merge of CI's and the release's decision into one script; the tour scripts' new defaults.
 - **Dependencies and merge order:** the Kinetra pull request of the same branch first, with a merge commit; then this one, with its pointer at that Kinetra branch commit; then a pointer-only pull request to the Kinetra merge commit, the first run of the new skip. Both change agent rules or CI, so the user merges them.
 - **Follow-up:** *Automatic pointer pull request*.
 
 ## Open points
 
+- **Automatic pointer pull request** (roadmap, *Next*): its trigger, Kinetra's push to `main` with `repository_dispatch` or a scheduled Lab workflow, and its credentials, a token or GitHub App with write access to Lab and auto-merge allowed there, are the user's settings to choose.
 - **The old renders in every clone.** Deleting the file stops new renders, and a cloud session's shallow clone (50 commits) stops downloading the old ones once the commits that hold them fall out of its depth. A full clone keeps all three until the history is rewritten. That rewrite is the user's call and the user's command, since it force-pushes `main`, every branch and the `main-build` tag, changes every commit hash that design documents quote, and requires every existing clone to be cloned again. Best after all open pull requests have merged, with `git filter-repo --invert-paths --path docs/media/kinetra-lab-tour.mp4` in a fresh clone of every branch and tag, followed by a force-push of each; GitHub keeps the old objects of its pull request references on its side, which clones do not fetch.
 - **The design index below the template.** Writing a new design document still loads the index of every older one. If that weighs, the index can move to a page of its own.
 - **The roadmap's length.** Lab's roadmap is 6.7k tokens and most of it is *Later* and *Ideas*; an agent that looks up one item reads it all. A search for the item's title reads less.
