@@ -183,7 +183,7 @@ Pitfalls: a script clicks rows by number. The debug-menu rows are checked by tes
 | Suite | Covers | Needs |
 | --- | --- | --- |
 | `kinetra_capture` (`kinetra_capture_tests`) | `write_png`: signature, header, CRCs and decoded pixels; invalid input; the scene list matches the files in `docs/media`; `select_scenes`; `showcase_cycle_steps` holds each scene's pauses, repeats exactly and rejects a blueprint without a repeating scenario; the i4sim menu clicks find the rows they name and leave Reciprocal with plain A*; the Dotio debug clicks turn on every layer but not the ghost camera; the Demo click opens MOTION; a click on a renamed or missing row, or on one without an action, is rejected; the count of driving movers repeats exactly, and the busiest window is the one with the largest sum; the scripted player's target (walls, crates, the edge of the screen), bolt speed, lead, aim point and recovery check; the tour's canvas (blending, clipping, text, pointer, ring, keycap), pointer path (end points, forward motion, bend, duration, seed) and row lookup | Nothing |
-| `kinetra_capture_smoke` | Runs `launcher`, `i4sim-debug-clip`, `dotio-debug-clip` and `i4sim-showcase-junction-crossing-clip` end to end and checks the files; then plays the first seven seconds of the tour (`--tour-check 420`) | Graphics (`KINETRA_TEST_GRAPHICS`) |
+| `kinetra_capture_smoke` | Runs `launcher`, `i4sim-debug-clip`, `dotio-debug-clip` and `i4sim-showcase-junction-crossing-clip` and checks the files. It then plays the first eight seconds of the tour (`--tour-check 480`) and checks that the script started Demo Terrain | Graphics (`KINETRA_TEST_GRAPHICS`) |
 
 ```sh
 cmake --build --preset dev --target kinetra_capture_tests && ctest --preset dev -R '^kinetra_capture'
