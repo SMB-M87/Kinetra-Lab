@@ -150,7 +150,7 @@ jobs:
           - distro: ubuntu
             image: ubuntu:24.04
     runs-on: ubuntu-latest
-    # The slowest run, Ubuntu's, takes about 11 minutes.
+    # A run takes about eight minutes.
     timeout-minutes: 45
     container: ${{ matrix.image }}
     defaults:
@@ -175,8 +175,8 @@ jobs:
 
       - name: Install Ubuntu's packages
         if: matrix.distro == 'ubuntu'
-        # Usually three minutes. archive.ubuntu.com, the image's source, once served a run so
-        # slowly that this step was still downloading after an hour.
+        # About half a minute from the mirror. archive.ubuntu.com, the image's source, once
+        # served a run so slowly that this step was still downloading after an hour.
         timeout-minutes: 15
         env:
           DEBIAN_FRONTEND: noninteractive
