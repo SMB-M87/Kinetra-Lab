@@ -25,7 +25,7 @@ cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh                # all scenes, into docs/media
 tools/capture/capture_media.sh build-graphics dotio dotio-clip   # only these
 tools/capture/capture_tour.sh                 # the tour video into .docs/, its thumbnail into docs/media
-tools/capture/tour_thumbnail.sh               # only the thumbnail, from the current video
+tools/capture/tour_thumbnail.sh [video]       # only the thumbnail, from .docs/ or the given video
 ```
 
 It does not record from a running application, and it changes nothing an application or the launcher does: it calls the same `Session::advance` and `render` the launcher calls. The one thing an application offers it is `dotio::Session::application`, through which the scripted player sees Dotio's world. It is a Linux developer tool; it builds wherever zlib is found, and the script needs bash and ffmpeg.

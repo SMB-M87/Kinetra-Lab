@@ -17,7 +17,9 @@
 # and into the zip. Lab's .github/ is not among the paths because it is Lab's own CI;
 # Kinetra's .github/ is Kinetra's CI, and its tools/ are Python helpers that no build step
 # runs (CI's docs check, which runs on every pull request, uses check_docs.py). The zip's
-# own README comes from tools/release/README-windows.txt.
+# own README comes from tools/release/README-windows.txt. A new input under these paths
+# comes out of the filter: a Lab path into read_anyway, a Kinetra path out of
+# kinetra_unread, since read_anyway sees only Lab's own paths.
 set -uo pipefail
 
 if [[ $# -ne 2 ]]; then
