@@ -20,7 +20,8 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Remove Demo's help overlay** · demo · added 2026-11-21
+  Branch `refactor/demo-help-overlay`. Where: [Demo help overlay removal](design/2026-11-23-demo-help-overlay-removal.md).
 
 ## Next
 
@@ -38,9 +39,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **i4sim session fixes** · i4sim · added 2026-11-21
   Decided on 2026-11-22 that all four are bugs: `R` keeps a `--ups` rate, RESET PARAMETERS sets the horizon back to the default of 32 instead of 8, the unused `output` argument of `create_session` goes, and a message such as a rejected goal also ages while no blueprint is loaded. One small pull request, a test per point; the session is presentation code, so it ends at the Full level.
   Next step: branch `fix/i4sim-session`. Where: [i4sim open points](../labs/i4sim/README.md#open-points).
-- **Remove Demo's help overlay** · demo · added 2026-11-21
-  Decided on 2026-11-22: `draw_help`, `toggle_help` and `PresentationOptions::help`, reachable only from tests, go with their tests; the help lines stay in the settings panel, so nothing changes on screen.
-  Next step: branch `refactor/demo-help-overlay`. Where: [Demo open points](../labs/demo/README.md#open-points).
 - **Performance baseline and hotspots** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
   The user wants a critical look at performance. Measure first: profile `kinetra_i4sim_motion_benchmark` and the Demo crowd cases in the `release` preset, add a Dotio benchmark, and list the hotspots with their share of the run time. Known candidates: predictive passing takes about half again as long on the large i4sim layout (9–10.5 s against 13–14.5 s), Dotio's shelter search can settle the whole resident window of 24,025 cells, and Demo's fixed clock falls behind below 30 frames per second at time scale 4. Each optimization is then its own pull request, with a measurement before and after and the golden lines unchanged.
   Next step: the profile and the hotspot list, without code changes. Where: [motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark), [Dotio open points](../labs/dotio/README.md#open-points), [Demo open points](../labs/demo/README.md#open-points); Kinetra item *Engine performance*.
