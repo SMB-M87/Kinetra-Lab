@@ -624,7 +624,8 @@ TEST_CASE("no enemy stands still in a moving state around a standing player for 
 // Pins a whole seeded game, so a refactor that changes any enemy decision, route or random
 // draw shows here. When a deliberate behavior change moves it, record the new value and say
 // why in the commit. It holds on every platform CI tests because the logic takes angles from
-// kinetra::atan2 and kinetra::asin, which round the same on every C library.
+// kinetra::atan2 and kinetra::asin, which round the same on every C library in practice (the
+// rare double-rounding exception is in kinetra/simulation/math.h).
 TEST_CASE("a seeded game reproduces its recorded fingerprint") {
     CHECK(scripted_run(42, 30) == 0x9d126f5dc5068339ull);
 }

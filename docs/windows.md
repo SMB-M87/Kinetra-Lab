@@ -122,7 +122,7 @@ Five characterization cases are excluded on Windows by the `windows` and `window
 - the four cases of `kinetra_demo_crowd_characterization`
 - `kinetra_i4sim_golden:the experimental RVO profile reproduces its recorded summary`
 
-Their recorded summaries hash exact floating-point trajectories, and Windows' C runtime rounds some float functions differently in the last bit from the glibc they were recorded with. Lab's simulation logic takes `atan2` and `asin` from Kinetra, which round the same on every C library ([design](design/2026-11-22-linux-beyond-arch.md#problem)); that made Dotio's fingerprint and the i4sim RVO distance (17582.890 mm) match on Windows, and the five cases above match on Ubuntu. On Windows they still differ, so another function of the C runtime, among `sinf`, `cosf`, `expf`, `powf` and `hypot`, still rounds differently there. The values CI's Windows job printed on 2026-11-22, against the recorded ones:
+Their recorded summaries hash exact floating-point trajectories, and Windows' C runtime rounds some float functions differently in the last bit from the glibc they were recorded with. Lab's simulation logic takes `atan2` and `asin` from Kinetra, which round the same on every C library in practice ([design](design/2026-11-22-linux-beyond-arch.md#problem)); that made Dotio's fingerprint and the i4sim RVO distance (17582.890 mm) match on Windows, and the five cases above match on Ubuntu. On Windows they still differ, so another function of the C runtime, among `sinf`, `cosf`, `expf`, `powf` and `hypot`, still rounds differently there. The values CI's Windows job printed on 2026-11-22, against the recorded ones:
 
 | Case | Windows | Recorded |
 | --- | --- | --- |
