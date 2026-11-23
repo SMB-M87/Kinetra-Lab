@@ -16,7 +16,7 @@ log="${TMPDIR:-/tmp}/kinetra-cloud-setup.log"
 # Only a checkout without the submodule: on a resumed session the agent may have moved it on
 # purpose, and git submodule update would reset it to the commit Lab records.
 if [[ ! -e external/Kinetra/.git ]]; then
-    if ! timeout 300 git submodule update --init --recursive >> "$log" 2>&1; then
+    if ! timeout -k 10 180 git submodule update --init --recursive >> "$log" 2>&1; then
         echo "Cloud setup failed: git submodule update --init --recursive did not finish." \
             "Log: $log. Run it by hand, then tools/cloud_setup.sh."
         exit 0
@@ -24,8 +24,9 @@ if [[ ! -e external/Kinetra/.git ]]; then
 fi
 kinetra_setup=external/Kinetra/tools/cloud_setup.sh
 if [[ ! -f "$kinetra_setup" ]]; then
-    # A submodule moved to a Kinetra commit from before the script.
-    echo "Cloud setup failed: external/Kinetra has no tools/cloud_setup.sh at its commit." \
+    # A submodule moved to a Kinetra commit from before the script, or an interrupted checkout.
+    echo "Cloud setup failed: external/Kinetra has no tools/cloud_setup.sh: its commit predates" \
+        "the script, or its checkout is incomplete (git submodule update --init --recursive)." \
         "Install the packages of the README's quick start by hand."
     exit 0
 fi

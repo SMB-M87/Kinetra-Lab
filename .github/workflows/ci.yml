@@ -7,7 +7,8 @@
 #   Arch Linux Archive snapshot), so engine warnings (-Werror) and clang-format output
 #   cannot change without a commit. When the archive does not answer, the run falls back
 #   to the current Arch packages and says so in a warning (Kinetra's testing.md). Bump
-#   ARCH_SNAPSHOT and the image tag together, in both repositories. Formatting runs only
+#   ARCH_SNAPSHOT and the image tag together, in both repositories, with the clang-format
+#   version in Kinetra's tools/cloud_setup.sh, which cloud sessions use. Formatting runs only
 #   here, and so does the docs check, except that the `changes` job runs it when it skips
 #   the build. Warnings are errors here and in the "windows" job: the engine's
 #   and those of Lab's warning-free modules; the rest of Lab is reported until each
@@ -183,8 +184,9 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          # The Debian and Ubuntu package set of the README's quick start, plus git for the
-          # checkout and the submodule.
+          # The Debian and Ubuntu package set of the README's quick start, which
+          # tools/cloud_setup.sh installs in a cloud session too, plus git for the checkout and
+          # the submodule.
           packages="build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev git ca-certificates"
           # Canonical's mirror inside Azure, where the runners run, serves the same archive.
           # The copy of the image's sources stays outside sources.list.d, where apt would
