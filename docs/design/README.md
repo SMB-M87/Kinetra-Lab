@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-23 | [Roadmap: GIFs, a launcher preview, an evolution lab and a leaner cycle](2026-11-23-roadmap-media-labs-cycle.md): the user's wishes of 2026-11-23 as items in both roadmaps | implemented |
+| 2026-11-23 | [Roadmap: GIFs, a Demo scenario menu, a launcher preview, an evolution lab and a leaner cycle](2026-11-23-roadmap-media-labs-cycle.md): the user's wishes of 2026-11-23 as items in both roadmaps | implemented |
 | 2026-11-22 | [Dotio agent inspector](2026-11-22-dotio-agent-inspector.md) | implemented |
 | 2026-11-22 | [Demo agent inspector](2026-11-22-demo-agent-inspector.md) | implemented |
 | 2026-11-22 | [Agent inspector overlay](2026-11-22-agent-inspector-overlay.md) | implemented |
