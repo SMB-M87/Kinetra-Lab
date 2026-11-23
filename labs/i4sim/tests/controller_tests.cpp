@@ -273,8 +273,8 @@ TEST_CASE("q and e halve and double the update rate within its bounds") {
     CHECK(controller.simulation().updates_per_second() == 10000);
 }
 
-TEST_CASE("r restarts the blueprint paused with the motion settings in use") {
-    FactoryController controller(42, true, 200);
+TEST_CASE("r restarts the blueprint paused with its update rate and motion settings") {
+    FactoryController controller(42, true, 360);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     choose_value(controller, "PROFILE", "ORIGINAL");
@@ -282,16 +282,22 @@ TEST_CASE("r restarts the blueprint paused with the motion settings in use") {
     frame(controller, camera, click(camera, mover_position(controller, 0)));
     REQUIRE(controller.selected_mover() == 0);
     frame(controller, camera, {}, 0.5);
-    REQUIRE(controller.simulation().ticks() == 100);
+    REQUIRE(controller.simulation().ticks() == 180);
 
     frame(controller, camera, key(Key::r));
     const auto &simulation = controller.simulation();
     CHECK(simulation.ticks() == 0);
     CHECK(simulation.state() == RunState::paused);
+    CHECK(simulation.updates_per_second() == 360);
     CHECK(simulation.motion_settings().profile == i4sim::SteeringProfile::original);
     CHECK(simulation.motion_settings().speed == 2.5f);
     CHECK_FALSE(controller.selected_mover());
     CHECK(controller.message().empty());
+
+    frame(controller, camera, key(Key::e));
+    REQUIRE(controller.simulation().updates_per_second() == 720);
+    frame(controller, camera, key(Key::r));
+    CHECK(controller.simulation().updates_per_second() == 720);
 }
 
 TEST_CASE("r replays a scene's goals with the motion settings in use") {
@@ -809,11 +815,6 @@ TEST_CASE("the number rows show their value and step it while the blueprint runs
     for (int i = 0; i < 40; ++i)
         step(controller, "HORIZON");
     CHECK_MESSAGE(motion.horizon == 64, "the horizon stops at its limit");
-    choose(controller, "RESET PARAMETERS");
-    CHECK(motion.speed == 2);
-    CHECK(motion.force == 0.6f);
-    CHECK(motion.horizon == 8);
-
     open_section(controller, "SIMULATION");
     CHECK(entry(controller, "UPS").value() == "200");
     step(controller, "UPS");
@@ -823,6 +824,21 @@ TEST_CASE("the number rows show their value and step it while the blueprint runs
     CHECK(controller.simulation().updates_per_second() == 200);
     CHECK(controller.simulation().running());
     CHECK(controller.message().empty());
+}
+
+TEST_CASE("reset parameters restores the default speed, force and horizon") {
+    FactoryController controller(42, true, 200);
+    REQUIRE(controller.load(factory));
+    open_section(controller, "MOTION");
+    for (const char *label : {"SPEED", "FORCE", "HORIZON"})
+        step(controller, label);
+
+    choose(controller, "RESET PARAMETERS");
+    const auto &motion = controller.simulation().motion_settings();
+    const i4sim::MotionSettings defaults;
+    CHECK(motion.speed == defaults.speed);
+    CHECK(motion.force == defaults.force);
+    CHECK(motion.horizon == defaults.horizon);
 }
 
 TEST_CASE("the recovery and traffic entries are check boxes on the motion settings") {

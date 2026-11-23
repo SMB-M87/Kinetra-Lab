@@ -36,12 +36,13 @@ class FactorySession final : public kinetra_lab::Session {
     }
 
     void advance(double elapsed, const Input &input, Camera2D &camera) override {
-        if (!controller_.loaded()) {
-            advance_screen(input, camera.viewport);
+        const bool on_blueprint_screen = !controller_.loaded();
+        if (!controller_.begin_frame(elapsed)) {
+            // Start accepting blueprint-screen input on the frame after a deferred close.
+            if (on_blueprint_screen)
+                advance_screen(input, camera.viewport);
             return;
         }
-        if (!controller_.begin_frame(elapsed))
-            return;
         // The panels come first: an open settings panel takes the whole frame, and the
         // debug menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
@@ -165,8 +166,7 @@ class FactorySession final : public kinetra_lab::Session {
 
 std::unique_ptr<kinetra_lab::Session> create_session(std::uint32_t seed, std::filesystem::path directory,
                                                      std::optional<std::filesystem::path> initial,
-                                                     bool running, unsigned ups,
-                                                     std::optional<std::filesystem::path>) {
+                                                     bool running, unsigned ups) {
     return std::make_unique<FactorySession>(seed, directory, initial, running, ups);
 }
 } // namespace i4sim
