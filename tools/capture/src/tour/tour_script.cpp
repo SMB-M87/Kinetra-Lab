@@ -28,7 +28,7 @@ using kinetra::Vec2;
 /// Help lines of each application's SIM CONTROLS and DEBUG CONTROLS sections (the latter
 /// with the two lines every application shares), which place the rows of an open panel.
 constexpr std::size_t demo_sim_lines = 4, demo_debug_lines = 3, dotio_sim_lines = 3, dotio_debug_lines = 3,
-                      i4sim_sim_lines = 4, i4sim_debug_lines = 5;
+                      i4sim_sim_lines = 5, i4sim_debug_lines = 5;
 /// Rows of the launcher's menu and of Dotio's difficulty page.
 constexpr std::size_t launcher_rows = 3, difficulty_rows = 3;
 /// The showcase scene and the floor the tour loads, as file names in the catalog.

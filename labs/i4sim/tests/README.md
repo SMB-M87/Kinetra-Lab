@@ -25,7 +25,7 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 flowchart TD
     Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (74)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
-    Logic --> Controller["kinetra_i4sim_controller (43)<br/>controller_tests.cpp"]
+    Logic --> Controller["kinetra_i4sim_controller (44)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (4)<br/>session input and rendering"]
     Logic --> Presentation
@@ -38,7 +38,7 @@ flowchart TD
 | `simulation_tests.cpp` | `kinetra_i4sim` (74) | Required behavior of the loaders and the simulation |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
-| `controller_tests.cpp` | `kinetra_i4sim_controller` (43) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (44) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (4, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
@@ -116,7 +116,7 @@ Each case then requires the outcome (no contact, every mover at its goal, no stu
 | Loading | A blueprint loads paused, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
 | Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
 | Keys | Space and P, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart is paused, keeps the current tick rate and motion settings, and replays a scene's goals |
-| Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
+| Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor, but with Shift it only selects, as a left click does; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
 | Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, and the ZOOM row's buttons, both within the zoom limits |
 | Modal pause | An open panel pauses a running blueprint and restores it; a paused one stays paused |
 | Debug menu | The menu opens with SIMULATION open; a heading opens its section and closes the other; each section lists its rows in order; layers, WORKLOAD, RUNNING, RECOVERY and the traffic policies are check boxes on the real state; a layer lists its parts only while it is on, and a part draws only while its layer is on; PROFILE and PLANNER open a list that chooses and closes, and a list closes with its section; the number rows show their value and step it while running; RESET PARAMETERS restores the default speed, force and horizon; a rejected setting shows its reason; BLUEPRINTS closes the blueprint at the next frame |
