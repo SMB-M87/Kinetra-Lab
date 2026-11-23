@@ -20,8 +20,9 @@
 # without a GPU or display, the backend of the local `graphics` preset.
 #
 # The workflow name "CI" and the job id "checks" are the required status check on main.
-# "checks" passes when every "linux" run passed, or when "changes" skipped the build of a
-# pull request that cannot change it, so every distribution in the matrix is required.
+# "checks" passes when "changes" succeeded and every "linux" run passed, or when "changes"
+# skipped the build of a pull request that cannot change it, so every distribution in the
+# matrix is required.
 #
 # The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
 # of the local WSL cross build (docs/windows.md), and runs the non-graphics tests on
@@ -50,8 +51,8 @@ jobs:
   # jobs below are skipped, only the docs check runs here, and "checks" passes on this job's
   # result. A pointer-only pull request merges without review, so this job also fails when
   # its pointer is not on Kinetra main. Any doubt, such as a failed Kinetra fetch, means a
-  # full run, and so does a failure of this job: the docs check of the full run then fails
-  # "checks" as well.
+  # full run. A failure of this job, that pointer check, its docs check or a broken decision,
+  # fails "checks" too, and the full run still runs to show the build.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -189,9 +190,11 @@ jobs:
             | sed "s/^/::warning title=Compiler warning on ${{ matrix.distro }}::/" || true
           ctest --preset ci
 
-  # The required status. It passes when every distribution of "linux" passed, or when
-  # "changes" decided that the pull request cannot change the build and ran the docs
-  # check itself. Any other outcome, a failed or cancelled "linux" run included, fails it.
+  # The required status. It passes when "changes" succeeded and every distribution of
+  # "linux" passed, or when "changes" decided that the pull request cannot change the build
+  # and ran the docs check itself. Any other outcome, a failed "changes" job (such as a
+  # pointer-only pull request off Kinetra main) or a failed or cancelled "linux" run
+  # included, fails it.
   checks:
     needs: [changes, linux]
     # always(), not !cancelled(): a skipped required job counts as passed, so on a
@@ -208,6 +211,10 @@ jobs:
           echo "changes: $CHANGES, skip_build: $SKIP, linux: $LINUX"
           if [ "$CHANGES" = success ] && [ "$SKIP" = true ] && [ "$LINUX" = skipped ]; then
             exit 0
+          fi
+          if [ "$CHANGES" != success ]; then
+            echo "::error title=changes failed::The changes job failed; its log says why (for example a pointer that is not on Kinetra main)."
+            exit 1
           fi
           test "$LINUX" = success
 
