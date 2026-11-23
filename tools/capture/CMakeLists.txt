@@ -19,8 +19,9 @@ target_link_libraries(kinetra_capture PRIVATE kinetra_capture_core)
 kinetra_i4sim_bundle_blueprints(kinetra_capture)
 
 if(BUILD_TESTING)
-    # Window-free: the PNG writer, the scene list, the clicked menu rows and the scripted
-    # Dotio player; no session is created.
+    # Window-free: the PNG writer, the scene list, the clicked menu rows, the scripted Dotio
+    # player and the tour's parts that need no Runtime; the only sessions are the Demo ones
+    # of the tour's start check, which need no window.
     kinetra_add_doctest(kinetra_capture_tests PREFIX kinetra_capture
         SOURCES tests/capture_tests.cpp LIBRARIES kinetra_capture_core)
     # The scene-list case checks the committed files and the gallery in the source tree.

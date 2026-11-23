@@ -191,6 +191,14 @@ class Tour {
     std::shared_ptr<PanelMirror> panel_;
 };
 
-/// Plays the whole tour. Calls `terrain_started` after confirming the launcher started Demo Terrain.
+/// Throws std::runtime_error unless `running`, the session the launcher runs or nullptr while
+/// one of its menu pages shows, is Demo on its Terrain scenario. The message starts with
+/// "The tour did not start Demo Terrain" and says what runs instead: a menu page, such as
+/// Demo's scenario page, another application by its title(), or another Demo scenario by
+/// its label.
+void require_demo_terrain(kinetra_lab::Session *running);
+
+/// Plays the whole tour. After the launcher chapter, throws std::runtime_error when Demo
+/// Terrain did not start (require_demo_terrain), and calls `terrain_started` when it did.
 void play_tour(Tour &tour, const std::function<void()> &terrain_started);
 } // namespace capture
