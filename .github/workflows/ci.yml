@@ -147,8 +147,10 @@ jobs:
 
       - name: Tool versions
         run: |
+          # sed reads all of its input: with head, the writer can die of SIGPIPE, and the
+          # step shell's pipefail turns that into a failure (exit code 141).
           command -v gcc cmake ctest ninja
-          gcc --version | head -1; cmake --version | head -1; ninja --version; ldd --version | head -1
+          gcc --version | sed -n 1p; cmake --version | sed -n 1p; ninja --version; ldd --version | sed -n 1p
 
       - uses: actions/checkout@v7
 
