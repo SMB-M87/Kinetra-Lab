@@ -58,8 +58,8 @@ Checked the deferred BLUEPRINTS transition, the automatic restart's run state an
 ## Verification
 
 - Before the fix, the restart case observed 200 instead of 360 ticks per second, the reset case observed an 8-tick horizon, and the blueprint screen kept the rejected-goal message after four seconds.
-- Built the i4sim logic suites and executable with the `dev` preset. `ctest --preset dev -R '^kinetra_i4sim_controller:'` passed all 43 cases.
-- Built the logic and presentation suites and executable with the `graphics` preset. `ctest --preset graphics -R '^kinetra_i4sim|^kinetra_smoke:i4sim' -j 4 --output-on-failure` passed all 152 checks, including the golden and pressure suites, graphics tests, and both smoke runs.
+- Built the i4sim logic suites and executable with the `dev` preset. `ctest --preset dev -R '^kinetra_i4sim_controller:'` passed all 44 cases.
+- Built the logic and presentation suites and executable with the `graphics` preset. `ctest --preset graphics -R '^kinetra_i4sim|^kinetra_smoke:i4sim' -j 4 --output-on-failure` passed all 153 checks, including the golden and pressure suites, graphics tests, and both smoke runs.
 - `kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/corridor-passing.json --ticks 3 --output <temporary-directory>` wrote a valid `summary.json`.
 - Documentation links, copies and changed-file formatting checked with `check_docs.py`, `check_copies.py` and clang-format 23.1.5.
 - This cloud checkout needed the existing workspace toolchain activated before it could configure. clang-format 23.1.5 came from a temporary user-level install.
@@ -84,7 +84,7 @@ Checked the deferred BLUEPRINTS transition, the automatic restart's run state an
 
 ### Verification
 
-The controller suite passed 43 cases. The i4sim selection of the `graphics` preset passed 152 checks. The batch export, formatting, docs links and copies checks passed. Pull request CI supplies the Full level.
+The controller suite passed 44 cases. The i4sim selection of the `graphics` preset passed 153 checks. The batch export, formatting, docs links and copies checks passed. Pull request CI supplies the Full level.
 
 ### Review notes
 
