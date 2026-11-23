@@ -153,6 +153,8 @@ Testing Lab's script on a clone found that a submodule at a Kinetra commit witho
 | Nit: Lab's message for a Kinetra commit without the script named only the README's packages | It names CI's clang-format version too, through Kinetra's development page |
 | Lesson proposed: when a script reuses an option from CI, check that CI's conditions hold where it runs | Added to Kinetra's [review lessons](../../external/Kinetra/docs/review-lessons.md#ci-and-tooling) (ebd6c84) |
 
+**Agent review, round 2** (only the commits since round 1): *Ready to merge* on Kinetra#47 at ebd6c84 and on Kinetra-Lab#105 at 05d798f, checklist 10 of 10 on both; every thread accepted and resolved. The reviewer checked in its own cloud session that a host the agent proxy blocks gives `W: Failed to fetch … 403 Forbidden` and exit 0, so the install goes on. Three optional nits, each a script change that would start a new round, are [open points](#open-points).
+
 ## Verification
 
 In this branch's cloud session (Ubuntu 24.04.5, *Default* environment):
@@ -219,3 +221,6 @@ An environment setup script that calls `tools/cloud_setup.sh` would let Claude C
 ## Open points
 
 - An environment setup script that calls the same script would let Claude Code cache the result, and would cover sessions with several repositories and project threads, where repository hooks do not run. Only the user can add it, in the environment's settings.
+- A source outside Ubuntu's archive whose update ends in an error, not a warning, still stops the install: `apt-get update` exits 100, for example for a suite without a `Release` file or an expired key, and the script installs nothing; the advice's `apt-get update &&` stops at the same step. Running the download and install whatever the update returned, with its failure as a note, and `;` in the advice would cover it (review round 2 on Kinetra#47); the *Index errors* row and *Verification* would follow.
+- Kinetra's script does not check the exit status of `dpkg --configure -a`, so when it fails the line names the apt install instead of dpkg (review round 2 on Kinetra#47).
+- Lab's message for a Kinetra commit without the script sends the agent to Kinetra's development page for CI's clang-format version, which such an old commit does not name there; the header of the submodule's `ci.yml` names the snapshot's clang-format at every commit (review round 2 on Kinetra-Lab#105).

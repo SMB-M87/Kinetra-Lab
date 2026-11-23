@@ -107,6 +107,9 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Tour video for YouTube** · media, capture · added 2026-11-23
   When the other items of Next and Later in both roadmaps are done, the user makes one clear and extensive tour video, uploads it to YouTube and puts its link in the README; the tour is no longer rendered after larger changes, because the GIFs show the current state (*README media as GIFs*). `docs/media/kinetra-lab-tour.mp4` left the repository on 2026-11-23 at the user's request (*Leaner agentic cycle*): `capture_tour.sh` now renders into `.docs/`, and `.gitignore` keeps `.docs/` and `*.mp4` out. A clone still holds three renders in its history (61, 89 and 94 MB of a 265 MB clone, checked on 2026-11-23); only a rewrite of the history, which the user would run, makes clones smaller ([design, open points](design/2026-11-23-leaner-cycle-first-step.md#open-points)). Open question: whether the thumbnail stays as the link's picture.
   Depends on: the other items of Next and Later in both roadmaps on 2026-11-23; the Ideas do not count (confirmed by the user on 2026-11-23). Where: [media guide](media/README.md), [README](../README.md#screenshots-and-demo).
+- **Cloud setup edge cases** · build, tools · added 2026-11-23
+  Three small gaps the agent review left as optional in the cloud setup scripts, two in Kinetra's `tools/cloud_setup.sh` and one in Lab's: a third-party apt source whose update exits 100 still stops the install, `dpkg --configure -a`'s failure is reported as an apt failure, and Lab's message for an old Kinetra commit points to a page that does not name the clang-format version. Like *Ready-to-build cloud sessions*, one item here covers both scripts.
+  Where: [Ready-to-build cloud sessions, open points](design/2026-11-23-ready-to-build-cloud-sessions.md#open-points).
 
 ## Ideas
 
