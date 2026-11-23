@@ -70,7 +70,7 @@ Non-goals:
 - **Call sites.** Demo's `Agent` (heading from velocity, the heading home) and `Scene` (turn rate) and Dotio's `Vec2::get_direction` and lead angle use `kinetra::atan2` and `kinetra::asin`. With Kinetra's own uses in `signed_angle` and `tangent_steer`, every float `atan2` and `asin` in simulation logic then rounds correctly. i4sim has no call of its own; its RVO line moves through Kinetra.
 - **Pointer.** `external/Kinetra` records the tip of Kinetra's `build/linux-beyond-arch` (#33), which contains #32 and, since review round 1, Kinetra `main` with the inspector overlay (#31) that Lab `main` needs.
 - **Windows.** The `windows` and `windows-native` test presets first lost their name filter. CI's Windows job then passed Dotio's fingerprint and still failed the other five (see [verification](#verification)), so their exclusion came back and Dotio's stays removed. [Windows](../windows.md#tests) and the Dotio test's comment say so.
-- **CI.** One job `linux` in `ci.yml` with entries `arch` and `ubuntu`, each in its own container, and the pointer-only skip condition. Every entry installs its own packages (Arch from the pinned snapshot; Ubuntu the README's apt set plus `git` and `ca-certificates`), prints the path and version of `gcc`, `cmake`, `ctest` and `ninja`, fetches the submodule and runs `cmake --workflow --preset headless`. `arch` also runs the format and docs checks and `cmake --workflow --preset ci`, with engine and warning-free-module warnings as errors. `ubuntu` runs `cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF -DKINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF`, builds with `set -o pipefail` through `tee`, turns each distinct `warning: ` line into an annotation, and runs `ctest --preset ci`. The required `checks` waits for `linux` and passes when every entry passed, or when `changes` succeeded and skipped the build. Until review round 2 this was a separate job `ubuntu` on the runner itself, with `/usr/bin` put first on the path.
+- **CI.** One job `linux` in `ci.yml` with entries `arch` and `ubuntu`, each in its own container, and the pointer-only skip condition. Every entry installs its own packages (Arch from the pinned snapshot; Ubuntu the README's apt set plus `git` and `ca-certificates`), prints the path and version of `gcc`, `cmake`, `ctest` and `ninja`, fetches the submodule and runs `cmake --workflow --preset headless`. `arch` also runs the format and docs checks and `cmake --workflow --preset ci`, with engine and warning-free-module warnings as errors. `ubuntu` runs `cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF -DKINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF`, builds with `set -o pipefail` through `tee`, turns each distinct `warning: ` line into an annotation, and runs `ctest --preset ci`. The required `checks` (`if: always()`, so a cancelled run fails it rather than skipping it, which GitHub would count as passed) waits for `linux` and passes when every entry passed, or when `changes` succeeded and skipped the build. Until review round 2 this was a separate job `ubuntu` on the runner itself, with `/usr/bin` put first on the path.
 - **Warnings option.** The root `CMakeLists.txt` has `KINETRA_LAB_WARNING_FREE_AS_ERRORS` (default `ON`): with it off, the warning-free modules (Demo, i4sim, Dotio, the capture tool) get the same warning mode as the rest of Lab instead of `AS_ERRORS`.
 - **Docs.** The README's quick start gives the three families' commands and says which CI tests. Demo's README no longer says the recorded lines depend on the compiler.
 
@@ -83,9 +83,9 @@ Non-goals:
 | Behavior | Test | Level |
 | --- | --- | --- |
 | The five fingerprints hold on Ubuntu with Arch's recorded values | The existing Demo crowd characterization and i4sim golden cases, run on Ubuntu 24.04 locally (they fail on `main` there) and in the new `ubuntu` job | Full |
-| Nothing changes on Arch | Every recorded line, in CI's `checks` job | Full |
+| Nothing changes on Arch | Every recorded line, in CI's `linux (arch)` run | Full |
 | Dotio's fingerprint and the five others hold on Windows | CI's `windows` job with the exclusions removed | Full |
-| Lab builds and passes on Ubuntu LTS, graphics, smoke and soak cases included | The new `ubuntu` job | Full |
+| Lab builds and passes on Ubuntu LTS, graphics, smoke and soak cases included | CI's `linux (ubuntu)` run | Full |
 
 ## Review
 
@@ -119,6 +119,8 @@ Agent review of `d7836e9` (Fix first), round 2: every round-1 thread accepted an
 | Nit: the Kinetra include sat in `agent.cpp`'s standard-library block | A block of its own before the standard library |
 | Lesson proposed | Added to the [review lessons](../review-lessons.md) |
 
+After round 2, Kinetra#35's review found that `checks` with `if: !cancelled()` is skipped on a cancelled run and then counts as passed; Lab's `checks` uses `if: always()` too, and the redundant `set -o pipefail` went, as there. The first matrix run failed both entries on SIGPIPE from `ldd --version | head -1` under the job's `bash` default (`sed -n 1p` since `2d3f25a`).
+
 ## Verification
 
 On Ubuntu 24.04 (GCC 13.3, glibc 2.39), with Kinetra at `build/linux-beyond-arch`:
@@ -134,7 +136,7 @@ On Ubuntu 24.04 (GCC 13.3, glibc 2.39), with Kinetra at `build/linux-beyond-arch
 
 After review round 1, with Lab `main` merged and Kinetra at `a803e2b`: `cmake --preset ci`, then the Demo, crowd characterization, Dotio and i4sim golden targets build without a warning and `ctest --preset ci -R '^kinetra_(demo:|demo_crowd_characterization|dotio:|i4sim_golden)'` passes 89 of 89. Configuring with `KINETRA_LAB_WARNINGS=ON` gives `-Werror` to 8 of 8 Demo sources by default and to none with `KINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF`.
 
-The pull request's CI is the Full level: `checks` on the pinned Arch toolchain, the new `ubuntu` job and `windows`.
+The pull request's CI is the Full level: `linux (arch)` on the pinned Arch toolchain, `linux (ubuntu)`, `windows`, and `checks`, which requires both Linux runs.
 
 **Windows trial.** CI's `windows` job at `052adb8`, with no exclusion: 292 of 297. Dotio's fingerprint and every other golden and pressure case passed; the four Demo crowd characterization cases and i4sim's RVO case failed. i4sim's distance now matches (17582.890 mm, against 17582.889 mm before), its trajectory hash does not; the Demo lines also differ from Ubuntu's old ones. So Kinetra's `atan2` and `asin` closed part of the Windows difference, and another C-runtime function closes the rest. The exclusion of these five came back; the values are in [Windows](../windows.md#tests).
 
