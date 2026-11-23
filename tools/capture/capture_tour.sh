@@ -28,15 +28,15 @@ if ! command -v ffmpeg > /dev/null; then
     exit 1
 fi
 
-# The output folder comes first: if it cannot be made, the run stops before the long render
-# instead of after it, when the EXIT trap would delete the video.
+# The work folder sits next to the output and comes first: when the output folder cannot be
+# made or written, the run stops here instead of after the long render, when the EXIT trap
+# would delete the video. The final mv is then a rename on one file system, not a copy.
 mkdir -p "$(dirname "$output")"
+work=$(mktemp -d "$(dirname "$output")/.tour.XXXXXX")
+trap 'rm -rf "$work"' EXIT
 
 # The tool says how large its raw frames are and how many there are per second.
 read -r size rate < <("$tool" --tour-format)
-
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
 
 # Raw RGB frames through a pipe: some fifteen thousand of them, 6 MB each. yuv420p and fast
 # start make the file play in browsers; flat colors compress well at this quality.
