@@ -15,6 +15,11 @@
 # - ubuntu: Ubuntu LTS with its own GCC, glibc, CMake and SDL2, the Debian and Ubuntu
 #   package set of the README's quick start. Warnings are annotations, not errors, because
 #   another GCC warns about other things. The image tag follows Ubuntu's point releases.
+#   Its packages come from Canonical's mirror inside Azure, where the runners run; when that
+#   mirror fails or lacks an index, from the image's own sources, with a warning.
+#
+# Every job has a time limit, and so does each install step, a few times its usual
+# duration: a stalled download fails the run within minutes instead of GitHub's six hours.
 #
 # The `ci` test preset runs every test, the graphics cases and the smoke runs of every
 # executable included, with SDL's offscreen driver and software Mesa: an OpenGL context
@@ -61,6 +66,7 @@ jobs:
   # runs to show the build.
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       skip_build: ${{ steps.decide.outputs.skip_build }}
     steps:
@@ -143,6 +149,8 @@ jobs:
           - distro: ubuntu
             image: ubuntu:24.04
     runs-on: ubuntu-latest
+    # The slowest run, Ubuntu's, takes about 11 minutes.
+    timeout-minutes: 45
     container: ${{ matrix.image }}
     defaults:
       run:
@@ -150,6 +158,7 @@ jobs:
     steps:
       - name: Install the pinned Arch toolchain and dependencies
         if: matrix.distro == 'arch'
+        timeout-minutes: 15
         run: |
           # The pinned snapshot comes from the Arch Linux Archive. When the archive does not
           # answer, the image's own mirrors serve the current packages instead; such a run is
@@ -165,15 +174,30 @@ jobs:
 
       - name: Install Ubuntu's packages
         if: matrix.distro == 'ubuntu'
+        # Usually three minutes. archive.ubuntu.com, the image's source, once served a run so
+        # slowly that this step was still downloading after an hour.
+        timeout-minutes: 15
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           # The Debian and Ubuntu package set of the README's quick start, plus git for the
           # checkout and the submodule.
-          apt-get update
-          apt-get install -y --no-install-recommends build-essential cmake ninja-build ccache \
-            libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev \
-            git ca-certificates
+          packages="build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev git ca-certificates"
+          # Canonical's mirror inside Azure, where the runners run, serves the same archive.
+          # The copy of the image's sources stays outside sources.list.d, where apt would
+          # report its extension.
+          sources=/etc/apt/sources.list.d/ubuntu.sources
+          cp "$sources" /etc/apt/ubuntu.sources.image
+          sed -i -E 's#^URIs: http://(archive|security)\.ubuntu\.com/ubuntu/?$#URIs: http://azure.archive.ubuntu.com/ubuntu/#' "$sources"
+          grep '^URIs:' "$sources"
+          install() { apt-get update "$@" && apt-get install -y --no-install-recommends $packages; }
+          # apt-get update succeeds when an index fails to download; Error-Mode=any makes the
+          # mirror's update fail then, so a run never installs from a partial package list.
+          if ! install -o APT::Update::Error-Mode=any; then
+            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed, so this run installs from the image's own sources."
+            cp /etc/apt/ubuntu.sources.image "$sources"
+            install
+          fi
 
       - name: Tool versions
         run: |
@@ -227,6 +251,7 @@ jobs:
     # cancelled run this job must still run and fail.
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Every Linux run passed, or the build was rightly skipped
         env:
@@ -248,6 +273,8 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.skip_build != 'true') }}
     runs-on: windows-latest
+    # A run takes about seven minutes.
+    timeout-minutes: 45
     defaults:
       run:
         shell: msys2 {0}
