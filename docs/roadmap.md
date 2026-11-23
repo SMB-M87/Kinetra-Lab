@@ -20,9 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Ready-to-build cloud sessions** · build, tools, with Kinetra · added 2026-11-21
-  A SessionStart hook in Kinetra and Kinetra-Lab runs one setup script at the start of every cloud session: it loads the Kinetra submodule, installs the Ubuntu packages and CI's clang-format 23.1.5 from PyPI.
-  Where: [design](design/2026-11-23-ready-to-build-cloud-sessions.md), branches `ccr-d6ebceac-13bzfb` (Lab) and `build/cloud-session-setup` (Kinetra).
+Nothing in progress.
 
 ## Next
 
