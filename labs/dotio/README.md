@@ -410,7 +410,7 @@ Not covered: gameplay balance and desktop feel (a playtest), recovery under real
 - `Vec2::get_signed` returns absolute values, as in the original game; `Tracker::add_instance` overwrites the next slot whether it is in use or not.
 - `Enemy` keeps three independent flags (`line_of_sight`, `debug`, `frozen`): perception, debug mode and residency, not one lifecycle, so they are not an enum.
 - `<kinetra/runtime/timing.h>` (`FixedClock`) is header-only and headless but lives under Kinetra's `runtime/`; Demo and i4sim logic include it too.
-- The shelter search may settle the whole resident window (24,025 cells) when no shelter exists; it runs only for recovering enemies near the player.
+- The shelter search may settle the whole resident window (24,025 cells) when no shelter exists, which takes milliseconds, and a recovering enemy near the player repeats it at every decision ([performance](../../docs/performance.md#dotio)).
 - Absolute district integers and local float precision remain finite.
 
 ## Provenance
