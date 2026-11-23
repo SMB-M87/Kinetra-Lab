@@ -62,6 +62,7 @@ Non-goals:
 | Windows | Remove the six exclusions from both Windows test presets and let CI's Windows job decide; restore a case's exclusion only if it still fails, with its values recorded (the user, 2026-11-22) | Windows' i4sim line differs in the same digit as Ubuntu's, a hint that the cause is the same |
 | Order | One stack: Kinetra #32 (functions), Kinetra #33 (Ubuntu job), then this pull request (the user, 2026-11-22) | Lab's Ubuntu job needs both |
 | One Lab pull request | The golden fix and the Ubuntu job share this branch, in separate commits | This session may push only its assigned Lab branch; the pull request changes CI and waits for the user anyway |
+| One Linux job | Since 2026-11-23, one `linux` job with an `arch` and an `ubuntu` entry, each in its own container, and `checks` passes only when every entry passed, as in Kinetra's design *CI Linux matrix* (Kinetra #35) (the user, 2026-11-23) | No copied steps, so a fix to one distribution's job cannot miss the other; Ubuntu is required. In the container, `/usr/bin` holds Ubuntu's own tools without a path change |
 | Ubuntu job | Same shape as Kinetra's: Ubuntu's own CMake and compiler (`/usr/bin` first), headless workflow, the `ci` preset with the engine's and the warning-free Lab modules' warnings as annotations instead of errors (`KINETRA_WARNINGS_AS_ERRORS=OFF`, the new `KINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF`), every test including graphics, smoke runs and soak cases; format and docs only on Arch | Arch's pinned toolchain stays the reference for warnings (the user, 2026-11-22); review round 1 found that Lab's warning-free modules were still errors on Ubuntu |
 
 ## Design
@@ -69,12 +70,13 @@ Non-goals:
 - **Call sites.** Demo's `Agent` (heading from velocity, the heading home) and `Scene` (turn rate) and Dotio's `Vec2::get_direction` and lead angle use `kinetra::atan2` and `kinetra::asin`. With Kinetra's own uses in `signed_angle` and `tangent_steer`, every float `atan2` and `asin` in simulation logic then rounds correctly. i4sim has no call of its own; its RVO line moves through Kinetra.
 - **Pointer.** `external/Kinetra` records the tip of Kinetra's `build/linux-beyond-arch` (#33), which contains #32 and, since review round 1, Kinetra `main` with the inspector overlay (#31) that Lab `main` needs.
 - **Windows.** The `windows` and `windows-native` test presets first lost their name filter. CI's Windows job then passed Dotio's fingerprint and still failed the other five (see [verification](#verification)), so their exclusion came back and Dotio's stays removed. [Windows](../windows.md#tests) and the Dotio test's comment say so.
-- **CI.** A job `ubuntu` in `ci.yml` on `ubuntu-24.04`, with the same skip condition as `checks` and `windows`: the Debian and Ubuntu packages of the README, then `cmake --workflow --preset headless`, `cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF`, its build and `ctest --preset ci`.
+- **CI.** One job `linux` in `ci.yml` with entries `arch` and `ubuntu`, each in its own container, and the pointer-only skip condition. Every entry installs its own packages (Arch from the pinned snapshot; Ubuntu the README's apt set plus `git` and `ca-certificates`), prints the path and version of `gcc`, `cmake`, `ctest` and `ninja`, fetches the submodule and runs `cmake --workflow --preset headless`. `arch` also runs the format and docs checks and `cmake --workflow --preset ci`, with engine and warning-free-module warnings as errors. `ubuntu` runs `cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF -DKINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF`, builds with `set -o pipefail` through `tee`, turns each distinct `warning: ` line into an annotation, and runs `ctest --preset ci`. The required `checks` waits for `linux` and passes when every entry passed, or when `changes` succeeded and skipped the build. Until review round 2 this was a separate job `ubuntu` on the runner itself, with `/usr/bin` put first on the path.
+- **Warnings option.** The root `CMakeLists.txt` has `KINETRA_LAB_WARNING_FREE_AS_ERRORS` (default `ON`): with it off, the warning-free modules (Demo, i4sim, Dotio, the capture tool) get the same warning mode as the rest of Lab instead of `AS_ERRORS`.
 - **Docs.** The README's quick start gives the three families' commands and says which CI tests. Demo's README no longer says the recorded lines depend on the compiler.
 
 ## Affected areas
 
-`external/Kinetra`, `labs/demo/src/world/agent.cpp`, `labs/demo/src/world/scene.cpp`, `labs/dotio/src/math/vector.cpp`, `labs/dotio/tests/dotio_tests.cpp` (comment), `CMakePresets.json` (Windows test filters), `.github/workflows/ci.yml`, `README.md`, `docs/windows.md`, `labs/demo/README.md`, this document, the [design index](README.md#index), the [roadmap](../roadmap.md).
+`external/Kinetra`, `labs/demo/src/world/agent.cpp`, `labs/demo/src/world/scene.cpp`, `labs/dotio/src/math/vector.cpp`, `labs/dotio/tests/dotio_tests.cpp` (comment), `CMakePresets.json` (Windows test filters), the root `CMakeLists.txt` (`KINETRA_LAB_WARNING_FREE_AS_ERRORS`), `.github/workflows/ci.yml`, `AGENTS.md` (warnings), `README.md`, `docs/windows.md`, `labs/demo/README.md`, `labs/dotio/README.md`, the [Demo](2026-11-21-demo-restructuring.md#open-points) and [Dotio](2026-11-21-dotio-restructuring.md#open-points) restructurings' open points, the [review lessons](../review-lessons.md), this document, the [design index](README.md#index), the [roadmap](../roadmap.md).
 
 ## Test plan
 
@@ -93,7 +95,7 @@ Self-review of the branch diff against `main`:
 - No recorded value changed: the fix keeps Arch's results, and every fingerprint was compared against its existing expected value, not re-recorded.
 - The Windows step was a trial: CI's Windows job passed Dotio's fingerprint and failed the other five, so their exclusion came back in a new commit, with the values in [Windows](../windows.md#tests). The README and Demo's README, which the first version made say *Windows too*, now say what holds where.
 - Copies: "skipped on Windows" and "depend on the compiler" were stated in [Windows](../windows.md#tests), Demo's README (twice), the Dotio test's comment, two open points of the [Demo](2026-11-21-demo-restructuring.md#open-points) and [Dotio](2026-11-21-dotio-restructuring.md#open-points) restructurings, and the Dotio playtest item of the roadmap, and all now say the same. The Full level's list of CI checks changed in Lab's AGENTS.md and, in Kinetra #33, in AGENTS.md, testing and the `verify` skill; the Kinetra testing page's copy was found during this review and fixed on #33.
-- The `ubuntu` job uses the same condition as `checks` and `windows`, so a pointer-only pull request skips it, and it is not a required status.
+- The `ubuntu` job used the same condition as `checks` and `windows`, so a pointer-only pull request skipped it. Since the `linux` matrix, `checks` passes on a skip only when `changes` succeeded and said to skip; a failed or cancelled `linux` run fails it.
 - [Windows](../windows.md#tests) used to say five cases were excluded while the presets excluded six (Dotio's too); it now names the five that stay excluded and says that Dotio's runs.
 
 Agent review of `9b86757` (Fix first), round 1:
@@ -106,6 +108,16 @@ Agent review of `9b86757` (Fix first), round 1:
 | Should fix: two copies of "skipped on Windows" were missed | Dotio's README says the fingerprint runs on Linux and Windows and why; the Dotio restructuring's open point marks the decision settled |
 | Nits: where to record Demo's lines; "every C library" without the exception; includes | Demo's README says to record on Linux, never on Windows; "in practice" with a pointer to Kinetra's `math.h` in Demo's README, Windows tests and the Dotio test; `agent.cpp` and `scene.cpp` include `<kinetra/simulation/math.h>` |
 | Two lessons proposed | Added to the [review lessons](../review-lessons.md) |
+
+Agent review of `d7836e9` (Fix first), round 2: every round-1 thread accepted and resolved. New points:
+
+| Finding | Resolution |
+| --- | --- |
+| Should fix: `AGENTS.md` still said engine warnings are errors in CI and told to add a warning-free module with a literal `AS_ERRORS` | Names the runs that treat warnings as errors and says to add a module with `${warning_free_mode}` |
+| Should fix: the *Design* bullet, *Affected areas* and the description did not describe round 1's changes, and the *Summary* said "every C library" | All three rewritten, together with the user's change of the same day to one `linux` matrix job (Kinetra #35) |
+| Nit: "warnings are errors only there" left out Windows | The `ci.yml` header names Arch and the `windows` job |
+| Nit: the Kinetra include sat in `agent.cpp`'s standard-library block | A block of its own before the standard library |
+| Lesson proposed | Added to the [review lessons](../review-lessons.md) |
 
 ## Verification
 
@@ -130,24 +142,25 @@ The pull request's CI is the Full level: `checks` on the pinned Arch toolchain, 
 
 Title: `fix: golden fingerprints on every toolchain, Ubuntu CI and Linux per distribution`
 
-**Summary.** Lab's trajectory fingerprints held only on CI's Arch toolchain: they failed on Ubuntu and were skipped on Windows. The cause is the C library's float `atan2f` and `asinf`, not GCC 13. With Kinetra's `atan2` and `asin`, which round the same on every C library ([Kinetra #32](https://github.com/SMB-M87/Kinetra/pull/32)), the recorded values hold unchanged on Ubuntu; this pull request moves Lab's calls to them, runs Dotio's fingerprint on Windows again, adds an Ubuntu LTS job to CI and documents the dependencies per distribution.
+**Summary.** Lab's trajectory fingerprints held only on CI's Arch toolchain: they failed on Ubuntu and were skipped on Windows. The cause is the C library's float `atan2f` and `asinf`, not GCC 13. With Kinetra's `atan2` and `asin`, which round the same on every C library in practice ([Kinetra #32](https://github.com/SMB-M87/Kinetra/pull/32); the rare exception is in its `math.h`), the recorded values hold unchanged on Ubuntu; this pull request moves Lab's calls to them, runs Dotio's fingerprint on Windows again, turns CI's Linux build into one `linux` job with an Arch and an Ubuntu LTS container, both required, and documents the dependencies per distribution.
 
 **Changes.**
 - Demo (`Agent`, `Scene`) and Dotio (`Vec2`) call `kinetra::atan2` and `kinetra::asin`.
 - `CMakePresets.json`: the Windows test presets no longer exclude Dotio's fingerprint; the five other fingerprints stay excluded, because Windows still differs (tried in this pull request, values in `docs/windows.md`).
-- CI: job `ubuntu` on Ubuntu 24.04: headless workflow, the `ci` preset with engine warnings reported, every test with graphics, smoke and soak cases.
-- Docs: dependency commands per distribution family in the README, the Full level's CI checks in AGENTS.md, Windows tests, Demo README, the Dotio test comment, two older open points, the roadmap (both items removed, *Linux release* unblocked).
+- CI: one job `linux` with entries `arch` (the pinned reference: format, docs, warnings as errors) and `ubuntu` (an `ubuntu:24.04` container with Ubuntu's own tools, warnings as annotations); the required `checks` passes when both passed or the build was rightly skipped.
+- CMake: option `KINETRA_LAB_WARNING_FREE_AS_ERRORS` (default `ON`), which the Ubuntu run turns off.
+- Docs: dependency commands per distribution family in the README, the Full level's CI checks and the warning rule in AGENTS.md, Windows tests, Demo's and Dotio's READMEs, the Dotio test comment, three older open points, the roadmap (both items removed, *Golden tests on Windows* added, *Linux release* unblocked), three review lessons.
 - `external/Kinetra` at Kinetra's `build/linux-beyond-arch` (#33 on top of #32).
 
 **Design.** `docs/design/2026-11-22-linux-beyond-arch.md`, and Kinetra's design of the same name.
 
-**Verification.** On Ubuntu 24.04 the five fingerprints that fail on `main` pass with Arch's recorded values; 321 of 321 with the soak, graphics and smoke cases; headless 259 of 259. The pull request's CI on Arch, Ubuntu and Windows is the Full level.
+**Verification.** On Ubuntu 24.04 the five fingerprints that fail on `main` pass with Arch's recorded values; 321 of 321 with the soak, graphics and smoke cases; headless 259 of 259; after merging Lab `main`, 89 of 89 Demo, Dotio and golden cases. `actionlint` passes on `ci.yml`. The pull request's CI on Arch, Ubuntu and Windows is the Full level.
 
 **Review notes.** No expected value changed. The Windows step was a trial the user approved: Dotio's fingerprint passed; the Demo crowd cases and i4sim's RVO case still differ, so their exclusion came back, with the values recorded. The Dotio playtest item listed "the golden fingerprint skipped on Windows" among the decisions for the user's review; that decision is gone. The Fedora command is not checked against Fedora's repositories.
 
-**Dependencies and merge order.** Kinetra [#32](https://github.com/SMB-M87/Kinetra/pull/32), then [#33](https://github.com/SMB-M87/Kinetra/pull/33), each with a merge commit; then this pull request with its pointer at the Kinetra branch commit it was verified with; then a pointer-only pull request to Kinetra's merge commit on `main`. Changes CI and the agent rules, so it waits for the user.
+**Dependencies and merge order.** Kinetra [#32](https://github.com/SMB-M87/Kinetra/pull/32) and [#33](https://github.com/SMB-M87/Kinetra/pull/33) are merged; the pointer is at #33's head `4b91463`, which `main` contains. After this pull request, a pointer-only pull request to Kinetra `main`. Kinetra [#35](https://github.com/SMB-M87/Kinetra/pull/35) makes the same matrix change in Kinetra and is independent. Changes CI and the agent rules, so it waits for the user.
 
-**Follow-up.** *Golden tests on Windows* (roadmap) for the five cases still excluded. *Linux release* is unblocked. Making `CI / ubuntu` a required check, and a Fedora job, stay with the user.
+**Follow-up.** *Golden tests on Windows* (roadmap) for the five cases still excluded. *Linux release* is unblocked. The Fedora check stays in Kinetra's *Linux support follow-ups*; a Fedora matrix entry can follow it.
 
 ## Open points
 
