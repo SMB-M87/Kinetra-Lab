@@ -29,5 +29,7 @@ if [[ ! -f "$kinetra_setup" ]]; then
         "Install the packages of the README's quick start by hand."
     exit 0
 fi
-# i4sim needs nlohmann JSON in every build, headless included (README, quick start).
+# i4sim needs nlohmann JSON in every build, headless included. The README's Debian and Ubuntu
+# row and CI's Ubuntu step install Kinetra's set plus the same Lab packages; change all three
+# together.
 exec bash "$kinetra_setup" nlohmann-json3-dev
