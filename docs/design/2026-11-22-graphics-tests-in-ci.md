@@ -81,7 +81,7 @@ flowchart LR
 | `ctest --preset ci` runs the graphics cases and smoke runs | `ctest --preset ci -N -L graphics` lists 24 entries; this pull request's `checks` job runs them in the pinned Arch image | Full |
 | Headless builds register no smoke run, and Windows-native runs none | `headless` has no runtime. `windows-native` inherits `ci`'s configure preset, so it registers them, and its test preset's `graphics` exclusion keeps them from running; this pull request's CI | Full |
 | `i4sim-run` fails when its blueprint does not load | Locally, with the path changed to a missing file: *Error regular expression found in output*; with the real path it passes | Full |
-| Desktop zoom with a touchpad or smooth wheel (from Kinetra #30) | A playtest by the user (roadmap, *Smooth-wheel zoom on a desktop*) | Playtest |
+| Desktop zoom with a mouse wheel and touchpad (from Kinetra #30) | Desktop playtest by the user | Playtest |
 | Docs | `python3 external/Kinetra/tools/check_docs.py` | Docs |
 
 ## Review
@@ -108,6 +108,7 @@ The agent review on 5183c35 (*Fix first*, code review `high`) found:
 | `python3 external/Kinetra/tools/check_docs.py` | passed |
 | CI on 97db948 and 5183c35 (pinned Arch, `sdl2-compat`; Windows) | passed: `ctest --preset ci` 321 of 321, 24 `graphics`, the 8 smoke runs included; `windows` green |
 | CI on the review fixes | see the pull request |
+| Desktop zoom with a mouse wheel and a touchpad | The user confirmed both worked on 2026-11-23 |
 
 ## Pull request
 
@@ -121,9 +122,8 @@ The agent review on 5183c35 (*Fix first*, code review `high`) found:
 
 **Dependencies and merge order.** Kinetra #30 merges first, with a merge commit. This pull request records its branch commit; the move to the Kinetra merge commit follows in a pointer-only pull request. It changes CI, presets and agent rules, and names a playtest by the user, so it waits for the user.
 
-**Follow-up.** The user's playtest of smooth-wheel zoom (roadmap, *Smooth-wheel zoom on a desktop*).
+**Follow-up.** The user's desktop zoom check passed with a mouse wheel and a touchpad on 2026-11-23.
 
 ## Open points
 
-- Smooth wheels and touchpads now zoom in fractional steps in Demo, Dotio and i4sim (Kinetra's runtime change); the user's playtest on a desktop (roadmap).
 - The four Demo crowd characterization cases and i4sim's RVO golden case still fail with GCC 13 in a cloud session (*Golden tests on every toolchain*); CI is not affected, because it uses the pinned Arch toolchain.
