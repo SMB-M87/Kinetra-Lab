@@ -16,7 +16,7 @@ Where Lab's applications spend their time, measured on 2026-11-23, and how to me
 
 ## Summary
 
-The baseline is Lab `bae378f` with Kinetra `bc17b4f`, built in the `release` preset (GCC 13.3, `-O3`) and run headless on a cloud machine with four cores of an Intel Xeon at 2.3 GHz. Absolute times depend on the machine, so compare only runs on one machine. The i4sim times the roadmap quoted before came from a faster machine (9–10.5 s against 13–14.5 s on the large layout); the ratio between the two policies is the same.
+The baseline is Lab `bae378f` with Kinetra `bc17b4f`, built in the `release` preset (GCC 13.3, `-O3`) and run headless on a cloud machine with four cores of an Intel Xeon at 2.3 GHz. Absolute times depend on the machine, so compare only runs on one machine. The i4sim times the roadmap quoted before came from a faster machine (9–10.5 s against 13–14.5 s on the large layout); the ratio between the two policies is about the same.
 
 | Application | Workload | Time | Per tick | Where the time goes |
 | --- | --- | --- | --- | --- |
@@ -47,7 +47,7 @@ cmake --build --preset release --target kinetra_i4sim_motion_benchmark kinetra_d
 | Demo | `./build-release/kinetra_demo_crowd_characterization_tests --duration=true` | the same for the golden scenarios, 1.6–2.2 s each; 90% of it is the simulation, with the same profile as the soak cases |
 | Dotio | `time ./build-release/kinetra_dotio_behavior_benchmark` | none of its own; the scripted player's planning is under 1% of the total ([behavior benchmark](../labs/dotio/README.md#behavior-benchmark)) |
 
-For a profile, build a second tree with frame pointers and symbols. It gave the same benchmark results as the release build, within 2% of its time:
+For a profile, build a second tree with frame pointers and symbols. It gave the same benchmark results as the release build, within 3% of its time:
 
 ```sh
 cmake --preset release -B build-profile -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer"
@@ -100,7 +100,7 @@ The world holds 489 bodies at 48 agents and 681 at 240; 362 of them are fixed te
 | Where | 240 agents | 48 agents | Why |
 | --- | --- | --- | --- |
 | `kinetra::World::step` ([physics.cpp](../external/Kinetra/src/simulation/physics.cpp)) | 55% | 88% | Two substeps, each with a sweep pass and six correction passes |
-| of which `SpatialGrid::rebuild` | 35% | 64% | Every pass rebuilds the grid from all bodies, 14 rebuilds per tick (callgrind), each clearing a hash map of vectors and filling it again, the fixed terrain included |
+| of which `SpatialGrid::rebuild` | 35% | 64% | Every pass rebuilds the grid from all bodies, at least 14 times per tick and 14.0 on average at 240 agents (callgrind); each rebuild clears a hash map of vectors and fills it again, the fixed terrain included |
 | of which `SpatialGrid::query` | 9% | 9% | About 3,900 queries per tick at 240 agents (callgrind): bodies in the sweep passes, moving bodies in the correction passes |
 | `Scene::steer_agents` ([scene.cpp](../labs/demo/src/world/scene.cpp)) | 41% | 9% | |
 | of which `SpatialGrid::query` | 22% | 5% | Two queries per agent per tick, for neighbors and terrain, each hashing every cell it covers, then allocating and sorting its result |
