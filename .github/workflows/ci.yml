@@ -46,8 +46,9 @@ env:
 jobs:
   # Decides whether this pull request can change the build or the tests, with the decision
   # of the release workflow (tools/release/needs_build.sh): not when Lab changed only
-  # Markdown, docs/ or .agents/ and a moved Kinetra pointer brings only Markdown, docs/,
-  # .agents/, .github/ or tools/, which Lab's build does not read. Then the build and test
+  # Markdown, docs/ or .agents/, apart from README.md, docs/media/ and the blueprints, which
+  # a test reads or the build copies, and a moved Kinetra pointer brings only Markdown,
+  # docs/, .agents/, .github/ or tools/, which Lab's build does not read. Then the build and test
   # jobs below are skipped, only the docs check runs here, and "checks" passes on this job's
   # result. A pointer-only pull request merges without review, so this job also fails when
   # its pointer is not on Kinetra main. Any doubt, such as a failed Kinetra fetch, means a
