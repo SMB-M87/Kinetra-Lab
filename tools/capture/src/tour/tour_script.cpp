@@ -480,11 +480,18 @@ void i4sim_chapter(Tour &tour) {
 } // namespace
 
 void require_demo_terrain(kinetra_lab::Session *running) {
+    // One message for every way the launcher chapter can go wrong, so the smoke test's
+    // report says which click moved instead of a bad cast.
+    const std::string failed = "The tour did not start Demo Terrain: ";
     if (!running)
-        throw std::logic_error("The tour asked for its session while the launcher menu shows");
-    if (dynamic_cast<const demo::Session &>(*running).application().scene().scenario() !=
-        demo::Scenario::terrain)
-        throw std::runtime_error("The tour did not start Demo Terrain");
+        throw std::runtime_error(failed + "the launcher menu still shows");
+    const auto *demo_session = dynamic_cast<const demo::Session *>(running);
+    if (!demo_session)
+        throw std::runtime_error(failed + running->title() + " runs instead");
+    if (const auto scenario = demo_session->application().scene().scenario();
+        scenario != demo::Scenario::terrain)
+        throw std::runtime_error(failed + "Demo runs " + std::string(demo::scenario_label(scenario)) +
+                                 " instead");
 }
 
 void play_tour(Tour &tour, const std::function<void()> &terrain_started) {

@@ -2,7 +2,8 @@
 // PNG writer (png.h), the scene list and the menu rows the scripts click (scenes.h), the showcase
 // cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h),
 // the scripted Dotio player (dotio_player.h), and the tour's frame drawing (canvas.h), pointer
-// motion (pointer_path.h) and row lookup (tour.h). No Runtime or session is created.
+// motion (pointer_path.h), row lookup and start check (tour.h). No Runtime is created; the start
+// check gets Demo sessions, which need none, and a stand-in for another application.
 #include "capture/dotio_player.h"
 #include "capture/png.h"
 #include "capture/scenes/busy_stretch.h"
@@ -696,4 +697,39 @@ TEST_CASE("a row is found by its label and a missing label names the rows that a
     } catch (const std::runtime_error &error) {
         CHECK(std::string(error.what()).find("none") != std::string::npos);
     }
+}
+
+namespace {
+/// Stands in for a session of another application than Demo; the start check reads only its
+/// title.
+class OtherApplication final : public kinetra_lab::Session {
+  public:
+    void advance(double, const kinetra::Input &, kinetra::Camera2D &) override {}
+    void render(kinetra::Runtime &) override {}
+    std::string title() override { return "Dotio"; }
+    std::string status() override { return {}; }
+};
+
+/// The message of the std::runtime_error that require_demo_terrain throws for `running`;
+/// empty when it throws none.
+std::string start_failure(kinetra_lab::Session *running) {
+    try {
+        capture::require_demo_terrain(running);
+    } catch (const std::runtime_error &error) {
+        return error.what();
+    }
+    return {};
+}
+} // namespace
+
+TEST_CASE("the tour's start check names what runs instead of Demo Terrain") {
+    const std::string failed = "The tour did not start Demo Terrain: ";
+    CHECK(start_failure(nullptr) == failed + "the launcher menu still shows");
+    OtherApplication other;
+    CHECK(start_failure(&other) == failed + "Dotio runs instead");
+    // Demo sessions need no window, so the check casts real ones, as in the tour.
+    const auto gravity = demo::create_session(0, capture::capture_seed, demo::Scenario::gravity);
+    CHECK(start_failure(gravity.get()) == failed + "Demo runs GRAVITY instead");
+    const auto terrain = demo::create_session(0, capture::capture_seed, demo::Scenario::terrain);
+    CHECK(start_failure(terrain.get()).empty());
 }
