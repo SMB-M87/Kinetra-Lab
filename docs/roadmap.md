@@ -20,7 +20,8 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **i4sim session fixes** · i4sim · added 2026-11-21
+  Branch `fix/i4sim-session`. Where: [i4sim session fixes](design/2026-11-23-i4sim-session-fixes.md).
 
 ## Next
 
@@ -38,9 +39,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
   A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. On 2026-11-22 the *Linux beyond Arch* session created a personal cloud environment *Kinetra-Lab* for Kinetra-Lab and Kinetra, whose setup script installs the README's Debian and Ubuntu packages; clang-format 23 is not in Ubuntu's packages and is still missing.
   Next step: start the next code task in the *Kinetra-Lab* environment and check that it builds at once; then decide how a session gets clang-format 23 (for example LLVM's apt repository, which needs its host allowed).
-- **i4sim session fixes** · i4sim · added 2026-11-21
-  Decided on 2026-11-22 that all four are bugs: `R` keeps a `--ups` rate, RESET PARAMETERS sets the horizon back to the default of 32 instead of 8, the unused `output` argument of `create_session` goes, and a message such as a rejected goal also ages while no blueprint is loaded. One small pull request, a test per point; the session is presentation code, so it ends at the Full level.
-  Next step: branch `fix/i4sim-session`. Where: [i4sim open points](../labs/i4sim/README.md#open-points).
 - **Remove Demo's help overlay** · demo · added 2026-11-21
   Decided on 2026-11-22: `draw_help`, `toggle_help` and `PresentationOptions::help`, reachable only from tests, go with their tests; the help lines stay in the settings panel, so nothing changes on screen.
   Next step: branch `refactor/demo-help-overlay`. Where: [Demo open points](../labs/demo/README.md#open-points).
