@@ -165,10 +165,14 @@ TEST_CASE("the scenes are the expected list, each once") {
         CHECK((scene.kind == capture::SceneKind::clip) == scene.name.ends_with("-clip"));
     }
     CHECK(names == std::set<std::string>{"launcher",
+                                         "launcher-demo-scenarios",
                                          "launcher-difficulty",
                                          "launcher-loadscreen",
                                          "demo",
                                          "demo-debug",
+                                         "demo-gravity",
+                                         "demo-maze",
+                                         "demo-doorway",
                                          "demo-clip",
                                          "demo-debug-clip",
                                          "dotio",

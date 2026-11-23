@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -63,9 +64,9 @@ class Stage {
     Stage(const Stage &) = delete;
     Stage &operator=(const Stage &) = delete;
 
-    /// Starts `variant` exactly as the bundled launcher does, with capture_seed, the default
-    /// Demo agent count and the default Dotio difficulty. i4sim starts on its blueprint screen.
-    void start(launcher::Variant variant);
+    /// Starts `variant` through the bundled launcher registration with capture_seed.
+    /// `configuration` overrides the default scenario or difficulty when supplied.
+    void start(launcher::Variant variant, std::optional<std::size_t> configuration = std::nullopt);
     /// Starts Dotio as the bundled launcher does, at the default difficulty with capture_seed,
     /// and keeps its application for dotio(), so a script can play against the world.
     void start_dotio();

@@ -139,6 +139,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ./build/kinetra
 ./build/kinetra --variant demo --agents 12 --frames 120
+./build/kinetra --scenario maze
 ./build/kinetra --variant dotio --difficulty medium --frames 120
 ./build/kinetra_demo --frames 120
 ./build/kinetra_dotio --difficulty medium --frames 120

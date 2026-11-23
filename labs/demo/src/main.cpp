@@ -15,7 +15,8 @@
 #include <string_view>
 
 namespace {
-void trace_agent(std::uint32_t seed, std::uint64_t ticks, const std::string &coordinates) {
+void trace_agent(demo::Scenario scenario, std::uint32_t seed, std::uint64_t ticks,
+                 const std::string &coordinates) {
     using kinetra_lab::inspector_argument;
     const auto comma = coordinates.find(',');
     if (comma == std::string::npos)
@@ -24,7 +25,7 @@ void trace_agent(std::uint32_t seed, std::uint64_t ticks, const std::string &coo
                              inspector_argument<float>(coordinates.substr(comma + 1))};
     if (!kinetra::finite(home))
         throw std::invalid_argument("Expected finite home coordinates");
-    demo::Application application(demo::default_agent_count, seed);
+    demo::Application application(demo::default_agent_count, seed, scenario);
     kinetra::Camera2D camera;
     camera.pixels_per_unit = demo::initial_zoom;
     const auto id = "AGENT " + coordinates;
@@ -43,6 +44,7 @@ int main(int argc, char **argv) {
         std::uint64_t ticks = 0;
         std::optional<std::uint32_t> seed;
         std::optional<std::string> inspect;
+        auto scenario = demo::Scenario::terrain;
         using kinetra_lab::inspector_argument;
         for (int i = 1; i < argc; ++i) {
             const std::string_view option = argv[i];
@@ -60,22 +62,25 @@ int main(int argc, char **argv) {
                 ticks = inspector_argument<std::uint64_t>(value);
             else if (option == "--inspect")
                 inspect = value;
+            else if (option == "--scenario")
+                scenario = demo::parse_scenario(value);
             else
                 throw std::invalid_argument(
-                    "Usage: kinetra_demo [--seed N] [--frames N | --ticks N --inspect X,Y]");
+                    "Usage: kinetra_demo [--seed N] [--scenario terrain|gravity|maze|doorway] "
+                    "[--frames N | --ticks N --inspect X,Y]");
         }
         if (inspect || ticks) {
             if (!inspect || ticks == 0 || !seed || frames)
                 throw std::invalid_argument(
                     "--inspect X,Y requires --seed N and positive --ticks N instead of --frames");
-            trace_agent(*seed, ticks, *inspect);
+            trace_agent(scenario, *seed, ticks, *inspect);
             return 0;
         }
         kinetra::Runtime runtime("Demo");
         runtime.camera.pixels_per_unit = demo::initial_zoom;
         const auto chosen = seed ? *seed : std::random_device{}();
         std::cout << "World seed: " << chosen << '\n';
-        auto session = demo::create_session(demo::default_agent_count, chosen);
+        auto session = demo::create_session(demo::default_agent_count, chosen, scenario);
         kinetra::run_session(runtime, *session, frames);
     } catch (const std::exception &error) {
         std::cerr << "Demo: " << error.what() << '\n';

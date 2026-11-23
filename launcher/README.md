@@ -23,7 +23,7 @@ The launcher lets a user try every Lab application without restarting, and gives
 | File | Responsibility |
 | --- | --- |
 | [include/launcher/applications.h](include/launcher/applications.h) | `Variant`, `Options`, Lab's `LauncherBindings`, and the `applications()` and `selection()` declarations |
-| [src/applications.cpp](src/applications.cpp) | The three registrations: menu names, Dotio difficulties, camera reset and session factories |
+| [src/applications.cpp](src/applications.cpp) | Registrations, Demo scenarios, Dotio difficulties, camera resets and session factories |
 | [src/main.cpp](src/main.cpp) | Arguments, the world seed and the call to `kinetra::run_launcher` |
 
 `kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. The `kinetra` executable uses it. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
@@ -34,10 +34,10 @@ The launcher lets a user try every Lab application without restarting, and gives
 stateDiagram-v2
     direction LR
     [*] --> Menu
-    Menu --> Difficulty: DOTIO
-    Difficulty --> Menu: cancel
-    Menu --> Running: DEMO or I4SIM
-    Difficulty --> Running: confirm
+    Menu --> Configuration: DEMO or DOTIO
+    Configuration --> Menu: cancel
+    Menu --> Running: I4SIM
+    Configuration --> Running: confirm
     Running --> Menu: Settings LAUNCHER, or Escape/M on the i4sim blueprint screen
     Running --> [*]: Settings EXIT or window closed
     Menu --> [*]: EXIT or window closed
@@ -57,7 +57,8 @@ Selecting an application always creates a new session, so returning to the menu 
 | --- | --- |
 | `--variant` | `demo`, `dotio`, `i4sim`; omit for the menu |
 | `--difficulty` | `easy`, `medium`, `hard` for Dotio; default `medium` |
-| `--agents` | 0–300 Demo agents; default 48 |
+| `--scenario` | `terrain`, `gravity`, `maze`, `doorway`. Starts Demo directly. The default for `--variant demo` is `terrain` |
+| `--agents` | 0–300 initial agents in Demo's Terrain scenario. Default 48 |
 | `--frames` | 1–100000 rendered frames; omit for unlimited |
 
 Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md) and [i4sim](../labs/i4sim/README.md) guides.
@@ -71,7 +72,7 @@ Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README
 
 | CTest | Covers | Needs |
 | --- | --- | --- |
-| `kinetra_menu` | Registration names and order, Dotio's difficulties and default, hover and keyboard selection, picking at resized viewports | Runtime build, no window |
+| `kinetra_menu` | Registration order, Demo scenarios, Dotio difficulties, defaults, and configuration picking at resized viewports | Runtime build, no window |
 | `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), FRAME LIMIT, LAUNCHER and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 | `kinetra_smoke:launcher*` | `kinetra` starts in the menu and with each `--variant`, draws 120 frames and exits with 0 | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 

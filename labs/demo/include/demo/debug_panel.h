@@ -55,7 +55,8 @@ inline constexpr kinetra::DebugStep max_speed{0.5f, 16, 1.25f, true}, max_accele
 class DebugPanel {
   public:
     /// `application` is borrowed and must outlive the panel.
-    explicit DebugPanel(Application &application) : application_(application) {}
+    explicit DebugPanel(Application &application)
+        : application_(application), gravity_(application.scene().world().gravity.y != 0) {}
     DebugPanel(const DebugPanel &) = delete;
     DebugPanel &operator=(const DebugPanel &) = delete;
 

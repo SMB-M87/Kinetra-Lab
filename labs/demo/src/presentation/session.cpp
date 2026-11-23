@@ -37,7 +37,7 @@ class DemoSession final : public Session {
     }
 
   public:
-    DemoSession(int count, std::uint32_t seed) : application_(count, seed) {}
+    DemoSession(int count, std::uint32_t seed, Scenario scenario) : application_(count, seed, scenario) {}
     DemoSession(const DemoSession &) = delete;
     DemoSession &operator=(const DemoSession &) = delete;
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
@@ -83,7 +83,10 @@ class DemoSession final : public Session {
                       .inspection = snapshot ? &*snapshot : nullptr});
     }
     kinetra::SessionRequest request() const override { return settings_.request(); }
-    std::string title() override { return "Demo"; }
+    std::string title() override {
+        const auto scenario = application_.scene().scenario();
+        return scenario == Scenario::terrain ? "Demo" : "Demo - " + std::string(scenario_label(scenario));
+    }
     std::string status() override { return demo::status_text(application_); }
     std::vector<kinetra_lab::DebugRow> debug_rows() override {
         return kinetra_lab::debug_rows_of(panel_.entries());
@@ -91,7 +94,7 @@ class DemoSession final : public Session {
     const Application &application() const override { return application_; }
 };
 } // namespace
-std::unique_ptr<Session> create_session(int count, std::uint32_t seed) {
-    return std::make_unique<DemoSession>(count, seed);
+std::unique_ptr<Session> create_session(int count, std::uint32_t seed, Scenario scenario) {
+    return std::make_unique<DemoSession>(count, seed, scenario);
 }
 } // namespace demo

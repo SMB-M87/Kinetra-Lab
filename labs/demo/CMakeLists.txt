@@ -1,6 +1,7 @@
 add_library(kinetra_demo_logic
-    src/application.cpp src/debug_panel.cpp src/input/mapping.cpp
-    src/world/agent.cpp src/world/inspector.cpp src/world/scene.cpp src/world/terrain.cpp src/world/tuning.cpp)
+    src/application.cpp src/debug_panel.cpp src/input/mapping.cpp src/scenario.cpp
+    src/world/agent.cpp src/world/inspector.cpp src/world/scene.cpp src/world/scenarios.cpp
+    src/world/terrain.cpp src/world/tuning.cpp)
 target_include_directories(kinetra_demo_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab/debug.h is headless: the menu rows that every Lab application shares.
 target_link_libraries(kinetra_demo_logic PUBLIC Kinetra::Simulation kinetra_lab)
@@ -16,7 +17,7 @@ if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_demo_terrain_tests PREFIX kinetra_demo_terrain
         SOURCES tests/terrain_tests.cpp LIBRARIES kinetra_demo_logic)
     kinetra_add_doctest(kinetra_demo_tests PREFIX kinetra_demo
-        SOURCES tests/application_tests.cpp tests/debug_panel_tests.cpp
+        SOURCES tests/application_tests.cpp tests/debug_panel_tests.cpp tests/scenario_tests.cpp
         LIBRARIES kinetra_demo_logic kinetra_lab nlohmann_json::nlohmann_json)
 endif()
 if(KINETRA_BUILD_RUNTIME)
@@ -47,6 +48,14 @@ if(KINETRA_BUILD_RUNTIME)
             "-DPROGRAM=$<TARGET_FILE:kinetra_demo>"
             "-DARGS=--seed;42;--ticks;3;--inspect;12345,67890"
             "-DTICKS=3" "-DEXPECTED=AGENT 12345,67890" "-DFIRST_EXPECTED=groups\":null"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
+        add_test(NAME kinetra_demo_inspector_trace_doorway COMMAND ${CMAKE_COMMAND}
+            "-DPROGRAM=$<TARGET_FILE:kinetra_demo>"
+            "-DARGS=--scenario;doorway;--seed;42;--ticks;3;--inspect;@SELECTOR@"
+            "-DORACLE=$<TARGET_FILE:kinetra_demo_tests>"
+            "-DORACLE_CASE=seeded Doorway snapshots for the inspector trace"
+            "-DEXPECT_SELECTOR=ON"
+            "-DTICKS=3" "-DEXPECTED=CLI SELECTOR"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
     endif()
     kinetra_lab_add_smoke(demo kinetra_demo)

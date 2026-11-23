@@ -51,14 +51,15 @@ Stage::Stage(kinetra::Runtime &runtime, std::filesystem::path output, std::strin
       pointer_(runtime.camera.viewport - Vec2{2, 2}) {
 }
 
-void Stage::start(launcher::Variant variant) {
+void Stage::start(launcher::Variant variant, std::optional<std::size_t> configuration) {
     // Release the old session first: Dotio's world is a singleton.
     session_.reset();
     dotio_ = nullptr;
     const auto options = capture_options();
     auto registrations = launcher::applications(options);
     const auto selection = launcher::selection(variant, options);
-    session_ = registrations.at(selection.application).create(runtime_.camera, selection.configuration);
+    session_ = registrations.at(selection.application)
+                   .create(runtime_.camera, configuration.value_or(selection.configuration));
 }
 
 void Stage::start_dotio() {

@@ -12,10 +12,11 @@ namespace demo {
 /// elapsed time, intent and the current logical camera viewport, including on paused frames.
 class Application {
   public:
-    /// A scene with `agent_count` initial agents (0 to 300) and terrain from `seed`.
+    /// Terrain uses `agent_count` initial agents (0 to 300) and a procedural layout from
+    /// `seed`. An authored scenario sets its own layout and population.
     /// Throws std::invalid_argument for another count, and std::runtime_error when the
     /// agents cannot all be placed clear of each other and of terrain.
-    Application(int agent_count, std::uint32_t seed);
+    Application(int agent_count, std::uint32_t seed, Scenario scenario = Scenario::terrain);
     /// Applies one frame of intent, then runs the fixed ticks that `elapsed` seconds times
     /// `commands.time_scale` are worth; none while paused, except one for
     /// `commands.single_step`. Throws std::invalid_argument, before anything changes, for

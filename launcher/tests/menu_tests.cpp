@@ -1,6 +1,7 @@
 // Window-free tests of the bundled launcher's registrations (launcher/include/applications.h)
 // through kinetra::LaunchMenu: names and order, Dotio's difficulties and default, hover and
 // keyboard selection, and picking at resized viewports. No session is created.
+#include "demo/presentation/session.h"
 #include "dotio/presentation/session.h"
 #include "launcher/applications.h"
 
@@ -24,6 +25,7 @@ kinetra::Input key(kinetra::Key k) {
     return input;
 }
 constexpr std::size_t dotio_row = static_cast<std::size_t>(Variant::dotio);
+constexpr std::size_t demo_row = static_cast<std::size_t>(Variant::demo);
 } // namespace
 
 TEST_CASE("the registrations follow the variant order") {
@@ -48,6 +50,27 @@ TEST_CASE("difficulty names parse and unknown names are rejected") {
     CHECK(dotio::difficulty_index("medium") == dotio::default_difficulty);
     CHECK(dotio::difficulty_index("hard") == 2);
     CHECK_THROWS_AS(dotio::difficulty_index("impossible"), std::invalid_argument);
+}
+
+TEST_CASE("Demo offers its four scenarios and starts the selected scene") {
+    const launcher::Options options{0, 42, 0, 2};
+    const auto registrations = launcher::applications(options);
+    const auto &registration = registrations[demo_row];
+    CHECK(registration.choice.configurations ==
+          std::vector<std::string>{"TERRAIN", "GRAVITY", "MAZE", "DOORWAY"});
+    CHECK(registration.choice.default_configuration == 2);
+    const auto selection = launcher::selection(Variant::demo, options);
+    CHECK(selection.configuration == 2);
+    kinetra::Camera2D camera;
+    for (std::size_t index = 0; index < registration.choice.configurations.size(); ++index) {
+        auto session = registration.create(camera, index);
+        session->advance(0, {}, camera);
+        const auto name = registration.choice.configurations[index];
+        CHECK(session->title() == (index == 0 ? "Demo" : "Demo - " + name));
+    }
+    CHECK(demo::parse_scenario("terrain") == demo::Scenario::terrain);
+    CHECK(demo::parse_scenario("doorway") == demo::Scenario::doorway);
+    CHECK_THROWS_AS(demo::parse_scenario("impossible"), std::invalid_argument);
 }
 
 TEST_CASE("hover preselects and keyboard selection survives a resting pointer") {
@@ -100,13 +123,16 @@ TEST_CASE("cancel leaves the difficulty screen") {
 TEST_CASE("picking works at resized viewports") {
     for (const auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{200, 150}}) {
         CAPTURE(viewport.x);
-        {
+        for (std::size_t scenario = 0; scenario < demo::scenario_labels().size(); ++scenario) {
+            CAPTURE(scenario);
             auto menu = lab_menu();
             kinetra::Input input;
             input.clicked = true;
-            input.mouse = kinetra::MenuLayout(viewport, 3).row_center(std::size_t(Variant::demo));
+            input.mouse = kinetra::MenuLayout(viewport, 3).row_center(demo_row);
+            CHECK((!menu.update(input, viewport) && menu.configuring()));
+            input.mouse = kinetra::MenuLayout(viewport, demo::scenario_labels().size()).row_center(scenario);
             const auto picked = menu.update(input, viewport);
-            CHECK((picked && picked->application == std::size_t(Variant::demo)));
+            CHECK((picked && picked->application == demo_row && picked->configuration == scenario));
         }
         {
             auto menu = lab_menu();

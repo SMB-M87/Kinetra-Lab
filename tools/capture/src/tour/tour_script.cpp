@@ -70,6 +70,10 @@ void launcher_chapter(Tour &tour) {
     tour.caption("DEMO: TERRAIN, NAVIGATION, STEERING AND PHYSICS");
     tour.pause(0.6, 0.9);
     tour.click();
+    tour.caption("CHOOSE A DEMO SCENARIO");
+    tour.move_to(kinetra::MenuLayout(tour.viewport(), demo::scenario_labels().size()).row_center(0));
+    tour.pause(0.35, 0.6);
+    tour.click();
 }
 
 // Demo.
@@ -475,8 +479,11 @@ void i4sim_chapter(Tour &tour) {
 }
 } // namespace
 
-void play_tour(Tour &tour) {
+void play_tour(Tour &tour, const std::function<void()> &terrain_started) {
     launcher_chapter(tour);
+    if (demo_application(tour).scene().scenario() != demo::Scenario::terrain)
+        throw std::runtime_error("The tour did not start Demo Terrain");
+    terrain_started();
     demo_chapter(tour);
     dotio_chapter(tour);
     i4sim_chapter(tour);

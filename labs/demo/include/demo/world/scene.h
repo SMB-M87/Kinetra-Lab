@@ -1,6 +1,7 @@
 #pragma once
 
 #include "demo/input/player_control.h"
+#include "demo/scenario.h"
 #include "demo/world/agent.h"
 #include "demo/world/terrain.h"
 #include "demo/world/tuning.h"
@@ -23,18 +24,22 @@ namespace demo {
 /// Distances are world units, times simulated seconds. The world holds the moving bodies
 /// first (body ids below moving_body_count(): agents, the player and six passive props),
 /// then the loaded terrain; every agent's body id is a moving body other than the player.
-/// stream() keeps the terrain, the population and the navigation around the player; update()
-/// runs one fixed tick. A value type: a copy is an independent scene.
+/// stream() keeps the terrain, the population and the navigation around the player in
+/// Terrain. Authored layouts hold a fixed obstacle and agent set. update() runs one fixed
+/// tick. A value type: a copy is an independent scene.
 class Scene {
   public:
     /// Largest population; streaming spawns no agent beyond it.
     static constexpr std::size_t maximum_agents = 1200;
 
-    /// `count` agents (0 to 300) at seeded points around the player's start at (0, -18),
-    /// the player and the props, with terrain from `seed`. Terrain loads with the first
-    /// stream(). Throws std::invalid_argument for another count, and std::runtime_error
-    /// when an agent finds no free place in 1000 attempts.
-    explicit Scene(int count, std::uint32_t seed);
+    /// Terrain starts with `count` agents (0 to 300) around the player at (0, -18), plus
+    /// passive props. Its seeded terrain loads with the first stream(). Authored layouts
+    /// start with their own bodies. Throws std::invalid_argument for a count outside the
+    /// range or an unknown scenario, and std::runtime_error when an agent cannot spawn.
+    explicit Scene(int count, std::uint32_t seed, Scenario scenario = Scenario::terrain);
+
+    /// The layout selected at construction. Authored layouts keep their original bodies.
+    Scenario scenario() const { return scenario_; }
 
     /// The physics world: the moving bodies first (agents, player, props), then the loaded
     /// terrain. Streaming may renumber bodies.
@@ -98,7 +103,8 @@ class Scene {
     void arrange(std::vector<kinetra::Body> movers, std::size_t player, std::vector<kinetra::Body> obstacles,
                  kinetra::Aabb navigation_area);
 
-    /// Retain player-centered terrain and populate newly active chunks once. The population
+    /// Update the camera view in every scenario. Terrain retains player-centered terrain
+    /// and populates newly active chunks once. The population
     /// is capped; distant agents are evicted and revisits can repopulate chunks.
     ///
     /// The areas scale with the camera's viewport, not with its zoom or position: physics
@@ -127,7 +133,7 @@ class Scene {
     /// Commands every awake agent to `destination`; the selection stays available.
     void target_agents(kinetra::Vec2 destination);
 
-    /// Follow the latest player pose, including while paused or after teleportation.
+    /// Place the active camera on the player in Terrain and at the center in authored scenes.
     void follow(kinetra::Camera2D &camera) const;
 
     /// Apply player intent and active-agent steering for one fixed tick; sleeping
@@ -146,7 +152,11 @@ class Scene {
     /// world never holds this many bodies, so the two kinds cannot collide.
     static constexpr std::uint64_t terrain_avoidance_ids = std::uint64_t{1} << 32;
 
+    /// Navigation and teleport limits for all authored scenes, in world units.
+    static constexpr kinetra::Aabb scenario_area{{-22, -14}, {22, 14}};
+
     kinetra::World world_;
+    Scenario scenario_;
     Terrain terrain_;
     Terrain preview_;
     kinetra::Navigation navigation_;
@@ -174,6 +184,8 @@ class Scene {
 
     /// Places `count` agents at seeded free points around the player's start.
     void populate_initial(int count, std::uint32_t seed);
+    /// Builds the fixed scene selected at construction.
+    void arrange_scenario(std::uint32_t seed);
     /// Adds the player and the six passive props after the initial agents.
     void add_player_and_props();
     /// Removes the movers outside `retained`, except the player, and renumbers the rest.

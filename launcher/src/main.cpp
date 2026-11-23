@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
         launcher::Options options{demo::default_agent_count, 0, dotio::default_difficulty};
         int frame_limit = 0;
         std::optional<launcher::Variant> initial_variant;
+        std::optional<demo::Scenario> demo_scenario;
         for (int i = 1; i < argc; ++i) {
             const std::string option = argv[i];
             if (option == "--variant" && i + 1 < argc) {
@@ -39,13 +40,22 @@ int main(int argc, char **argv) {
                     throw std::invalid_argument("Variant must be demo, dotio or i4sim");
             } else if (option == "--difficulty" && i + 1 < argc)
                 options.dotio_difficulty = dotio::difficulty_index(argv[++i]);
+            else if (option == "--scenario" && i + 1 < argc)
+                demo_scenario = demo::parse_scenario(argv[++i]);
             else if (option == "--agents" && i + 1 < argc)
                 options.agents = argument(argv[++i], 0, 300);
             else if (option == "--frames" && i + 1 < argc)
                 frame_limit = argument(argv[++i], 1, 100000);
             else
                 throw std::invalid_argument("Usage: kinetra [--variant demo|dotio|i4sim] [--difficulty "
-                                            "easy|medium|hard] [--agents 0..300] [--frames 1..100000]");
+                                            "easy|medium|hard] [--scenario terrain|gravity|maze|doorway] "
+                                            "[--agents 0..300] [--frames 1..100000]");
+        }
+        if (demo_scenario) {
+            if (initial_variant && *initial_variant != launcher::Variant::demo)
+                throw std::invalid_argument("--scenario is available for Demo");
+            initial_variant = launcher::Variant::demo;
+            options.demo_scenario = static_cast<std::size_t>(*demo_scenario);
         }
         kinetra::Runtime runtime{std::string(kinetra::launcher_window_title)};
         options.seed = std::random_device{}();

@@ -86,7 +86,7 @@ Runtime outlives every session; sessions own application state. Applications cho
 | Application | Snapshot | How drawing uses it |
 | --- | --- | --- |
 | i4sim | `Mover::previous_position`, set at the start of every tick | `Simulation::interpolation()`; the world view draws movers, their labels and debug vectors at the blended position |
-| Demo | Every world body's position and angle before and after the last tick, in `Application` | `presented_pose(id)`; the renderer draws moving bodies, routes and markers there and moves the camera with the drawn player for that frame only |
+| Demo | Every world body's position and angle before and after the last tick, in `Application` | `presented_pose(id)` positions bodies, routes and markers. In Terrain the camera also follows the drawn player for that frame |
 | Dotio | Positions of the player and every enemy, arrow and bolt slot, with the world offset added so a streaming shift cancels out | The ported logic draws itself from `Position`, so the presentation swaps the blended positions in for one frame and restores them afterwards |
 
 [Launcher and overlays](launcher-overlays.md) details factory failure and transition isolation. The [Demo README](../labs/demo/README.md#how-it-works) and the [Dotio guide](../labs/dotio/README.md#structure) describe their different simulation ownership and coordinate policies.

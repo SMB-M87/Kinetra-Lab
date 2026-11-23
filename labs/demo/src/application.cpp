@@ -5,6 +5,8 @@
 
 namespace demo {
 namespace {
+constexpr kinetra::Vec2 falling_gravity{0, -9.81f};
+
 std::vector<Application::Pose> poses(const kinetra::World &world) {
     std::vector<Application::Pose> result;
     result.reserve(world.bodies().size());
@@ -14,7 +16,10 @@ std::vector<Application::Pose> poses(const kinetra::World &world) {
 }
 } // namespace
 
-Application::Application(int agent_count, std::uint32_t seed) : scene_(agent_count, seed) {
+Application::Application(int agent_count, std::uint32_t seed, Scenario scenario)
+    : scene_(agent_count, seed, scenario), gravity_(scenario == Scenario::gravity) {
+    if (gravity_)
+        scene_.set_gravity(falling_gravity);
 }
 
 void Application::apply_actions(const FrameCommands &commands) {
@@ -27,7 +32,7 @@ void Application::apply_actions(const FrameCommands &commands) {
     if (commands.toggle_paths)
         presentation_.paths = !presentation_.paths;
     presentation_.probes = commands.probes;
-    scene_.set_gravity(gravity_ ? kinetra::Vec2{0, -9.81f} : kinetra::Vec2{});
+    scene_.set_gravity(gravity_ ? falling_gravity : kinetra::Vec2{});
 }
 
 void Application::update_camera(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {

@@ -5,6 +5,7 @@
 #include "capture/scenes/showcase.h"
 #include "capture/stage.h"
 
+#include "demo/scenario.h"
 #include "i4sim/blueprint/blueprint.h"
 
 #include <kinetra/runtime/launcher.h>
@@ -13,6 +14,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -81,27 +83,34 @@ Input held(std::initializer_list<Key> keys) {
 
 // Launcher pages.
 
-void launcher_menu(Stage &stage, bool difficulty_page) {
+void launcher_menu(Stage &stage, std::optional<Variant> configuration_page = std::nullopt) {
     kinetra::LaunchMenu menu(launcher_choices());
     Input input;
     input.mouse = stage.viewport() - Vec2{2, 2};
     menu.update(input, stage.viewport());
-    if (difficulty_page)
-        for (const Key key : {Key::down, Key::enter}) {
-            Input press = input;
-            press.pressed[std::size_t(key)] = true;
-            menu.update(press, stage.viewport());
-        }
+    if (configuration_page == Variant::dotio) {
+        Input down = input;
+        down.pressed[std::size_t(Key::down)] = true;
+        menu.update(down, stage.viewport());
+    }
+    if (configuration_page) {
+        input.pressed[std::size_t(Key::enter)] = true;
+        menu.update(input, stage.viewport());
+    }
     menu.draw(stage.runtime());
     stage.write_frame();
 }
 
 void launcher_page(Stage &stage) {
-    launcher_menu(stage, false);
+    launcher_menu(stage);
+}
+
+void launcher_demo_scenarios(Stage &stage) {
+    launcher_menu(stage, Variant::demo);
 }
 
 void launcher_difficulty(Stage &stage) {
-    launcher_menu(stage, true);
+    launcher_menu(stage, Variant::dotio);
 }
 
 void launcher_loadscreen(Stage &stage) {
@@ -140,6 +149,19 @@ void demo_debug(Stage &stage) {
     stage.toggle_debug_menu();
     stage.click_debug_row(demo_motion_click.row);
     stage.point_at(stage.viewport() - Vec2{2, 2});
+    stage.shot();
+}
+
+void demo_scenario(Stage &stage, demo::Scenario scenario) {
+    stage.start(Variant::demo, static_cast<std::size_t>(scenario));
+    stage.wait(0.4);
+    if (scenario == demo::Scenario::maze) {
+        stage.aim(stage.runtime().camera.world_to_screen({17, 8}));
+        Input walk;
+        walk.clicked = true;
+        stage.step(walk);
+    }
+    stage.wait(1.2);
     stage.shot();
 }
 
@@ -373,10 +395,14 @@ Scene clip(std::string_view name, void (*script)(Stage &)) {
 const std::vector<Scene> &scenes() {
     static const std::vector<Scene> all{
         shot("launcher", launcher_page),
+        shot("launcher-demo-scenarios", launcher_demo_scenarios),
         shot("launcher-difficulty", launcher_difficulty),
         shot("launcher-loadscreen", launcher_loadscreen),
         shot("demo", demo),
         shot("demo-debug", demo_debug),
+        shot("demo-gravity", [](Stage &stage) { demo_scenario(stage, demo::Scenario::gravity); }),
+        shot("demo-maze", [](Stage &stage) { demo_scenario(stage, demo::Scenario::maze); }),
+        shot("demo-doorway", [](Stage &stage) { demo_scenario(stage, demo::Scenario::doorway); }),
         clip("demo-clip", demo_clip),
         clip("demo-debug-clip", demo_debug_clip),
         shot("dotio", dotio),

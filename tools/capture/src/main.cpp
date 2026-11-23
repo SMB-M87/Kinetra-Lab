@@ -38,7 +38,10 @@ long write_tour(const std::string &target, long limit) {
             if (++frames == limit)
                 throw FrameLimitReached{};
         });
-        capture::play_tour(tour);
+        capture::play_tour(tour, [&] {
+            if (!out)
+                std::cerr << "kinetra_capture: tour verified Demo Terrain\n";
+        });
     } catch (const FrameLimitReached &) {
     } catch (...) {
         if (out && out != stdout)

@@ -191,6 +191,6 @@ class Tour {
     std::shared_ptr<PanelMirror> panel_;
 };
 
-/// Plays the whole tour on `tour`: the launcher, Demo, Dotio, i4sim and EXIT.
-void play_tour(Tour &tour);
+/// Plays the whole tour. Calls `terrain_started` after confirming the launcher started Demo Terrain.
+void play_tour(Tour &tour, const std::function<void()> &terrain_started);
 } // namespace capture
