@@ -26,8 +26,6 @@ void Application::apply_actions(const FrameCommands &commands) {
         gravity_ = !gravity_;
     if (commands.toggle_paths)
         presentation_.paths = !presentation_.paths;
-    if (commands.toggle_help)
-        presentation_.help = !presentation_.help;
     presentation_.probes = commands.probes;
     scene_.set_gravity(gravity_ ? kinetra::Vec2{0, -9.81f} : kinetra::Vec2{});
 }
