@@ -116,7 +116,7 @@ Each case then requires the outcome (no contact, every mover at its goal, no stu
 | Loading | A blueprint loads paused, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
 | Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
 | Keys | Space and P, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart is paused, keeps the current tick rate and motion settings, and replays a scene's goals |
-| Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor, but with Shift it only selects, as a left click does; Shift-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
+| Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor, but with Shift it only selects, as a left click does; Shift+left-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
 | Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, and the ZOOM row's buttons, both within the zoom limits |
 | Modal pause | An open panel pauses a running blueprint and restores it; a paused one stays paused |
 | Debug menu | The menu opens with SIMULATION open; a heading opens its section and closes the other; each section lists its rows in order; layers, WORKLOAD, RUNNING, RECOVERY and the traffic policies are check boxes on the real state; a layer lists its parts only while it is on, and a part draws only while its layer is on; PROFILE and PLANNER open a list that chooses and closes, and a list closes with its section; the number rows show their value and step it while running; RESET PARAMETERS restores the default speed, force and horizon; a rejected setting shows its reason; BLUEPRINTS closes the blueprint at the next frame |
@@ -125,7 +125,7 @@ Not covered: a scene that cannot be replayed after `R`, which needs a scenario t
 
 ## Graphics suite
 
-`presentation_tests.cpp` checks that a rejected goal expires after returning to the blueprint screen and pins the graphical factory's signature at compile time. Its main OpenGL case selects a blueprint on the blueprint screen, pauses and resumes, checks the color swatches and the PATHS parts in the LAYERS section, edits motion settings through the debug menu's lists and `[-] [+]` buttons while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
+`presentation_tests.cpp` checks that a rejected goal expires after returning to the blueprint screen and pins the graphical factory's signature at compile time. Its main OpenGL case selects a blueprint on the blueprint screen, pauses and resumes, checks the color swatches and the PATHS parts in the LAYERS section, edits motion settings through the debug menu's lists and `[-] [+]` buttons while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift+left-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
 
 Set `I4SIM_CAPTURE=<file.ppm>` to save the frame after the Motion checks. Software rendering verifies drawing and input contracts, not desktop feel or performance.
 
@@ -144,7 +144,7 @@ south arm at `(700, 1100)`. Press Space. The cyan boundary marks the exclusive z
 Disable JUNCTION TRAFFIC in DEBUG → Motion and press `R` to replay the scene
 without it and observe the uncoordinated narrow-crossing failure. There are no
 producers in this fixture. The graphics test builds the same setup through the
-debug menu and Shift-click goals, from a copy without the scenario.
+debug menu and Shift+left-click goals, from a copy without the scenario.
 
 For a blocked-exit demonstration, change the goals before pressing Space: send the
 north mover to `(900, 700)` and the west mover back to `(300, 700)`. Once the north
