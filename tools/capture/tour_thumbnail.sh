@@ -5,15 +5,23 @@
 # Usage: tools/capture/tour_thumbnail.sh [video] [output-file]
 #   video        the tour video (default: .docs/kinetra-lab-tour.mp4, where capture_tour.sh
 #                writes it)
-#   output-file  the PNG to write (default: docs/media/kinetra-lab-tour-thumbnail.png)
+#   output-file  the PNG to write (default: the README's docs/media/kinetra-lab-tour-thumbnail.png
+#                for the default video, and the video's name with -thumbnail.png for any other,
+#                so a trial render leaves the README's picture alone)
 # Needs bash and ffmpeg with ffprobe. capture_tour.sh runs it after encoding a new video; run it
 # on its own to refresh only the thumbnail. The moments are times in the tour, so after a change
 # to the tour script, look at the thumbnail: every tile should still show its application.
 set -euo pipefail
 
 repository=$(cd "$(dirname "$0")/../.." && pwd)
-video=${1:-$repository/.docs/kinetra-lab-tour.mp4}
-output=${2:-$repository/docs/media/kinetra-lab-tour-thumbnail.png}
+default_video=$repository/.docs/kinetra-lab-tour.mp4
+video=${1:-$default_video}
+if [[ $video == "$default_video" ]]; then
+    default_output=$repository/docs/media/kinetra-lab-tour-thumbnail.png
+else
+    default_output=${video%.*}-thumbnail.png
+fi
+output=${2:-$default_output}
 
 # Seconds into the tour, one per tile, left to right and top to bottom: the launcher under the
 # opening caption, Demo's agents heading for one clicked goal (CLICK SETS GOAL), Dotio zoomed out

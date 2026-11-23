@@ -82,4 +82,4 @@ tools/release/package_windows.sh build-windows dist/Kinetra-Lab-windows-x64.zip
 - A new application executable goes into `executables` in `package_windows.sh`, into the workflow's build targets, and into the tree above.
 - A new runtime file that the applications read must be copied next to the executables, like `i4sim-blueprints/`.
 - `README-windows.txt` becomes `README.txt` in the zip, with `@COMMIT@` replaced and Windows line endings.
-- A new input of the zip or of the build under a path the filter in `needs_build.sh` lets through (Markdown, `docs/`, `.agents/`, and in Kinetra `.github/` or `tools/`) must be taken out of the filter, or a change to it would neither be built in CI nor released.
+- A new input of the zip, the build or a test under a path the filter in `needs_build.sh` lets through (Markdown, `docs/`, `.agents/`, and in Kinetra `.github/` or `tools/`) must be listed in its `read_anyway`, as `README.md`, `docs/media/` and `labs/i4sim/blueprints/` are, or a change to it would neither be built and tested in CI nor released.

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Renders the tour video: kinetra_capture plays the tour through the launcher and the three
 # applications, and ffmpeg encodes its frames as H.264. Then tour_thumbnail.sh makes the
-# README thumbnail in docs/media. The video itself goes to YouTube, not into the repository:
+# README thumbnail in docs/media, or next to a video written elsewhere. The video itself goes to
+# YouTube, not into the repository:
 # its default place is the ignored .docs/ directory, and .gitignore keeps *.mp4 out of Git.
 #
 # Usage: tools/capture/capture_tour.sh [build-directory] [output-file]
@@ -43,5 +44,6 @@ mkdir -p "$(dirname "$output")"
 mv "$work/tour.mp4" "$output"
 echo "$output $(du -h "$output" | cut -f1)"
 
-# A new video gets a matching thumbnail, so the README never shows frames of an older tour.
-"$repository/tools/capture/tour_thumbnail.sh" "$output" "$repository/docs/media/kinetra-lab-tour-thumbnail.png"
+# A new video gets a matching thumbnail, so the README never shows frames of an older tour; a
+# trial render to another file gets its own thumbnail next to it (tour_thumbnail.sh).
+"$repository/tools/capture/tour_thumbnail.sh" "$output"
