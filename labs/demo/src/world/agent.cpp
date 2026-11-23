@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <kinetra/simulation/math.h>
 
 namespace demo {
 Agent::Agent(std::size_t body_id, kinetra::Vec2 home, std::uint32_t seed)

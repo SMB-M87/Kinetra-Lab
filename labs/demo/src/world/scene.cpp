@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <kinetra/simulation/avoidance.h>
+#include <kinetra/simulation/math.h>
 #include <kinetra/simulation/steering.h>
 #include <random>
 #include <stdexcept>
