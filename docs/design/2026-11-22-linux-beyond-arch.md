@@ -100,7 +100,7 @@ Agent review of `9b86757` (Fix first), round 1:
 
 | Finding | Resolution |
 | --- | --- |
-| Blocking: Lab `main` moved its pointer to Kinetra #31 after this pull request's CI, the Kinetra branch moved on with #32's and #33's fixes, and the roadmap and design index conflicted | Kinetra `main` merged into both Kinetra branches, the pointer follows `build/linux-beyond-arch` at `a803e2b`, and Lab `main` merged here with both roadmap items gone and every index row kept (`e0a8920`) |
+| Blocking: Lab `main` moved its pointer to Kinetra #31 after this pull request's CI, the Kinetra branch moved on with #32's and #33's fixes, and the roadmap and design index conflicted | Kinetra `main` merged into both Kinetra branches, the pointer follows `build/linux-beyond-arch` (at `a803e2b`, then at its tip after #32's and #33's second round, which changed only docs, a contract comment and its formatting), and Lab `main` merged here with both roadmap items gone and every index row kept (`e0a8920`) |
 | Should fix: the `ubuntu` job ran the runner image's CMake 3.31.6 | `/usr/bin` first on the path and a *Tool versions* step, as Kinetra #33 does |
 | Should fix: the warning-free Lab modules stayed errors on Ubuntu | New option `KINETRA_LAB_WARNING_FREE_AS_ERRORS` (default on); the `ubuntu` job turns it off and shows the build's warnings as annotations. The README and `ci.yml` say so |
 | Should fix: two copies of "skipped on Windows" were missed | Dotio's README says the fingerprint runs on Linux and Windows and why; the Dotio restructuring's open point marks the decision settled |
