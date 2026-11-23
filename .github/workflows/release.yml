@@ -17,6 +17,10 @@
 # needs only SDL2.dll beside the executables. Tests are not run here; the
 # pull request's CI ran them, natively on Windows included. Bump ARCH_SNAPSHOT
 # and the image tag together with ci.yml.
+#
+# As in ci.yml, every job has a time limit, and so does the install step, well
+# above their usual duration: a stalled download fails the run within minutes
+# instead of GitHub's six hours; re-run it once the cause has passed.
 name: Release
 
 on:
@@ -43,6 +47,7 @@ jobs:
   changes:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       build: ${{ steps.decide.outputs.build }}
     steps:
@@ -71,9 +76,14 @@ jobs:
     # changes is skipped for a tag or workflow_dispatch; that, or a failed decision, builds.
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.build != 'false') }}
     runs-on: ubuntu-latest
+    # A run takes about two minutes; the limit leaves room for an install step that runs
+    # out its 15 minutes and for a slow runner.
+    timeout-minutes: 30
     container: archlinux:base-devel-20261108.0.623074
     steps:
       - name: Install pinned toolchain and the MinGW-w64 cross compiler
+        # Usually half a minute.
+        timeout-minutes: 15
         run: |
           # As in ci.yml: when the Arch Linux Archive does not answer, the image's own mirrors
           # serve the current packages instead; such a zip is not built with the pinned
@@ -125,6 +135,7 @@ jobs:
     # Explicit: the default success() also looks at changes, which is skipped for a tag.
     if: ${{ !cancelled() && needs.package.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     env:

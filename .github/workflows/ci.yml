@@ -15,6 +15,13 @@
 # - ubuntu: Ubuntu LTS with its own GCC, glibc, CMake and SDL2, the Debian and Ubuntu
 #   package set of the README's quick start. Warnings are annotations, not errors, because
 #   another GCC warns about other things. The image tag follows Ubuntu's point releases.
+#   Its packages come from Canonical's mirror inside Azure, where the runners run; when that
+#   mirror fails, lacks an index or does not deliver the indexes and packages within five
+#   minutes, from the image's own sources, with a warning.
+#
+# Every job has a time limit, and so does each install step, well above its usual
+# duration; the Ubuntu step's 15 minutes also hold the mirror's five and the fallback's
+# install. A stalled download fails the run within minutes instead of GitHub's six hours.
 #
 # The `ci` test preset runs every test, the graphics cases and the smoke runs of every
 # executable included, with SDL's offscreen driver and software Mesa: an OpenGL context
@@ -62,6 +69,7 @@ jobs:
   # runs to show the build.
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       skip_build: ${{ steps.decide.outputs.skip_build }}
     steps:
@@ -144,6 +152,8 @@ jobs:
           - distro: ubuntu
             image: ubuntu:24.04
     runs-on: ubuntu-latest
+    # A run takes about eight minutes.
+    timeout-minutes: 45
     container: ${{ matrix.image }}
     defaults:
       run:
@@ -151,6 +161,7 @@ jobs:
     steps:
       - name: Install the pinned Arch toolchain and dependencies
         if: matrix.distro == 'arch'
+        timeout-minutes: 15
         run: |
           # The pinned snapshot comes from the Arch Linux Archive. When the archive does not
           # answer, the image's own mirrors serve the current packages instead; such a run is
@@ -166,15 +177,44 @@ jobs:
 
       - name: Install Ubuntu's packages
         if: matrix.distro == 'ubuntu'
+        # About half a minute from the mirror. archive.ubuntu.com, the image's source, once
+        # served a run so slowly that this step was still downloading after an hour.
+        timeout-minutes: 15
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           # The Debian and Ubuntu package set of the README's quick start, plus git for the
           # checkout and the submodule.
-          apt-get update
-          apt-get install -y --no-install-recommends build-essential cmake ninja-build ccache \
-            libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev \
-            git ca-certificates
+          packages="build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev git ca-certificates"
+          # Canonical's mirror inside Azure, where the runners run, serves the same archive.
+          # The copy of the image's sources stays outside sources.list.d, where apt would
+          # report its extension.
+          sources=/etc/apt/sources.list.d/ubuntu.sources
+          cp "$sources" /etc/apt/ubuntu.sources.image
+          sed -i -E 's#^URIs: http://(archive|security)\.ubuntu\.com/ubuntu/?$#URIs: http://azure.archive.ubuntu.com/ubuntu/#' "$sources"
+          grep '^URIs:' "$sources"
+          # The pattern matches the URIs of today's image; one it misses, say a later image's
+          # https://, would otherwise go unnoticed.
+          if grep -q -v -x 'URIs: http://azure\.archive\.ubuntu\.com/ubuntu/' <<< "$(grep '^URIs:' "$sources")"; then
+            echo "::warning title=Ubuntu mirror not used::A URI of the image's ubuntu.sources does not match this step's pattern, so this run installs from that source instead of the Azure mirror."
+          fi
+          apt_install() { apt-get install -y --no-install-recommends $packages; }
+          # The mirror gets five of the step's 15 minutes to deliver the indexes and the
+          # packages: a mirror that does not answer, or stalls a download, would otherwise spend
+          # them on apt's timeouts and retries, and the fallback would never start. timeout
+          # bounds only the update and --download-only, which run no dpkg; the install from the
+          # downloaded packages has no budget, because a killed apt-get install can leave dpkg
+          # half-configured. timeout runs a program, not a shell function: hence bash -c and
+          # the exported list. apt-get update succeeds when an index fails to download;
+          # Error-Mode=any makes the mirror's update fail then, so a run never installs from a
+          # partial package list.
+          export packages
+          if ! { timeout -k 10 300 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
+            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within five minutes, so this run installs from the image's own sources."
+            cp /etc/apt/ubuntu.sources.image "$sources"
+            apt-get update
+            apt_install
+          fi
 
       - name: Tool versions
         run: |
@@ -228,6 +268,7 @@ jobs:
     # cancelled run this job must still run and fail.
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Every Linux run passed, or the build was rightly skipped
         env:
@@ -249,6 +290,8 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.skip_build != 'true') }}
     runs-on: windows-latest
+    # A run takes about seven minutes.
+    timeout-minutes: 45
     defaults:
       run:
         shell: msys2 {0}
@@ -259,7 +302,10 @@ jobs:
 
       - uses: actions/checkout@v7
 
+      # About a minute. It updates MSYS2 and installs from MSYS2's mirrors, which can stall
+      # like any download.
       - uses: msys2/setup-msys2@v2
+        timeout-minutes: 15
         with:
           msystem: UCRT64
           update: true
