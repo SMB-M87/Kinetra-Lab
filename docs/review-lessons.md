@@ -60,6 +60,9 @@ No lessons yet.
 - **When a change says where a CI step runs, search for the step's command and step name as well, not only the words the pages use for it** · added 2026-11-23 · source: #87
   The copies search for "docs check" with "only" found Lab's `ci.yml` header but not `README.md`, which names the step by its command, `check_docs.py`.
 
+- **When a CI change copies a comment from Kinetra's `ci.yml` into Lab's, check what it claims against Lab's own jobs** · added 2026-11-23 · source: #98
+  Lab has a `windows` job that Kinetra does not. #98 copied "and so does each install step" from Kinetra's header, true there, while Lab's `setup-msys2` step had no time limit.
+
 ## Media and tools
 
 - **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
