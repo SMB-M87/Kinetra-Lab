@@ -1,6 +1,6 @@
 # The shared UI in GIFs in Kinetra's README
 
-Status: accepted · Branch: `ccr-39f927ff-5hqodj`, Kinetra `feat/shared-ui-gifs` · Related: [roadmap](../roadmap.md), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [capture tool](../../tools/capture/README.md), [media guide](../media/README.md)
+Status: implemented · Branch: `ccr-39f927ff-5hqodj`, Kinetra `feat/shared-ui-gifs` · Related: [roadmap](../roadmap.md), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [capture tool](../../tools/capture/README.md), [media guide](../media/README.md)
 
 Kinetra's README describes a launcher and overlays that every lab shares, but shows none of them. This change renders five GIFs of that shared UI from Demo with Lab's capture tool, with a visible pointer, into Kinetra's `docs/media/`, and adds a rule to both `AGENTS.md` files: a change to what a capture shows refreshes the affected captures in the same pull request. So that the frame-time graph looks the same in every capture, the Kinetra runtime gets a fixed frame time for programs that render into files.
 
@@ -49,7 +49,7 @@ Kinetra's README describes a launcher and overlays that every lab shares, but sh
 | How the GIFs are driven | The tour's `Tour` drives the real launcher and Demo session; a `ClipRecorder` keeps every fourth frame as a PNG, so the clips play at 15 frames per second and go through the same GIF step as the other clips | The tour already clicks rows by label and draws the pointer; one GIF step for all clips |
 | Size and rate | 960 × 540 at 15 frames per second, as Lab's clips; about 1 MB per GIF at most | The bitmap font stays sharp and the overlays large; GitHub shows a README image at about this width |
 | Location | Kinetra's `docs/media/`, with a media guide there; `kinetra_capture` writes the Kinetra scenes into a `kinetra/` subdirectory of its output, and `capture_media.sh` copies them to `external/Kinetra/docs/media` | The proposal in both roadmap items: Kinetra's README links its own files, and Kinetra's docs check resolves them |
-| Scenarios | Doorway for the launcher, settings, debug menu and inspector GIFs; Maze, with a planned route, for the debug layers | Doorway has a few agents on a calm background that change little between frames, so its GIFs stay small; Maze shows a route |
+| Scenarios | Doorway for the launcher, settings, debug menu and inspector GIFs; Terrain for the debug layers, with agents that wander by planned routes and a player that stands still | Doorway has six agents on a calm background that change little between frames, so its GIFs stay small. Maze, the first choice for the layers, has no agents, so most layers showed nothing; in Terrain a walking player moves the camera and the GIF grew to 1.7 MB, a still one keeps it at 1.1 MB |
 | A Lab change that alters only Demo in Kinetra's GIFs | Does not require a Kinetra pull request; the Kinetra GIFs are refreshed with the next Kinetra change to what they show | A Kinetra pull request for every Demo detail would couple the repositories for pictures whose subject is the shared UI. A renamed row that a script clicks stops the capture, so the script follows in Lab |
 | Name prefix | `ui-` | Unique across both galleries (Lab already has `launcher.png`) and says what the GIF is about |
 | Lab's CI | `needs_build.sh` treats Kinetra's `README.md` and `docs/media/` as read by the build | `kinetra_capture_tests` reads them now; a pointer move that changes them must run it |
@@ -69,9 +69,9 @@ flowchart LR
 
 *Takeaway:* the UI clips reuse the tour's driving and drawing and the clips' GIF step; only the destination is new.
 
-**Runtime.** `Runtime::fix_frame_times(std::optional<double> seconds)` stores the time; `end()` records it instead of the measured time, from the second frame on as before. A negative or non-finite value throws `std::invalid_argument`. `kinetra_capture` calls it with 1/60 s for every runtime it opens, so any graph in any capture reads one 60 Hz refresh per frame.
+**Runtime.** `Runtime::fix_frame_times(std::optional<double> seconds)` stores the time; `end()` records it instead of the measured time, from the second frame on as before. A negative or non-finite value throws `std::invalid_argument`. `kinetra_capture` calls it with 1/60 s for every runtime it opens, so any graph in any capture reads one 60 Hz refresh per frame, as the statistics read 60 frames per second.
 
-**Scenes.** `Scene` gets a `Gallery` (`lab` or `kinetra`). `main.cpp` writes a Kinetra scene into `<output>/kinetra/`. A UI clip is a `SceneKind::clip` whose script builds a `Tour` on the stage's runtime with a `ClipRecorder` as its frame sink. The recorder writes nothing until the script starts it, so a script can go through the launcher to its scenario first; then it keeps frames 0, 4, 8 and so on as `frame-0001.png` onwards and writes `framerate`. The tour's pointer starts in the bottom-right corner; the scripts:
+**Scenes.** `Scene` gets a `Gallery` (`lab` or `kinetra`). `main.cpp` writes a Kinetra scene into `<output>/kinetra/`. Lab's clip names keep ending in `-clip`; Kinetra's gallery holds only clips, named `ui-*`, so the scene-list test checks the suffix for Lab's gallery only. A UI clip is a `SceneKind::clip` whose script builds a `Tour` on the stage's runtime with a `ClipRecorder` as its frame sink. The recorder writes nothing until the script starts it, so a script can go through the launcher to its scenario first; then it keeps frames 0, 4, 8 and so on as `frame-0001.png` onwards and writes `framerate`. Each script reaches its scenario through the launcher unrecorded and checks that it runs; the inspector script also checks that its click selected an agent and that the X closed the inspector, so a click that misses stops the capture instead of leaving a wrong GIF. The scripts:
 
 | Scene | Shows |
 | --- | --- |
@@ -79,7 +79,7 @@ flowchart LR
 | `ui-settings` | Ctrl opens the panel and pauses Demo; STATISTICS off and on; SIM CONTROLS and DEBUG CONTROLS open their help and close; RESUME |
 | `ui-debug-menu` | Shift+Ctrl opens the menu; SPEED steps up; MOTION opens and MAX SPEED steps up; AVOIDANCE switches to LEGACY and back; Shift+Ctrl closes it |
 | `ui-inspector` | A click on an agent opens the inspector; FRAME TIMES on in the settings panel puts the graph below it; a click on another agent; the inspector's X closes it |
-| `ui-debug-layers` | In Maze, with a planned route: the menu's LAYERS section, each layer off and on again, HOME RANGE, and the wheel zooming out and in |
+| `ui-debug-layers` | In Terrain, with agents that wander by planned routes: the menu's LAYERS section, each layer off and on again, HOME RANGE, and the wheel zooming out |
 
 **Script.** `capture_media.sh` encodes the clips of `<work>/` and `<work>/kinetra/` and copies the first into `docs/media` and the second into `external/Kinetra/docs/media`.
 
@@ -98,21 +98,51 @@ flowchart LR
 | Every Kinetra scene has its GIF in Kinetra's `docs/media`, its media guide and its README; every Lab scene stays as before | The scene-list case in `capture_tests.cpp`, split by gallery | Targeted, `^kinetra_capture` |
 | `ClipRecorder` writes nothing before it starts, then every fourth frame from the first, numbered from 1, and the frame rate | A new case in `capture_tests.cpp` with hand-made canvases | Targeted |
 | A UI clip runs in a real runtime and writes its frames into the Kinetra subdirectory | `kinetra_capture_smoke` also renders `ui-settings` | Full (graphics in CI) |
-| `needs_build.sh` builds when a pointer move changes Kinetra's `README.md` or `docs/media/` | Read against the filter; CI runs the decision on this pull request | Full |
+| `needs_build.sh` builds when a pointer move changes Kinetra's `README.md` or `docs/media/`, and still skips one that changes only Kinetra's rules and skills | A copy that clones the local Kinetra, run on temporary Lab commits that move only the pointer; CI runs the decision on this pull request | Full |
 | The GIFs show what their rows say | Looking at the frames of each GIF | Manual |
 
 ## Review
 
-To be filled in after the review.
+The author's review of `git diff origin/main...HEAD` in both repositories, and the copies check (below), found:
+
+- Maze, the first scenario of the layers clip, has no agents, so VECTORS, STEERING PROBES, ACTIVE AGENTS and HOME RANGE showed nothing. Moved to Terrain with route wander, so PATHS has routes; the player stands still, which took the GIF from 1.7 to 1.1 MB.
+- Kinetra's first test of `fix_frame_times` slept 30 ms to tell a measured frame apart, against [Kinetra's rule](../../external/Kinetra/docs/testing.md#rules-for-tests) of no sleeps. It now fixes one second, longer than any empty frame, and checks that the measured frame after clearing is shorter.
+- `start_demo` would have failed with `std::bad_cast` when another application ran; it names the scenario it did not start. The inspector clip's X position follows constants inside Kinetra's `inspector_view.cpp`; the script now checks that the selection is gone after the click, so a moved button stops the capture.
+- `main.cpp` said each captured frame stands for one 60 Hz step, which a clip frame of four steps does not; it now says the graph reads 60 Hz as the statistics do.
+- The capture README still said maintainers refresh media "when visible behavior changes"; it names the media guides' tables now.
+- Copies of the CI skip that `needs_build.sh` changes: Lab's `AGENTS.md` (verification table, docs-only and pointer-only paragraphs), the release README, the comments of `ci.yml` and `release.yml`, and in Kinetra `AGENTS.md`, `docs/workflow.md` and the `verify` skill. Copies of the media rule: both `AGENTS.md` files, the workflow's review list, `docs/testing.md`, the `pr-review` and `verify` skills and their READMEs.
 
 ## Verification
 
-To be filled in.
+| Check | Command | Result |
+| --- | --- | --- |
+| Kinetra runtime, graphics | `cmake --preset graphics -DKINETRA_WARNINGS=ON`, `cmake --build --preset graphics --target kinetra_engine_runtime_tests`, `ctest --preset graphics -R kinetra_engine_graphics` (in `external/Kinetra`) | 16 of 16 passed, the new case included; no warnings |
+| Lab capture, `dev` | `cmake --build --preset dev --target kinetra_capture_tests kinetra_capture`, `ctest --preset dev -R '^kinetra_capture'` | 0 warnings; 34 of 34 passed |
+| Lab capture, `graphics` | `ctest --preset graphics -R '^kinetra_capture'` | 35 of 35 passed, `kinetra_capture_smoke` with `ui-settings` included |
+| Format | clang-format 23.1.5 (a temporary wheel, as CI's version is not in Ubuntu) `--dry-run --Werror` on every changed C++ file in both repositories | Clean |
+| Docs | `python3 external/Kinetra/tools/check_docs.py`; in Kinetra `python3 tools/check_docs.py` | All links resolve |
+| Copies | `python3 external/Kinetra/tools/check_copies.py --base origin/main` with the old wordings of the media rule and the CI skip | Every hit judged; the missed ones are in *Review* |
+| Determinism | The five UI scenes rendered twice into scratch directories, `diff -r` | Identical frames; the committed GIFs equal a fresh `capture_media.sh` run byte for byte |
+| Looked at | A contact sheet of twelve frames per GIF | Each GIF shows what its row in Kinetra's media guide says; the graph reads `FRAME AVG 16.7 MS WORST 16.7 MS` and `PACING VSYNC` |
+| Sizes | `capture_media.sh` | `ui-launcher` 100 KB, `ui-settings` 148 KB, `ui-debug-menu` 656 KB, `ui-inspector` 496 KB, `ui-debug-layers` 1.1 MB |
+| CI decision | A copy of `needs_build.sh` that clones the local Kinetra, on temporary Lab commits that move only the pointer | Kinetra `e8ad1b5..3ee1e7f` (README, `docs/media/`): `build: Kinetra's README.md or docs/media/ changed`; `3ee1e7f..f8e5995` (rules and skills only): `skip` |
+| Existing captures | `capture_media.sh` for `launcher`, `launcher-demo-scenarios`, `demo`, `demo-clip`, `dotio-settings`, `demo-gravity`, then reverted | The PNGs are byte-identical; `demo-clip.gif` differs in a few pixels (PSNR 98 to 108 dB), the measurement behind the stale-captures table |
+| Full | The pull requests' CI | Pending |
 
 ## Pull request
 
-To be filled in.
+**feat(capture): the shared UI in GIFs in Kinetra's README**
+
+- **Summary:** Lab's capture tool renders five GIFs of the launcher and the overlays from Demo, with a visible pointer, into Kinetra's `docs/media`; a media guide per gallery says which captures a change makes stale, and both `AGENTS.md` files refresh them in the same pull request.
+- **Changes:** `ui_clips.cpp` (five tour scripts) and `ClipRecorder`; `Scene::gallery` and the `kinetra/` output subdirectory; `capture_media.sh` copies Kinetra's gallery; fixed 1/60 s frame times in every capture runtime; scene-list, gallery and recorder tests, and `ui-settings` in the smoke test; `needs_build.sh` builds when a moved pointer changes Kinetra's `README.md` or `docs/media/`, with its copies; Lab's media guide gets its stale-captures table, `AGENTS.md` its media rule; the roadmap item *README media as GIFs* keeps Lab's README; this design document; the pointer at Kinetra `feat/shared-ui-gifs`.
+- **Design:** this document.
+- **Verification:** the table above; CI is the Full level.
+- **Review notes:** the stale-captures tables and the decision that a Lab-only change does not refresh Kinetra's GIFs; the GIFs themselves, in Kinetra's pull request.
+- **Dependencies and merge order:** the Kinetra pull request of `feat/shared-ui-gifs` merges first, with a merge commit; this pull request merges with its pointer at the Kinetra branch commit it was verified with; Kinetra's `lab-pointer` workflow then records the merge commit. Both wait for the user: they change `AGENTS.md`, and this one `.github/` and `tools/release/`.
+- **Follow-up:** Lab's README as a page about the labs (*README media as GIFs*).
 
 ## Open points
 
 - Lab's README as a page about the labs with more GIFs remains Lab's item *README media as GIFs*.
+- The inspector clip finds the X button through constants of Kinetra's `inspector_view.cpp`; a public close-button position on `InspectorView` would remove that copy. The clip stops when the click misses.
+- The settings clicks still follow `kinetra_lab::settings_rows` by hand (`SettingsRow`), as the capture README's open points say for every script.

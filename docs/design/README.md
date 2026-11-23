@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-23 | [The shared UI in GIFs in Kinetra's README](2026-11-23-shared-ui-gifs.md): five GIFs of the launcher and overlays from Demo, with a pointer, a fixed frame time in Kinetra's runtime, and a rule to refresh the captures a change makes stale | accepted |
+| 2026-11-23 | [The shared UI in GIFs in Kinetra's README](2026-11-23-shared-ui-gifs.md): five GIFs of the launcher and overlays from Demo, with a pointer, a fixed frame time in Kinetra's runtime, and a rule to refresh the captures a change makes stale | implemented |
 | 2026-11-23 | [The tour's start check names what runs](2026-11-23-tour-start-check.md): `require_demo_terrain` stops the tour with its own message in the menu, in another application and in another Demo scenario | implemented |
 | 2026-11-23 | [Demo scenario menu](2026-11-23-demo-scenario-menu.md) | implemented |
 | 2026-11-23 | [Demo help overlay removal](2026-11-23-demo-help-overlay-removal.md) | implemented |
