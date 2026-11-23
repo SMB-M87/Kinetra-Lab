@@ -81,7 +81,7 @@ The i4sim [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes) fro
 | --- | --- | --- |
 | ![Launcher with Demo, Dotio and i4sim](docs/media/launcher.png) | ![Dotio difficulty selection with Medium selected](docs/media/launcher-difficulty.png) | ![i4sim loadscreen with blueprint selection](docs/media/launcher-loadscreen.png) |
 
-Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every application and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with (steering and wander in Demo, enemy balance and spawning in Dotio, motion and traffic in i4sim) change while it runs. The [capture tool](tools/capture/README.md) generates every screenshot and clip, the tour and its thumbnail; the [media guide](docs/media/README.md) has the details.
+Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every application and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with (steering and wander in Demo, enemy balance and spawning in Dotio, motion and traffic in i4sim) change while it runs. The [capture tool](tools/capture/README.md) generates every screenshot and clip, the tour and its thumbnail, and the GIFs of the launcher and the overlays in [Kinetra's README](https://github.com/SMB-M87/Kinetra#shared-ui); the [media guide](docs/media/README.md) has the details.
 
 ## Quick start
 
