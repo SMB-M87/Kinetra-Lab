@@ -38,6 +38,9 @@
 *.out
 *.app
 
+# Rendered videos: the tour goes to YouTube, not into Git (tools/capture/README.md)
+*.mp4
+
 # Build directories
 build/
 Build/

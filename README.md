@@ -59,7 +59,7 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 
 [![Kinetra-Lab tour on YouTube: the launcher, Demo, Dotio and i4sim](docs/media/kinetra-lab-tour-thumbnail.png)](https://youtu.be/jkPwx831MOU)
 
-The YouTube copy can be older than the code. The latest render is [kinetra-lab-tour.mp4](docs/media/kinetra-lab-tour.mp4) in this repository; it is regenerated after larger changes, so it can trail the newest commits as well.
+The video can be older than the code; the screenshots and clips below are refreshed whenever what they show changes.
 
 | Application | Normal view | Debug view |
 | --- | --- | --- |

@@ -3,17 +3,17 @@
 # Dotio and i4sim) in a 2 x 2 mosaic, with a play button in the middle.
 #
 # Usage: tools/capture/tour_thumbnail.sh [video] [output-file]
-#   video        the tour video (default: docs/media/kinetra-lab-tour.mp4)
-#   output-file  the PNG to write (default: the video's name with -thumbnail.png)
+#   video        the tour video (default: build/kinetra-lab-tour.mp4, where capture_tour.sh
+#                writes it)
+#   output-file  the PNG to write (default: docs/media/kinetra-lab-tour-thumbnail.png)
 # Needs bash and ffmpeg with ffprobe. capture_tour.sh runs it after encoding a new video; run it
 # on its own to refresh only the thumbnail. The moments are times in the tour, so after a change
 # to the tour script, look at the thumbnail: every tile should still show its application.
 set -euo pipefail
 
 repository=$(cd "$(dirname "$0")/../.." && pwd)
-video=${1:-$repository/docs/media/kinetra-lab-tour.mp4}
-video_name=$(basename "$video")
-output=${2:-$(dirname "$video")/${video_name%.*}-thumbnail.png}
+video=${1:-$repository/build/kinetra-lab-tour.mp4}
+output=${2:-$repository/docs/media/kinetra-lab-tour-thumbnail.png}
 
 # Seconds into the tour, one per tile, left to right and top to bottom: the launcher under the
 # opening caption, Demo's agents heading for one clicked goal (CLICK SETS GOAL), Dotio zoomed out

@@ -21,7 +21,7 @@ The tour video in the README was recorded by hand before the debug workbench exi
 
 ## Problem
 
-- [kinetra-lab-tour.mp4](../media/kinetra-lab-tour.mp4) is out of date and cannot be reproduced: nobody recorded what was clicked, and every change to a panel makes it wrong again. Its audio track is silent.
+- `kinetra-lab-tour.mp4` (removed from the repository on 2026-11-23) is out of date and cannot be reproduced: nobody recorded what was clicked, and every change to a panel makes it wrong again. Its audio track is silent.
 - The capture tool renders screenshots and short clips, but its sessions are driven by clicks that jump from point to point, without a pointer on screen. A viewer cannot see what is clicked or which keys are held.
 - The capture scripts click debug-menu rows by number. A tour of some hundred clicks written that way would break with every menu change.
 

@@ -24,7 +24,7 @@ cmake --preset graphics
 cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh                # all scenes, into docs/media
 tools/capture/capture_media.sh build-graphics dotio dotio-clip   # only these
-tools/capture/capture_tour.sh                 # the tour video and its thumbnail, into docs/media
+tools/capture/capture_tour.sh                 # the tour video into build/, its thumbnail into docs/media
 tools/capture/tour_thumbnail.sh               # only the thumbnail, from the current video
 ```
 
@@ -84,7 +84,7 @@ The files follow the [directory layout](../../external/Kinetra/docs/conventions.
 | [include/capture/tour/canvas.h](include/capture/tour/canvas.h), [src/tour/canvas.cpp](src/tour/canvas.cpp) | `Canvas` and its drawing: blended rectangles, bitmap text, ring, pointer, keycap, dimming |
 | [include/capture/tour/pointer_path.h](include/capture/tour/pointer_path.h), [src/tour/pointer_path.cpp](src/tour/pointer_path.cpp) | `plan_pointer_path`, `PointerPath::at`, `minimum_jerk` |
 | [capture_media.sh](capture_media.sh) | Runs the tool offscreen into a temporary directory, makes the GIFs, copies into `docs/media` |
-| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `docs/media/kinetra-lab-tour.mp4`, then runs `tour_thumbnail.sh` |
+| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `build/kinetra-lab-tour.mp4`, for YouTube and outside Git, then runs `tour_thumbnail.sh` |
 | [tour_thumbnail.sh](tour_thumbnail.sh) | Four frames of the tour video in a 2 × 2 mosaic with a play button: `docs/media/kinetra-lab-tour-thumbnail.png`, which the README links to the YouTube copy |
 | [tests/](tests/) | Window-free tests and the graphics smoke test |
 
@@ -153,7 +153,7 @@ sequenceDiagram
 - **Rows by label.** `click_row("WANDER")` and `step_row("MAX SPEED", true, 3)` ask the session for its rows (`kinetra_lab::Session::debug_rows()`), find the label and click its place in the engine's public menu layout. A missing label stops the tour and names the rows that were there. Settings rows are found through a mirror panel that takes the same clicks, so an opened help section moves the rows below it in both.
 - **Overlays** are drawn on the frame after it was read back (`Canvas`): rings where a button went down, a caption at the top, a row of caps for the keys that are down or were a moment ago, the pointer, and a fade at the start and the end. The applications draw nothing of this and do not know they are filmed.
 - **Frames.** 1920 × 1080 at 60 per second, about a hundred megabytes per second as raw RGB, so they go through a pipe and never to disk. The tool switches the frame limit off; rendering takes about as long as the video lasts.
-- **The thumbnail.** GitHub plays a video in a README only when it is uploaded as an attachment of at most 10 MB on a free plan, and the tour is 93 MB, so the README shows a picture that links to the YouTube copy. `tour_thumbnail.sh` takes four fixed moments of the video (`moments`: the launcher, Demo, Dotio and i4sim), scales each to 640 × 360, stacks them 2 × 2 and draws a play button in the middle with ffmpeg's `geq` filter. It checks the moments against the video's length first and replaces the PNG only when ffmpeg wrote one.
+- **The thumbnail.** GitHub plays a video in a README only when it is uploaded as an attachment of at most 10 MB on a free plan, and the tour is about 90 MB, so the README shows a picture that links to the YouTube copy. `tour_thumbnail.sh` takes four fixed moments of the video (`moments`: the launcher, Demo, Dotio and i4sim), scales each to 640 × 360, stacks them 2 × 2 and draws a play button in the middle with ffmpeg's `geq` filter. It checks the moments against the video's length first and replaces the PNG only when ffmpeg wrote one.
 
 ## Invariants and contracts
 
