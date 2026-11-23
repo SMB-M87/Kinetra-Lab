@@ -7,8 +7,8 @@
 #   nothing that goes into the zip changed since the commit main-build was built
 #   from: tools/release/needs_build.sh, the decision CI uses too (only Markdown,
 #   docs/ or .agents/ in Lab, apart from README.md, docs/media/ and the blueprints,
-#   and in a moved Kinetra range also .github/ or tools/). main-build then stays
-#   on that commit.
+#   and in a moved Kinetra range also .github/ or tools/, apart from its README.md
+#   and docs/media/). main-build then stays on that commit.
 # - A tag v* publishes a release of its own with the same zip, always built.
 # - workflow_dispatch always builds; on main it also refreshes main-build.
 #

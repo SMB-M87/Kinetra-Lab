@@ -49,7 +49,8 @@ jobs:
   # of the release workflow (tools/release/needs_build.sh): not when Lab changed only
   # Markdown, docs/ or .agents/, apart from README.md, docs/media/ and the blueprints, which
   # a test reads or the build copies, and a moved Kinetra pointer brings only Markdown,
-  # docs/, .agents/, .github/ or tools/, which Lab's build does not read. Then the build and test
+  # docs/, .agents/, .github/ or tools/, which Lab's build does not read, apart from Kinetra's
+  # README.md and docs/media/, which a test reads. Then the build and test
   # jobs below are skipped, only the docs check runs here, and "checks" passes on this job's
   # result. A pull request that only moves the pointer to a commit off Kinetra main is not a
   # pointer-only one, which merges without review: it builds in full, with a warning. The
