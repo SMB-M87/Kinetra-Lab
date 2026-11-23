@@ -16,10 +16,12 @@ set -euo pipefail
 repository=$(cd "$(dirname "$0")/../.." && pwd)
 default_video=$repository/.docs/kinetra-lab-tour.mp4
 video=${1:-$default_video}
-if [[ $video == "$default_video" ]]; then
+video_name=$(basename "$video")
+# Resolved paths, so a relative spelling of the default video still updates the README's picture.
+if [[ $(realpath -m "$video") == "$(realpath -m "$default_video")" ]]; then
     default_output=$repository/docs/media/kinetra-lab-tour-thumbnail.png
 else
-    default_output=${video%.*}-thumbnail.png
+    default_output=$(dirname "$video")/${video_name%.*}-thumbnail.png
 fi
 output=${2:-$default_output}
 
