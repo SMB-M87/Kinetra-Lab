@@ -78,6 +78,8 @@ The session's `settings_rows` call gets the new help line. The capture tool's to
 
 `/code-review` at `low` on `origin/main...HEAD` reported no findings. The own review against the [workflow checklist](../../external/Kinetra/docs/workflow.md#6-review) found nothing either: a Shift+left-click with a selected mover still sends its goal before any pick, and both clicks in one frame behave as before. The copies check (`--term 'right click' --term 'right-click' --term 'RIGHT BLOCK' --term 'holds or blocks' --term 'hold the mover'`) found only lines that stay true: the plain right click in the i4sim README and the test overview, Dotio's README, and this document's index row. After the help line was added, a search for the help lines and their count (`--term 'SHIFT CLICK FREE MOVER GOAL' --term 'sim_lines'`) found the tour's `i4sim_sim_lines`, now 5; `launcher/tests/runtime_tests.cpp` mirrors only Demo's and Dotio's panels, and i4sim's presentation test mirrors its panel with collapsed sections.
 
+The agent review of #92 (round 1, level `high`) concluded *Ready to merge* with three nits, and #92 merged without them. A follow-up pull request on the same branch name carries them out at the user's request: the `handle_input` contract and the three places in the test overview that said Shift-click say Shift+left-click, the README's controls table says *plain right click* in the row that holds or blocks, and the copy of the description under *Pull request* gets the review note about `i4sim_sim_lines` that the live description had.
+
 ## Verification
 
 | Command | Result |
@@ -121,7 +123,7 @@ This document, `docs/design/2026-11-23-i4sim-shift-right-click.md`. Shift is rea
 
 ### Review notes
 
-`/code-review` at `low` found nothing; the copies check found only lines that stay true.
+`/code-review` at `low` found nothing; the copies check found only lines that stay true, plus the tour's `i4sim_sim_lines`, now 5.
 
 ### Dependencies and merge order
 

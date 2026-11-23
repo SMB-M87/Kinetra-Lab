@@ -114,7 +114,7 @@ class FactoryController {
     /// row collected. A click selects the mover or producer under it. On empty ground,
     /// a left click clears only the producer selection. Right-click also holds or blocks
     /// the target; with Shift held it selects as a left click does, holding and blocking
-    /// nothing. Shift-click sends the selected mover there. Pointer commands are skipped while
+    /// nothing. Shift+left-click sends the selected mover there. Pointer commands are skipped while
     /// `panels.pointer_captured`.
     ///
     /// A scene whose scenario repeats by `ScenarioRepeat::restart` restarts as with R once its
