@@ -20,7 +20,9 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Ready-to-build cloud sessions** · build, tools, with Kinetra · added 2026-11-21
+  A SessionStart hook in Kinetra and Kinetra-Lab runs one setup script at the start of every cloud session: it loads the Kinetra submodule, installs the Ubuntu packages and CI's clang-format 23.1.5 from PyPI.
+  Where: [design](design/2026-11-23-ready-to-build-cloud-sessions.md), branches `ccr-d6ebceac-13bzfb` (Lab) and `build/cloud-session-setup` (Kinetra).
 
 ## Next
 
@@ -29,10 +31,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Dotio playtest and phase 6's decisions** · dotio · added 2026-11-21
   Phase 6 ends with a playtest by the user and a review of what the agent decided alone: route planning on Kinetra's `WeightedGrid` instead of `Navigation`; Kinetra's new `search`, which picks a shelter on route cost only, so an enemy may choose a slightly different place than before; whole routes without the old 50-cell cap; four random streams from the world seed, with `--seed` on `kinetra_dotio`; and refreshed Dotio captures without a new tour video. Recovery is too rare in the benchmark to compare shelter searches, so the playtest should watch it.
   Next step: the user plays with the [playtest checklist](design/2026-11-21-dotio-restructuring.md#playtest-checklist), then confirms or changes the decisions (agreed on 2026-11-22: after the playtest, not before). Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
-- **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
-  A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. On 2026-11-22 the *Linux beyond Arch* session created a personal cloud environment *Kinetra-Lab* for Kinetra-Lab and Kinetra, whose setup script installs the README's Debian and Ubuntu packages. On 2026-11-23 the account listed only the *Default* environment, and that day's i4sim session (#92) still had to run `apt-get update` and install `libsdl2-dev`, `nlohmann-json3-dev` and `ccache` before `cmake --preset dev` configured. clang-format 23 is not in Ubuntu's packages and is still missing.
-  The [i4sim session fixes](design/2026-11-23-i4sim-session-fixes.md#verification) configured after activating workspace-local dependencies and used a temporary clang-format 23.1.5 wheel. The toolchain still needs to be available on startup.
-  Next step: give the environment that sessions start in the setup script, and check that the next code task builds at once; then decide how a session gets clang-format 23 (for example LLVM's apt repository, which needs its host allowed).
 - **Performance baseline and hotspots** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
   The user wants a critical look at performance. Measure first: profile `kinetra_i4sim_motion_benchmark` and the Demo crowd cases in the `release` preset, add a Dotio benchmark, and list the hotspots with their share of the run time. Known candidates: predictive passing takes about half again as long on the large i4sim layout (9–10.5 s against 13–14.5 s), Dotio's shelter search can settle the whole resident window of 24,025 cells, and Demo's fixed clock falls behind below 30 frames per second at time scale 4. Each optimization is then its own pull request, with a measurement before and after and the golden lines unchanged.
   Next step: the profile and the hotspot list, without code changes. Where: [motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark), [Dotio open points](../labs/dotio/README.md#open-points), [Demo open points](../labs/demo/README.md#open-points); Kinetra item *Engine performance*.
