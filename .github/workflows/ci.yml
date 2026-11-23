@@ -52,10 +52,12 @@ jobs:
   # jobs below are skipped, only the docs check runs here, and "checks" passes on this job's
   # result. A pull request that only moves the pointer to a commit off Kinetra main is not a
   # pointer-only one, which merges without review: it builds in full, with a warning. The
-  # decision is the base commit's needs_build.sh, so a pull request cannot decide its own CI
-  # with a changed script. Any doubt, such as a failed Kinetra fetch, means a full run. A
-  # failure of this job, its docs check or a broken decision, fails "checks" too, and the full
-  # run still runs to show the build.
+  # decision is needs_build.sh from the base branch's tip, so a pull request cannot decide
+  # its own CI with a changed script and an older branch decides with the newest filter; a
+  # pull request that changes the script must also make its own copy decide to build. Any
+  # doubt, such as a failed Kinetra fetch, means a full run. A failure of this job, its docs
+  # check, a broken decision or a broken script, fails "checks" too, and the full run still
+  # runs to show the build.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -96,11 +98,22 @@ jobs:
               exit 0
             fi
           fi
-          # The base commit's copy of the script decides: a pull request that changes it cannot
-          # skip its own build with it, and the old filter builds such a pull request anyway.
+          # A pull request that changes the script must make its own copy decide to build it,
+          # since the script is not documentation; otherwise the broken copy would decide every
+          # pull request after the merge.
+          if grep -q -x 'tools/release/needs_build.sh' <<< "$(git diff --no-renames --name-only "$mb" "$HEAD")"; then
+            if [ "$(bash tools/release/needs_build.sh "$mb" "$HEAD")" != true ]; then
+              echo "::error title=needs_build.sh broken::This pull request changes tools/release/needs_build.sh, and its own copy does not decide to build it."
+              exit 1
+            fi
+          fi
+          # The base branch's tip decides: its copy is merged and the newest, so a pull request
+          # cannot skip its own build with a changed script, and an older branch does not keep
+          # its fork point's filter.
           decide="$RUNNER_TEMP/needs_build.sh"
-          if ! git show "$mb:tools/release/needs_build.sh" > "$decide"; then
-            echo "::warning title=No decision script::The merge base has no tools/release/needs_build.sh; the full CI runs."
+          git cat-file -e "$BASE" 2>/dev/null || git fetch -q origin "$BASE" || true
+          if ! git show "$BASE:tools/release/needs_build.sh" > "$decide"; then
+            echo "::warning title=No decision script::The base branch has no tools/release/needs_build.sh; the full CI runs."
             exit 0
           fi
           skip=false
@@ -205,8 +218,8 @@ jobs:
   # The required status. It passes when "changes" succeeded and every distribution of
   # "linux" passed, or when "changes" decided that the pull request cannot change the build
   # and ran the docs check itself. Any other outcome, a failed "changes" job (a broken
-  # decision or a failed docs check) or a failed or cancelled "linux" run included, fails
-  # it.
+  # decision, a broken needs_build.sh or a failed docs check) or a failed or cancelled
+  # "linux" run included, fails it.
   checks:
     needs: [changes, linux]
     # always(), not !cancelled(): a skipped required job counts as passed, so on a
