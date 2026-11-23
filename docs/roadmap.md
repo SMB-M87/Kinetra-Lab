@@ -20,8 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **i4sim session fixes** · i4sim · added 2026-11-21
-  Branch `fix/i4sim-session`. Where: [i4sim session fixes](design/2026-11-23-i4sim-session-fixes.md).
+Nothing in progress.
 
 ## Next
 

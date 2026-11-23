@@ -1,7 +1,5 @@
-// Graphics tests for the i4sim session: loadscreen, pause, the debug menu's sections,
-// right-button input, modal settings, catalog recovery and the rendered crossing,
-// corridor, retreat and passing overlays. Every check shares one Runtime, because only
-// one may exist at a time, so they form one case. CTest labels it `graphics`.
+// Session tests for blueprint-screen messages, the mover inspector, and the rendered
+// controls and traffic overlays. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "i4sim/presentation/session.h"
@@ -26,11 +24,17 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 using namespace kinetra;
 
 namespace {
+using CreateSession = std::unique_ptr<kinetra_lab::Session> (*)(std::uint32_t, std::filesystem::path,
+                                                                std::optional<std::filesystem::path>, bool,
+                                                                unsigned);
+static_assert(std::is_same_v<decltype(&i4sim::create_session), CreateSession>);
+
 /// Writes the showcase blueprint `name` without its scenario section into `directory`, so
 /// the test builds the scene through the debug menu and mouse goals instead. The section is
 /// the last property of every showcase file.
@@ -68,6 +72,44 @@ constexpr unsigned plain_a_star = 6;
 constexpr unsigned corridor = 4, junction = 5, parking = 6, predictive = 7;
 } // namespace menu_row
 } // namespace
+
+TEST_CASE("a rejected goal expires on the blueprint screen") {
+    auto session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
+                                         i4sim::test::showcase_blueprint("corridor-passing"));
+    Camera2D camera;
+    camera.viewport = {1280, 800};
+    session->advance(0, {}, camera);
+
+    Input hold;
+    hold.right_clicked = true;
+    hold.mouse = camera.world_to_screen({300, -700});
+    session->advance(0, hold, camera);
+    Input goal;
+    goal.clicked = true;
+    goal.held[std::size_t(Key::shift)] = true;
+    goal.mouse = camera.world_to_screen({1300, -700});
+    session->advance(0, goal, camera);
+
+    Input debug;
+    debug.pressed[std::size_t(Key::shift)] = debug.pressed[std::size_t(Key::control)] = true;
+    session->advance(0, debug, camera);
+    const auto rows = session->debug_rows();
+    const auto blueprints = std::ranges::find(rows, "BLUEPRINTS", &kinetra_lab::DebugRow::label);
+    REQUIRE(blueprints != rows.end());
+    const auto row = static_cast<std::size_t>(blueprints - rows.begin());
+    Input close;
+    close.clicked = true;
+    close.mouse = Vec2{8, 32} + Vec2{12, DebugMenu::row_top(row) + DebugMenu::row_height / 2} *
+                                    DebugMenu::scale(camera.viewport);
+    session->advance(0, close, camera);
+    session->advance(0, {}, camera);
+    REQUIRE(session->status().starts_with("Loadscreen | GOAL REJECTED"));
+
+    session->advance(3.9, {}, camera);
+    CHECK(session->status().starts_with("Loadscreen | GOAL REJECTED"));
+    session->advance(0.2, {}, camera);
+    CHECK(session->status() == "Loadscreen");
+}
 
 TEST_CASE("the mover inspector and debug pause work together") {
     Runtime runtime("i4sim inspector", 1280, 800);

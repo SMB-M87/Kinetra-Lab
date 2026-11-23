@@ -76,7 +76,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | --- | --- |
 | Escape / M on the blueprint screen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page they return to the blueprint list |
 | Space / P | Pause or resume |
-| R | Restart the blueprint with the same seed, paused, and keep the motion settings. A showcase scene also gets its goals, workload and repeat setting again, so a changed setting can be compared with the original run |
+| R | Restart the blueprint with the same seed, paused, and keep the current tick rate and motion settings. A showcase scene also gets its goals, workload and repeat setting again, so a changed setting can be compared with the original run |
 | G | Toggle the automatic workload |
 | Q / E | Halve / double the ticks per second |
 | 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode); a layer's parts keep their own selection |
@@ -95,7 +95,7 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 | MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
 | TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing) |
 
-Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. Only a PLANNER change plans every route again. Turning a policy off drops its state; passing plans end as `disabled`. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds and changes nothing.
+Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. Only a PLANNER change plans every route again. Turning a policy off drops its state; passing plans end as `disabled`. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
 
 The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space).
 
@@ -209,7 +209,7 @@ The headers in `detail/` are private. Callers, tests included, use the facade, s
 
 ### A frame of the session
 
-The host (the launcher loop or `run_session`) calls `advance` and then `render`. While no blueprint is loaded, both go to the blueprint screen. With a blueprint:
+The host (the launcher loop or `run_session`) calls `advance` and then `render`. Every frame starts in the controller to age transient messages. While no blueprint is loaded, the blueprint screen handles input and drawing. With a blueprint:
 
 ```mermaid
 sequenceDiagram
@@ -413,13 +413,8 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 
 ## Open points
 
-- `R` builds a new simulation at the default 200 ticks per second, so a session started with `--ups N` loses its rate on a restart.
-- RESET PARAMETERS sets the horizon to 8 ticks, while a new simulation starts at 32.
-- `create_session` accepts an `output` directory and ignores it; a graphical session writes no summary.
-- A message that should expire, such as a rejected goal, stays on the blueprint screen when the blueprint is closed within its four seconds: the message ages only while a blueprint is loaded.
-- The four points above were decided on 2026-11-22 to be bugs, to be fixed by the [roadmap](../../docs/roadmap.md#next) item *i4sim session fixes*: `R` keeps the rate, RESET PARAMETERS restores 32, the `output` argument goes, and messages age without a blueprint.
 - With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge until a section or layer is closed.
-- The graphics suite is one long case that clicks debug-menu rows by number. The numbers are named in `menu_row`, but they still follow the menu's layout by hand.
+- The main graphics case clicks debug-menu rows by number. The numbers in `menu_row` follow the menu's layout by hand.
 - A mover can be sealed in for good by neighbors that stay parked (often idle with a product, waiting for a producer) along a wall or below a producer cell; parked movers never make way. A mover that returns to its own place can then stop about 120 mm from it. It happens without any setting change (2 of 48 seeded runs, `4320x2400` under Reciprocal), it causes the low throughput of `MAS-demonstrator` seed 42 under Reciprocal, and a SPEED, FORCE or HORIZON change can steer a run into it. PARKING TRAFFIC and RECOVERY do not resolve it. Cause, replays and a proposed MAKE WAY policy: [phase 7, step 4](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-4-why-two-movers-stand-still-near-a-destination); decided on 2026-11-22 as a stack of detection, MAKE WAY and a motion fallback, with the departure-check question still open for the user ([roadmap](../../docs/roadmap.md#later), *Stall detection and remedies in i4sim*).
 - Predictive passing stays off by default. Under Improved its benchmark results stay mixed because of Improved's own contact episodes; under Reciprocal it raises throughput without contact ([phase 7](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result)). The roadmap item *Shared passing mechanism* moves it to Kinetra ([roadmap](../../docs/roadmap.md#later)).
 - Desktop playtests and performance checks stay manual.

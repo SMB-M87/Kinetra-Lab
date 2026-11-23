@@ -89,9 +89,8 @@ class FactoryController {
     /// Removes the message.
     void clear_message();
 
-    /// Starts a frame: closes the blueprint when the BLUEPRINTS entry asked for it, and
-    /// otherwise ages the message by `elapsed` seconds. Returns loaded(); after false the
-    /// frame is over.
+    /// Starts a frame: closes the blueprint on request and ages any transient message by
+    /// `elapsed` seconds. Returns whether a blueprint remains loaded for simulation input.
     bool begin_frame(double elapsed);
     /// Pauses the simulation while a modal panel is `open` and restores the run state it
     /// had when the panel closes (kinetra_lab::ModalPause). Call once per frame.
@@ -106,9 +105,9 @@ class FactoryController {
     std::vector<kinetra::DebugEntry> menu(const LayerColors &colors = {});
     /// Applies a frame of input and then advances the simulation by `elapsed` seconds.
     ///
-    /// Keys: Space or P pause and resume; R restarts the blueprint, paused, with the motion
-    /// settings in use, and replays a scenario's goals; G toggles the workload; F fits the
-    /// camera; 1 to 6 toggle grid, heatmap, paths, forces, borders and detection; Q and E
+    /// Space or P pause and resume. R restarts the blueprint paused with the current tick rate
+    /// and motion settings, and replays a scenario's goals. G toggles the workload, F fits the
+    /// camera, and 1 to 6 toggle grid, heatmap, paths, forces, borders and detection. Q and E
     /// halve and double the update rate within 1..10000. The camera pans with WASD or the
     /// arrows, and zooms with the wheel as `panels` allows and by the steps the menu's ZOOM
     /// row collected. A click selects the mover or producer under it. On empty ground,
@@ -116,10 +115,9 @@ class FactoryController {
     /// the target. Shift-click sends the selected mover there. Pointer commands are skipped while
     /// `panels.pointer_captured`.
     ///
-    /// A scene whose scenario repeats by `ScenarioRepeat::restart` restarts as with R once its
-    /// movers have stood still for the pause (RestartTimer), but keeps its update rate and
-    /// its run state. When a scenario cannot be replayed after R or such a restart, the
-    /// blueprint is closed with the cause as the message. Throws std::invalid_argument for a
+    /// A scene with `ScenarioRepeat::restart` replays once its movers have stood still for the
+    /// pause (RestartTimer) and keeps its run state. If either restart fails to replay a
+    /// scenario, the blueprint closes and displays the cause. Throws std::invalid_argument for a
     /// negative or non-finite `elapsed`, before any input is applied.
     void handle_input(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera,
                       PanelState panels);
