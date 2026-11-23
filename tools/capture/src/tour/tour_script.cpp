@@ -78,24 +78,6 @@ void launcher_chapter(Tour &tour) {
 
 // Demo.
 
-const demo::Application &demo_application(Tour &tour) {
-    return dynamic_cast<demo::Session &>(tour.session()).application();
-}
-
-/// Screen position of the awake Demo agent nearest to screen point `near`.
-Vec2 nearest_agent(Tour &tour, Vec2 near) {
-    const auto &scene = demo_application(tour).scene();
-    std::optional<Vec2> best;
-    for (const auto &agent : scene.agents()) {
-        if (!agent.active())
-            continue;
-        const Vec2 point = tour.camera().world_to_screen(scene.world().body(agent.body_id()).position);
-        if (!best || kinetra::length(point - near) < kinetra::length(*best - near))
-            best = point;
-    }
-    return best.value_or(near);
-}
-
 void demo_chapter(Tour &tour) {
     tour.wait(1.4);
     tour.caption("CTRL OPENS THE SETTINGS PANEL");
@@ -133,7 +115,7 @@ void demo_chapter(Tour &tour) {
     tour.caption("HOME RANGE: AGENTS STAY AROUND THE PLACE THEY STARTED");
     tour.click_row("HOME RANGE");
     tour.wait(1.2);
-    tour.click_on([&] { return nearest_agent(tour, at(tour, .58f, .52f)); });
+    tour.click_on([&] { return nearest_demo_agent(tour, at(tour, .58f, .52f)); });
     tour.wait(3.0);
 
     tour.caption("AGENTS: THE HOME RANGE CHANGES WHILE THEY WALK");
@@ -478,6 +460,23 @@ void i4sim_chapter(Tour &tour) {
     tour.click();
 }
 } // namespace
+
+const demo::Application &demo_application(Tour &tour) {
+    return dynamic_cast<demo::Session &>(tour.session()).application();
+}
+
+Vec2 nearest_demo_agent(Tour &tour, Vec2 near) {
+    const auto &scene = demo_application(tour).scene();
+    std::optional<Vec2> best;
+    for (const auto &agent : scene.agents()) {
+        if (!agent.active())
+            continue;
+        const Vec2 point = tour.camera().world_to_screen(scene.world().body(agent.body_id()).position);
+        if (!best || kinetra::length(point - near) < kinetra::length(*best - near))
+            best = point;
+    }
+    return best.value_or(near);
+}
 
 void require_demo_terrain(kinetra_lab::Session *running) {
     // One message for every way the launcher chapter can go wrong, so the smoke test's
