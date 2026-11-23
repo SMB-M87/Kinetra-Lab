@@ -484,7 +484,7 @@ void require_demo_terrain(kinetra_lab::Session *running) {
     // report says which click moved instead of a bad cast.
     const std::string failed = "The tour did not start Demo Terrain: ";
     if (!running)
-        throw std::runtime_error(failed + "the launcher menu still shows");
+        throw std::runtime_error(failed + "the launcher still shows a menu page");
     const auto *demo_session = dynamic_cast<const demo::Session *>(running);
     if (!demo_session)
         throw std::runtime_error(failed + running->title() + " runs instead");

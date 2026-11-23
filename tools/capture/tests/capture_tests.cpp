@@ -724,7 +724,7 @@ std::string start_failure(kinetra_lab::Session *running) {
 
 TEST_CASE("the tour's start check names what runs instead of Demo Terrain") {
     const std::string failed = "The tour did not start Demo Terrain: ";
-    CHECK(start_failure(nullptr) == failed + "the launcher menu still shows");
+    CHECK(start_failure(nullptr) == failed + "the launcher still shows a menu page");
     OtherApplication other;
     CHECK(start_failure(&other) == failed + "Dotio runs instead");
     // Demo sessions need no window, so the check casts real ones, as in the tour.

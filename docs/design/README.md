@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-23 | [The tour's start check names what runs](2026-11-23-tour-start-check.md): `require_demo_terrain` stops the tour with its own message in the menu, in another application and in another Demo scenario | accepted |
+| 2026-11-23 | [The tour's start check names what runs](2026-11-23-tour-start-check.md): `require_demo_terrain` stops the tour with its own message in the menu, in another application and in another Demo scenario | implemented |
 | 2026-11-23 | [Demo scenario menu](2026-11-23-demo-scenario-menu.md) | implemented |
 | 2026-11-23 | [Demo help overlay removal](2026-11-23-demo-help-overlay-removal.md) | implemented |
 | 2026-11-23 | [i4sim session fixes](2026-11-23-i4sim-session-fixes.md): restart rate, motion defaults, blueprint-screen messages and session factory signature | implemented |

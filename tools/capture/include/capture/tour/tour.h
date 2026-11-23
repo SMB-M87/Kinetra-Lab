@@ -192,9 +192,10 @@ class Tour {
 };
 
 /// Throws std::runtime_error unless `running`, the session the launcher runs or nullptr while
-/// its menu shows, is Demo on its Terrain scenario. The message starts with "The tour did
-/// not start Demo Terrain" and says what runs instead: the launcher menu, another
-/// application by its title(), or another Demo scenario by its label.
+/// one of its menu pages shows, is Demo on its Terrain scenario. The message starts with
+/// "The tour did not start Demo Terrain" and says what runs instead: a menu page, such as
+/// Demo's scenario page, another application by its title(), or another Demo scenario by
+/// its label.
 void require_demo_terrain(kinetra_lab::Session *running);
 
 /// Plays the whole tour. After the launcher chapter, throws std::runtime_error when Demo
