@@ -27,6 +27,7 @@ The user asked for this phase on 2026-11-21 and was not available for questions 
 - [Verification](#verification)
 - [Pull request](#pull-request)
 - [Playtest checklist](#playtest-checklist)
+- [Playtest results](#playtest-results)
 - [Open points](#open-points)
 
 [Directory guide](README.md) · [Project overview](../../README.md) · [Documentation index](../README.md)
@@ -64,7 +65,7 @@ Checked against `main` at `2cd2c8a` on 2026-11-21. The roadmap's relevance check
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Recording of the old behavior | No new video; the tour video (`docs/media/kinetra-lab-tour.mp4`, linked from the root README) is the recording. The seeded statistics baseline is still made first | User decision, 2026-11-21 |
-| Playtest | The user's job after the pull requests; this document lists what to check | User decision, 2026-11-21 |
+| Playtest | The user's job after the pull requests; this document lists what to check. On 2026-11-23 the user handed it to the agent, which measured it ([results](#playtest-results)) | User decisions, 2026-11-21 and 2026-11-23 |
 | Pull requests | One per step, stacked: each Lab step starts on the previous one; the Kinetra step is its own pull request in SMB-M87/Kinetra, merged before step 4 | User decision (one pull request per logical step), with the cut into seven steps by the *agent* |
 | Baseline harness | `kinetra_dotio_behavior_benchmark`: a scripted player walks to random cells and shoots at the nearest enemy in sight; the harness counts what enemies do. 24 seeds × 300 simulated seconds per difficulty, steering and path wander, run twice | *Agent.* A real game loop exercises pursuit, recovery and kamikaze; observing from outside keeps the harness valid for old and new code. The player plans with `kinetra::WeightedGrid`, independent of the A* under test. Two runs show the spread of today's unseeded code |
 | Planner | `kinetra::WeightedGrid`, not `kinetra::Navigation` | *Agent.* Dotio's world is a raster of square cells. The weighted grid takes it cell by cell (`block`), applies the same eight-neighbor rule without corner cutting, and follows a streaming change by updating the cells that changed. `Navigation` plans around body geometry: 24,025 box bodies and a full `rebuild` for every residency change |
@@ -418,12 +419,53 @@ For the user, against the tour video's Dotio chapter (the old behavior). Play ea
 8. **Debug menu.** Every row as before; the debug panel still opens with Shift+Ctrl and the DEBUG button, and takes the pointer while it is over it.
 9. **Windows build**, if you use it: the same checks there (its trajectory fingerprints are not tested in CI).
 
+## Playtest results
+
+On 2026-11-23 the user handed the playtest to the agent. An agent has no desktop to play on, so it measured each point of the checklist against the code before this phase instead.
+
+**Method.** A probe added per-episode counters to the benchmark's scripted player. It was built on `ac1379e`, the baseline harness on the old code, and on `bae378f`, Lab `main` on 2026-11-23. Every run covers 24 seeds × 300 simulated seconds per difficulty, with steering wander unless noted. The old code was run twice, because it draws from `std::random_device`; the new code was run on seeds 1–24 and 25–48, for the spread between seeded runs. A second player walks the same way but neither shoots nor loses health, so enemies use up their arrows: recovery then happens about 200, 1,000 and 2,100 times per difficulty instead of at most 19. The probe was a one-off program next to the benchmark and is not in the repository.
+
+Values are Easy / Medium / Hard, as the range over the two runs of each version:
+
+| Point | Measure | New | Old |
+| --- | --- | --- | --- |
+| 1 Pursuit | Time until a pursuer gives up (s) | 7.8 / 9.5 / 12.4–12.5 | 7.8 / 9.6 / 12.4 |
+| 1 Pursuit | Route end back on the cell of two changes before, within 1 s, per pursuit-minute | 4.2–4.5 / 4.1–4.6 / 4.0 | 4.2 / 4.2–4.4 / 3.9–4.1 |
+| 2 Corners | Route-following ticks touching a wall (%) | 0.5 / 0.7–0.8 / 0.9–1.0 | 0.5 / 0.7–0.8 / 0.8–0.9 |
+| 2 Corners | Pursue ticks slower than 0.5 legacy pixels per tick while touching a wall (%), player that does not shoot | 0.14–0.18 / 0.16–0.18 / 0.25 | 0.16 / 0.16 / 0.24–0.27 |
+| 2 Corners | Turns of more than 134° within 12 ticks, per route-following minute | 1.2–1.5 / 3.3–4.1 / 5.0–5.6 | 2.0–2.8 / 4.4–7.1 / 6.1–7.5 |
+| 3 Recovery | Recoveries that reload and pursue again (%), player that does not shoot | 83–86 / 93–94 / 95 | 84–89 / 93–95 / 94–95 |
+| 3 Recovery | Recoveries that get out of the player's sight (%) | 89 / 95–96 / 96 | 90–92 / 96 / 96–97 |
+| 3 Recovery | Time until out of sight (s) | 0.9 / 0.9–1.0 / 1.0 | 1.0–1.1 / 0.9–1.0 / 1.0 |
+| 3 Recovery | Time until reload (s) | 7.4–7.5 / 5.6 / 4.65 | 7.5 / 5.5–5.6 / 4.63 |
+| 3 Recovery | How much farther from the player an enemy with fear 6 or more reloads than a bolder one (cells) | −0.1 to 1.5 | 0.4 to 0.9 |
+| 3 Recovery | Easy recoveries that end in kamikaze: one hit left and no shelter (%) | 12 | 9–10 |
+| 4 Kamikaze | Kamikazes that reach the player and explode (%) | 2 / 22–23 / 12 | 2–4 / 20–22 / 12–15 |
+| 4 Kamikaze | The same on Easy, player that does not shoot (%) | 99.7 | 98.7–99.7 |
+| 5 Path wander | Wander ticks touching a wall (%), path wander, player that does not shoot | 1.6 / 1.7 / 1.7 | 1.5 / 1.6 / 1.6 |
+| 6 Difficulty | Damage to the player per minute, benchmark, steering and path | 52.0 / 294.6 / 474.5 and 52.9 / 286.9 / 466.8 | 50–59 / 292–294 / 468–481 ([baseline](#baseline)) |
+
+The other points were checked without the probe:
+- **7 Reproducibility.** The benchmark gave the same fingerprints twice: steering `a304f08b70cc55d9 2631f237dc2b3779 d79b362dc1f7c429`, path `d629dcc2386e038c c8873c64d484ef04 749b73eb9504aaee`. The scenes `dotio`, `dotio-debug` and `dotio-debug-clip` of the capture tool were rendered twice and were identical to the pixel. `kinetra_dotio --seed 4242` printed `World seed: 4242` both times, and without `--seed` it printed the seed it drew. The bundled launcher prints its seed in `launcher/src/main.cpp`; that was read, not run.
+- **8 Debug menu.** `ctest --preset graphics -R '^kinetra_dotio'` passed all 54 cases. They include the menu's sections and rows, a toggle per click at every size, zoom, time scale, Shift and right-click with the menu open, and the five graphics cases. Shift+Ctrl and the DEBUG button were not tried by hand.
+- **9 Windows.** Not run. Since [Linux beyond Arch](2026-11-22-linux-beyond-arch.md), CI's `windows` job runs the golden fingerprint case.
+
+Reading it:
+- Pursuit, recovery, kamikaze, path wander and difficulty stay within the spread between runs, or within a few percent of it. Fearful enemies still hide a little deeper than bold ones, as before.
+- Enemies turn back a tenth to a half less often while they follow a route. They no longer return to the center of their own cell first.
+- Route followers touch a wall slightly more often on Hard, because they now head for the next cell at once and pass corners closer. They do not stand still against a wall more often than before.
+- Easy recoveries end in kamikaze in 12% against 9–10%. That is 23–26 against 18–21 out of about 200, too few to tell apart.
+- Not covered: how Dotio feels on a desktop at a real frame rate. Neither statistics nor software rendering show that. The checklist above stays available for it.
+
 ## Open points
 
-- **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, the four random streams, and refreshing the Dotio captures in step 7.
+- **The *agent* decisions above stand.** On 2026-11-23 the user handed the review to the agent, together with the playtest. The [playtest results](#playtest-results) back each decision:
+  - The weighted grid instead of `Navigation`, the Kinetra `search` API and whole routes without the 50-cell cap: every measure is as before, and route followers turn back less often.
+  - The four random streams: runs and captures repeat for a seed.
+  - Refreshing the Dotio captures in step 7 without a new tour video: on 2026-11-23 the user moved the tour to YouTube (*Tour video for YouTube* in the [roadmap](../roadmap.md)).
 - The golden fingerprint's skip on Windows, once among the decisions for the user's review above, is settled: since [Linux beyond Arch](2026-11-22-linux-beyond-arch.md) the case runs on Windows.
 - The Demo crowd characterization and i4sim RVO golden cases failed on Ubuntu 24.04 (locally, before and after this phase) and passed on CI's Arch toolchain. Resolved on 2026-11-22: the cause was the C library's `atan2f` and `asinf`, not the compiler; Dotio's `Vec2` uses Kinetra's `atan2` and `asin` since then, and its fingerprint runs on Windows again ([Linux beyond Arch](2026-11-22-linux-beyond-arch.md)).
 - Route following passes waypoints by distance and does not cut corners that are already in sight; a raster version of Kinetra's `route_target` would make pursuers smoother (module README, open points).
-- Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly, and the playtest should look at it.
+- Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly. The playtest measured it with a player that does not shoot ([playtest results](#playtest-results)).
 - `<kinetra/runtime/timing.h>` (`FixedClock`, `RateCounter`) is header-only and headless but sits under `runtime/`; Demo, Dotio and i4sim logic include it. Moving it to `view/` or `simulation/` is a Kinetra include-layout change for later.
 - `dotio::math::Vec2` duplicates `kinetra::Vec2` with extra operators (length comparisons, component products). Replacing it is a larger change than renaming and is left for later.
