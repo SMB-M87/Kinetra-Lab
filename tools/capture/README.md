@@ -24,7 +24,7 @@ cmake --preset graphics
 cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh                # all scenes, into docs/media
 tools/capture/capture_media.sh build-graphics dotio dotio-clip   # only these
-tools/capture/capture_tour.sh                 # the tour video into build/, its thumbnail into docs/media
+tools/capture/capture_tour.sh                 # the tour video into .docs/, its thumbnail into docs/media
 tools/capture/tour_thumbnail.sh               # only the thumbnail, from the current video
 ```
 
@@ -84,7 +84,7 @@ The files follow the [directory layout](../../external/Kinetra/docs/conventions.
 | [include/capture/tour/canvas.h](include/capture/tour/canvas.h), [src/tour/canvas.cpp](src/tour/canvas.cpp) | `Canvas` and its drawing: blended rectangles, bitmap text, ring, pointer, keycap, dimming |
 | [include/capture/tour/pointer_path.h](include/capture/tour/pointer_path.h), [src/tour/pointer_path.cpp](src/tour/pointer_path.cpp) | `plan_pointer_path`, `PointerPath::at`, `minimum_jerk` |
 | [capture_media.sh](capture_media.sh) | Runs the tool offscreen into a temporary directory, makes the GIFs, copies into `docs/media` |
-| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `build/kinetra-lab-tour.mp4`, for YouTube and outside Git, then runs `tour_thumbnail.sh` |
+| [capture_tour.sh](capture_tour.sh) | Pipes the tour's raw frames into ffmpeg and writes `.docs/kinetra-lab-tour.mp4`, a folder Git ignores, for YouTube, then runs `tour_thumbnail.sh` |
 | [tour_thumbnail.sh](tour_thumbnail.sh) | Four frames of the tour video in a 2 × 2 mosaic with a play button: `docs/media/kinetra-lab-tour-thumbnail.png`, which the README links to the YouTube copy |
 | [tests/](tests/) | Window-free tests and the graphics smoke test |
 

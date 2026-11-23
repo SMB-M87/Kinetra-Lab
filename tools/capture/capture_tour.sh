@@ -2,12 +2,12 @@
 # Renders the tour video: kinetra_capture plays the tour through the launcher and the three
 # applications, and ffmpeg encodes its frames as H.264. Then tour_thumbnail.sh makes the
 # README thumbnail in docs/media. The video itself goes to YouTube, not into the repository:
-# its default place is the ignored build/ directory, and .gitignore keeps *.mp4 out of Git.
+# its default place is the ignored .docs/ directory, and .gitignore keeps *.mp4 out of Git.
 #
 # Usage: tools/capture/capture_tour.sh [build-directory] [output-file]
 #   build-directory  a configured build with the runtime, relative to the current directory
 #                    (default: build-graphics in the repository)
-#   output-file      the video to write (default: build/kinetra-lab-tour.mp4)
+#   output-file      the video to write (default: .docs/kinetra-lab-tour.mp4)
 # Needs bash, ffmpeg with libx264 and a kinetra_capture binary in the build directory. The
 # tool renders offscreen with software Mesa, so it needs no display. Dotio's enemies are not
 # seeded, so its part of the tour differs from run to run.
@@ -15,7 +15,7 @@ set -euo pipefail
 
 repository=$(cd "$(dirname "$0")/../.." && pwd)
 build=${1:-$repository/build-graphics}
-output=${2:-$repository/build/kinetra-lab-tour.mp4}
+output=${2:-$repository/.docs/kinetra-lab-tour.mp4}
 tool="$build/kinetra_capture"
 
 if [[ ! -x $tool ]]; then

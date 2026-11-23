@@ -38,7 +38,9 @@
 *.out
 *.app
 
-# Rendered videos: the tour goes to YouTube, not into Git (tools/capture/README.md)
+# Local renders that do not belong in Git, such as the tour video for YouTube
+# (tools/capture/README.md)
+.docs/
 *.mp4
 
 # Build directories

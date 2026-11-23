@@ -107,7 +107,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - **Design documents:** Lab design documents go in [docs/design/](docs/design/README.md). A docs-only change needs none, and a change across Kinetra and Lab has one, in the repository with most of it ([rule](external/Kinetra/AGENTS.md#development-cycle)).
 - **Roadmap:** application, tool and build work that is planned or only an idea goes in [docs/roadmap.md](docs/roadmap.md); engine work in [Kinetra's roadmap](external/Kinetra/docs/roadmap.md), with a linked item in each when it needs both. Format in the [documentation guide](external/Kinetra/docs/documentation.md#roadmap).
 - **ADRs:** Lab ADRs go in `docs/decisions/`, created with its README when the first Lab ADR is written.
-- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is not in the repository: `tools/capture/capture_tour.sh` renders it into `build/` for an upload to YouTube, when the user asks for one, and refreshes the thumbnail in `docs/media`.
+- **Media:** screenshots and clips in [docs/media](docs/media/README.md) are refreshed with `tools/capture/capture_media.sh` ([capture tool](tools/capture/README.md)) when visible behavior changes; look at every refreshed file before committing it. The tour video is not in the repository: `tools/capture/capture_tour.sh` renders it into `.docs/`, which Git ignores, for an upload to YouTube, when the user asks for one, and refreshes the thumbnail in `docs/media`.
 
 ## Functionality index
 

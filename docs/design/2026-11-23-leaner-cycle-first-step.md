@@ -93,7 +93,7 @@ The documentation is as large as the code, and the design documents are 60 % of 
 | Doubt | A full run, as before: no merge base, a failed Kinetra clone or diff, a failed `changes` job. An empty `skip_build` counts as a full run | A broken decision must never skip CI |
 | History in the `changes` job | A blobless checkout (`filter: blob:none`) | The decision needs commits and trees; the old renders stay out of the job |
 | Review, design document, cross-repository changes, reading | As the [Kinetra design](../../external/Kinetra/docs/design/2026-11-23-docs-only-pull-requests.md#decisions) decides; Lab's `AGENTS.md` and design index point to that rule | The user's choices of 2026-11-23; the rules live in Kinetra |
-| Tour video | Removed from `docs/media`; `capture_tour.sh` renders into `build/` and refreshes the thumbnail in `docs/media`; `.gitignore` ignores `*.mp4` | The user's request of 2026-11-23, ahead of the YouTube video the roadmap waited for. The README already links the YouTube copy |
+| Tour video | Removed from `docs/media`; `capture_tour.sh` renders into `.docs/` and refreshes the thumbnail in `docs/media`; `.gitignore` ignores `.docs/` and `*.mp4` | The user's request of 2026-11-23, ahead of the YouTube video the roadmap waited for, and the folder the user asked for. The README already links the YouTube copy |
 | Kinetra and Lab in one repository | Not pursued | The user's decision of 2026-11-23 |
 | A code index or search server for agents | Not now | For 38,000 lines of C++, the functionality indexes and a text search find code; a server would add its own tool descriptions to every session. The context grows from documentation that is read without need, which the reading rule addresses |
 
@@ -113,7 +113,7 @@ flowchart LR
 - `.github/workflows/ci.yml`: the `changes` job checks out without old blobs, keeps the pointer-on-`main` check for pointer-only pull requests and asks `needs_build.sh` for the rest; it writes `skip_build` once, at the end, with a notice *Build and tests skipped*. The docs-check step is named *Documentation links (no build needed)*.
 - `tools/release/needs_build.sh`: the three Lab paths that always build, and a second filter for the Kinetra range with `.github/` and `tools/`; its header names both callers and why the paths are safe.
 - `AGENTS.md`: the routing table sends a task to its own design document only; the Docs row and a paragraph on docs-only pull requests in [verification in Lab](../../AGENTS.md#verification-in-lab); the pointer range in the verification table and in the submodule rules; the design-document and media rules. `external/README.md`, `tools/release/README.md` and the design index follow.
-- Tour video: `docs/media/kinetra-lab-tour.mp4` deleted; `capture_tour.sh` and `tour_thumbnail.sh` default to `build/kinetra-lab-tour.mp4` and write the thumbnail to `docs/media`; `.gitignore`; the README, the media guide and the capture tool's README; the old tour design document no longer links the file.
+- Tour video: `docs/media/kinetra-lab-tour.mp4` deleted; `capture_tour.sh` and `tour_thumbnail.sh` default to `.docs/kinetra-lab-tour.mp4` and write the thumbnail to `docs/media`; `.gitignore` (`.docs/`, `*.mp4`); the README, the media guide and the capture tool's README; the old tour design document no longer links the file.
 - `docs/roadmap.md`: *Leaner agentic cycle* moves to *Now*; *Automatic pointer pull request* joins *Next*; *Tour video for YouTube* and *Repositories per lab* record the user's decisions.
 
 ## Affected areas
