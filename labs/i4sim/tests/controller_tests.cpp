@@ -359,7 +359,7 @@ TEST_CASE("a shuttling scene does not restart") {
     CHECK_MESSAGE(controller.simulation().ticks() == 5000, "A shuttling scene was restarted");
 }
 
-TEST_CASE("a click selects a mover or a producer and empty floor clears the selection") {
+TEST_CASE("a mover stays selected until the inspector closes or selects another mover") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
@@ -370,12 +370,18 @@ TEST_CASE("a click selects a mover or a producer and empty floor clears the sele
     // Producer 0 is the Kuka at (360, 120); its symbol has a radius of half a cell, 120 mm.
     frame(controller, camera, click(camera, {360 + 100, 120}));
     CHECK(controller.selected_producer() == 0);
-    CHECK_FALSE(controller.selected_mover());
+    CHECK(controller.selected_mover() == 2);
     CHECK_FALSE(controller.simulation().producers()[0].blocked);
 
     frame(controller, camera, click(camera, {1900, 600}));
-    CHECK_FALSE(controller.selected_mover());
+    CHECK(controller.selected_mover() == 2);
     CHECK_FALSE(controller.selected_producer());
+    frame(controller, camera, click(camera, mover_position(controller, 2)));
+    CHECK(controller.selected_mover() == 2);
+    frame(controller, camera, click(camera, mover_position(controller, 1)));
+    CHECK(controller.selected_mover() == 1);
+    controller.clear_selected_mover();
+    CHECK_FALSE(controller.selected_mover());
 }
 
 TEST_CASE("a right click holds a mover or blocks a producer and keeps the selection on empty floor") {

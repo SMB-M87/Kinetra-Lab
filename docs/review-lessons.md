@@ -45,3 +45,10 @@ No lessons yet.
 ## Media and tools
 
 No lessons yet.
+
+
+- **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
+  Display formatting and clipping can change an identifier even when the inspector and trace share a row builder. Pass the identifier shown to the user into the real executable.
+
+- **Check seeded per-tick diagnostics across frame batching** · added 2026-11-22 · source: #76
+  Frame-level spawn credit can move a spawn to an earlier simulated tick even when the inspector and CLI call the same row builder. Test the supported cadence and document whether observations are comparable across frame batching.

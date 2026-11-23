@@ -30,6 +30,8 @@ enum class SteeringProfile {
     /// Kinetra's reciprocal avoidance with rectangular envelopes.
     reciprocal,
 };
+/// The profile label shared by the debug menu and inspector.
+const char *profile_name(SteeringProfile profile);
 /// Whether `profile` can run predictive passing. The other profiles ignore
 /// `MotionSettings::predictive_passing`.
 constexpr bool supports_predictive_passing(SteeringProfile profile) {
@@ -154,6 +156,8 @@ struct Mover {
     /// Ticks without a product, ticks with one, producer interactions served, and ticks
     /// spent touching another mover or a border.
     std::uint64_t idle_ticks{}, transport_ticks{}, interactions{}, collision_ticks{};
+    /// Consecutive waiting ticks at the last observation and total waiting ticks this run.
+    std::uint64_t current_wait_ticks{}, total_wait_ticks{};
     /// Distance travelled, in millimeters.
     double distance{};
     /// The route came from route recovery (Navigation around blocked cells and movers).
@@ -269,6 +273,17 @@ class Simulation {
     /// point while it waits for a mover in its lane, otherwise its entry or exit target. Throws
     /// std::out_of_range for an unknown mover.
     std::optional<Vec2> passing_target(std::size_t mover) const;
+    /// The mover's active passing plan, if any. Throws std::out_of_range for an unknown mover.
+    struct PassingDetails {
+        /// Plan ID and index of the other participant in movers().
+        std::uint64_t id;
+        std::size_t partner;
+        /// Whether the movers have reached their lane entries, and whether this mover is yielding.
+        bool crossing, waiting;
+        /// This mover's current target in millimeters.
+        Vec2 target;
+    };
+    std::optional<PassingDetails> passing_details(std::size_t mover) const;
     /// True when `mover` has made no route progress for 120 ticks while no
     /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
     /// std::out_of_range for an unknown mover.

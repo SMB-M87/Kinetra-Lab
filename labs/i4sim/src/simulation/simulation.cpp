@@ -4,6 +4,19 @@
 #include <utility>
 
 namespace i4sim {
+const char *profile_name(SteeringProfile profile) {
+    switch (profile) {
+    case SteeringProfile::original:
+        return "ORIGINAL";
+    case SteeringProfile::experimental_rvo:
+        return "RVO EXPERIMENT";
+    case SteeringProfile::reciprocal:
+        return "RECIPROCAL";
+    default:
+        return "IMPROVED";
+    }
+}
+
 MoverStatus mover_status(const Mover &m) {
     if (m.held)
         return MoverStatus::held;
@@ -106,6 +119,9 @@ std::size_t Simulation::predictive_pairs() const {
 }
 std::optional<Vec2> Simulation::passing_target(std::size_t mover) const {
     return core_->passing_target(mover);
+}
+std::optional<Simulation::PassingDetails> Simulation::passing_details(std::size_t mover) const {
+    return core_->passing_details(mover);
 }
 bool Simulation::stalled(std::size_t mover) const {
     return core_->stalled(mover);

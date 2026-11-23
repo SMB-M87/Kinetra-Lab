@@ -4,6 +4,7 @@
 // time, so they form one case. CTest labels the suite `graphics`.
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/presentation/presentation.h"
+#include "dotio/presentation/session.h"
 
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/engine.h>
@@ -13,6 +14,7 @@
 #include <glad/glad.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
 
@@ -28,6 +30,98 @@ kinetra::SettingsOverlay settings_for(dotio::Application &application) {
 } // namespace
 
 using namespace kinetra;
+
+TEST_CASE("Shift and right-click select a Dotio enemy while the debug menu stays usable") {
+    Runtime runtime("Dotio inspector", 1280, 800);
+    auto session = dotio::create_session(42, dotio::default_difficulty);
+    session->advance(0, {}, runtime.camera);
+    auto &application = session->application();
+    auto &enemy = application.world().get_enemies()[0];
+    enemy.reset();
+    enemy.position = application.world().get_player().position + dotio::math::Vec2{80, 0};
+    Input pick;
+    pick.mouse = runtime.camera.world_to_screen(dotio::to_world(enemy.position));
+    pick.right_clicked = true;
+    session->advance(0, pick, runtime.camera);
+    CHECK_FALSE(application.selected_enemy());
+    pick.held[std::size_t(Key::shift)] = true;
+    session->advance(0, pick, runtime.camera);
+    REQUIRE(application.selected_enemy() == &enemy);
+
+    Input debug_menu;
+    debug_menu.pressed[std::size_t(Key::shift)] = debug_menu.pressed[std::size_t(Key::control)] = true;
+    session->advance(0, debug_menu, runtime.camera);
+    Input click;
+    click.clicked = true;
+    click.mouse =
+        Vec2{8, 32} + Vec2{12, DebugMenu::row_top(1) + 8} * DebugMenu::scale(runtime.camera.viewport);
+    session->advance(0, click, runtime.camera);
+    CHECK(application.paused);
+    CHECK(application.selected_enemy() == &enemy);
+    click.mouse = {1260, 20};
+    session->advance(0, click, runtime.camera);
+    CHECK_FALSE(application.selected_enemy());
+}
+
+TEST_CASE("Dotio inspector allows world fire and Ghost teleport and consumes close clicks") {
+    Runtime runtime("Dotio inspector pointer", 1280, 800);
+    auto session = dotio::create_session(42, dotio::default_difficulty);
+    auto &camera = runtime.camera;
+    session->advance(0, {}, camera);
+    auto &application = session->application();
+    auto &world = application.world();
+    auto &enemy = world.get_enemies()[0];
+    auto &player = world.get_player();
+    enemy.reset();
+    enemy.position = player.position + dotio::math::Vec2{80, 0};
+    const auto pick = [&] {
+        Input input;
+        input.right_clicked = true;
+        input.held[std::size_t(Key::shift)] = true;
+        input.mouse = camera.world_to_screen(dotio::to_world(enemy.position));
+        session->advance(0, input, camera);
+        REQUIRE(application.selected_enemy() == &enemy);
+    };
+    const auto click = [&](Vec2 point, double seconds = 0) {
+        Input input;
+        input.mouse = point;
+        input.clicked = true;
+        session->advance(seconds, input, camera);
+    };
+    const Vec2 close{1260, 20};
+    pick();
+    player.cooldown = 0;
+    click({650, 400}, dotio::Application::tick_seconds);
+    CHECK(player.cooldown > 0);
+    player.cooldown = 0;
+    click(close, dotio::Application::tick_seconds);
+    CHECK_FALSE(application.selected_enemy());
+    CHECK(player.cooldown == 0);
+
+    pick();
+    application.debug = application.ghost = true;
+    world.get_ghost().position = player.position;
+    const auto free_target = [&](auto position) {
+        const std::array offsets{dotio::math::Vec2{16, 0}, dotio::math::Vec2{-16, 0},
+                                 dotio::math::Vec2{0, 16}, dotio::math::Vec2{0, -16}};
+        for (auto offset : offsets)
+            if (application.teleport_clear(position + offset, player.radius))
+                return position + offset;
+        FAIL("No nearby free teleport target");
+        return position;
+    };
+    const auto target = free_target(player.position);
+    const auto absolute = target + world.world_offset();
+    click(camera.world_to_screen(dotio::to_world(target)));
+    CHECK((player.position + world.world_offset() - absolute).get_length() < 0.01f);
+    REQUIRE(application.selected_enemy());
+    const auto after_teleport = player.position + world.world_offset();
+    const auto blocked_click_target = free_target(player.position);
+    camera.position += dotio::to_world(blocked_click_target) - camera.screen_to_world(close);
+    click(close);
+    CHECK_FALSE(application.selected_enemy());
+    CHECK(player.position + world.world_offset() == after_teleport);
+}
 
 namespace {
 // Inspect the statistics area in both swap buffers, including offscreen SDL backends.

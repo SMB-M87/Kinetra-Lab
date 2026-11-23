@@ -19,25 +19,6 @@ void draw_line(Runtime &runtime, std::string_view text, int line, Color color = 
     draw_text(runtime, text, {10, runtime.camera.viewport.y - float(line) * line_height}, hud_scale, color);
 }
 
-/// HUD text for a selected mover's status.
-const char *status_text(MoverStatus status) {
-    switch (status) {
-    case MoverStatus::held:
-        return "BLOCKED";
-    case MoverStatus::corridor_retreat:
-        return "CORRIDOR RETREAT";
-    case MoverStatus::passing_detour:
-        return "PASSING DETOUR";
-    case MoverStatus::unreachable:
-        return "UNREACHABLE";
-    case MoverStatus::allocated:
-        return "ALLOCATED";
-    case MoverStatus::available:
-        return "IDLE - SHIFT CLICK GOAL";
-    }
-    return "";
-}
-
 /// Run totals, with the counters of the coordination features that are on.
 std::string totals_text(const Simulation &simulation) {
     const auto &motion = simulation.motion_settings();
@@ -70,19 +51,6 @@ std::string motion_text(const Simulation &simulation) {
     return text.str();
 }
 
-void draw_mover_inspection(Runtime &runtime, const Simulation &simulation, std::size_t index) {
-    const auto &mover = simulation.movers().at(index);
-    std::ostringstream summary;
-    summary << mover.definition.id << " | DISTANCE " << int(mover.distance) << " MM | CONTACT TICKS "
-            << mover.collision_ticks << " | " << status_text(mover_status(mover));
-    draw_line(runtime, summary.str(), 4);
-    std::ostringstream details;
-    details << "SPEED " << length(mover.body.velocity) << " FORCE " << length(mover.body.acceleration)
-            << " GOAL " << int(mover.destination.x) << "," << int(mover.destination.y)
-            << (simulation.stalled(index) ? " STALLED" : "");
-    draw_line(runtime, details.str(), 3);
-}
-
 void draw_producer_inspection(Runtime &runtime, const Simulation &simulation, std::size_t index) {
     const auto &producer = simulation.producers().at(index);
     draw_line(runtime,
@@ -98,8 +66,6 @@ void draw_hud(Runtime &runtime, const Simulation &simulation, const HudContent &
         draw_line(runtime, totals_text(simulation), 2);
         draw_line(runtime, motion_text(simulation), 1);
     }
-    if (content.selected_mover)
-        draw_mover_inspection(runtime, simulation, *content.selected_mover);
     if (content.selected_producer)
         draw_producer_inspection(runtime, simulation, *content.selected_producer);
     if (!content.description.empty())

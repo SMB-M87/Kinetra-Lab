@@ -1,3 +1,5 @@
+find_package(nlohmann_json 3.11 REQUIRED)
+
 if(BUILD_TESTING)
     # Header-only helpers (the Fingerprint hash) for the test suites of every application.
     add_library(kinetra_lab_testing INTERFACE)

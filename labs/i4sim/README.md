@@ -84,6 +84,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | Wheel (in Debug Mode) / F | Zoom / fit the floor in the window |
 | Left click / right click | Inspect a mover or producer / also hold the mover or block the producer |
 | Shift + left click | Send the selected mover there as a manual goal |
+| Inspector X | Close the inspector and clear the mover selection |
 
 The debug menu has four sections. A click on a heading opens its rows below it and closes the open section; a second click closes it. SIMULATION is open at the start. On/off settings are check boxes, a number shows its value with `[-]` and `[+]` buttons, and PROFILE and PLANNER open a list of choices below them that closes on a choice. Below a rule follow ZOOM, with buttons of one zoom step each, FRAME SCENE and BLUEPRINTS (back to the blueprint screen).
 
@@ -96,7 +97,13 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 
 Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. Only a PLANNER change plans every route again. Turning a policy off drops its state; passing plans end as `disabled`. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds and changes nothing.
 
-The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space). An inspected mover shows distance, contact ticks, its status and `STALLED` when it made no route progress for 120 ticks. That is a lack of progress, not a proven deadlock.
+The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space).
+
+The top-right inspector shows the selected mover's state, settings, goal, route, speed, steering forces and active passing plan. Click another mover to switch. Inspecting a producer, setting a goal and using the debug menu's RUNNING row all work while the inspector is open. The frame-time graph moves below it.
+
+The current wait counts consecutive ticks in which the mover has a goal, is free to move, travels below 0.05 mm/tick and is more than 10 mm from its destination. The total adds all such ticks since the run started. STALLED indicates 120 ticks without route progress, with the coordination exceptions described in the simulation contract.
+
+`kinetra_i4sim --blueprint FILE --ticks N --inspect MOVER_ID` writes one JSON object per executed tick to standard output. Use the zero-based number at the start of the panel title or the exact model-qualified ID from the blueprint, such as `APM4220_west`. Every object has a tick number, a mover ID and the same ordered groups of labels and values shown on screen. The run summary goes to standard error.
 
 ## Concepts
 

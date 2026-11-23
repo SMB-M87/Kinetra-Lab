@@ -1,5 +1,6 @@
 #include "i4sim/simulation/detail/simulation_core.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
+#include "i4sim/simulation/flow_metrics.h"
 
 #include <nlohmann/json.hpp>
 
@@ -212,6 +213,11 @@ std::optional<Vec2> SimulationCore::passing_target(std::size_t mover) const {
         throw std::out_of_range("Mover index");
     return passing_.target(mover);
 }
+std::optional<Simulation::PassingDetails> SimulationCore::passing_details(std::size_t mover) const {
+    if (mover >= fleet_.movers.size())
+        throw std::out_of_range("Mover index");
+    return passing_.details(mover);
+}
 std::size_t SimulationCore::corridor_recovering() const {
     return traffic_.recovering();
 }
@@ -239,6 +245,15 @@ void SimulationCore::tick() {
     motion_step_.run(goals_now, production_);
     production_.update(goals_now);
     turn_shuttle();
+    // Observe the completed tick, at the same point as the batch benchmark.
+    for (auto &mover : fleet_.movers) {
+        if (waiting_for_progress(mover)) {
+            ++mover.current_wait_ticks;
+            ++mover.total_wait_ticks;
+        } else {
+            mover.current_wait_ticks = 0;
+        }
+    }
     if (ticks_ >= blueprint_.tick_cap)
         state_ = RunState::finished;
 }

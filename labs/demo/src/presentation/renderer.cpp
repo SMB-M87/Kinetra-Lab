@@ -1,6 +1,7 @@
 #include "demo/presentation/renderer.h"
 #include "demo/presentation/help_overlay.h"
 #include "kinetra_lab/camera.h"
+#include "kinetra_lab/inspector.h"
 #include <string_view>
 
 namespace demo {
@@ -181,7 +182,10 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     }
     if (overlays.menu)
         overlays.menu->draw(runtime, overlays.entries);
-    if (overlays.frame_times)
+    if (overlays.menu)
+        kinetra_lab::draw_inspector(runtime, *overlays.menu, overlays.inspector, overlays.inspection,
+                                    overlays.frame_times);
+    else if (overlays.frame_times)
         draw_frame_times(runtime, *overlays.frame_times);
     if (overlays.settings)
         overlays.settings->draw(runtime);

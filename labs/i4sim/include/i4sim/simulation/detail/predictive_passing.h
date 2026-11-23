@@ -36,6 +36,8 @@ class PredictivePassing {
     /// The target `mover` currently heads for in a plan: its braking point while it waits,
     /// otherwise its entry target before crossing and its exit target after.
     std::optional<Vec2> target(std::size_t mover) const;
+    /// The active plan for this mover index, if it participates in one.
+    std::optional<Simulation::PassingDetails> details(std::size_t mover) const;
 
     /// Ends every plan of `mover` with `PassingEnd::goal_changed`; called when it receives
     /// a goal. The routes of both participants are planned again under `motion`.
