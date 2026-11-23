@@ -27,7 +27,8 @@ if [[ ! -f "$kinetra_setup" ]]; then
     # A submodule moved to a Kinetra commit from before the script, or an interrupted checkout.
     echo "Cloud setup failed: external/Kinetra has no tools/cloud_setup.sh: its commit predates" \
         "the script, or its checkout is incomplete (git submodule update --init --recursive)." \
-        "Install the packages of the README's quick start by hand."
+        "Install the packages of the README's quick start and CI's clang-format version" \
+        "(external/Kinetra/docs/development.md) by hand."
     exit 0
 fi
 # i4sim needs nlohmann JSON in every build, headless included. The README's Debian and Ubuntu
