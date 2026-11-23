@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-23 | [Demo scenario menu](2026-11-23-demo-scenario-menu.md) | accepted |
 | 2026-11-23 | [Demo help overlay removal](2026-11-23-demo-help-overlay-removal.md) | implemented |
 | 2026-11-23 | [Shift+right-click inspects in i4sim without holding](2026-11-23-i4sim-shift-right-click.md): Dotio's inspect gesture selects a mover or producer in i4sim and holds or blocks nothing | implemented |
 | 2026-11-23 | [Code nits from the last review rounds](2026-11-23-review-nits.md): where the docs check runs, the *No decision script* warning, and the tour's output folder before the render, with Kinetra#39 | implemented |
