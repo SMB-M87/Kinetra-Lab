@@ -62,7 +62,7 @@ At every level, run `python3 external/Kinetra/tools/check_copies.py`, with `--te
 
 | Level | In Lab |
 | --- | --- |
-| Docs | `python3 external/Kinetra/tools/check_docs.py` |
+| Docs | `python3 external/Kinetra/tools/check_docs.py`. For a docs-only pull request, CI runs only this check, and no agent review follows (below) |
 | Targeted | `cmake --build --preset dev --target <targets>` and `ctest --preset dev -R '<regex>'`, using the table below (configure once with `cmake --preset dev`) |
 | Full | Locally the targeted builds and tests of every changed area, from the table below; then the pull request's CI (format, docs, `headless`, `ci` with the graphics cases and the smoke runs of every executable on software OpenGL, the same on Ubuntu LTS, native Windows). Verified only when CI passes. Run `ci`, `headless`, `graphics` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
 
@@ -75,11 +75,13 @@ At every level, run `python3 external/Kinetra/tools/check_copies.py`, with `--te
 | `launcher/include/launcher/applications.h`, `launcher/src/applications.cpp` | `kinetra_menu_tests` | `^kinetra_menu:` |
 | `tools/capture/` | `kinetra_capture_tests kinetra_capture`; then, as quick feedback, the smoke test in the `graphics` preset (`ctest --preset graphics -R kinetra_capture_smoke`), which CI also runs | `^kinetra_capture` |
 | Any `presentation/` folder, launcher loop, `main.cpp` | Full level. Locally, build the area's `*_presentation_tests` (or `kinetra_runtime_tests`) and its executable in the `graphics` preset; running them there with `ctest --preset graphics -L graphics -R '<regex>'` is optional quick feedback, CI runs them | `<suite>_graphics\|kinetra_smoke:<name>` |
-| `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks; a pointer move whose Kinetra range is only Markdown, `docs/` or `.agents/` is the Docs level, and CI runs only the docs check for it | |
+| `external/Kinetra` pointer or engine sources | Full level, plus Kinetra's own checks; a pointer move whose Kinetra range is only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` is the Docs level, and CI runs only the docs check for it | |
 | `tools/release/`, `.github/workflows/release.yml` | Docs level, plus the local cross build and `package_windows.sh` from the [release tool](tools/release/README.md#build-the-zip-locally); the workflow itself runs only after a merge on `main` or a tag | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level; CI's `windows` job builds natively. Only a change to the WSL cross build itself (`cmake/toolchains/`, the `windows` preset) also needs `cmake --workflow --preset windows` from WSL, which CI does not run ([Windows](docs/windows.md)) | |
 
 The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the five 60-second Demo crowd cases.
+
+**Docs-only pull requests.** CI's `changes` job skips the build and tests, and runs only the docs check, when Lab changed only Markdown, `docs/` or `.agents/` and a moved pointer brings only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` of Kinetra, which Lab's build does not read. The decision is `tools/release/needs_build.sh`, the one the release workflow uses. Such a pull request needs no agent review, and merges once CI is green unless the merge rule leaves it to the user, as for the agent rules ([Kinetra rule](external/Kinetra/AGENTS.md#git)).
 
 The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 
@@ -94,7 +96,7 @@ The level is decided by the whole change; one Full-level file lifts everything. 
 - Never commit a pointer to a Kinetra commit that is not on a Kinetra branch. Push the Kinetra branch and open its pull request before pushing Lab.
 - The Lab pull request links the Kinetra pull request. It states that Kinetra merges first, with a merge commit rather than a squash, so the pointer stays reachable.
 - Lab `main` records a commit on Kinetra `main`. The order is: the Kinetra pull request merges; then the Lab pull request merges with its pointer at the Kinetra branch commit it was verified with; then, right away, a separate **pointer-only pull request** records the Kinetra merge commit. *Why:* a pointer to the branch commit is reachable but not on `main`, so the submodule on `main` shows as modified in Lab until the pointer pull request merges.
-- A pointer-only pull request changes nothing but `external/Kinetra`, to a commit on Kinetra `main`. It needs no agent review, and the agent merges it once its CI passes ([Kinetra rule](external/Kinetra/AGENTS.md#git)). CI skips build and tests for it when Kinetra changed only Markdown, `docs/` or `.agents/` between the two pointers, an identical tree included, and runs only the docs check then; any other Kinetra change runs the full CI. Never push the move to the Kinetra merge commit onto the Lab pull request that is open or reviewed: its CI would run again for one line. While the Kinetra pull request is in review and its branch moves, the Lab branch follows it with a pointer commit, as Kinetra's [stack rules](external/Kinetra/docs/workflow.md#stacked-pull-requests) say.
+- A pointer-only pull request changes nothing but `external/Kinetra`, to a commit on Kinetra `main`. It needs no agent review, and the agent merges it once its CI passes ([Kinetra rule](external/Kinetra/AGENTS.md#git)). CI skips build and tests for it when Kinetra changed only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` between the two pointers, an identical tree included, and runs only the docs check then; any other Kinetra change runs the full CI. Never push the move to the Kinetra merge commit onto the Lab pull request that is open or reviewed: its CI would run again for one line. While the Kinetra pull request is in review and its branch moves, the Lab branch follows it with a pointer commit, as Kinetra's [stack rules](external/Kinetra/docs/workflow.md#stacked-pull-requests) say.
 - The manual steps and commands are in [External dependencies](external/README.md).
 
 ## Documentation in Lab

@@ -20,11 +20,13 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Leaner agentic cycle** · workflow, tools, CI, with Kinetra · added 2026-11-23
+  The user wants the agents' development cycle to take less time and fewer steps. First step, on branch `ccr-6e6399fb-049f2v`: CI runs only the docs check for a docs-only pull request or a pointer move that Lab's build does not read, and such pull requests need no agent review ([design](design/2026-11-23-leaner-cycle-first-step.md), with the measurement of 18 to 23 November). Candidates for the next measures, besides *Ready-to-build cloud sessions*, *Impact-based verification script* and *CI image with the toolchain built in*: a workflow that opens and merges the pointer-only pull request after a Kinetra merge; one design document for a change across both repositories; no design document for a docs-only change; a CI skip in Kinetra; a check that names the GIFs a diff makes stale; and, as the largest step, Kinetra and Lab in one repository (see *Repositories per lab*).
+  Next step: the user chooses among the candidates ([open points](design/2026-11-23-leaner-cycle-first-step.md#open-points)). Where: [workflow](../external/Kinetra/docs/workflow.md); Kinetra item of the same name.
 
 ## Next
 
-The user's checks come first: each is short and unblocks the items after it. The agent's work follows, in the order settled on 2026-11-22, with *Leaner agentic cycle* first since 2026-11-23.
+The user's checks come first: each is short and unblocks the items after it. The agent's work follows, in the order settled on 2026-11-22.
 
 - **Dotio playtest and phase 6's decisions** · dotio · added 2026-11-21
   Phase 6 ends with a playtest by the user and a review of what the agent decided alone: route planning on Kinetra's `WeightedGrid` instead of `Navigation`; Kinetra's new `search`, which picks a shelter on route cost only, so an enemy may choose a slightly different place than before; whole routes without the old 50-cell cap; four random streams from the world seed, with `--seed` on `kinetra_dotio`; and refreshed Dotio captures without a new tour video. Recovery is too rare in the benchmark to compare shelter searches, so the playtest should watch it.
@@ -35,9 +37,6 @@ The user's checks come first: each is short and unblocks the items after it. The
 - **Smooth-wheel zoom on a desktop** · demo, dotio, i4sim, with Kinetra · added 2026-11-22
   Kinetra's runtime now reads `wheel.preciseY` ([Kinetra #30](https://github.com/SMB-M87/Kinetra/pull/30)), so a touchpad or smooth wheel zooms Demo, Dotio and i4sim in fractional steps instead of whole notches; a notched wheel zooms as before. Software rendering cannot judge the feel. Kinetra also asks for one run of its `graphics` workflow under WSL2, to confirm the cause of its old mouse-input failure.
   Next step: the user's playtest with a touchpad and with a notched wheel. Where: [graphics tests in CI, open points](design/2026-11-22-graphics-tests-in-ci.md#open-points).
-- **Leaner agentic cycle** · workflow, tools, CI, with Kinetra · added 2026-11-23
-  The user wants the agents' development cycle to take less time and fewer steps. From 18 to 22 November Lab merged 77 pull requests, 11 of which only moved the Kinetra pointer; 12 topics needed a design document in both repositories; every code task in a cloud session installs packages first; and every pull request except a pointer-only one waits for a separate review session, documentation-only ones included. Candidates besides *Ready-to-build cloud sessions*, *Impact-based verification script* and *CI image with the toolchain built in*: a workflow that opens and merges the pointer-only pull request by itself after a Kinetra merge; one design document for a change across both repositories; design and review sized to the Docs level; a check that names the GIFs a diff makes stale; and, as the largest step, Kinetra and Lab in one repository (see *Repositories per lab*).
-  Next step: measure the last 80 pull requests of both repositories (time from opening to merge per kind of change, review rounds, CI minutes), then settle the measures with the user (`grilling`). Where: [workflow](../external/Kinetra/docs/workflow.md); Kinetra item of the same name.
 - **Ready-to-build cloud sessions** · build, tools · added 2026-11-21
   A cloud session starts on Ubuntu 24.04 without SDL2, nlohmann JSON and ccache, and with clang-format 18 where CI uses 23 (checked on 2026-11-21). Every code task therefore installs packages first and cannot reproduce CI's format check. On 2026-11-22 the *Linux beyond Arch* session created a personal cloud environment *Kinetra-Lab* for Kinetra-Lab and Kinetra, whose setup script installs the README's Debian and Ubuntu packages; clang-format 23 is not in Ubuntu's packages and is still missing.
   Next step: start the next code task in the *Kinetra-Lab* environment and check that it builds at once; then decide how a session gets clang-format 23 (for example LLVM's apt repository, which needs its host allowed).

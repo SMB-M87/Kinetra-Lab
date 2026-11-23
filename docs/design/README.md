@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-23 | [Leaner agentic cycle: the measurement and its first step](2026-11-23-leaner-cycle-first-step.md): CI runs only the docs check for a docs-only pull request or a pointer move Lab's build does not read, with the release workflow's `needs_build.sh`; the pull requests of 18 to 23 November measured | implemented |
 | 2026-11-23 | [Copies check in Lab](2026-11-23-copies-check-in-lab.md): Lab's verification section names Kinetra's `check_copies.py` | implemented |
 | 2026-11-23 | [Roadmap: GIFs, a Demo scenario menu, a launcher preview, an evolution lab and a leaner cycle](2026-11-23-roadmap-media-labs-cycle.md): the user's wishes of 2026-11-23 as items in both roadmaps | implemented |
 | 2026-11-22 | [Linux beyond Arch and golden tests on every toolchain](2026-11-22-linux-beyond-arch.md): Kinetra's `atan2` and `asin` in the simulation logic, fingerprints on Windows again, an Ubuntu LTS job and dependencies per distribution | implemented |

@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Decides whether the Windows zip can differ between two Lab commits, so the release
-# workflow skips the cross build when it cannot. See tools/release/README.md.
+# Decides whether the build of Lab can differ between two commits. ci.yml's "changes" job
+# skips the build and tests of a pull request when it cannot, and the release workflow skips
+# the cross build of the Windows zip. See tools/release/README.md.
 #
 # Usage: tools/release/needs_build.sh <base> <head>
 #   Run from a Lab checkout of <head> with full history. Prints "false" only when every
-#   changed path is Markdown, docs/ or .agents/, in Lab and, for a moved external/Kinetra
-#   pointer, in that Kinetra range too. Prints "true" otherwise, and on any doubt: a missing
-#   or unrelated base, a failed diff, or a Kinetra clone that does not answer. The reason
-#   goes to stderr.
+#   changed Lab path is Markdown, docs/ or .agents/ and, for a moved external/Kinetra
+#   pointer, every path of that Kinetra range is Markdown, docs/, .agents/, .github/ or
+#   tools/. Prints "true" otherwise, and on any doubt: a missing or unrelated base, a failed
+#   diff, or a Kinetra clone that does not answer. The reason goes to stderr.
 #
-# The filter is the one in ci.yml's "changes" job; change both together. Nothing in the zip
-# is read from these paths: the zip's own README comes from tools/release/README-windows.txt.
+# Neither the build, the tests nor the zip read these paths: Lab's .github/ is not among
+# them because it is Lab's own CI; Kinetra's .github/ is Kinetra's CI, and its tools/ are
+# Python helpers that no build step runs (CI's docs check, which runs on every pull request,
+# uses check_docs.py). The zip's own README comes from tools/release/README-windows.txt.
 set -uo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -20,6 +23,7 @@ fi
 base="$1"
 head="$2"
 docs='(\.md$|^docs/|^\.agents/)'
+kinetra_unread='(\.md$|^docs/|^\.agents/|^\.github/|^tools/)'
 
 build() {
     echo "build: $1" >&2
@@ -50,9 +54,9 @@ if printf '%s\n' "$files" | grep -q -x 'external/Kinetra'; then
     kfiles="$(git -C "$kinetra" diff --no-renames --name-only "$old" "$new")" \
         || build "could not diff Kinetra $old..$new"
     printf 'Kinetra %s..%s changed:\n%s\n' "$old" "$new" "${kfiles:-(nothing)}" >&2
-    ksources="$(printf '%s\n' "$kfiles" | grep -v -E "$docs" | grep . || true)"
-    [[ -z "$ksources" ]] || build "Kinetra files outside Markdown, docs/ and .agents/ changed"
+    ksources="$(printf '%s\n' "$kfiles" | grep -v -E "$kinetra_unread" | grep . || true)"
+    [[ -z "$ksources" ]] || build "Kinetra files outside Markdown, docs/, .agents/, .github/ and tools/ changed"
 fi
 
-echo "skip: only Markdown, docs/ or .agents/ changed" >&2
+echo "skip: only Markdown, docs/ or .agents/ changed, and in Kinetra also .github/ or tools/" >&2
 echo false
