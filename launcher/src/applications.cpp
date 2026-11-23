@@ -16,11 +16,12 @@ void reset(kinetra::Camera2D &camera, float zoom) {
 
 std::vector<kinetra::ApplicationRegistration> applications(const Options &options) {
     std::vector<kinetra::ApplicationRegistration> result;
-    result.push_back({{"DEMO", "PHYSICS AND NAVIGATION", {}, 0},
-                      [options](kinetra::Camera2D &camera, std::size_t) -> std::unique_ptr<kinetra::Session> {
-                          reset(camera, demo::initial_zoom);
-                          return demo::create_session(options.agents, options.seed);
-                      }});
+    result.push_back(
+        {{"DEMO", "PHYSICS AND NAVIGATION", demo::scenario_labels(), options.demo_scenario},
+         [options](kinetra::Camera2D &camera, std::size_t index) -> std::unique_ptr<kinetra::Session> {
+             reset(camera, demo::initial_zoom);
+             return demo::create_session(options.agents, options.seed, demo::scenario_at(index));
+         }});
     result.push_back(
         {{"DOTIO", "SURVIVAL", dotio::difficulty_names(), options.dotio_difficulty},
          [options](kinetra::Camera2D &camera, std::size_t difficulty) -> std::unique_ptr<kinetra::Session> {
@@ -36,6 +37,15 @@ std::vector<kinetra::ApplicationRegistration> applications(const Options &option
 }
 
 kinetra::LaunchSelection selection(Variant variant, const Options &options) {
-    return {static_cast<std::size_t>(variant), variant == Variant::dotio ? options.dotio_difficulty : 0};
+    const auto application = static_cast<std::size_t>(variant);
+    switch (variant) {
+    case Variant::demo:
+        return {application, options.demo_scenario};
+    case Variant::dotio:
+        return {application, options.dotio_difficulty};
+    case Variant::i4sim:
+        return {application, 0};
+    }
+    return {application, 0};
 }
 } // namespace launcher

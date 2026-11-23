@@ -31,8 +31,8 @@ file(READ "${OUTPUT}/launcher.png" signature LIMIT 8 HEX)
 if(NOT signature STREQUAL "89504e470d0a1a0a")
     message(FATAL_ERROR "launcher.png is not a PNG file")
 endif()
-# Seven seconds of the tour: through the launcher into Demo and its open settings panel.
-execute_process(COMMAND "${TOOL}" --tour-check 420 RESULT_VARIABLE result ERROR_VARIABLE report)
-if(NOT result EQUAL 0 OR NOT report MATCHES "tour of 420 frames")
+# Eight seconds of the tour: through the launcher and the Demo scenario menu.
+execute_process(COMMAND "${TOOL}" --tour-check 480 RESULT_VARIABLE result ERROR_VARIABLE report)
+if(NOT result EQUAL 0 OR NOT report MATCHES "tour of 480 frames")
     message(FATAL_ERROR "kinetra_capture --tour-check failed with ${result}: ${report}")
 endif()

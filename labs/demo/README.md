@@ -1,10 +1,11 @@
 # Demo
 
-The Demo is Kinetra-Lab's reference application for the public Kinetra engine: a player and a crowd of agents in endless, seeded terrain, with physics, route planning, local avoidance, a streaming camera and the shared overlays. It shows how an application composes the engine, and serves as a test bed for crowd motion. It is started from the bundled launcher (`kinetra --variant demo`) or as `kinetra_demo`; [setup and commands](../../README.md#quick-start) are in the root README.
+The Demo is Kinetra-Lab's reference application for the public Kinetra engine. Its scenarios show streamed terrain, physics and contacts, route planning and local avoidance. Start it through the bundled launcher or `kinetra_demo`. [Setup and commands](../../README.md#quick-start) are in the root README.
 
 ## Table of contents
 
 - [Purpose and scope](#purpose-and-scope)
+- [Scenarios](#scenarios)
 - [Controls](#controls)
 - [Concepts](#concepts)
 - [Structure](#structure)
@@ -21,6 +22,19 @@ The Demo is Kinetra-Lab's reference application for the public Kinetra engine: a
 The Demo owns its policy: world generation, the population and where it spawns, agent decisions (wander, commands, sleep), the player's controls, the tuning values and the debug menu's content. The mechanisms come from Kinetra: physics and contacts, `Navigation` (A*, swept clearance, route shortening), `steer` and reciprocal `avoid_collisions`, the spatial grid, the fixed clock, the camera, and the runtime with its overlays.
 
 It is not a collision-free crowd simulation. Steering and navigation use conservative envelopes; agents can still touch, and a dense crowd can keep an agent from arriving. Shared passing, an item on the [roadmap](../../docs/roadmap.md#later), is not here.
+
+## Scenarios
+
+Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launcher-demo-scenarios.png).
+
+| Scenario | What to try |
+| --- | --- |
+| Terrain | Explore the seeded world and click to plan routes through its resident terrain. The launcher's `--agents` option sets the initial crowd count |
+| Gravity | Watch dynamic shapes fall onto ramps and collide. Use SIMULATION → GRAVITY, RUNNING and SINGLE TICK to examine the contacts |
+| Maze | Click the open floor on the far side. PATHS shows the route around alternating walls |
+| Doorway | Watch two groups approach a shared opening. Use MOTION → AVOIDANCE to switch between RECIPROCAL and LEGACY, or relaunch the same layout to repeat the encounter |
+
+`kinetra --variant demo` and `kinetra_demo` start Terrain by default. Use `--scenario terrain|gravity|maze|doorway` with either executable to start that layout directly. `kinetra --scenario maze` selects Demo automatically. Authored scenes have fixed layouts and populations. The direct executable's inspector trace uses Terrain.
 
 ## Controls
 
@@ -41,7 +55,7 @@ It is not a collision-free crowd simulation. Steering and navigation use conserv
 
 Settings shows the help lines of SIM CONTROLS and DEBUG CONTROLS only after a click on their heading, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. F/P/R/G/Tab/C have no gameplay shortcuts.
 
-Demo starts with Debug Mode, statistics and the layers VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES and ACTIVE AGENTS on. Ghost Camera, Gravity, HOME RANGE and CLICK SETS GOAL start off; the debug menu starts closed.
+Demo starts with Debug Mode, statistics and the layers VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES and ACTIVE AGENTS on. Gravity starts on in its own scenario. Ghost Camera, HOME RANGE and CLICK SETS GOAL start off, and the debug menu starts closed.
 
 ### Debug menu
 
@@ -55,9 +69,9 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | AGENTS | WANDER (STEERING or ROUTE), HOME RANGE, then WANDER REACH and WANDER JITTER for steering wander, and CLICK SETS GOAL |
 | Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, speed 1×) |
 
-The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within limits the steering code accepts (`tuning_step` in [debug_panel.h](include/demo/debug_panel.h)); the defaults are the values the scene used as constants before. Debug Mode gates layers, gravity and Ghost; leaving it restores player following. The tuned values, the avoidance model and the time scale persist outside Debug Mode. CLICK SETS GOAL makes a click command every awake agent; switch it off for individual selection. LEGACY compares the nearest-obstacle steering with the reciprocal avoidance in the same scene. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
+The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain, Maze and Doorway. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and time scale persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
 
-The camera follows the player by default. Ghost moves only the camera; clicking teleports the player and clears momentum/routes after validating destination clearance. No swept teleport path is required. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
+The default camera follows the player in Terrain and frames the center of the authored scenes. Ghost moves only the camera. Clicking in Ghost teleports the player and clears momentum and routes when the destination has clearance. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
 
 For a fixed-seed run without opening a window, use `kinetra_demo --seed N --ticks N --inspect X,Y` with the exact coordinates shown in the inspector’s CLI SELECTOR row. Standard output holds one JSON record per 120 Hz tick. The `groups` field is null when that agent is absent.
 
@@ -117,6 +131,7 @@ The logic library `kinetra_demo_logic` builds without the runtime and holds ever
 | [application.h](include/demo/application.h) | logic | Orders a frame's commands, camera, pointer and fixed ticks; keeps the poses for drawing between ticks |
 | [debug_panel.h](include/demo/debug_panel.h) | logic | The debug menu's rows, what they set, the layer colors and the `tuning_step` limits |
 | [zoom.h](include/demo/zoom.h) | logic | Zoom limits in and outside Debug Mode, apart from the scene so the launcher can start a Demo without compiling it |
+| [scenario.h](include/demo/scenario.h) | logic | The scenario catalog and its CLI names |
 | [world/scene.h](include/demo/world/scene.h) | logic | World, terrain residency, population, the tick, body renumbering |
 | [world/agent.h](include/demo/world/agent.h) | logic | One agent's lifecycle, wander, commands and route |
 | [world/terrain.h](include/demo/world/terrain.h) | logic | Seeded chunk generation and loading |
@@ -253,6 +268,7 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_demo_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
 | [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo_logic` (27) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (2) | Inspector interactions, routes, and steering probes at different zoom levels (label `graphics`) |
+| [scenario_tests.cpp](tests/scenario_tests.cpp) | `kinetra_demo` (3 scenario cases) | Gravity, maze routing and fixed layout lifetime, and commanded doorway traffic |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:demo` (1) | `kinetra_demo --frames 120` starts, draws and exits with 0 (label `graphics`) |
 
 Run the suites that need no window from the repository root:

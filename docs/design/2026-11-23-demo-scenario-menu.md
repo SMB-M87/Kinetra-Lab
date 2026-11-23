@@ -1,6 +1,6 @@
 # Demo scenario menu
 
-Status: accepted · Branch: `feat/demo-scenarios` · Related: [roadmap](../roadmap.md), [Demo](../../labs/demo/README.md), [launcher](../../launcher/README.md)
+Status: implemented · Branch: `feat/demo-scenarios` · Related: [roadmap](../roadmap.md), [Demo](../../labs/demo/README.md), [launcher](../../launcher/README.md)
 
 Demo will offer a launcher page that starts environments illustrating individual Kinetra features.
 
@@ -12,6 +12,9 @@ Demo will offer a launcher page that starts environments illustrating individual
 - [Design](#design)
 - [Affected areas](#affected-areas)
 - [Test plan](#test-plan)
+- [Review](#review)
+- [Verification](#verification)
+- [Pull request](#pull-request)
 - [Open points](#open-points)
 
 [Directory guide](README.md) · [Project overview](../../README.md) · [Documentation index](../README.md)
@@ -36,7 +39,7 @@ Give Demo a configuration page. Every choice starts a distinct environment with 
 
 Reuse `LaunchChoice::configurations`, the Demo session and the existing input, camera, renderer and overlays. Give the launcher registration a scenario catalog with stable identifiers and display names. The launcher can pass the selected entry to the same factory that starts the current terrain.
 
-The current Demo scene streams terrain around the player. Fixed scenarios can reuse authored bodies and navigation bounds through `Scene::arrange`. A fixed scene needs to keep those bodies across frame updates and camera movement, including Ghost mode. The navigation and teleport checks must use the authored obstacles.
+Terrain streams around the player. The three authored scenarios use `Scene::arrange` to initialize bodies, obstacle indexes and navigation bounds. They keep the layout on every frame, including when the camera enters Ghost mode. The fixed camera starts centered, and teleport checks use the authored bounds and obstacles. Gravity starts with falling props. Maze uses alternating gaps, and Doorway starts two groups with opposing goals.
 
 The launcher tour and its menu tests currently select Demo in one action. They need a second selection when the configuration page opens. The existing terrain captures still provide a check for the default scenario.
 
@@ -48,6 +51,49 @@ The Demo scene and its configuration, launcher registration and CLI, the relevan
 
 Verify that every menu choice opens its scenario and the default launch still starts the streamed terrain. Exercise each fixed scenario's engine behavior headlessly. Verify that resize and Ghost movement preserve fixed obstacles, that existing terrain fingerprints match, and that the tour can choose a scenario. Capture the launcher page and new scenes for review.
 
+## Review
+
+Checked that Terrain's camera interpolation and streaming keep their original paths, and that the launcher passes the selected index through to the Demo factory. Fixed layouts share the existing renderer and clock. The tour and capture tests use the same registration as the launcher.
+
+## Verification
+
+- `ctest --preset graphics -R '^kinetra_demo|^kinetra_menu|^kinetra_graphics|^kinetra_capture|^kinetra_smoke:(demo|launcher.*)$' -LE soak -j 6 --output-on-failure` passed all 122 selected checks. This includes the terrain fingerprints, fixed scenario tests, launcher, capture and graphics suites, and the smoke runs.
+- Started all four choices through `kinetra --scenario` and `kinetra_demo --scenario` with software OpenGL. The launcher rejected an invalid scenario and a scenario requested with i4sim.
+- Captured and inspected [the Demo menu](../media/launcher-demo-scenarios.png), [Gravity](../media/demo-gravity.png), [Maze](../media/demo-maze.png) and [Doorway](../media/demo-doorway.png). The two existing Terrain screenshots matched the earlier capture byte for byte.
+- Docs links, copies and changed-file formatting passed. Pull request CI supplies the Full level.
+
+## Pull request
+
+`feat(demo): add a four-scenario launcher menu`
+
+### Summary
+
+Demo offers Terrain, Gravity, Maze and Doorway through the launcher's configuration page. Both executables accept `--scenario` and default to Terrain.
+
+### Changes
+
+The three authored layouts share the existing physics, navigation and overlays. The capture tool records all four new views and the tour selects Terrain through the new menu.
+
+### Design
+
+[Demo scenario menu](2026-11-23-demo-scenario-menu.md)
+
+### Verification
+
+122 local checks passed, all four CLI scenarios launched in both executables, and the screenshots were inspected.
+
+### Review notes
+
+Doorway uses the existing avoidance selector to compare the two modes on the same layout. Terrain still uses the user's initial population option.
+
+### Dependencies and merge order
+
+Merge after Lab #96.
+
+### Follow-up
+
+Kinetra's shared UI capture can now open Demo's configuration page.
+
 ## Open points
 
-Desktop playtesting can compare the feel of the four scenarios once their controls and geometry are in place.
+Simultaneous crowd comparisons and measurements are part of [Motion lab](../roadmap.md#ideas).

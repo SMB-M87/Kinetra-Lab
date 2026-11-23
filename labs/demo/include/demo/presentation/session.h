@@ -1,4 +1,5 @@
 #pragma once
+#include "demo/scenario.h"
 #include "kinetra_lab/session.h"
 #include <cstdint>
 #include <memory>
@@ -19,7 +20,7 @@ class Session : public kinetra_lab::Session {
     virtual const Application &application() const = 0;
 };
 
-/// Creates a Demo session with `count` agents and terrain from `seed`. The caller sets the
-/// camera to demo::initial_zoom for a fresh start.
-std::unique_ptr<Session> create_session(int count, std::uint32_t seed);
+/// Creates a Demo session for `scenario`. The streamed terrain starts with `count` agents
+/// and uses `seed` for terrain and population. The caller sets the camera's initial zoom.
+std::unique_ptr<Session> create_session(int count, std::uint32_t seed, Scenario scenario = Scenario::terrain);
 } // namespace demo

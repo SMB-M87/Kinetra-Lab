@@ -54,9 +54,14 @@ float heading_turn_rate(const Body &body) {
 }
 } // namespace
 
-Scene::Scene(int count, std::uint32_t seed) : terrain_(seed), preview_(seed) {
+Scene::Scene(int count, std::uint32_t seed, Scenario scenario)
+    : scenario_(scenario), terrain_(seed), preview_(seed) {
     if (count < 0 || count > 300)
         throw std::invalid_argument("Initial agent count must be 0..300");
+    if (scenario_ != Scenario::terrain) {
+        arrange_scenario(seed);
+        return;
+    }
     populate_initial(count, seed);
     add_player_and_props();
     moving_body_count_ = world_.bodies().size();
@@ -146,6 +151,8 @@ void Scene::stream(const Camera2D &camera) {
     camera.validate();
     const Vec2 half_view = camera.viewport / (2 * camera.pixels_per_unit);
     view_ = {camera.position - half_view, camera.position + half_view};
+    if (scenario_ != Scenario::terrain)
+        return;
     if (!following_)
         preview_.update(view_, 0);
     // Lifecycle distances are player-centered and independent of Ghost and current zoom.
@@ -263,8 +270,15 @@ bool Scene::teleport(Vec2 destination) {
         return false;
     Body candidate = world_.body(player_);
     candidate.position = destination;
-    if (terrain_.blocked(candidate))
-        return false;
+    if (scenario_ == Scenario::terrain) {
+        if (terrain_.blocked(candidate))
+            return false;
+    } else {
+        const auto extent = bounds(candidate);
+        if (extent.min.x < scenario_area.min.x || extent.min.y < scenario_area.min.y ||
+            extent.max.x > scenario_area.max.x || extent.max.y > scenario_area.max.y)
+            return false;
+    }
     for (std::size_t i = 0; i < world_.bodies().size(); ++i)
         if (i != player_ && collide(candidate, world_.body(i)))
             return false;
@@ -307,7 +321,7 @@ void Scene::target_agents(Vec2 destination) {
 
 void Scene::follow(Camera2D &camera) const {
     if (following_)
-        camera.position = world_.body(player_).position;
+        camera.position = scenario_ == Scenario::terrain ? world_.body(player_).position : Vec2{};
 }
 
 /// What every mover's steering in one tick shares: the settings and the snapshot of the

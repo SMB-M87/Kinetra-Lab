@@ -70,6 +70,10 @@ void launcher_chapter(Tour &tour) {
     tour.caption("DEMO: TERRAIN, NAVIGATION, STEERING AND PHYSICS");
     tour.pause(0.6, 0.9);
     tour.click();
+    tour.caption("CHOOSE A DEMO SCENARIO");
+    tour.move_to(kinetra::MenuLayout(tour.viewport(), demo::scenario_labels().size()).row_center(0));
+    tour.pause(0.35, 0.6);
+    tour.click();
 }
 
 // Demo.

@@ -77,12 +77,14 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     const auto position = [&](std::size_t id) { return application.presented_pose(id).position; };
     // The camera follows the drawn player, not the simulated one, or the player would
     // jitter on screen. Only for this frame's drawing: the session keeps its camera.
+    const bool streamed = scene.scenario() == Scenario::terrain;
     const kinetra_lab::ScopedCameraShift follow_drawn_player(
-        runtime.camera,
-        scene.following() ? position(scene.player()) - scene.world().body(scene.player()).position : Vec2{});
+        runtime.camera, streamed && scene.following()
+                            ? position(scene.player()) - scene.world().body(scene.player()).position
+                            : Vec2{});
     runtime.begin();
     // Distant Ghost terrain is sampled for presentation only; it owns no physics or agents.
-    if (!scene.following()) {
+    if (streamed && !scene.following()) {
         const auto center = scene.world().body(scene.player()).position;
         const auto half = runtime.camera.viewport * (1.25f / 10.f);
         const Aabb resident{center - half, center + half};
@@ -163,10 +165,11 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     if (overlays.statistics) {
         const auto active = std::count_if(scene.agents().begin(), scene.agents().end(),
                                           [](const auto &agent) { return agent.active(); });
+        const auto layout = streamed ? "CHUNKS " + std::to_string(scene.terrain().chunks().size())
+                                     : std::string(scenario_label(scene.scenario()));
         auto text =
             "FPS " + std::to_string(int(overlays.fps)) + " AGENTS " + std::to_string(active) + "/" +
-            std::to_string(scene.agents().size()) + " CHUNKS " +
-            std::to_string(scene.terrain().chunks().size()) +
+            std::to_string(scene.agents().size()) + " " + layout +
             (scene.reciprocal_avoidance() ? " AVOID LIMIT " + std::to_string(scene.avoidance_limited())
                                           : " AVOID LEGACY");
         // What the debug menu's SIMULATION rows did to time is not visible in the scene itself.
@@ -193,10 +196,12 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
 
 std::string status_text(const Application &application) {
     const auto &scene = application.scene();
+    const bool streamed = scene.scenario() == Scenario::terrain;
+    const auto layout = streamed ? std::to_string(scene.terrain().chunks().size()) + " chunks"
+                                 : std::string(scenario_label(scene.scenario()));
+    const auto camera = scene.following() ? (streamed ? "camera FOLLOW" : "camera FIXED") : "camera FREE";
     return std::to_string(scene.agents().size()) + " agents | " +
-           (application.paused() ? "PAUSED" : "running") + " | " +
-           std::to_string(scene.terrain().chunks().size()) + " chunks | " +
-           (scene.following() ? "camera FOLLOW" : "camera FREE") + " | paths " +
+           (application.paused() ? "PAUSED" : "running") + " | " + layout + " | " + camera + " | paths " +
            (application.presentation().paths ? "ON" : "OFF") +
            (scene.reciprocal_avoidance() ? " | avoidance RECIPROCAL | " : " | avoidance LEGACY | ") +
            std::string(action_text(application.last_action()));

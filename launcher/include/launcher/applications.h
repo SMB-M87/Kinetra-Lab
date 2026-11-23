@@ -14,12 +14,14 @@ enum class Variant { demo, dotio, i4sim };
 
 /// Choices that apply to every launch of one program run.
 struct Options {
-    /// Number of Demo agents, 0..300.
+    /// Number of initial Demo terrain agents, 0..300.
     int agents{};
     /// World seed shared by all applications.
     std::uint32_t seed{};
     /// Default Dotio difficulty, an index into dotio::difficulty_names().
     std::size_t dotio_difficulty{};
+    /// Default Demo scenario, an index into demo::scenario_labels().
+    std::size_t demo_scenario{};
 };
 
 /// Lab's launcher keys: no menu key and no Escape shutdown. Sessions leave through their
@@ -30,7 +32,7 @@ inline const kinetra::LauncherBindings bindings{std::nullopt, false};
 /// camera to the application's initial view before creating the session.
 std::vector<kinetra::ApplicationRegistration> applications(const Options &options);
 
-/// The selection that starts `variant` directly, with the configured Dotio difficulty.
+/// The selection that starts `variant` directly with its configured scenario or difficulty.
 kinetra::LaunchSelection selection(Variant variant, const Options &options);
 
 } // namespace launcher

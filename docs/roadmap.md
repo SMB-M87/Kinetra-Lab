@@ -20,8 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Demo scenario menu** · demo, launcher · added 2026-11-23
-  Branch `feat/demo-scenarios`. Where: [Demo scenario menu](design/2026-11-23-demo-scenario-menu.md).
+Nothing in progress.
 
 ## Next
 
@@ -41,7 +40,7 @@ The user's checks come first: each is short and unblocks the items after it. The
   Next step: the profile and the hotspot list, without code changes. Where: [motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark), [Dotio open points](../labs/dotio/README.md#open-points), [Demo open points](../labs/demo/README.md#open-points); Kinetra item *Engine performance*.
 - **README media as GIFs** · media, capture, docs, with Kinetra · added 2026-11-23
   The user wants the Lab README to be about the labs themselves, with as many GIFs as it takes to show how each lab works and what it supports, because a clip shows behavior a screenshot cannot; and Kinetra's README to show the shared UI in GIFs captured from Demo: the launcher, the configuration page (Demo's scenarios), the settings panel, the debug menu, the agent inspector, the frame times and the other debug views. With it comes a rule for agents in both repositories: a change that alters what is visible refreshes the affected GIFs in the same pull request, which replaces rendering the tour after larger changes (*Tour video for YouTube*). Today the Lab gallery has eleven clips and three launcher screenshots, Kinetra's README has no media, and Demo has no configuration page yet. Captures are deterministic, so a refresh adds only the GIFs whose pixels changed to the history.
-  Next step: a design: the scenes per lab and per shared overlay, where Kinetra's GIFs live (proposal: `docs/media/` in Kinetra, written by this capture tool), a size budget per GIF, and the rule's wording in both `AGENTS.md` files and the review checklist. Open question, left by *Leaner agentic cycle* without a decision of the user: a check that names the GIFs a diff makes stale, so the rule does not rely on the agent's memory. Depends on: *Demo scenario menu*, for Kinetra's GIFs; the Lab README's GIFs can come first. Where: [media guide](media/README.md), [capture tool](../tools/capture/README.md); Kinetra item *Shared UI in the README*.
+  Next step: choose the scenes per lab and overlay, a size budget per GIF, where Kinetra's GIFs live (proposal: `docs/media/` in Kinetra, written by this capture tool), and the rule's wording in both `AGENTS.md` files and the review checklist. The [Demo scenario menu](design/2026-11-23-demo-scenario-menu.md) provides the configuration page for Kinetra's capture. An open question from *Leaner agentic cycle* is how to identify which GIFs a diff makes stale. Where: [media guide](media/README.md), [capture tool](../tools/capture/README.md); Kinetra item *Shared UI in the README*.
 
 ## Later
 
