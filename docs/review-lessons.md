@@ -60,9 +60,10 @@ No lessons yet.
 - **When a rule changes which files a pull request carries, recheck every CI decision that sorts pull requests by their file list** · added 2026-11-23 · source: #83
   One design document per change lets a Lab pull request that follows a Kinetra branch hold only the pointer, and the pointer-only check then failed it until Kinetra merged.
 
-## Media and tools
+- **When CI runs a trusted copy of a script, take it from the base branch's tip, not from the merge base** · added 2026-11-23 · source: #83
+  A branch keeps its merge base until it merges `main`, so it would decide with the filter it forked from; right after #83, a README-only pull request from an older branch would have skipped `kinetra_capture_tests`.
 
-No lessons yet.
+## Media and tools
 
 - **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
   Display formatting and clipping can change an identifier even when the inspector and trace share a row builder. Pass the identifier shown to the user into the real executable.
