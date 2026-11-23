@@ -223,7 +223,7 @@ The CSV has one line per blueprint and seed:
 | `contact_episodes` | Contacts grouped per mover pair (or mover and border) while less than 500 ticks lie between two of them: a pair that keeps touching counts once |
 | `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |
 
-The benchmark is deliberately outside CTest: comparisons are useful, but too slow for every test run. `--predictive-passing` and `--no-predictive-passing` (the default) switch the passing policy; compare runs with the same profile, seeds and policy flags.
+The benchmark is deliberately outside CTest: comparisons are useful, but too slow for every test run. Where its time goes, and how to profile it, is on the [performance](../../../docs/performance.md#i4sim) page. `--predictive-passing` and `--no-predictive-passing` (the default) switch the passing policy; compare runs with the same profile, seeds and policy flags.
 
 **Baseline for roadmap phase 7**, measured on 2026-11-19 (Release, 50000 ticks, recovery and traffic policies off). Each cell shows predictive passing **off / on**; stuck movers show the count at the end in parentheses.
 
