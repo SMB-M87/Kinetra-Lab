@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <vector>
 
 namespace {
 constexpr double tick = 1.0 / 120;
@@ -27,7 +28,7 @@ TEST_CASE("Gravity drops the authored bodies with Debug Mode off") {
     CHECK(scene.terrain().chunks().empty());
 }
 
-TEST_CASE("Maze plans around alternating walls and keeps them when the camera leaves") {
+TEST_CASE("Maze keeps its walls and route through resize and Ghost movement") {
     demo::Scene scene(48, 42, demo::Scenario::maze);
     const kinetra::Vec2 goal{17, 8};
     REQUIRE(scene.walk_to(goal));
@@ -35,15 +36,38 @@ TEST_CASE("Maze plans around alternating walls and keeps them when the camera le
     REQUIRE(scene.player_goal());
     CHECK(kinetra::length(*scene.player_goal() - goal) < 1);
     const auto bodies = scene.world().bodies().size();
-    const auto wall = scene.world().body(bodies - 1).position;
+    std::vector<kinetra::Aabb> walls;
+    for (auto id = scene.moving_body_count(); id < bodies; ++id)
+        walls.push_back(kinetra::bounds(scene.world().body(id)));
+    const auto check_walls = [&] {
+        REQUIRE(scene.world().bodies().size() == bodies);
+        for (std::size_t index = 0; index < walls.size(); ++index) {
+            const auto wall = kinetra::bounds(scene.world().body(scene.moving_body_count() + index));
+            CHECK(kinetra::length(wall.min - walls[index].min) == 0);
+            CHECK(kinetra::length(wall.max - walls[index].max) == 0);
+        }
+    };
 
     kinetra::Camera2D camera;
+    camera.viewport = {1280, 800};
+    scene.stream(camera);
+    for (int frame = 0; frame < 30; ++frame)
+        scene.update(static_cast<float>(tick), {});
+    REQUIRE(scene.player_goal());
+
+    camera.viewport = {480, 280};
+    scene.stream(camera);
+    check_walls();
+    REQUIRE(scene.player_goal());
+    CHECK(kinetra::length(*scene.player_goal() - goal) < 1);
+    REQUIRE(scene.walk_to(goal));
+    CHECK(scene.player_path().size() >= 4);
+
     scene.set_following(false);
     camera.position = {100, 100};
     scene.stream(camera);
     CHECK_FALSE(scene.teleport(camera.position));
-    REQUIRE(scene.world().bodies().size() == bodies);
-    CHECK(kinetra::length(scene.world().body(bodies - 1).position - wall) == 0);
+    check_walls();
     CHECK(scene.preview().chunks().empty());
     CHECK(scene.terrain().chunks().empty());
 
