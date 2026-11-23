@@ -2,8 +2,9 @@
 // PNG writer (png.h), the scene list and the menu rows the scripts click (scenes.h), the showcase
 // cycle measurement (showcase.h), the busiest stretch of the captured i4sim floor (busy_stretch.h),
 // the scripted Dotio player (dotio_player.h), and the tour's frame drawing (canvas.h), pointer
-// motion (pointer_path.h), row lookup and start check (tour.h). No Runtime is created; the start
-// check gets Demo sessions, which need none, and a stand-in for another application.
+// motion (pointer_path.h), row lookup and start check (tour.h), and the recorder of the shared-UI
+// clips (clip_recorder.h). No Runtime is created; the start check gets Demo sessions, which need
+// none, and a stand-in for another application.
 #include "capture/dotio_player.h"
 #include "capture/png.h"
 #include "capture/scenes/busy_stretch.h"
@@ -11,6 +12,7 @@
 #include "capture/scenes/showcase.h"
 #include "capture/stage.h"
 #include "capture/tour/canvas.h"
+#include "capture/tour/clip_recorder.h"
 #include "capture/tour/pointer_path.h"
 #include "capture/tour/tour.h"
 
@@ -134,27 +136,46 @@ TEST_CASE("write_png rejects empty images, wrong sizes and unwritable paths") {
     CHECK_FALSE(std::filesystem::exists(path));
 }
 
-/// The text of a file in the Lab source tree. A Markdown or `docs/` path read here must be listed
-/// in `read_anyway` of tools/release/needs_build.sh, or a pull request that changes only that file
-/// skips this test in CI.
+/// The text of a file in the Lab source tree, Kinetra's submodule included. A Markdown or `docs/`
+/// path read here must be listed in `read_anyway` of tools/release/needs_build.sh, and a Kinetra
+/// path in its `kinetra_read`, or a pull request that changes only that file skips this test in CI.
 static std::string source_text(const std::filesystem::path &relative) {
     std::ifstream in(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / relative);
     return {std::istreambuf_iterator<char>(in), {}};
 }
 
-TEST_CASE("every scene has its file in docs/media and the media guide, and every clip is in the gallery") {
-    // The media guide lists every file; the README gallery shows the clips and leaves the full-size
-    // application screenshots to the guide.
-    const auto readme = source_text("README.md"), guide = source_text("docs/media/README.md");
-    for (const auto &scene : capture::scenes()) {
-        const bool clip = scene.kind == capture::SceneKind::clip;
-        const std::string file = std::string(scene.name) + (clip ? ".gif" : ".png");
-        CAPTURE(file);
-        CHECK(std::filesystem::exists(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / "docs/media" / file));
-        CHECK(guide.find("(" + file + ")") != std::string::npos);
-        if (clip)
-            CHECK(readme.find("docs/media/" + file) != std::string::npos);
+/// The directory of a gallery's README, relative to the Lab source tree: Lab's own, or Kinetra's
+/// in the submodule.
+static std::filesystem::path gallery_root(capture::Gallery gallery) {
+    return gallery == capture::Gallery::kinetra ? "external/Kinetra" : "";
+}
+
+TEST_CASE("every scene has its file in its docs/media and media guide, and every clip is in its README") {
+    // A media guide lists every file of its gallery; a README shows the clips and leaves the
+    // full-size application screenshots to the guide.
+    for (const auto gallery : {capture::Gallery::lab, capture::Gallery::kinetra}) {
+        const auto root = gallery_root(gallery);
+        const auto readme = source_text(root / "README.md"),
+                   guide = source_text(root / "docs/media/README.md");
+        REQUIRE_MESSAGE(!guide.empty(), (root / "docs/media/README.md").string() << " is missing");
+        for (const auto &scene : capture::scenes()) {
+            if (scene.gallery != gallery)
+                continue;
+            const bool clip = scene.kind == capture::SceneKind::clip;
+            const std::string file = std::string(scene.name) + (clip ? ".gif" : ".png");
+            CAPTURE(file);
+            CHECK(std::filesystem::exists(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / root /
+                                          "docs/media" / file));
+            CHECK(guide.find("(" + file + ")") != std::string::npos);
+            if (clip)
+                CHECK(readme.find("docs/media/" + file) != std::string::npos);
+        }
     }
+}
+
+TEST_CASE("the tool writes Kinetra's scenes into their own subdirectory") {
+    CHECK(capture::output_subdirectory(capture::Gallery::lab).empty());
+    CHECK(capture::output_subdirectory(capture::Gallery::kinetra) == "kinetra");
 }
 
 TEST_CASE("the scenes are the expected list, each once") {
@@ -163,7 +184,12 @@ TEST_CASE("the scenes are the expected list, each once") {
         CHECK_MESSAGE(names.insert(std::string(scene.name)).second, scene.name << " appears twice");
         CHECK(scene.script != nullptr);
         CHECK((scene.width > 0 && scene.height > 0));
-        CHECK((scene.kind == capture::SceneKind::clip) == scene.name.ends_with("-clip"));
+        // Lab's clip names end in -clip, apart from the screenshots of the same view; Kinetra's
+        // gallery holds only clips, named for the part of the shared UI they show.
+        if (scene.gallery == capture::Gallery::lab)
+            CHECK((scene.kind == capture::SceneKind::clip) == scene.name.ends_with("-clip"));
+        else
+            CHECK((scene.kind == capture::SceneKind::clip && scene.name.starts_with("ui-")));
     }
     CHECK(names == std::set<std::string>{"launcher",
                                          "launcher-demo-scenarios",
@@ -189,7 +215,12 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "i4sim-showcase-corridor-passing-clip",
                                          "i4sim-showcase-corridor-recovery-clip",
                                          "i4sim-showcase-predictive-passing-clip",
-                                         "i4sim-showcase-h-crossing-clip"});
+                                         "i4sim-showcase-h-crossing-clip",
+                                         "ui-launcher",
+                                         "ui-settings",
+                                         "ui-debug-menu",
+                                         "ui-inspector",
+                                         "ui-debug-layers"});
 }
 
 TEST_CASE("select_scenes picks named scenes in order, all without names, and rejects unknown names") {
@@ -677,6 +708,58 @@ TEST_CASE("pointer paths repeat for a seed and bend otherwise for another") {
     CHECK((a.control.x == b.control.x && a.control.y == b.control.y));
     CHECK((a.control.x != c.control.x || a.control.y != c.control.y));
     CHECK(a.duration == c.duration);
+}
+
+/// A canvas of `width` × 2 pixels whose first pixel has red `value`, so frames can be told apart.
+static capture::Canvas numbered_frame(int width, std::uint8_t value) {
+    capture::Canvas frame(width, 2);
+    frame.rgb[0] = value;
+    return frame;
+}
+
+TEST_CASE("a clip recorder keeps every n-th frame from its start, numbered from 1, with the rate") {
+    const auto directory =
+        std::filesystem::temp_directory_path() /
+        ("clip-recorder-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    {
+        capture::ClipRecorder recorder(directory, 4, 15);
+        // Read as a number: the file is text, which Windows ends with \r\n.
+        int rate = 0;
+        std::ifstream(directory / "framerate") >> rate;
+        CHECK(rate == 15);
+        for (std::uint8_t frame = 0; frame < 3; ++frame)
+            recorder.record(numbered_frame(3, frame));
+        CHECK_MESSAGE(recorder.written() == 0, "Frames before start() are dropped");
+        recorder.start();
+        for (std::uint8_t frame = 10; frame < 19; ++frame)
+            recorder.record(numbered_frame(3, frame));
+        CHECK(recorder.written() == 3);
+        recorder.stop();
+        recorder.record(numbered_frame(3, 99));
+        CHECK(recorder.written() == 3);
+        recorder.start();
+        recorder.record(numbered_frame(3, 50));
+        CHECK_MESSAGE(recorder.written() == 4, "A new start keeps its first frame");
+    }
+    // Frames 10, 14 and 18 after the start, then the first after the second start, as files 1 to 4.
+    // The PNG writer's own case checks the pixels; the files are told apart by their bytes.
+    const auto expected = [](std::uint8_t value) {
+        const auto path = temporary_file("clip-recorder-expected");
+        capture::write_png(path, 3, 2, numbered_frame(3, value).rgb);
+        const auto bytes = read_file(path);
+        std::filesystem::remove(path);
+        return bytes;
+    };
+    const std::uint8_t kept[]{10, 14, 18, 50};
+    for (int file = 1; file <= 4; ++file) {
+        const auto name = "frame-000" + std::to_string(file) + ".png";
+        CAPTURE(name);
+        CHECK(read_file(directory / name) == expected(kept[file - 1]));
+    }
+    CHECK_FALSE(std::filesystem::exists(directory / "frame-0005.png"));
+    CHECK_THROWS_AS(capture::ClipRecorder(directory, 0, 15), std::invalid_argument);
+    CHECK_THROWS_AS(capture::ClipRecorder(directory, 4, 0), std::invalid_argument);
+    std::filesystem::remove_all(directory);
 }
 
 TEST_CASE("a row is found by its label and a missing label names the rows that are there") {

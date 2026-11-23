@@ -29,8 +29,10 @@ long write_tour(const std::string &target, long limit) {
     long frames = 0;
     try {
         kinetra::Runtime runtime("Kinetra tour", capture::tour_width, capture::tour_height);
-        // Frames go to an encoder, not to a viewer: nothing has to wait for a display.
+        // Frames go to an encoder, not to a viewer: nothing has to wait for a display, and
+        // each frame stands for one refresh of the video's 60 Hz.
         runtime.limit_frames(false);
+        runtime.fix_frame_times(1.0 / capture::tour_frames_per_second);
         runtime.poll(false);
         capture::Tour tour(runtime, [&](const capture::Canvas &frame) {
             if (out && std::fwrite(frame.rgb.data(), 1, frame.rgb.size(), out) != frame.rgb.size())
@@ -101,12 +103,18 @@ int main(int argc, char **argv) {
         for (const auto *scene : selected) {
             // One Runtime per scene, at the scene's size; only one may exist at a time.
             kinetra::Runtime runtime("Kinetra capture", scene->width, scene->height);
-            // Frames go to files, not to a viewer: nothing has to wait for a display.
+            // Frames go to files, not to a viewer: nothing has to wait for a display. Every step
+            // advances 1/60 s, so the statistics read 60 frames per second; a frame-time graph
+            // reads the same 60 Hz, and is the same in every capture.
             runtime.limit_frames(false);
+            runtime.fix_frame_times(capture::Stage::step_seconds);
             runtime.poll(false);
-            capture::Stage stage(runtime, output, std::string(scene->name));
+            const auto directory = output / capture::output_subdirectory(scene->gallery);
+            std::filesystem::create_directories(directory);
+            capture::Stage stage(runtime, directory, std::string(scene->name));
             scene->script(stage);
-            std::cout << scene->name << (scene->kind == capture::SceneKind::clip ? "/" : ".png") << '\n';
+            std::cout << (capture::output_subdirectory(scene->gallery) / scene->name).string()
+                      << (scene->kind == capture::SceneKind::clip ? "/" : ".png") << '\n';
         }
     } catch (const std::exception &error) {
         std::cerr << "kinetra_capture: " << error.what() << '\n';

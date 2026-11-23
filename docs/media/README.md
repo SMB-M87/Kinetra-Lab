@@ -1,11 +1,12 @@
 # Screenshots, clips and demo video
 
-Real application captures behind the project's README gallery, what each one shows, and how to refresh them. The gallery opens with the tour's thumbnail and shows the clips and the launcher screenshots; the full-size application screenshots are listed here. Every screenshot, clip and the tour video come from [`kinetra_capture`](../../tools/capture/README.md), which renders the real sessions offscreen with a fixed seed and scripted input.
+Real application captures behind the project's README gallery, what each one shows, and how to refresh them. The gallery opens with the tour's thumbnail and shows the clips and the launcher screenshots; the full-size application screenshots are listed here. Every screenshot, clip and the tour video come from [`kinetra_capture`](../../tools/capture/README.md), which renders the real sessions offscreen with a fixed seed and scripted input. The same tool renders the shared-UI GIFs of Kinetra's README into Kinetra's [media guide](../../external/Kinetra/docs/media/README.md).
 
 ## Table of contents
 
 - [Files](#files)
 - [Capture details](#capture-details)
+- [Which captures a change makes stale](#which-captures-a-change-makes-stale)
 - [Refreshing the media](#refreshing-the-media)
 
 [Parent guide / documentation index](../README.md) · [Project overview](../../README.md#screenshots-and-demo)
@@ -40,6 +41,20 @@ Real application captures behind the project's README gallery, what each one sho
 - **Reproducibility.** A refresh gives the same files, Dotio's included: its randomness comes from the seed since roadmap phase 6 ([Dotio restructuring](../design/2026-11-21-dotio-restructuring.md)).
 - **What each script does** is in the [capture tool](../../tools/capture/README.md#how-it-works).
 
+## Which captures a change makes stale
+
+A pull request that changes what a capture shows refreshes it in the same pull request ([rule](../../external/Kinetra/AGENTS.md#repository-documentation)). Refresh the captures of every row the change touches and commit no other: a refresh on another machine can change a few pixels of a GIF without a reason, through another Mesa or ffmpeg. The shared-UI GIFs of Kinetra's README have their own [table](../../external/Kinetra/docs/media/README.md#which-gifs-a-change-makes-stale).
+
+| A change to | Makes stale |
+| --- | --- |
+| Demo (`labs/demo/`): its scene, drawing, rows or tuning | `demo`, `demo-debug`, `demo-gravity`, `demo-maze`, `demo-doorway`, `demo-clip`, `demo-debug-clip`; its scenario list also `launcher-demo-scenarios` |
+| Dotio (`labs/dotio/`) | `dotio`, `dotio-debug`, `dotio-settings`, `dotio-clip`, `dotio-debug-clip`; its difficulties also `launcher-difficulty` |
+| i4sim (`labs/i4sim/`, its blueprints) | `i4sim`, `i4sim-debug`, `i4sim-clip`, `i4sim-debug-clip`; a showcase blueprint its `i4sim-showcase-*-clip`; the loadscreen or catalog also `launcher-loadscreen` |
+| The launcher's registrations (`launcher/`) | `launcher`, `launcher-demo-scenarios`, `launcher-difficulty`, `launcher-loadscreen` |
+| The shared Lab policy (`labs/shared/`): settings rows, debug rows, inspector layout | The captures that show the changed panel: `dotio-settings` for the settings rows, the `*-debug` screenshots for the debug menu |
+| A capture script (`tools/capture/`) | The scenes whose script changed; a change to `Stage` or the GIF step all captures |
+| Kinetra's overlays or drawing (`external/Kinetra`) | The captures that show the changed part, as in Kinetra's table, here and there |
+
 ## Refreshing the media
 
 ```sh
@@ -48,7 +63,7 @@ cmake --build --preset graphics --target kinetra_capture
 tools/capture/capture_media.sh
 ```
 
-The script needs ffmpeg for the GIFs. It writes every PNG and GIF into this directory; `tools/capture/capture_media.sh build-graphics <scene>...` refreshes only some. Look at every refreshed file before committing it: a script that clicks a menu row by number shows the wrong row when the menu changes. Keep the filenames synchronized with this guide and, for the clips, with the [README gallery](../../README.md#screenshots-and-demo); `kinetra_capture_tests` checks both.
+The script needs ffmpeg for the GIFs. It writes every PNG and GIF into this directory, and the shared-UI GIFs into `external/Kinetra/docs/media`; `tools/capture/capture_media.sh build-graphics <scene>...` refreshes only some, as the table above names them. Look at every refreshed file before committing it: a script that clicks a menu row by number shows the wrong row when the menu changes. Keep the filenames synchronized with this guide and, for the clips, with the [README gallery](../../README.md#screenshots-and-demo), and the shared-UI GIFs with Kinetra's media guide and README; `kinetra_capture_tests` checks all of them.
 
 The tour video has its own script, because it renders for minutes:
 

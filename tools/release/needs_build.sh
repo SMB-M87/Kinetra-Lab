@@ -7,19 +7,20 @@
 #   Run from a Lab checkout of <head> with full history. Prints "false" only when every
 #   changed Lab path is Markdown, docs/ or .agents/, except the three below, and, for a
 #   moved external/Kinetra pointer, every path of that Kinetra range is Markdown, docs/,
-#   .agents/, .github/ or tools/. Prints "true" otherwise, and on any doubt: a missing or
-#   unrelated base, a failed diff, or a Kinetra clone that does not answer. The reason goes
-#   to stderr.
+#   .agents/, .github/ or tools/, except the two below. Prints "true" otherwise, and on any
+#   doubt: a missing or unrelated base, a failed diff, or a Kinetra clone that does not
+#   answer. The reason goes to stderr.
 #
-# Neither the build, the tests nor the zip read these paths, with three exceptions that
-# always build: kinetra_capture_tests reads README.md and checks docs/media/, and the
-# labs/i4sim/blueprints/ directory, its README included, is copied next to every executable
-# and into the zip. Lab's .github/ is not among the paths because it is Lab's own CI;
-# Kinetra's .github/ is Kinetra's CI, and its tools/ are Python helpers that no build step
-# runs (CI's docs check, which runs on every pull request, uses check_docs.py). The zip's
-# own README comes from tools/release/README-windows.txt. A new input under these paths
-# comes out of the filter: a Lab path into read_anyway, a Kinetra path out of
-# kinetra_unread, since read_anyway sees only Lab's own paths.
+# Neither the build, the tests nor the zip read these paths, with five exceptions that
+# always build: kinetra_capture_tests reads README.md and checks docs/media/, in Lab and in
+# Kinetra (the shared-UI GIFs), and the labs/i4sim/blueprints/ directory, its README
+# included, is copied next to every executable and into the zip. Lab's .github/ is not among
+# the paths because it is Lab's own CI; Kinetra's .github/ is Kinetra's CI, and its tools/
+# are Python helpers that no build step runs (CI's docs check, which runs on every pull
+# request, uses check_docs.py). The zip's own README comes from
+# tools/release/README-windows.txt. A new input under these paths comes out of the filter:
+# a Lab path into read_anyway, a Kinetra path into kinetra_read_anyway, since read_anyway
+# sees only Lab's own paths.
 set -uo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -32,6 +33,7 @@ head="$2"
 docs='(\.md$|^docs/|^\.agents/|^$)'
 read_anyway='(^README\.md$|^docs/media/|^labs/i4sim/blueprints/)'
 kinetra_unread='(\.md$|^docs/|^\.agents/|^\.github/|^tools/|^$)'
+kinetra_read_anyway='(^README\.md$|^docs/media/)'
 
 build() {
     echo "build: $1" >&2
@@ -84,6 +86,9 @@ if has_match '^external/Kinetra$' "$files"; then
     kfiles="$(git -C "$kinetra" diff --no-renames --name-only "$old" "$new")" \
         || build "could not diff Kinetra $old..$new"
     printf 'Kinetra %s..%s changed:\n%s\n' "$old" "$new" "${kfiles:-(nothing)}" >&2
+    if has_match "$kinetra_read_anyway" "$kfiles"; then
+        build "Kinetra's README.md or docs/media/ changed, which kinetra_capture_tests reads"
+    fi
     keep_outside "$kinetra_unread" "$kfiles"
     [[ -z "$left" ]] || build "Kinetra files outside Markdown, docs/, .agents/, .github/ and tools/ changed"
 fi

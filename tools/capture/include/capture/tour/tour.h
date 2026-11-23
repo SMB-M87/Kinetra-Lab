@@ -21,6 +21,10 @@
 #include <string_view>
 #include <vector>
 
+namespace demo {
+class Application;
+}
+
 namespace capture {
 /// Receives every frame of the tour, in order.
 using FrameSink = std::function<void(const Canvas &)>;
@@ -190,6 +194,13 @@ class Tour {
     float brightness_{1};
     std::shared_ptr<PanelMirror> panel_;
 };
+
+/// The Demo application of the tour's running session. Throws std::bad_cast when another
+/// application runs, and std::logic_error in the launcher menu.
+const demo::Application &demo_application(Tour &tour);
+/// Screen position of the awake Demo agent nearest to screen point `near`, or `near` itself
+/// when no agent is awake. Same requirements as demo_application().
+kinetra::Vec2 nearest_demo_agent(Tour &tour, kinetra::Vec2 near);
 
 /// Throws std::runtime_error unless `running`, the session the launcher runs or nullptr while
 /// one of its menu pages shows, is Demo on its Terrain scenario. The message starts with

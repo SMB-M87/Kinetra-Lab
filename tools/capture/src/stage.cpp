@@ -199,7 +199,7 @@ void Stage::shot() {
 }
 
 void Stage::record(int frames, const FrameInput &input) {
-    const auto directory = output_ / scene_;
+    const auto directory = clip_directory();
     std::filesystem::create_directories(directory);
     // The encoder reads the rate from here, so it cannot disagree with the steps.
     std::ofstream(directory / "framerate") << clip_fps << '\n';

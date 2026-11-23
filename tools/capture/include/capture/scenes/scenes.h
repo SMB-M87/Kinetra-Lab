@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <filesystem>
 #include <span>
 #include <string>
 #include <string_view>
@@ -70,9 +71,21 @@ enum class SceneKind {
     clip,
 };
 
+/// The README whose media a scene belongs to.
+enum class Gallery {
+    /// Kinetra-Lab's docs/media: the applications and the launcher's pages.
+    lab,
+    /// Kinetra's docs/media (external/Kinetra/docs/media): the shared UI, captured from Demo.
+    kinetra,
+};
+
+/// The subdirectory of the tool's output that holds `gallery`'s files: the output itself for
+/// Lab's, `kinetra` for Kinetra's, which capture_media.sh copies to external/Kinetra/docs/media.
+std::filesystem::path output_subdirectory(Gallery gallery);
+
 /// One capture: a name that is also its file name, its window size and its script.
 struct Scene {
-    /// File name without extension, as used in docs/media.
+    /// File name without extension, as used in its gallery's docs/media.
     std::string_view name;
     /// Whether the scene writes a screenshot or the frames of a clip.
     SceneKind kind;
@@ -80,10 +93,12 @@ struct Scene {
     int width, height;
     /// Starts a session on the stage, drives it and writes the scene's file or frames.
     void (*script)(Stage &stage);
+    /// The README whose media the scene belongs to.
+    Gallery gallery{Gallery::lab};
 };
 
-/// Every scene, in the order the gallery shows them: the launcher pages, then Demo, Dotio
-/// and i4sim with their screenshots and clips.
+/// Every scene, in the order the galleries show them: the launcher pages, then Demo, Dotio
+/// and i4sim with their screenshots and clips, then the shared UI for Kinetra's README.
 const std::vector<Scene> &scenes();
 
 /// The scenes named in `names`, in that order, or all scenes when `names` is empty.

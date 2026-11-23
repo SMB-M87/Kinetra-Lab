@@ -9,8 +9,9 @@ endif()
 # A composition root, like the launcher: the scenes start sessions through
 # launcher::applications.
 add_library(kinetra_capture_core STATIC src/dotio_player.cpp src/png.cpp src/stage.cpp
-    src/scenes/busy_stretch.cpp src/scenes/scenes.cpp src/scenes/showcase.cpp
-    src/tour/canvas.cpp src/tour/pointer_path.cpp src/tour/tour.cpp src/tour/tour_script.cpp)
+    src/scenes/busy_stretch.cpp src/scenes/scenes.cpp src/scenes/showcase.cpp src/scenes/ui_clips.cpp
+    src/tour/canvas.cpp src/tour/clip_recorder.cpp src/tour/pointer_path.cpp src/tour/tour.cpp
+    src/tour/tour_script.cpp)
 target_include_directories(kinetra_capture_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(kinetra_capture_core PUBLIC ZLIB::ZLIB kinetra_sessions)
 
@@ -27,7 +28,8 @@ if(BUILD_TESTING)
     # The scene-list case checks the committed files and the gallery in the source tree.
     target_compile_definitions(kinetra_capture_tests PRIVATE KINETRA_LAB_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
     if(KINETRA_TEST_GRAPHICS)
-        # Renders one screenshot and three clips end to end, so the scripts keep working.
+        # Renders one screenshot and four clips end to end, one of them for Kinetra's README,
+        # so the scripts keep working.
         add_test(NAME kinetra_capture_smoke
             COMMAND ${CMAKE_COMMAND} -DTOOL=$<TARGET_FILE:kinetra_capture>
                 -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/capture-smoke -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke.cmake)
