@@ -1,24 +1,27 @@
 # Checks every pull request. See
 # external/Kinetra/docs/testing.md#continuous-integration for the shared design.
 #
-# Same pinned toolchain as Kinetra's CI (dated Arch Linux image plus Arch Linux
-# Archive snapshot), so engine warnings (-Werror) and clang-format output cannot
-# change without a commit. When the archive does not answer, the run falls back to
-# the current Arch packages and says so in a warning (Kinetra's testing.md).
-# Bump ARCH_SNAPSHOT and the image tag together, in both repositories. Lab
-# warnings are reported but not errors until each module's roadmap phase makes it
-# warning-free. The `ci` test preset runs every test, the graphics cases and the smoke
-# runs of every executable included, with SDL's offscreen driver and software Mesa: an
-# OpenGL context without a GPU or display, the backend of the local `graphics` preset.
-# The workflow name "CI" and job id "checks" are required status checks on main.
+# One job, "linux", builds and tests on several distributions, each in its own container:
 #
-# The "ubuntu" job builds and tests on Ubuntu LTS with its own GCC, glibc and packages, so
-# Linux beyond Arch stays supported (README, quick start). It puts /usr/bin first on the
-# path, so the runner image's newer CMake in /usr/local/bin does not stand in for Ubuntu's.
-# The pinned Arch job stays the reference: formatting and the docs check run only there,
-# and warnings are errors only there, the engine's and those of Lab's warning-free modules,
-# because another GCC warns about other things; the ubuntu job shows them as annotations.
-# Ubuntu's packages follow the runner image.
+# - arch: the reference. Same pinned toolchain as Kinetra's CI (dated Arch Linux image plus
+#   Arch Linux Archive snapshot), so engine warnings (-Werror) and clang-format output
+#   cannot change without a commit. When the archive does not answer, the run falls back
+#   to the current Arch packages and says so in a warning (Kinetra's testing.md). Bump
+#   ARCH_SNAPSHOT and the image tag together, in both repositories. Formatting and the docs
+#   check run only here. Warnings are errors here and in the "windows" job: the engine's
+#   and those of Lab's warning-free modules; the rest of Lab is reported until each
+#   module's roadmap phase makes it warning-free.
+# - ubuntu: Ubuntu LTS with its own GCC, glibc, CMake and SDL2, the Debian and Ubuntu
+#   package set of the README's quick start. Warnings are annotations, not errors, because
+#   another GCC warns about other things. The image tag follows Ubuntu's point releases.
+#
+# The `ci` test preset runs every test, the graphics cases and the smoke runs of every
+# executable included, with SDL's offscreen driver and software Mesa: an OpenGL context
+# without a GPU or display, the backend of the local `graphics` preset.
+#
+# The workflow name "CI" and the job id "checks" are the required status check on main.
+# "checks" passes when every "linux" run passed, or when "changes" skipped the build of a
+# pointer-only pull request, so every distribution in the matrix is required.
 #
 # The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
 # of the local WSL cross build (docs/windows.md), and runs the non-graphics tests on
@@ -42,9 +45,9 @@ env:
 jobs:
   # Decides whether this pull request only moves the Kinetra pointer, to a commit on Kinetra
   # main, over Kinetra changes in Markdown, docs or skills. Then the build and test jobs
-  # below are skipped (a skipped job counts as passed for the required "checks" status) and
-  # only the docs check runs here. Any doubt, such as a failed Kinetra fetch, means a full
-  # run, and so does a failure of this job: the docs check then fails "checks" as well.
+  # below are skipped, only the docs check runs here, and "checks" passes on this job's
+  # result. Any doubt, such as a failed Kinetra fetch, means a full run, and so does a
+  # failure of this job: the docs check of the full run then fails "checks" as well.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -97,13 +100,26 @@ jobs:
           git submodule update --init --recursive
           python3 external/Kinetra/tools/check_docs.py
 
-  checks:
+  linux:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.skip_build != 'true') }}
+    name: linux (${{ matrix.distro }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: arch
+            image: archlinux:base-devel-20261108.0.623074
+          - distro: ubuntu
+            image: ubuntu:24.04
     runs-on: ubuntu-latest
-    container: archlinux:base-devel-20261108.0.623074
+    container: ${{ matrix.image }}
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Install pinned toolchain and dependencies
+      - name: Install the pinned Arch toolchain and dependencies
+        if: matrix.distro == 'arch'
         run: |
           # The pinned snapshot comes from the Arch Linux Archive. When the archive does not
           # answer, the image's own mirrors serve the current packages instead; such a run is
@@ -116,7 +132,23 @@ jobs:
             cp /etc/pacman.d/mirrorlist.image /etc/pacman.d/mirrorlist
             pacman -Syyuu --noconfirm --needed $packages
           fi
-          gcc --version | head -1; clang-format --version; cmake --version | head -1
+
+      - name: Install Ubuntu's packages
+        if: matrix.distro == 'ubuntu'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          # The Debian and Ubuntu package set of the README's quick start, plus git for the
+          # checkout and the submodule.
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential cmake ninja-build ccache \
+            libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev \
+            git ca-certificates
+
+      - name: Tool versions
+        run: |
+          command -v gcc cmake ctest ninja
+          gcc --version | head -1; cmake --version | head -1; ninja --version; ldd --version | head -1
 
       - uses: actions/checkout@v7
 
@@ -127,53 +159,51 @@ jobs:
           git submodule status
 
       - name: Format check (clang-format)
-        run: git ls-files -- '*.h' '*.cpp' | xargs clang-format --dry-run --Werror
+        if: matrix.distro == 'arch'
+        run: |
+          clang-format --version
+          git ls-files -- '*.h' '*.cpp' | xargs clang-format --dry-run --Werror
 
       - name: Documentation links
+        if: matrix.distro == 'arch'
         run: python3 external/Kinetra/tools/check_docs.py
 
       - name: Headless build and test (application logic without SDL2/OpenGL)
         run: cmake --workflow --preset headless
 
       - name: Full build and test (applications, engine warnings as errors, graphics tests and smoke runs with software OpenGL)
+        if: matrix.distro == 'arch'
         run: cmake --workflow --preset ci
 
-  ubuntu:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.skip_build != 'true') }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Install dependencies
-        run: |
-          # The Debian and Ubuntu package set of the README's quick start.
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build ccache \
-            libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev
-          # Ubuntu's own tools, not the runner image's newer ones in /usr/local/bin.
-          echo /usr/bin >> "$GITHUB_PATH"
-
-      - name: Tool versions
-        run: |
-          command -v gcc cmake ctest ninja
-          gcc --version | head -1; cmake --version | head -1; ninja --version; ldd --version | head -1
-
-      - uses: actions/checkout@v7
-
-      - name: Fetch the Kinetra submodule
-        run: |
-          git submodule update --init --recursive
-          git submodule status
-
-      - name: Headless build and test (application logic without SDL2/OpenGL)
-        run: cmake --workflow --preset headless
-
       - name: Full build and test (applications, warnings as annotations, graphics tests and smoke runs with software OpenGL)
+        if: matrix.distro != 'arch'
         run: |
           set -o pipefail
           cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF -DKINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF
           cmake --build --preset ci 2>&1 | tee build-ci.log
-          grep -E 'warning: ' build-ci.log | sort -u | sed 's/^/::warning title=Compiler warning on Ubuntu::/' || true
+          grep -E 'warning: ' build-ci.log | sort -u \
+            | sed "s/^/::warning title=Compiler warning on ${{ matrix.distro }}::/" || true
           ctest --preset ci
+
+  # The required status. It passes when every distribution of "linux" passed, or when
+  # "changes" decided that a pointer-only pull request needs no build and ran the docs
+  # check itself. Any other outcome, a failed or cancelled "linux" run included, fails it.
+  checks:
+    needs: [changes, linux]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every Linux run passed, or the build was rightly skipped
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          SKIP: ${{ needs.changes.outputs.skip_build }}
+          LINUX: ${{ needs.linux.result }}
+        run: |
+          echo "changes: $CHANGES, skip_build: $SKIP, linux: $LINUX"
+          if [ "$CHANGES" = success ] && [ "$SKIP" = true ] && [ "$LINUX" = skipped ]; then
+            exit 0
+          fi
+          test "$LINUX" = success
 
   windows:
     needs: changes

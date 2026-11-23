@@ -52,7 +52,7 @@ if(KINETRA_LAB_WARNINGS)
     endif()
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs RECURSE ${lab_warning_mode})
     kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/launcher RECURSE ${lab_warning_mode})
-    # Modules that a roadmap phase made warning-free keep it that way. CI's Ubuntu job turns
+    # Modules that a roadmap phase made warning-free keep it that way. CI's Ubuntu run turns
     # this off: the pinned Arch compiler is the reference for warnings, and another GCC warns
     # about other things.
     set(warning_free_mode ${lab_warning_mode})
