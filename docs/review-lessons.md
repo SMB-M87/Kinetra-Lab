@@ -63,6 +63,9 @@ No lessons yet.
 - **When CI runs a trusted copy of a script, take it from the base branch's tip, not from the merge base** · added 2026-11-23 · source: #83
   A branch keeps its merge base until it merges `main`, so it would decide with the filter it forked from; right after #83, a README-only pull request from an older branch would have skipped `kinetra_capture_tests`.
 
+- **When a change says where a CI step runs, search for the step's command and step name as well, not only the words the pages use for it** · added 2026-11-23 · source: #87
+  The copies search for "docs check" with "only" found Lab's `ci.yml` header but not `README.md`, which names the step by its command, `check_docs.py`.
+
 ## Media and tools
 
 - **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
