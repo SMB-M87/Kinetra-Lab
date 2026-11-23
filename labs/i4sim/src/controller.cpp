@@ -304,13 +304,16 @@ void FactoryController::handle_pointer(const Input &input, const Camera2D &camer
     if (!input.clicked && !input.right_clicked)
         return;
     const auto point = flip_y(camera.screen_to_world(input.mouse));
-    if (input.down(Key::shift) && input.clicked && selected_mover_) {
+    const bool shift = input.down(Key::shift);
+    if (shift && input.clicked && selected_mover_) {
         if (simulation_->move_to(*selected_mover_, point))
             clear_message();
         else
             show_for_a_while("GOAL REJECTED: MOVER BUSY, BLOCKED OR GOAL UNREACHABLE");
-    } else
-        pick(point, input.right_clicked);
+    } else {
+        // Shift+right-click inspects in Dotio, so here it selects without holding or blocking.
+        pick(point, input.right_clicked && !shift);
+    }
 }
 
 void FactoryController::handle_input(double elapsed, const Input &input, Camera2D &camera,
