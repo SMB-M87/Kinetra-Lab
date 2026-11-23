@@ -16,8 +16,8 @@
 #   package set of the README's quick start. Warnings are annotations, not errors, because
 #   another GCC warns about other things. The image tag follows Ubuntu's point releases.
 #   Its packages come from Canonical's mirror inside Azure, where the runners run; when that
-#   mirror fails, lacks an index or does not answer within five minutes, from the image's
-#   own sources, with a warning.
+#   mirror fails, lacks an index or does not deliver the indexes and packages within five
+#   minutes, from the image's own sources, with a warning.
 #
 # Every job has a time limit, and so does each install step, a few times its usual
 # duration: a stalled download fails the run within minutes instead of GitHub's six hours.
@@ -197,13 +197,18 @@ jobs:
             echo "::warning title=Ubuntu mirror not used::A URI of the image's ubuntu.sources does not match this step's pattern, so this run installs from that source instead of the Azure mirror."
           fi
           apt_install() { apt-get install -y --no-install-recommends $packages; }
-          # The mirror's update gets five of the step's 15 minutes: a mirror that does not
-          # answer would otherwise spend them on apt's timeouts and retries, and the fallback
-          # would never start. Only the update: a killed install can leave dpkg half-configured.
-          # apt-get update succeeds when an index fails to download; Error-Mode=any makes the
-          # mirror's update fail then, so a run never installs from a partial package list.
-          if ! { timeout -k 10 300 apt-get update -o APT::Update::Error-Mode=any && apt_install; }; then
-            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not answer within five minutes, so this run installs from the image's own sources."
+          # The mirror gets five of the step's 15 minutes to deliver the indexes and the
+          # packages: a mirror that does not answer, or stalls a download, would otherwise spend
+          # them on apt's timeouts and retries, and the fallback would never start. timeout
+          # bounds only the update and --download-only, which run no dpkg; the install from the
+          # downloaded packages has no budget, because a killed apt-get install can leave dpkg
+          # half-configured. timeout runs a program, not a shell function: hence bash -c and
+          # the exported list. apt-get update succeeds when an index fails to download;
+          # Error-Mode=any makes the mirror's update fail then, so a run never installs from a
+          # partial package list.
+          export packages
+          if ! { timeout -k 10 300 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
+            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within five minutes, so this run installs from the image's own sources."
             cp /etc/apt/ubuntu.sources.image "$sources"
             apt-get update
             apt_install
