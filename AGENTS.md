@@ -16,19 +16,22 @@ Rules for agents and developers working on Kinetra-Lab. **All rules in [Kinetra'
 
 ## Where to read what
 
-The Kinetra pages live in the `external/Kinetra` submodule. If that directory is empty, run `git submodule update --init --recursive` first.
+The Kinetra pages live in the `external/Kinetra` submodule. If that directory is empty, run `git submodule update --init --recursive` first. Where a row names sections, read those and not the whole page. Search the roadmaps and the design indexes for the topic instead of reading them through.
 
 | Task | Read |
 | --- | --- |
-| Every task | This file and [Kinetra's AGENTS.md](external/Kinetra/AGENTS.md) |
-| Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); your branch's design document, and an older one only as [Kinetra's rule](external/Kinetra/AGENTS.md#development-cycle) allows |
+| Every task | This file and [Kinetra's AGENTS.md](external/Kinetra/AGENTS.md), without its *Where to read what*, *Identity and scope* and *Functionality index*, which route to and describe the engine |
+| Start, plan, review or hand over a change | The `feature` skill, and the section of the [workflow](external/Kinetra/docs/workflow.md) for the step you are at, which the skill links; your branch's design document, and an older one only as [Kinetra's rule](external/Kinetra/AGENTS.md#development-cycle) allows |
 | Build or review a change, so known mistakes are not repeated | Lab's [review lessons](docs/review-lessons.md) and [Kinetra's](external/Kinetra/docs/review-lessons.md) |
 | Write or review C++ or CMake | [Conventions](external/Kinetra/docs/conventions.md) |
-| Add tests or pick a verification level | [Testing](external/Kinetra/docs/testing.md) and [verification in Lab](#verification-in-lab) |
-| Write READMEs, diagrams or `///` comments | [Documentation guide](external/Kinetra/docs/documentation.md) |
+| Add tests | [Test kinds](external/Kinetra/docs/testing.md#test-kinds), [rules for tests](external/Kinetra/docs/testing.md#rules-for-tests) and [writing a doctest suite](external/Kinetra/docs/testing.md#writing-a-doctest-suite) |
+| Pick a verification level | [Verification in Lab](#verification-in-lab) (`verify` skill); Kinetra's [continuous integration](external/Kinetra/docs/testing.md#continuous-integration) only for a CI change |
+| Write `///` comments | [Code comments](external/Kinetra/docs/documentation.md#code-comments) |
+| Write a README or another page | [What goes where](external/Kinetra/docs/documentation.md#what-goes-where), the [module](external/Kinetra/docs/documentation.md#module-readme-template) or [skill README template](external/Kinetra/docs/documentation.md#skill-readme-template), and [page layout](external/Kinetra/docs/documentation.md#page-layout) |
+| Draw a diagram | [Diagrams](external/Kinetra/docs/documentation.md#diagrams) |
 | Understand Lab targets and session flow | [System architecture](docs/architecture.md) |
 | Work on one application | Its README and architecture page (see [functionality index](#functionality-index)) |
-| Know what is planned, or record an idea | [Roadmap](docs/roadmap.md) (the only plan, in order of priority; `roadmap` skill), and the [Kinetra roadmap](external/Kinetra/docs/roadmap.md) for engine work |
+| Know what is planned, or record an idea | The items a search for the topic finds in the [roadmap](docs/roadmap.md) (the only plan, in order of priority) and, for engine work, the [Kinetra roadmap](external/Kinetra/docs/roadmap.md): `grep -n -i '<key word>' docs/roadmap.md external/Kinetra/docs/roadmap.md`; a whole roadmap only to choose or order items (`roadmap` skill) |
 
 ## Scope
 
