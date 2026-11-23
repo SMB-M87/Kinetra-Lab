@@ -1,6 +1,6 @@
 # The shared UI in GIFs in Kinetra's README
 
-Status: implemented · Branch: `ccr-39f927ff-5hqodj`, Kinetra `feat/shared-ui-gifs` · Related: [roadmap](../roadmap.md), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [capture tool](../../tools/capture/README.md), [media guide](../media/README.md)
+Status: implemented · Branch: `ccr-39f927ff-5hqodj`, Kinetra `feat/shared-ui-gifs` ([Kinetra#46](https://github.com/SMB-M87/Kinetra/pull/46)) · Related: [roadmap](../roadmap.md), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [capture tool](../../tools/capture/README.md), [media guide](../media/README.md)
 
 Kinetra's README describes a launcher and overlays that every lab shares, but shows none of them. This change renders five GIFs of that shared UI from Demo with Lab's capture tool, with a visible pointer, into Kinetra's `docs/media/`, and adds a rule to both `AGENTS.md` files: a change to what a capture shows refreshes the affected captures in the same pull request. So that the frame-time graph looks the same in every capture, the Kinetra runtime gets a fixed frame time for programs that render into files.
 
@@ -138,7 +138,7 @@ The author's review of `git diff origin/main...HEAD` in both repositories, and t
 - **Design:** this document.
 - **Verification:** the table above; CI is the Full level.
 - **Review notes:** the stale-captures tables and the decision that a Lab-only change does not refresh Kinetra's GIFs; the GIFs themselves, in Kinetra's pull request.
-- **Dependencies and merge order:** the Kinetra pull request of `feat/shared-ui-gifs` merges first, with a merge commit; this pull request merges with its pointer at the Kinetra branch commit it was verified with; Kinetra's `lab-pointer` workflow then records the merge commit. Both wait for the user: they change `AGENTS.md`, and this one `.github/` and `tools/release/`.
+- **Dependencies and merge order:** [Kinetra#46](https://github.com/SMB-M87/Kinetra/pull/46) (`feat/shared-ui-gifs`) merges first, with a merge commit; this pull request merges with its pointer at the Kinetra branch commit it was verified with; Kinetra's `lab-pointer` workflow then records the merge commit. Both wait for the user: they change `AGENTS.md`, and this one `.github/` and `tools/release/`.
 - **Follow-up:** Lab's README as a page about the labs (*README media as GIFs*).
 
 ## Open points
