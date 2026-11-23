@@ -41,7 +41,7 @@ Reuse `LaunchChoice::configurations`, the Demo session and the existing input, c
 
 Terrain streams around the player. The three authored scenarios use `Scene::arrange` to initialize bodies, obstacle indexes and navigation bounds. They keep the layout on every frame, including when the camera enters Ghost mode. The fixed camera starts centered, and teleport checks use the authored bounds and obstacles. Gravity starts with falling props. Maze uses alternating gaps, and Doorway starts two groups with opposing goals.
 
-The launcher tour and its menu tests currently select Demo in one action. They need a second selection when the configuration page opens. The existing terrain captures still provide a check for the default scenario.
+The launcher tour clicks Demo and then selects Terrain. The script checks the active session before proceeding to the Demo chapter. The existing terrain captures still provide a check for the default scenario. The CLI inspector replays the selected scenario, with Terrain as the default.
 
 ## Affected areas
 
@@ -49,15 +49,25 @@ The Demo scene and its configuration, launcher registration and CLI, the relevan
 
 ## Test plan
 
-Verify that every menu choice opens its scenario and the default launch still starts the streamed terrain. Exercise each fixed scenario's engine behavior headlessly. Verify that resize and Ghost movement preserve fixed obstacles, that existing terrain fingerprints match, and that the tour can choose a scenario. Capture the launcher page and new scenes for review.
+Verify that every menu choice opens its scenario and the default launch still starts the streamed terrain. Exercise each fixed scenario's engine behavior headlessly. Verify that resize and Ghost movement preserve the Maze walls and route, and that existing Terrain fingerprints match. Require the capture smoke test to reach the tour's Terrain check. Feed the Doorway inspector's displayed selector through the CLI and compare its records to the headless snapshots. Capture the launcher page and new scenes for review.
 
 ## Review
 
 Checked that Terrain's camera interpolation and streaming keep their original paths, and that the launcher passes the selected index through to the Demo factory. Fixed layouts share the existing renderer and clock. The tour and capture tests use the same registration as the launcher.
 
+### First review round
+
+| Finding | Resolution |
+| --- | --- |
+| The Doorway selector did not work in the CLI | `50c3764` passes the selected scenario to the trace and tests the inspector's actual selector end to end |
+| The tour test could succeed before Terrain started | `932d0b2` makes the script check the active Demo scenario and makes the smoke test require that checkpoint |
+| The Maze test did not resize the active scene | `355e0c4` resizes while the player is following a route, checks every wall and replans to the original goal |
+| The GIF roadmap still called the configuration page missing | `1d59f51` removes the stale statement and keeps the link to the new page's design |
+
 ## Verification
 
-- `ctest --preset graphics -R '^kinetra_demo|^kinetra_menu|^kinetra_graphics|^kinetra_capture|^kinetra_smoke:(demo|launcher.*)$' -LE soak -j 6 --output-on-failure` passed all 122 selected checks. This includes the terrain fingerprints, fixed scenario tests, launcher, capture and graphics suites, and the smoke runs.
+- `ctest --preset graphics -R '^kinetra_demo|^kinetra_menu|^kinetra_graphics|^kinetra_capture|^kinetra_smoke:(demo|launcher.*)$' -LE soak -j 6 --output-on-failure` passed all 124 selected checks. This includes the terrain fingerprints, fixed scenario tests, launcher, capture and graphics suites, and the smoke runs.
+- `ctest --preset dev -R 'kinetra_demo_inspector_trace|kinetra_demo:(Maze|seeded Doorway)' --output-on-failure` passed five targeted checks after the follow-up build.
 - Started all four choices through `kinetra --scenario` and `kinetra_demo --scenario` with software OpenGL. The launcher rejected an invalid scenario and a scenario requested with i4sim.
 - Captured and inspected [the Demo menu](../media/launcher-demo-scenarios.png), [Gravity](../media/demo-gravity.png), [Maze](../media/demo-maze.png) and [Doorway](../media/demo-doorway.png). The two existing Terrain screenshots matched the earlier capture byte for byte.
 - Docs links, copies and changed-file formatting passed. Pull request CI supplies the Full level.
@@ -72,7 +82,7 @@ Demo offers Terrain, Gravity, Maze and Doorway through the launcher's configurat
 
 ### Changes
 
-The three authored layouts share the existing physics, navigation and overlays. The capture tool records all four new views and the tour selects Terrain through the new menu.
+The three authored layouts share the existing physics, navigation and overlays. The capture tool records all four new views and verifies that the tour selects Terrain. The CLI inspector accepts Doorway's selectors.
 
 ### Design
 
@@ -80,7 +90,7 @@ The three authored layouts share the existing physics, navigation and overlays. 
 
 ### Verification
 
-122 local checks passed, all four CLI scenarios launched in both executables, and the screenshots were inspected.
+124 graphics-preset checks and five targeted Debug checks passed. All four CLI scenarios launched in both executables, and the screenshots were inspected.
 
 ### Review notes
 
