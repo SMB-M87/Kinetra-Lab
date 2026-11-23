@@ -58,7 +58,7 @@ Each application follows the [layer rule](external/Kinetra/docs/conventions.md#l
 
 Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verification-levels):
 
-At every level, run `python3 external/Kinetra/tools/check_copies.py`, with `--term '<old wording>'` for each rule, procedure or term the change rewords. It lists the CI jobs, CMake options, presets, flags and inline names the diff removes that a page in Lab or `external/Kinetra` still names; judge each hit ([tools](external/Kinetra/tools/README.md#check_copiespy)).
+At every level, run `python3 external/Kinetra/tools/check_copies.py`, with a `--term` for the old wording, each key word and the name of each part of every rule, procedure or term the change rewords ([rule](external/Kinetra/AGENTS.md#repository-documentation)). It lists the CI jobs, CMake options, presets, flags and inline names the diff removes that a page in Lab or `external/Kinetra` still names; judge each hit ([tools](external/Kinetra/tools/README.md#check_copiespy)).
 
 | Level | In Lab |
 | --- | --- |
