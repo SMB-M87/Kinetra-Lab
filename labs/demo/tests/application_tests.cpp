@@ -331,10 +331,10 @@ TEST_CASE("a negative or non-finite time scale is rejected before the frame chan
          {-0.5f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         FrameCommands commands;
         commands.time_scale = bad;
-        commands.toggle_pause = commands.toggle_help = true;
+        commands.toggle_pause = commands.toggle_vectors = true;
         commands.player.direction = {1, 0};
         CHECK_THROWS_AS(application.advance(1.0 / 120, commands, camera), std::invalid_argument);
-        CHECK_MESSAGE((!application.paused() && !application.presentation().help &&
+        CHECK_MESSAGE((!application.paused() && !application.presentation().vectors &&
                        length(player_position(application) - before) == 0),
                       "A rejected frame changed the application");
     }
@@ -359,17 +359,10 @@ TEST_CASE("switching avoidance mode neither resets nor advances the scene") {
     CHECK_MESSAGE(application.scene().reciprocal_avoidance(), "Could not restore reciprocal avoidance");
 }
 
-TEST_CASE("help toggles and pause stops fixed updates without replaying paused time") {
+TEST_CASE("pause stops fixed updates without replaying paused time") {
     Application application(0, 42);
     Camera2D camera;
     FrameCommands commands;
-    CHECK_MESSAGE(!application.presentation().help, "Demo help must start hidden");
-    commands.toggle_help = true;
-    application.advance(0, commands, camera);
-    CHECK_MESSAGE(application.presentation().help, "H did not show Demo help");
-    application.advance(0, commands, camera);
-    CHECK_MESSAGE(!application.presentation().help, "H did not hide Demo help");
-    commands = {};
     commands.toggle_pause = true;
     commands.player.direction = {1, 0};
     const Vec2 start = player_position(application);
@@ -559,13 +552,12 @@ TEST_CASE("the command adapter keeps held controls and maps clicks to walking") 
     input.held[static_cast<std::size_t>(Key::e)] = true;
     input.held[static_cast<std::size_t>(Key::right)] = true;
     input.held[static_cast<std::size_t>(Key::space)] = true;
-    input.pressed[static_cast<std::size_t>(Key::h)] = true;
     input.wheel = -2;
     auto commands = demo::read_commands(input);
     CHECK_MESSAGE((commands.player.direction.y == 1 && commands.player.turn_left &&
                    commands.player.turn_right && commands.camera_pan.x == 1 && commands.zoom_steps == -2),
                   "Held controls lost in command adapter");
-    CHECK_MESSAGE((!commands.toggle_pause && !commands.toggle_help && !commands.pointer),
+    CHECK_MESSAGE((!commands.toggle_pause && !commands.pointer),
                   "Held keys became toggles or an unclicked pointer became a command");
     input.held[static_cast<std::size_t>(Key::shift)] = true;
     commands = demo::read_commands(input);

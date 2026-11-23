@@ -34,7 +34,7 @@ struct FrameCommands {
     /// Mouse-wheel notches, positive to zoom in.
     float zoom_steps{};
     /// Each flips its setting once in this frame.
-    bool toggle_pause{}, toggle_vectors{}, toggle_gravity{}, toggle_paths{}, toggle_help{};
+    bool toggle_pause{}, toggle_vectors{}, toggle_gravity{}, toggle_paths{};
     /// Debug Mode is on; the ghost camera is on (only in Debug Mode); steering probes show.
     bool debug{}, ghost{}, probes{};
     /// Agents use reciprocal avoidance rather than legacy steering.
@@ -51,8 +51,8 @@ struct FrameCommands {
 
 /// What the renderer draws besides the scene, as the commands switched it.
 struct PresentationOptions {
-    /// Velocity arrows, planned routes, the help overlay and steering probes.
-    bool vectors{}, paths{}, help{}, probes{};
+    /// Velocity arrows, planned routes and steering probes.
+    bool vectors{}, paths{}, probes{};
 };
 
 /// Outcome of the last pointer action, for the status text.

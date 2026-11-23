@@ -20,8 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Remove Demo's help overlay** · demo · added 2026-11-21
-  Branch `refactor/demo-help-overlay`. Where: [Demo help overlay removal](design/2026-11-23-demo-help-overlay-removal.md).
+Nothing in progress.
 
 ## Next
 

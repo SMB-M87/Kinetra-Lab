@@ -125,7 +125,6 @@ The logic library `kinetra_demo_logic` builds without the runtime and holds ever
 | [input/mapping.h](include/demo/input/mapping.h) | logic | Keys, wheel and clicks to commands, without a window |
 | [presentation/session.h](include/demo/presentation/session.h) | presentation | `create_session`, the default population, and the session interface the capture tool reads |
 | [presentation/renderer.h](include/demo/presentation/renderer.h) | presentation | Drawing the scene, its debug layers and the overlays; the status text |
-| [presentation/help_overlay.h](include/demo/presentation/help_overlay.h) | presentation | The help legend (see [open points](#open-points)) |
 | [src/main.cpp](src/main.cpp) | `kinetra_demo` | Arguments (`--frames`), a fresh seed per process, the session loop |
 
 The sources mirror the headers in `src/`, `src/world/`, `src/input/` and `src/presentation/`. `main.cpp` and the launcher's factory create the same session from `session.h`, so a direct launch and a launch from the menu behave alike.
@@ -253,7 +252,7 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | [crowd_stability_tests.cpp](tests/crowd_stability_tests.cpp) | `kinetra_demo_crowd` (5) | 60 simulated seconds per case. 240 initial agents with seeds 123 and 456 and steering wander, and seed 123 with route wander; rejects swept-event starvation, nonfinite motion and the spinning tangent-contact freeze. Two more cases watch 48 agents around a standing player, one per wander mode: at least 80 % of those awake after a second are still awake after a minute (labels `unit` and `soak`, 180-second timeout per case) |
 | [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_demo_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
 | [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo_logic` (27) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands |
-| [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (1) | Help overlay placement, camera preservation, routes and OpenGL rendering; one case, because every check shares one `Runtime` (label `graphics`) |
+| [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (2) | Inspector interactions, routes, and steering probes at different zoom levels (label `graphics`) |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:demo` (1) | `kinetra_demo --frames 120` starts, draws and exits with 0 (label `graphics`) |
 
 Run the suites that need no window from the repository root:
@@ -272,10 +271,9 @@ For `kinetra_demo_graphics`, use the `graphics` preset ([tests and resources](..
 
 The contact response of whole bodies, which the Demo relies on, is tested in Kinetra (`kinetra_contact_response_tests`).
 
-Not covered: the session's frame order and the drawing beyond the one graphics case; desktop feel and performance, which need manual checks.
+The graphics suite covers selected session interactions and rendering. Desktop feel and performance need manual checks.
 
 ## Open points
 
-- **The help overlay is reachable only from tests.** No input sets `FrameCommands::toggle_help`, and the renderer never calls `draw_help`; the help lines a user sees come from the settings panel. Decided on 2026-11-22: they are removed ([roadmap](../../docs/roadmap.md#next), *Remove Demo's help overlay*).
 - The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. An agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there, and in a dense crowd agents stray up to about ten units beyond their range for moments. The fixed clock runs at most 16 ticks per frame, so at the fastest time scale of 4 simulated time falls behind below 30 frames per second. Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks.
 - Decisions behind this design: [camera-driven terrain](../../external/Kinetra/docs/decisions/0002-camera-driven-terrain.md), [application boundary](../../external/Kinetra/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](../../external/Kinetra/docs/decisions/0005-sandbox-agent-lifecycle.md).

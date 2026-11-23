@@ -1,5 +1,4 @@
 #include "demo/presentation/renderer.h"
-#include "demo/presentation/help_overlay.h"
 #include "kinetra_lab/camera.h"
 #include "kinetra_lab/inspector.h"
 #include <string_view>

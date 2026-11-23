@@ -20,8 +20,7 @@ if(BUILD_TESTING)
         LIBRARIES kinetra_demo_logic kinetra_lab nlohmann_json::nlohmann_json)
 endif()
 if(KINETRA_BUILD_RUNTIME)
-    add_library(kinetra_demo_presentation
-    src/presentation/help_overlay.cpp src/presentation/renderer.cpp src/presentation/session.cpp)
+    add_library(kinetra_demo_presentation src/presentation/renderer.cpp src/presentation/session.cpp)
     target_link_libraries(kinetra_demo_presentation
         PUBLIC kinetra_demo_logic kinetra_lab Kinetra::Runtime)
 endif()
