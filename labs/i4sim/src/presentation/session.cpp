@@ -156,8 +156,8 @@ class FactorySession final : public kinetra_lab::Session {
     SettingsOverlay settings_{
         kinetra_lab::settings_rows(
             statistics_, debug_, frame_times_, frame_limit_.enabled,
-            {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK", "SHIFT CLICK FREE MOVER GOAL",
-             "SPACE PAUSE / R RESET"},
+            {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK", "SHIFT + RIGHT CLICK  INSPECT",
+             "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
             {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),
         &debug_};
 };
