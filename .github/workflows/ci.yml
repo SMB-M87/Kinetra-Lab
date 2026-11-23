@@ -180,7 +180,6 @@ jobs:
       - name: Full build and test (applications, warnings as annotations, graphics tests and smoke runs with software OpenGL)
         if: matrix.distro != 'arch'
         run: |
-          set -o pipefail
           cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF -DKINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF
           cmake --build --preset ci 2>&1 | tee build-ci.log
           grep -E 'warning: ' build-ci.log | sort -u \
@@ -192,7 +191,9 @@ jobs:
   # check itself. Any other outcome, a failed or cancelled "linux" run included, fails it.
   checks:
     needs: [changes, linux]
-    if: ${{ !cancelled() }}
+    # always(), not !cancelled(): a skipped required job counts as passed, so on a
+    # cancelled run this job must still run and fail.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Every Linux run passed, or the build was rightly skipped
