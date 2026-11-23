@@ -160,6 +160,7 @@ flowchart LR
   - Nit: the media guide's thumbnail row carries the YouTube link again.
   - The pointer follows Kinetra #37's head after its review round.
   - The lesson on *Now* went to the [review lessons](../review-lessons.md#roadmap-and-decisions).
+- Kinetra #37's second review round reached Lab's copies: the roadmap's lead now names a docs-only change's pull request as its record, and the pointer follows Kinetra's head to 2008388.
 
 ## Verification
 
