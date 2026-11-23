@@ -29,11 +29,6 @@ constexpr double longest_pan_frame = 0.1;
 /// Factor of one SPEED or FORCE step, and the shortest horizon in ticks; the longest is
 /// `longest_motion_horizon`.
 constexpr float parameter_step = 1.25f, shortest_horizon = 1;
-/// What RESET PARAMETERS sets: the original factory's speed in millimeters per tick and
-/// force in millimeters per tick squared, which are also the defaults of MotionSettings,
-/// and a horizon in ticks. The horizon is shorter than the default of 32 a new simulation
-/// starts with; which of the two is meant is an open point in the module README.
-constexpr float reset_speed = 2, reset_force = .6f, reset_horizon = 8;
 
 /// The choices of the PLANNER list, in menu order: two settings of MotionSettings shown as
 /// one list, because the heatmap only matters while routes are planned.
@@ -137,6 +132,7 @@ void FactoryController::report_error(const std::string &message) {
 
 void FactoryController::clear_message() {
     message_.clear();
+    message_remaining_ = 0;
 }
 
 void FactoryController::show_for_a_while(std::string message) {
@@ -157,14 +153,12 @@ void FactoryController::close() {
 bool FactoryController::begin_frame(double elapsed) {
     if (close_requested_)
         close();
-    if (!loaded())
-        return false;
     if (message_remaining_ > 0) {
         message_remaining_ = std::max(0.0, message_remaining_ - elapsed);
         if (message_remaining_ == 0)
             clear_message();
     }
-    return true;
+    return loaded();
 }
 
 void FactoryController::suspend(bool open) {
@@ -202,6 +196,7 @@ void FactoryController::change_update_rate(bool faster) {
 void FactoryController::restart() {
     const auto motion = simulation_->motion_settings();
     Simulation fresh(simulation_->blueprint(), seed_);
+    fresh.updates_per_second(simulation_->updates_per_second());
     simulation_ = std::move(fresh);
     restart_timer_ = {};
     clear_message();
@@ -228,14 +223,10 @@ void FactoryController::restart() {
 void FactoryController::restart_when_due() {
     if (!scenario_ || scenario_->repeat != ScenarioRepeat::restart || !restart_timer_.due(*simulation_))
         return;
-    // Unlike R, the restart continues the show: same update rate, same run state.
+    // A scheduled replay resumes a running show. A manual restart starts paused.
     const bool was_running = simulation_->running();
-    const unsigned rate = simulation_->updates_per_second();
     restart();
-    if (!loaded())
-        return;
-    simulation_->updates_per_second(rate);
-    if (was_running)
+    if (loaded() && was_running)
         simulation_->run();
 }
 
@@ -445,9 +436,10 @@ void FactoryController::add_motion_entries(std::vector<kinetra::DebugEntry> &ent
                        .action =
                            [this] {
                                change_motion([](MotionSettings &m) {
-                                   m.speed = reset_speed;
-                                   m.force = reset_force;
-                                   m.horizon = reset_horizon;
+                                   const MotionSettings defaults;
+                                   m.speed = defaults.speed;
+                                   m.force = defaults.force;
+                                   m.horizon = defaults.horizon;
                                });
                            },
                        .depth = 1});
