@@ -22,6 +22,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When a decision session closes a roadmap item, carry every question it listed into a decision or a remaining item** · added 2026-11-22 · source: #67
   The removed item *Decide on making way and a temporary motion fallback* listed three questions; the session answered two, and the third (the departure check) dropped out of the plan until the agent review found it. Before removing such an item, tick off each of its questions against the Decisions table.
 
+- **Take an item out of *Now* when its branch merges, even when the branch was one step of a larger goal** · added 2026-11-23 · source: #83
+  *Now* holds only items with a branch or an open pull request. #83 and Kinetra #37 left *Leaner agentic cycle* in *Now* with no branch, while its next step was already an item in *Next*; give the remaining step its own item, or move the item back to *Next*.
+
 ## Submodule and merge order
 
 - **Move the pointer in a pointer-only pull request of its own, never as the last commit of a reviewed one** · added 2026-11-22 · source: #65, #67, #68
