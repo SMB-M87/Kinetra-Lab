@@ -103,9 +103,9 @@ int main(int argc, char **argv) {
         for (const auto *scene : selected) {
             // One Runtime per scene, at the scene's size; only one may exist at a time.
             kinetra::Runtime runtime("Kinetra capture", scene->width, scene->height);
-            // Frames go to files, not to a viewer: nothing has to wait for a display, and each
-            // frame stands for one step of a 60 Hz display, so a frame-time graph is the same
-            // in every capture.
+            // Frames go to files, not to a viewer: nothing has to wait for a display. Every step
+            // advances 1/60 s, so the statistics read 60 frames per second; a frame-time graph
+            // reads the same 60 Hz, and is the same in every capture.
             runtime.limit_frames(false);
             runtime.fix_frame_times(capture::Stage::step_seconds);
             runtime.poll(false);

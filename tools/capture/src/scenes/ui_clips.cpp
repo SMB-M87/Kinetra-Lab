@@ -5,6 +5,7 @@
 #include "capture/tour/tour.h"
 
 #include "demo/application.h"
+#include "demo/presentation/session.h"
 #include "demo/scenario.h"
 #include "demo/world/inspector.h"
 
@@ -61,14 +62,23 @@ void record_ui_clip(Stage &stage, const std::function<void(Tour &, ClipRecorder 
 }
 
 /// Goes through the launcher to Demo's `scenario`, as a person would: DEMO, then the
-/// scenario on the configuration page. Throws std::runtime_error when another session runs.
+/// scenario on the configuration page. Throws std::runtime_error when a menu page, another
+/// application or another scenario runs instead.
 void start_demo(Tour &tour, demo::Scenario scenario) {
     tour.click_menu_page_row(0, launcher_rows);
     tour.click_menu_page_row(static_cast<std::size_t>(scenario), demo::scenario_labels().size());
     tour.wait(0.2);
-    if (tour.in_menu() || demo_application(tour).scene().scenario() != scenario)
+    const auto *running = tour.in_menu() ? nullptr : dynamic_cast<demo::Session *>(&tour.session());
+    if (!running || running->application().scene().scenario() != scenario)
         throw std::runtime_error("The clip did not start Demo " +
                                  std::string(demo::scenario_label(scenario)));
+}
+
+/// Throws std::runtime_error with `what` unless Demo has an agent selected (`selected`) or
+/// none: a click that missed would otherwise leave a GIF that shows something else.
+void require_selection(Tour &tour, bool selected, std::string_view what) {
+    if (bool(demo_application(tour).scene().selected_agent()) != selected)
+        throw std::runtime_error("The inspector clip " + std::string(what));
 }
 
 /// Moves the pointer to where it rests between actions.
@@ -175,6 +185,7 @@ void ui_inspector(Stage &stage) {
         recorder.start();
         tour.wait(0.4);
         tour.click_on([&] { return nearest_demo_agent(tour, at(tour, .4f, .45f)); });
+        require_selection(tour, true, "selected no agent");
         tour.wait(1.4);
         tour.open_settings(demo_sim_lines, demo_debug_lines);
         tour.pause();
@@ -185,6 +196,7 @@ void ui_inspector(Stage &stage) {
         tour.click_on([&] { return nearest_demo_agent(tour, at(tour, .62f, .55f)); });
         tour.wait(1.6);
         tour.click_at(inspector_close_button(tour, true));
+        require_selection(tour, false, "did not close the inspector with its X");
         tour.wait(0.8);
     });
 }
