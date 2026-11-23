@@ -36,8 +36,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
-- **Carry a review fix on a stack's Kinetra pull request to Lab's copy of the same job or page** · added 2026-11-23 · source: #78
-  Kinetra #33's Ubuntu job got the CMake path fix and a lesson; Lab's copy of the job, three minutes older, kept the runner's CMake until its own review.
+- **Carry a review fix to every copy of the same job, page or claim in the other repository of the stack, in both directions** · added 2026-11-23 · source: #78, #83
+  Kinetra #33's Ubuntu job got the CMake path fix and a lesson; Lab's copy of the job, three minutes older, kept the runner's CMake until its own review. In #83 a Lab fix left two Kinetra lines that described the old behavior.
 
 - **After review fixes, update every section of the design and the description that names the changed step, not only the review table and the decision row** · added 2026-11-23 · source: #78
   Round 1's fixes on #78 reached the *Ubuntu job* decision and the review table, but not the *Design* bullet, *Affected areas* or the description, which still named the old command. Kinetra #33's step 2 needed the same correction.
