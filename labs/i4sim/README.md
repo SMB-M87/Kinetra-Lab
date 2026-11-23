@@ -83,6 +83,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | WASD / arrows | Pan the camera |
 | Wheel (in Debug Mode) / F | Zoom / fit the floor in the window |
 | Left click / right click | Inspect a mover or producer / also hold the mover or block the producer |
+| Shift + right click | Inspect only, as in Dotio: it holds and blocks nothing |
 | Shift + left click | Send the selected mover there as a manual goal |
 | Inspector X | Close the inspector and clear the mover selection |
 

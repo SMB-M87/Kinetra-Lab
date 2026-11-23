@@ -401,6 +401,33 @@ TEST_CASE("a right click holds a mover or blocks a producer and keeps the select
     CHECK(controller.simulation().producers()[0].blocked);
 }
 
+TEST_CASE("a shift right click selects like a left click and holds or blocks nothing") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    auto camera = camera_for(controller);
+    // Dotio inspects with Shift+right-click, so the same gesture must not stop a mover here.
+    const auto shift_right_click = [&camera](Vec2 point) {
+        auto input = click(camera, point, true);
+        input.held[static_cast<std::size_t>(Key::shift)] = true;
+        return input;
+    };
+    frame(controller, camera, shift_right_click(mover_position(controller, 1)));
+    CHECK(controller.selected_mover() == 1);
+    CHECK_FALSE(controller.simulation().movers()[1].held);
+
+    frame(controller, camera, shift_right_click({360, 120}));
+    CHECK(controller.selected_producer() == 0);
+    CHECK_FALSE(controller.simulation().producers()[0].blocked);
+    CHECK_MESSAGE(controller.selected_mover() == 1, "selecting a producer keeps the mover");
+
+    frame(controller, camera, shift_right_click({1900, 600}));
+    CHECK_MESSAGE(!controller.selected_producer(),
+                  "on empty floor it clears the producer, as a left click does");
+    CHECK(controller.selected_mover() == 1);
+    CHECK_MESSAGE(controller.simulation().movers()[1].goal != i4sim::GoalKind::manual,
+                  "a goal needs a left click");
+}
+
 TEST_CASE("shift-click sends the selected mover and a rejected goal shows a message for four seconds") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(open_floor));
