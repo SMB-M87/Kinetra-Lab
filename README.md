@@ -131,6 +131,8 @@ While the directory is empty, `git -C external/Kinetra ...` acts on the Lab repo
 
 If an earlier configure failed, remove `build/` before rebuilding. No separate Kinetra installation or build is needed.
 
+A Claude Code cloud session does this setup itself: when it starts, [.claude/settings.json](.claude/settings.json) runs [tools/cloud_setup.sh](tools/cloud_setup.sh), which loads the submodule when it is empty and installs the Debian and Ubuntu packages above and CI's clang-format 23.1.5 ([Kinetra's tools](external/Kinetra/tools/README.md#cloud_setupsh)).
+
 Run from Kinetra-Lab:
 
 ```sh
