@@ -38,6 +38,11 @@
 *.out
 *.app
 
+# Local renders that do not belong in Git, such as the tour video for YouTube
+# (tools/capture/README.md)
+.docs/
+*.mp4
+
 # Build directories
 build/
 Build/

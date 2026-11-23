@@ -133,7 +133,9 @@ TEST_CASE("write_png rejects empty images, wrong sizes and unwritable paths") {
     CHECK_FALSE(std::filesystem::exists(path));
 }
 
-/// The text of a file in the Lab source tree.
+/// The text of a file in the Lab source tree. A Markdown or `docs/` path read here must be listed
+/// in `read_anyway` of tools/release/needs_build.sh, or a pull request that changes only that file
+/// skips this test in CI.
 static std::string source_text(const std::filesystem::path &relative) {
     std::ifstream in(std::filesystem::path(KINETRA_LAB_SOURCE_DIR) / relative);
     return {std::istreambuf_iterator<char>(in), {}};

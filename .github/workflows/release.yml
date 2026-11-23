@@ -5,8 +5,10 @@
 # - A push to main refreshes the pre-release "main-build"; its zip has a fixed
 #   download URL that the README links to. The "changes" job skips the build when
 #   nothing that goes into the zip changed since the commit main-build was built
-#   from (only Markdown, docs/ or .agents/, in Lab and in a moved Kinetra range;
-#   tools/release/needs_build.sh). main-build then stays on that commit.
+#   from: tools/release/needs_build.sh, the decision CI uses too (only Markdown,
+#   docs/ or .agents/ in Lab, apart from README.md, docs/media/ and the blueprints,
+#   and in a moved Kinetra range also .github/ or tools/). main-build then stays
+#   on that commit.
 # - A tag v* publishes a release of its own with the same zip, always built.
 # - workflow_dispatch always builds; on main it also refreshes main-build.
 #
@@ -46,7 +48,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The decision needs commits and trees, not the old tour videos' contents.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Decide whether the zip can have changed since main-build
         id: decide
@@ -58,7 +62,7 @@ jobs:
             build=true
           fi
           if [ "$build" = false ]; then
-            echo "::notice title=Release not rebuilt::Only Markdown, docs/ or .agents/ changed since ${base::7}; main-build keeps the zip built from that commit."
+            echo "::notice title=Release not rebuilt::Nothing that goes into the zip changed since ${base::7} (tools/release/needs_build.sh); main-build keeps the zip built from that commit."
           fi
           echo "build=$build" >> "$GITHUB_OUTPUT"
 

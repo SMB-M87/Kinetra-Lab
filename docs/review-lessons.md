@@ -22,6 +22,12 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When a decision session closes a roadmap item, carry every question it listed into a decision or a remaining item** · added 2026-11-22 · source: #67
   The removed item *Decide on making way and a temporary motion fallback* listed three questions; the session answered two, and the third (the departure check) dropped out of the plan until the agent review found it. Before removing such an item, tick off each of its questions against the Decisions table.
 
+- **Take an item out of *Now* when its branch merges, even when the branch was one step of a larger goal** · added 2026-11-23 · source: #83
+  *Now* holds only items with a branch or an open pull request. #83 and Kinetra #37 left *Leaner agentic cycle* in *Now* with no branch, while its next step was already an item in *Next*; give the remaining step its own item, or move the item back to *Next*.
+
+- **Measure Git history from GitHub or a full clone, never from a cloud session's checkout** · added 2026-11-23 · source: #83
+  A cloud session clones the last 50 commits; #83's measurement took the 57 merges it saw for the whole period and called the 24 older ones stacked.
+
 ## Submodule and merge order
 
 - **Move the pointer in a pointer-only pull request of its own, never as the last commit of a reviewed one** · added 2026-11-22 · source: #65, #67, #68
@@ -30,8 +36,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
-- **Carry a review fix on a stack's Kinetra pull request to Lab's copy of the same job or page** · added 2026-11-23 · source: #78
-  Kinetra #33's Ubuntu job got the CMake path fix and a lesson; Lab's copy of the job, three minutes older, kept the runner's CMake until its own review.
+- **Carry a review fix to every copy of the same job, page or claim in the other repository of the stack, in both directions** · added 2026-11-23 · source: #78, #83
+  Kinetra #33's Ubuntu job got the CMake path fix and a lesson; Lab's copy of the job, three minutes older, kept the runner's CMake until its own review. In #83 a Lab fix left two Kinetra lines that described the old behavior.
 
 - **After review fixes, update every section of the design and the description that names the changed step, not only the review table and the decision row** · added 2026-11-23 · source: #78
   Round 1's fixes on #78 reached the *Ubuntu job* decision and the review table, but not the *Design* bullet, *Affected areas* or the description, which still named the old command. Kinetra #33's step 2 needed the same correction.
@@ -51,10 +57,13 @@ No lessons yet.
 - **Make a smoke run fail when the program falls back instead of doing what its arguments ask** · added 2026-11-22 · source: #73
   `kinetra_smoke:i4sim-run` passed on exit code 0 whether or not its blueprint loaded, because i4sim falls back to the blueprint screen. Check the outcome the run is named for, with a failure pattern or an exit code.
 
+- **When a rule changes which files a pull request carries, recheck every CI decision that sorts pull requests by their file list** · added 2026-11-23 · source: #83
+  One design document per change lets a Lab pull request that follows a Kinetra branch hold only the pointer, and the pointer-only check then failed it until Kinetra merged.
+
+- **When CI runs a trusted copy of a script, take it from the base branch's tip, not from the merge base** · added 2026-11-23 · source: #83
+  A branch keeps its merge base until it merges `main`, so it would decide with the filter it forked from; right after #83, a README-only pull request from an older branch would have skipped `kinetra_capture_tests`.
+
 ## Media and tools
-
-No lessons yet.
-
 
 - **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
   Display formatting and clipping can change an identifier even when the inspector and trace share a row builder. Pass the identifier shown to the user into the real executable.

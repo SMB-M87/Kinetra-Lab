@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# Decides whether the Windows zip can differ between two Lab commits, so the release
-# workflow skips the cross build when it cannot. See tools/release/README.md.
+# Decides whether the build of Lab can differ between two commits. ci.yml's "changes" job
+# skips the build and tests of a pull request when it cannot, and the release workflow skips
+# the cross build of the Windows zip. See tools/release/README.md.
 #
 # Usage: tools/release/needs_build.sh <base> <head>
 #   Run from a Lab checkout of <head> with full history. Prints "false" only when every
-#   changed path is Markdown, docs/ or .agents/, in Lab and, for a moved external/Kinetra
-#   pointer, in that Kinetra range too. Prints "true" otherwise, and on any doubt: a missing
-#   or unrelated base, a failed diff, or a Kinetra clone that does not answer. The reason
-#   goes to stderr.
+#   changed Lab path is Markdown, docs/ or .agents/, except the three below, and, for a
+#   moved external/Kinetra pointer, every path of that Kinetra range is Markdown, docs/,
+#   .agents/, .github/ or tools/. Prints "true" otherwise, and on any doubt: a missing or
+#   unrelated base, a failed diff, or a Kinetra clone that does not answer. The reason goes
+#   to stderr.
 #
-# The filter is the one in ci.yml's "changes" job; change both together. Nothing in the zip
-# is read from these paths: the zip's own README comes from tools/release/README-windows.txt.
+# Neither the build, the tests nor the zip read these paths, with three exceptions that
+# always build: kinetra_capture_tests reads README.md and checks docs/media/, and the
+# labs/i4sim/blueprints/ directory, its README included, is copied next to every executable
+# and into the zip. Lab's .github/ is not among the paths because it is Lab's own CI;
+# Kinetra's .github/ is Kinetra's CI, and its tools/ are Python helpers that no build step
+# runs (CI's docs check, which runs on every pull request, uses check_docs.py). The zip's
+# own README comes from tools/release/README-windows.txt. A new input under these paths
+# comes out of the filter: a Lab path into read_anyway, a Kinetra path out of
+# kinetra_unread, since read_anyway sees only Lab's own paths.
 set -uo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -19,7 +28,10 @@ if [[ $# -ne 2 ]]; then
 fi
 base="$1"
 head="$2"
-docs='(\.md$|^docs/|^\.agents/)'
+# ^$ keeps the empty line of an empty diff out of the paths that are left.
+docs='(\.md$|^docs/|^\.agents/|^$)'
+read_anyway='(^README\.md$|^docs/media/|^labs/i4sim/blueprints/)'
+kinetra_unread='(\.md$|^docs/|^\.agents/|^\.github/|^tools/|^$)'
 
 build() {
     echo "build: $1" >&2
@@ -36,10 +48,32 @@ git merge-base --is-ancestor "$base" "$head" 2> /dev/null || build "$base is not
 files="$(git diff --no-renames --name-only "$base" "$head")" || build "git diff $base $head failed"
 printf 'Lab %s..%s changed:\n%s\n' "$base" "$head" "${files:-(nothing)}" >&2
 
-sources="$(printf '%s\n' "$files" | grep -v -x 'external/Kinetra' | grep -v -E "$docs" | grep . || true)"
-[[ -z "$sources" ]] || build "Lab files outside Markdown, docs/ and .agents/ changed"
+# The decision fails closed: grep's status 1 means "no line", and any other failure, such as a
+# broken pattern, builds. Here-strings instead of pipes, so no SIGPIPE can read as "no line".
 
-if printf '%s\n' "$files" | grep -q -x 'external/Kinetra'; then
+# Sets $left to the lines of $2 that match none of the pattern $1.
+left=""
+keep_outside() {
+    local status=0
+    left="$(grep -v -E -e "$1" <<< "$2")" || status=$?
+    [[ $status -le 1 ]] || build "grep failed (status $status) on $1"
+}
+
+# Succeeds when a line of $2 matches the pattern $1, fails when none does, and builds on an error.
+has_match() {
+    local status=0
+    grep -q -E -e "$1" <<< "$2" || status=$?
+    [[ $status -le 1 ]] || build "grep failed (status $status) on $1"
+    return "$status"
+}
+
+keep_outside "^external/Kinetra\$|$docs" "$files"
+[[ -z "$left" ]] || build "Lab files outside Markdown, docs/ and .agents/ changed"
+if has_match "$read_anyway" "$files"; then
+    build "README.md, docs/media/ or labs/i4sim/blueprints/ changed, which a test reads or the build copies"
+fi
+
+if has_match '^external/Kinetra$' "$files"; then
     old="$(git rev-parse "$base:external/Kinetra")" || build "no Kinetra pointer at $base"
     new="$(git rev-parse "$head:external/Kinetra")" || build "no Kinetra pointer at $head"
     url="$(git show "$head:.gitmodules" | git config -f - submodule.external/Kinetra.url)" \
@@ -50,9 +84,9 @@ if printf '%s\n' "$files" | grep -q -x 'external/Kinetra'; then
     kfiles="$(git -C "$kinetra" diff --no-renames --name-only "$old" "$new")" \
         || build "could not diff Kinetra $old..$new"
     printf 'Kinetra %s..%s changed:\n%s\n' "$old" "$new" "${kfiles:-(nothing)}" >&2
-    ksources="$(printf '%s\n' "$kfiles" | grep -v -E "$docs" | grep . || true)"
-    [[ -z "$ksources" ]] || build "Kinetra files outside Markdown, docs/ and .agents/ changed"
+    keep_outside "$kinetra_unread" "$kfiles"
+    [[ -z "$left" ]] || build "Kinetra files outside Markdown, docs/, .agents/, .github/ and tools/ changed"
 fi
 
-echo "skip: only Markdown, docs/ or .agents/ changed" >&2
+echo "skip: only Markdown, docs/ or .agents/ changed, and in Kinetra also .github/ or tools/" >&2
 echo false

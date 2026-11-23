@@ -20,8 +20,9 @@
 # without a GPU or display, the backend of the local `graphics` preset.
 #
 # The workflow name "CI" and the job id "checks" are the required status check on main.
-# "checks" passes when every "linux" run passed, or when "changes" skipped the build of a
-# pointer-only pull request, so every distribution in the matrix is required.
+# "checks" passes when "changes" succeeded and every "linux" run passed, or when "changes"
+# skipped the build of a pull request that cannot change it, so every distribution in the
+# matrix is required.
 #
 # The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
 # of the local WSL cross build (docs/windows.md), and runs the non-graphics tests on
@@ -43,11 +44,20 @@ env:
   ARCH_SNAPSHOT: "2026/11/17"
 
 jobs:
-  # Decides whether this pull request only moves the Kinetra pointer, to a commit on Kinetra
-  # main, over Kinetra changes in Markdown, docs or skills. Then the build and test jobs
-  # below are skipped, only the docs check runs here, and "checks" passes on this job's
-  # result. Any doubt, such as a failed Kinetra fetch, means a full run, and so does a
-  # failure of this job: the docs check of the full run then fails "checks" as well.
+  # Decides whether this pull request can change the build or the tests, with the decision
+  # of the release workflow (tools/release/needs_build.sh): not when Lab changed only
+  # Markdown, docs/ or .agents/, apart from README.md, docs/media/ and the blueprints, which
+  # a test reads or the build copies, and a moved Kinetra pointer brings only Markdown,
+  # docs/, .agents/, .github/ or tools/, which Lab's build does not read. Then the build and test
+  # jobs below are skipped, only the docs check runs here, and "checks" passes on this job's
+  # result. A pull request that only moves the pointer to a commit off Kinetra main is not a
+  # pointer-only one, which merges without review: it builds in full, with a warning. The
+  # decision is needs_build.sh from the base branch's tip, so a pull request cannot decide
+  # its own CI with a changed script and an older branch decides with the newest filter; a
+  # pull request that changes the script must also make its own copy decide to build. Any
+  # doubt, such as a failed Kinetra fetch, means a full run. A failure of this job, its docs
+  # check, a broken decision or a broken script, fails "checks" too, and the full run still
+  # runs to show the build.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -55,7 +65,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The decision needs commits and trees, not the contents of old files such as the
+          # tour videos that were once in docs/media.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Decide whether build and tests are needed
         id: decide
@@ -63,38 +76,54 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          skip=false
-          kinetra="$RUNNER_TEMP/kinetra"
-          url=$(git config -f .gitmodules submodule.external/Kinetra.url || true)
+          # An early exit leaves skip_build empty, which the jobs below read as a full run.
           git cat-file -e "$HEAD" 2>/dev/null || git fetch -q origin "$HEAD" || true
-          # --no-renames: a rename lists both its old and its new path, so a source
-          # moved into docs/ or renamed to .md still counts as a source change.
-          if mb=$(git merge-base "$BASE" "$HEAD" 2>/dev/null); then
-            files=$(git diff --no-renames --name-only "$mb" "$HEAD")
-            printf 'Changed in this pull request:\n%s\n' "$files"
-            if [ "$files" = "external/Kinetra" ]; then
-              old=$(git rev-parse "$mb:external/Kinetra")
-              new=$(git rev-parse "$HEAD:external/Kinetra")
-              if [ -n "$url" ] && git clone -q --filter=blob:none --no-checkout "$url" "$kinetra" \
-                && kfiles=$(git -C "$kinetra" diff --no-renames --name-only "$old" "$new"); then
-                printf 'Kinetra %s..%s changed:\n%s\n' "$old" "$new" "${kfiles:-(nothing)}"
-                if ! git -C "$kinetra" merge-base --is-ancestor "$new" origin/main; then
-                  echo "::error title=Pointer not on Kinetra main::A pointer-only pull request must record a commit on Kinetra main; $new is not. The full CI runs."
-                  echo "skip_build=false" >> "$GITHUB_OUTPUT"
-                  exit 1
-                fi
-                if ! printf '%s\n' "$kfiles" | grep -v -E '(\.md$|^docs/|^\.agents/)' | grep -q .; then
-                  skip=true
-                fi
-              else
-                echo "::warning title=Pointer range not checked::Could not clone Kinetra from '$url' or diff $old..$new; the full CI runs."
-              fi
+          if ! mb=$(git merge-base "$BASE" "$HEAD" 2>/dev/null); then
+            echo "::warning title=No merge base::Could not find the merge base of $BASE and $HEAD; the full CI runs."
+            exit 0
+          fi
+          # --no-renames, as in needs_build.sh: a rename lists both its old and its new path.
+          if [ "$(git diff --no-renames --name-only "$mb" "$HEAD")" = "external/Kinetra" ]; then
+            new=$(git rev-parse "$HEAD:external/Kinetra")
+            url=$(git config -f .gitmodules submodule.external/Kinetra.url || true)
+            kinetra="$RUNNER_TEMP/kinetra"
+            if ! git clone -q --filter=blob:none --no-checkout "$url" "$kinetra"; then
+              echo "::warning title=Pointer not checked::Could not clone Kinetra from '$url'; the full CI runs."
+              exit 0
+            fi
+            # A Lab pull request that follows a Kinetra pull request in review can hold only
+            # the pointer. It is not pointer-only: it needs a review and merges after Kinetra.
+            if ! git -C "$kinetra" merge-base --is-ancestor "$new" origin/main; then
+              echo "::warning title=Pointer not on Kinetra main::$new is not on Kinetra main, so this is not a pointer-only pull request: it needs an agent review and merges after its Kinetra pull request. The full CI runs."
+              exit 0
             fi
           fi
-          echo "skip_build=$skip"
+          # A pull request that changes the script must make its own copy decide to build it,
+          # since the script is not documentation; otherwise the broken copy would decide every
+          # pull request after the merge.
+          if grep -q -x 'tools/release/needs_build.sh' <<< "$(git diff --no-renames --name-only "$mb" "$HEAD")"; then
+            if [ "$(bash tools/release/needs_build.sh "$mb" "$HEAD")" != true ]; then
+              echo "::error title=needs_build.sh broken::This pull request changes tools/release/needs_build.sh, and its own copy does not decide to build it."
+              exit 1
+            fi
+          fi
+          # The base branch's tip decides: its copy is merged and the newest, so a pull request
+          # cannot skip its own build with a changed script, and an older branch does not keep
+          # its fork point's filter.
+          decide="$RUNNER_TEMP/needs_build.sh"
+          git cat-file -e "$BASE" 2>/dev/null || git fetch -q origin "$BASE" || true
+          if ! git show "$BASE:tools/release/needs_build.sh" > "$decide"; then
+            echo "::warning title=No decision script::The base branch has no tools/release/needs_build.sh; the full CI runs."
+            exit 0
+          fi
+          skip=false
+          if [ "$(bash "$decide" "$mb" "$HEAD")" = false ]; then
+            skip=true
+            echo "::notice title=Build and tests skipped::This pull request cannot change the build: only the docs check runs."
+          fi
           echo "skip_build=$skip" >> "$GITHUB_OUTPUT"
 
-      - name: Documentation links (pointer-only pull request)
+      - name: Documentation links (no build needed)
         if: steps.decide.outputs.skip_build == 'true'
         run: |
           git submodule update --init --recursive
@@ -186,9 +215,11 @@ jobs:
             | sed "s/^/::warning title=Compiler warning on ${{ matrix.distro }}::/" || true
           ctest --preset ci
 
-  # The required status. It passes when every distribution of "linux" passed, or when
-  # "changes" decided that a pointer-only pull request needs no build and ran the docs
-  # check itself. Any other outcome, a failed or cancelled "linux" run included, fails it.
+  # The required status. It passes when "changes" succeeded and every distribution of
+  # "linux" passed, or when "changes" decided that the pull request cannot change the build
+  # and ran the docs check itself. Any other outcome, a failed "changes" job (a broken
+  # decision, a broken needs_build.sh or a failed docs check) or a failed or cancelled
+  # "linux" run included, fails it.
   checks:
     needs: [changes, linux]
     # always(), not !cancelled(): a skipped required job counts as passed, so on a
@@ -205,6 +236,10 @@ jobs:
           echo "changes: $CHANGES, skip_build: $SKIP, linux: $LINUX"
           if [ "$CHANGES" = success ] && [ "$SKIP" = true ] && [ "$LINUX" = skipped ]; then
             exit 0
+          fi
+          if [ "$CHANGES" != success ]; then
+            echo "::error title=changes failed::The changes job failed; its log says why."
+            exit 1
           fi
           test "$LINUX" = success
 

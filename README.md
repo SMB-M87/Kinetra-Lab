@@ -59,7 +59,7 @@ See the [Labs overview](labs/README.md) for application sources and headless tes
 
 [![Kinetra-Lab tour on YouTube: the launcher, Demo, Dotio and i4sim](docs/media/kinetra-lab-tour-thumbnail.png)](https://youtu.be/jkPwx831MOU)
 
-The YouTube copy can be older than the code. The latest render is [kinetra-lab-tour.mp4](docs/media/kinetra-lab-tour.mp4) in this repository; it is regenerated after larger changes, so it can trail the newest commits as well.
+The video can be older than the code; the screenshots and clips below are refreshed whenever what they show changes.
 
 | Application | Normal view | Debug view |
 | --- | --- | --- |
@@ -184,7 +184,7 @@ i4sim blueprints are copied next to each executable that opens them; see [i4sim 
 
 The [documentation index](docs/README.md) links system dependencies, application ownership and session/overlay interactions. Usage and controls live alongside each lab.
 
-Changes follow the shared [development workflow](external/Kinetra/docs/workflow.md): a [design document](docs/design/README.md) per branch, tests, review and documentation, verified at the level the change's impact requires. [AGENTS.md](AGENTS.md) holds the Lab-specific rules; the [roadmap](docs/roadmap.md) lists the planned work in order of priority.
+Changes follow the shared [development workflow](external/Kinetra/docs/workflow.md): a [design document](docs/design/README.md) per branch, tests, an independent review and documentation for a code change, the author's own review for a change to documentation alone, each verified at the level its impact requires. [AGENTS.md](AGENTS.md) holds the Lab-specific rules; the [roadmap](docs/roadmap.md) lists the planned work in order of priority.
 
 ## License
 
