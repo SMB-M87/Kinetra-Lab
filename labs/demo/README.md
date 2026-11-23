@@ -34,7 +34,7 @@ Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launche
 | Maze | Click the open floor on the far side. PATHS shows the route around alternating walls |
 | Doorway | Watch two groups approach a shared opening. Use MOTION → AVOIDANCE to switch between RECIPROCAL and LEGACY, or relaunch the same layout to repeat the encounter |
 
-`kinetra --variant demo` and `kinetra_demo` start Terrain by default. Use `--scenario terrain|gravity|maze|doorway` with either executable to start that layout directly. `kinetra --scenario maze` selects Demo automatically. Authored scenes have fixed layouts and populations. The direct executable's inspector trace uses Terrain.
+`kinetra --variant demo` and `kinetra_demo` start Terrain by default. Use `--scenario terrain|gravity|maze|doorway` with either executable to start that layout directly. `kinetra --scenario maze` selects Demo automatically. Authored scenes have fixed layouts and populations.
 
 ## Controls
 
@@ -73,7 +73,7 @@ The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuni
 
 The default camera follows the player in Terrain and frames the center of the authored scenes. Ghost moves only the camera. Clicking in Ghost teleports the player and clears momentum and routes when the destination has clearance. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
 
-For a fixed-seed run without opening a window, use `kinetra_demo --seed N --ticks N --inspect X,Y` with the exact coordinates shown in the inspector’s CLI SELECTOR row. Standard output holds one JSON record per 120 Hz tick. The `groups` field is null when that agent is absent.
+For a fixed-seed run without opening a window, use `kinetra_demo --scenario doorway --seed N --ticks N --inspect X,Y` with the exact coordinates shown in the inspector’s CLI SELECTOR row. Omit `--scenario` to trace Terrain. Standard output holds one JSON record per 120 Hz tick. The `groups` field is null when that agent is absent.
 
 ## Concepts
 

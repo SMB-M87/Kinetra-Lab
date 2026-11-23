@@ -494,8 +494,9 @@ TEST_CASE("clicking the same agent keeps it selected and closing clears the sele
                   "Closing the inspector must clear the selection without teleporting the player");
 }
 
-TEST_CASE("seeded resident Demo snapshots for the inspector trace") {
-    Application application(48, 42);
+namespace {
+void print_trace_oracle(demo::Scenario scenario) {
+    Application application(48, 42, scenario);
     Camera2D camera;
     camera.pixels_per_unit = initial_zoom;
     application.advance(0, {}, camera);
@@ -513,6 +514,15 @@ TEST_CASE("seeded resident Demo snapshots for the inspector trace") {
         std::cout << "TRACE_RECORD ";
         kinetra_lab::write_inspector_tick(std::cout, tick, snapshot->title, &*snapshot);
     }
+}
+} // namespace
+
+TEST_CASE("seeded resident Demo snapshots for the inspector trace") {
+    print_trace_oracle(demo::Scenario::terrain);
+}
+
+TEST_CASE("seeded Doorway snapshots for the inspector trace") {
+    print_trace_oracle(demo::Scenario::doorway);
 }
 
 TEST_CASE("the Demo inspector shows a dormant agent until it is evicted") {

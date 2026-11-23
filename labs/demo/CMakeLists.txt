@@ -49,6 +49,14 @@ if(KINETRA_BUILD_RUNTIME)
             "-DARGS=--seed;42;--ticks;3;--inspect;12345,67890"
             "-DTICKS=3" "-DEXPECTED=AGENT 12345,67890" "-DFIRST_EXPECTED=groups\":null"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
+        add_test(NAME kinetra_demo_inspector_trace_doorway COMMAND ${CMAKE_COMMAND}
+            "-DPROGRAM=$<TARGET_FILE:kinetra_demo>"
+            "-DARGS=--scenario;doorway;--seed;42;--ticks;3;--inspect;@SELECTOR@"
+            "-DORACLE=$<TARGET_FILE:kinetra_demo_tests>"
+            "-DORACLE_CASE=seeded Doorway snapshots for the inspector trace"
+            "-DEXPECT_SELECTOR=ON"
+            "-DTICKS=3" "-DEXPECTED=CLI SELECTOR"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../shared/tests/inspector_trace.cmake")
     endif()
     kinetra_lab_add_smoke(demo kinetra_demo)
 endif()

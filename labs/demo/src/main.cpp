@@ -15,7 +15,8 @@
 #include <string_view>
 
 namespace {
-void trace_agent(std::uint32_t seed, std::uint64_t ticks, const std::string &coordinates) {
+void trace_agent(demo::Scenario scenario, std::uint32_t seed, std::uint64_t ticks,
+                 const std::string &coordinates) {
     using kinetra_lab::inspector_argument;
     const auto comma = coordinates.find(',');
     if (comma == std::string::npos)
@@ -24,7 +25,7 @@ void trace_agent(std::uint32_t seed, std::uint64_t ticks, const std::string &coo
                              inspector_argument<float>(coordinates.substr(comma + 1))};
     if (!kinetra::finite(home))
         throw std::invalid_argument("Expected finite home coordinates");
-    demo::Application application(demo::default_agent_count, seed);
+    demo::Application application(demo::default_agent_count, seed, scenario);
     kinetra::Camera2D camera;
     camera.pixels_per_unit = demo::initial_zoom;
     const auto id = "AGENT " + coordinates;
@@ -72,9 +73,7 @@ int main(int argc, char **argv) {
             if (!inspect || ticks == 0 || !seed || frames)
                 throw std::invalid_argument(
                     "--inspect X,Y requires --seed N and positive --ticks N instead of --frames");
-            if (scenario != demo::Scenario::terrain)
-                throw std::invalid_argument("--inspect supports the terrain scenario");
-            trace_agent(*seed, ticks, *inspect);
+            trace_agent(scenario, *seed, ticks, *inspect);
             return 0;
         }
         kinetra::Runtime runtime("Demo");
