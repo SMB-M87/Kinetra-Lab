@@ -48,7 +48,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The decision needs commits and trees, not the old tour videos' contents.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Decide whether the zip can have changed since main-build
         id: decide
