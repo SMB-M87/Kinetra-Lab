@@ -7,8 +7,9 @@
 #   Arch Linux Archive snapshot), so engine warnings (-Werror) and clang-format output
 #   cannot change without a commit. When the archive does not answer, the run falls back
 #   to the current Arch packages and says so in a warning (Kinetra's testing.md). Bump
-#   ARCH_SNAPSHOT and the image tag together, in both repositories. Formatting and the docs
-#   check run only here. Warnings are errors here and in the "windows" job: the engine's
+#   ARCH_SNAPSHOT and the image tag together, in both repositories. Formatting runs only
+#   here, and so does the docs check, except that the `changes` job runs it when it skips
+#   the build. Warnings are errors here and in the "windows" job: the engine's
 #   and those of Lab's warning-free modules; the rest of Lab is reported until each
 #   module's roadmap phase makes it warning-free.
 # - ubuntu: Ubuntu LTS with its own GCC, glibc, CMake and SDL2, the Debian and Ubuntu
@@ -113,7 +114,7 @@ jobs:
           decide="$RUNNER_TEMP/needs_build.sh"
           git cat-file -e "$BASE" 2>/dev/null || git fetch -q origin "$BASE" || true
           if ! git show "$BASE:tools/release/needs_build.sh" > "$decide"; then
-            echo "::warning title=No decision script::The base branch has no tools/release/needs_build.sh; the full CI runs."
+            echo "::warning title=No decision script::Could not read tools/release/needs_build.sh at the base branch's tip $BASE: the file is missing there, or fetching it failed. The full CI runs."
             exit 0
           fi
           skip=false
