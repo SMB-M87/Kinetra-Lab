@@ -28,6 +28,10 @@ if ! command -v ffmpeg > /dev/null; then
     exit 1
 fi
 
+# The output folder comes first: if it cannot be made, the run stops before the long render
+# instead of after it, when the EXIT trap would delete the video.
+mkdir -p "$(dirname "$output")"
+
 # The tool says how large its raw frames are and how many there are per second.
 read -r size rate < <("$tool" --tour-format)
 
@@ -40,7 +44,6 @@ trap 'rm -rf "$work"' EXIT
     ffmpeg -loglevel error -y -f rawvideo -pixel_format rgb24 -video_size "$size" -framerate "$rate" -i - \
         -c:v libx264 -preset slow -crf 20 -pix_fmt yuv420p -movflags +faststart "$work/tour.mp4"
 
-mkdir -p "$(dirname "$output")"
 mv "$work/tour.mp4" "$output"
 echo "$output $(du -h "$output" | cut -f1)"
 
