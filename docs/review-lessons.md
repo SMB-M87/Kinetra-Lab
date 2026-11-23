@@ -25,6 +25,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **Take an item out of *Now* when its branch merges, even when the branch was one step of a larger goal** · added 2026-11-23 · source: #83
   *Now* holds only items with a branch or an open pull request. #83 and Kinetra #37 left *Leaner agentic cycle* in *Now* with no branch, while its next step was already an item in *Next*; give the remaining step its own item, or move the item back to *Next*.
 
+- **Measure Git history from GitHub or a full clone, never from a cloud session's checkout** · added 2026-11-23 · source: #83
+  A cloud session clones the last 50 commits; #83's measurement took the 57 merges it saw for the whole period and called the 24 older ones stacked.
+
 ## Submodule and merge order
 
 - **Move the pointer in a pointer-only pull request of its own, never as the last commit of a reviewed one** · added 2026-11-22 · source: #65, #67, #68
@@ -54,10 +57,12 @@ No lessons yet.
 - **Make a smoke run fail when the program falls back instead of doing what its arguments ask** · added 2026-11-22 · source: #73
   `kinetra_smoke:i4sim-run` passed on exit code 0 whether or not its blueprint loaded, because i4sim falls back to the blueprint screen. Check the outcome the run is named for, with a failure pattern or an exit code.
 
+- **When a rule changes which files a pull request carries, recheck every CI decision that sorts pull requests by their file list** · added 2026-11-23 · source: #83
+  One design document per change lets a Lab pull request that follows a Kinetra branch hold only the pointer, and the pointer-only check then failed it until Kinetra merged.
+
 ## Media and tools
 
 No lessons yet.
-
 
 - **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
   Display formatting and clipping can change an identifier even when the inspector and trace share a row builder. Pass the identifier shown to the user into the real executable.
