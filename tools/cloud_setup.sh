@@ -22,5 +22,12 @@ if [[ ! -e external/Kinetra/.git ]]; then
         exit 0
     fi
 fi
+kinetra_setup=external/Kinetra/tools/cloud_setup.sh
+if [[ ! -f "$kinetra_setup" ]]; then
+    # A submodule moved to a Kinetra commit from before the script.
+    echo "Cloud setup failed: external/Kinetra has no tools/cloud_setup.sh at its commit." \
+        "Install the packages of the README's quick start by hand."
+    exit 0
+fi
 # i4sim needs nlohmann JSON in every build, headless included (README, quick start).
-exec bash external/Kinetra/tools/cloud_setup.sh nlohmann-json3-dev
+exec bash "$kinetra_setup" nlohmann-json3-dev
