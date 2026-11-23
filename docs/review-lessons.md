@@ -27,6 +27,12 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **Move the pointer in a pointer-only pull request of its own, never as the last commit of a reviewed one** · added 2026-11-22 · source: #65, #67, #68
   #65 was to move its pointer to the Kinetra merge commit after Kinetra #21 merged, but it was merged in that same minute and #66 had to follow; #67 merged before Kinetra #26 and #68 followed. A late pointer commit also runs a reviewed pull request's CI again. Since 2026-11-22 the rule is a separate pointer-only pull request, merged by the agent; a pull request that must not merge yet for another reason is still a draft until it is ready.
 
+- **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
+  The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
+
+- **Carry a review fix on a stack's Kinetra pull request to Lab's copy of the same job or page** · added 2026-11-23 · source: #78
+  Kinetra #33's Ubuntu job got the CMake path fix and a lesson; Lab's copy of the job, three minutes older, kept the runner's CMake until its own review.
+
 ## Applications
 
 No lessons yet.
