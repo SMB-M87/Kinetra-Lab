@@ -110,6 +110,7 @@ The author's review of `git diff origin/main...HEAD` in both repositories, and t
 - `start_demo` would have failed with `std::bad_cast` when another application ran; it names the scenario it did not start. The inspector clip's X position follows constants inside Kinetra's `inspector_view.cpp`; the script now checks that the selection is gone after the click, so a moved button stops the capture.
 - `main.cpp` said each captured frame stands for one 60 Hz step, which a clip frame of four steps does not; it now says the graph reads 60 Hz as the statistics do.
 - The capture README still said maintainers refresh media "when visible behavior changes"; it names the media guides' tables now.
+- CI's `windows` job failed the recorder case: a text-mode `std::ofstream` writes `framerate` as `15\r\n` there, and the case compared bytes. It reads the number now, and Lab's [review lessons](../review-lessons.md#media-and-tools) record the pattern.
 - Copies of the CI skip that `needs_build.sh` changes: Lab's `AGENTS.md` (verification table, docs-only and pointer-only paragraphs), the release README, the comments of `ci.yml` and `release.yml`, and in Kinetra `AGENTS.md`, `docs/workflow.md` and the `verify` skill. Copies of the media rule: both `AGENTS.md` files, the workflow's review list, `docs/testing.md`, the `pr-review` and `verify` skills and their READMEs.
 
 ## Verification
