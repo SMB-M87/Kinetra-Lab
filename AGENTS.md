@@ -62,7 +62,7 @@ Use the levels from [Kinetra testing](external/Kinetra/docs/testing.md#verificat
 | --- | --- |
 | Docs | `python3 external/Kinetra/tools/check_docs.py` |
 | Targeted | `cmake --build --preset dev --target <targets>` and `ctest --preset dev -R '<regex>'`, using the table below (configure once with `cmake --preset dev`) |
-| Full | Locally the targeted builds and tests of every changed area, from the table below; then the pull request's CI (format, docs, `headless`, `ci` with the graphics cases and the smoke runs of every executable on software OpenGL, native Windows). Verified only when CI passes. Run `ci`, `headless`, `graphics` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
+| Full | Locally the targeted builds and tests of every changed area, from the table below; then the pull request's CI (format, docs, `headless`, `ci` with the graphics cases and the smoke runs of every executable on software OpenGL, the same on Ubuntu LTS, native Windows). Verified only when CI passes. Run `ci`, `headless`, `graphics` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
@@ -81,9 +81,9 @@ The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each c
 
 The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 
-**Warnings.** `KINETRA_LAB_WARNINGS` (on in `dev` and `ci`) reports the shared warning set for `labs/` and `launcher/`. Engine warnings are errors in CI.
+**Warnings.** `KINETRA_LAB_WARNINGS` (on in `dev` and `ci`) reports the shared warning set for `labs/` and `launcher/`. Engine warnings, and those of the warning-free Lab modules, are errors in CI's `linux (arch)` run and the `windows` job; the `linux (ubuntu)` run shows them as annotations (`KINETRA_WARNINGS_AS_ERRORS=OFF`, `KINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF`), because Arch's pinned compiler is the reference.
 - Lab code had 119 warnings when this was introduced. New or changed Lab code must not add any.
-- When a module becomes warning-free, add `kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/<module> RECURSE AS_ERRORS)` to the root `CMakeLists.txt`, so CI keeps it that way.
+- When a module becomes warning-free, add `kinetra_directory_warnings(${CMAKE_CURRENT_SOURCE_DIR}/labs/<module> RECURSE ${warning_free_mode})` next to the others in the root `CMakeLists.txt`, so CI keeps it that way; a literal `AS_ERRORS` would ignore `KINETRA_LAB_WARNING_FREE_AS_ERRORS`.
 
 ## Git with the engine submodule
 

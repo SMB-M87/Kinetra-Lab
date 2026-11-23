@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <kinetra/simulation/avoidance.h>
+#include <kinetra/simulation/math.h>
 #include <kinetra/simulation/steering.h>
 #include <random>
 #include <stdexcept>
@@ -48,8 +49,8 @@ void append_avoidance_circles(const Body &obstacle, std::vector<Circle> &circles
 /// about 0.2 seconds, at most 5 radians per second either way.
 float heading_turn_rate(const Body &body) {
     return std::clamp(
-        std::remainder(std::atan2(body.velocity.y, body.velocity.x) - body.angle, 6.283185307f) / 0.2f, -5.f,
-        5.f);
+        std::remainder(kinetra::atan2(body.velocity.y, body.velocity.x) - body.angle, 6.283185307f) / 0.2f,
+        -5.f, 5.f);
 }
 } // namespace
 

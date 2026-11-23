@@ -1,5 +1,7 @@
 #include "demo/world/agent.h"
 
+#include <kinetra/simulation/math.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -67,7 +69,7 @@ kinetra::Vec2 Agent::steer_wander(float dt, const kinetra::Body &body, const Tun
     replan_in_ = wander_remaining_ = 0;
     wander_angle_ = std::remainder(wander_angle_ + (unit() * 2 - 1) * wander.jitter * dt, full_turn);
     if (length(body.velocity) > tuning.motion.max_speed * stall_speed_fraction) {
-        heading_ = std::atan2(body.velocity.y, body.velocity.x);
+        heading_ = kinetra::atan2(body.velocity.y, body.velocity.x);
         stalled_ = std::max(stalled_ - dt, 0.f);
     } else {
         // The target always lies within a narrow cone around the heading, so a body
@@ -102,7 +104,7 @@ void Agent::choose_wander_goal(const kinetra::Body &body, const kinetra::Navigat
     route_.clear();
     const kinetra::Vec2 to_home = home_ - body.position;
     const float heading =
-        kinetra::length(to_home) > wander.range ? std::atan2(to_home.y, to_home.x) : heading_;
+        kinetra::length(to_home) > wander.range ? kinetra::atan2(to_home.y, to_home.x) : heading_;
     for (int attempt = 0; attempt < 12; ++attempt) {
         const float turn = (unit() * 2 - 1) * (attempt < 6 ? 0.7f : 3.14159265f);
         const float distance = 4 + unit() * 4;

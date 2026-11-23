@@ -60,7 +60,7 @@ float Vec2::intercept(const float velocity_a, const float velocity_b, const floa
     else if (a < -1)
         a = -1;
 
-    return asinf(a);
+    return kinetra::asin(a);
 }
 
 Vec2 Vec2::get_difference(const Vec2 &other) const {
@@ -198,7 +198,7 @@ float Vec2::get_length() const {
 }
 
 float Vec2::get_direction() const {
-    return atan2f(y, x);
+    return kinetra::atan2(y, x);
 }
 
 Vec2 &Vec2::translate(const Vec2 &vector) {

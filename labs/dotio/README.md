@@ -376,7 +376,7 @@ Both test programs are doctest suites: each `TEST_CASE` is one behavior, named a
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (3) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`. Needs an OpenGL context (label `graphics`) |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:dotio` (1) | `kinetra_dotio --difficulty medium --seed 42 --frames 120` starts, draws and exits with 0. Needs an OpenGL context (label `graphics`) |
 
-Every world owns its grid (`dotio::World::grid()`); cases that build on the plain bordered arena call `open_map()` on it, and `fixture()` starts on one. No case depends on another case or on the order in which they run. The golden fingerprint (`a seeded game reproduces its recorded fingerprint`) is skipped on Windows, whose compiler rounds differently ([CMakePresets.json](../../CMakePresets.json)).
+Every world owns its grid (`dotio::World::grid()`); cases that build on the plain bordered arena call `open_map()` on it, and `fixture()` starts on one. No case depends on another case or on the order in which they run. The golden fingerprint (`a seeded game reproduces its recorded fingerprint`) runs on Linux and Windows with the same recorded value, because `Vec2` takes its angles from `kinetra::atan2` and `kinetra::asin` ([Windows tests](../../docs/windows.md#tests)).
 
 From the repository root, for the tests that need no window:
 
