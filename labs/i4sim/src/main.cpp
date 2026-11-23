@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 #ifdef I4SIM_RUNTIME
         kinetra::Runtime runtime("i4sim");
         runtime.camera.pixels_per_unit = i4sim::initial_zoom;
-        auto session = i4sim::create_session(seed, directory, blueprint, running, ups, output);
+        auto session = i4sim::create_session(seed, directory, blueprint, running, ups);
         // Without a launcher, LAUNCHER and the blueprint screen's Escape end the program.
         kinetra::run_session(runtime, *session, frames);
 #else
