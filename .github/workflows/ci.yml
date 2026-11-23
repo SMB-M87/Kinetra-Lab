@@ -191,6 +191,11 @@ jobs:
           cp "$sources" /etc/apt/ubuntu.sources.image
           sed -i -E 's#^URIs: http://(archive|security)\.ubuntu\.com/ubuntu/?$#URIs: http://azure.archive.ubuntu.com/ubuntu/#' "$sources"
           grep '^URIs:' "$sources"
+          # The pattern matches the URIs of today's image; one it misses, say a later image's
+          # https://, would otherwise go unnoticed.
+          if grep -q -v -x 'URIs: http://azure\.archive\.ubuntu\.com/ubuntu/' <<< "$(grep '^URIs:' "$sources")"; then
+            echo "::warning title=Ubuntu mirror not used::A URI of the image's ubuntu.sources does not match this step's pattern, so this run installs from that source instead of the Azure mirror."
+          fi
           apt_install() { apt-get install -y --no-install-recommends $packages; }
           # The mirror's update gets five of the step's 15 minutes: a mirror that does not
           # answer would otherwise spend them on apt's timeouts and retries, and the fallback
