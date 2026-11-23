@@ -21,7 +21,7 @@ The Kinetra pages live in the `external/Kinetra` submodule. If that directory is
 | Task | Read |
 | --- | --- |
 | Every task | This file and [Kinetra's AGENTS.md](external/Kinetra/AGENTS.md) |
-| Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); your branch's design document, and an older one only when the roadmap item, a README or the user links it ([rule](external/Kinetra/AGENTS.md#development-cycle)) |
+| Start, plan, review or hand over a change | [Workflow](external/Kinetra/docs/workflow.md); your branch's design document, and an older one only as [Kinetra's rule](external/Kinetra/AGENTS.md#development-cycle) allows |
 | Build or review a change, so known mistakes are not repeated | Lab's [review lessons](docs/review-lessons.md) and [Kinetra's](external/Kinetra/docs/review-lessons.md) |
 | Write or review C++ or CMake | [Conventions](external/Kinetra/docs/conventions.md) |
 | Add tests or pick a verification level | [Testing](external/Kinetra/docs/testing.md) and [verification in Lab](#verification-in-lab) |
@@ -62,7 +62,7 @@ At every level, run `python3 external/Kinetra/tools/check_copies.py`, with `--te
 
 | Level | In Lab |
 | --- | --- |
-| Docs | `python3 external/Kinetra/tools/check_docs.py`. For a docs-only pull request, CI runs only this check, and no agent review follows (below) |
+| Docs | `python3 external/Kinetra/tools/check_docs.py`. CI runs only this check for most docs-only pull requests, and none of them gets an agent review (below) |
 | Targeted | `cmake --build --preset dev --target <targets>` and `ctest --preset dev -R '<regex>'`, using the table below (configure once with `cmake --preset dev`) |
 | Full | Locally the targeted builds and tests of every changed area, from the table below; then the pull request's CI (format, docs, `headless`, `ci` with the graphics cases and the smoke runs of every executable on software OpenGL, the same on Ubuntu LTS, native Windows). Verified only when CI passes. Run `ci`, `headless`, `graphics` or `windows` locally only to reproduce a CI failure ([Kinetra testing](external/Kinetra/docs/testing.md#full)) |
 
@@ -81,7 +81,7 @@ At every level, run `python3 external/Kinetra/tools/check_copies.py`, with `--te
 
 The Demo, Dotio, i4sim and settings tests are doctest suites: CTest names each case `<suite>:<case>`, so a regex that starts with `^<suite>` selects the whole suite and a longer one selects single cases. Add `-LE soak` to skip the five 60-second Demo crowd cases.
 
-**Docs-only pull requests.** CI's `changes` job skips the build and tests, and runs only the docs check, when Lab changed only Markdown, `docs/` or `.agents/` and a moved pointer brings only Markdown, `docs/`, `.agents/`, `.github/` or `tools/` of Kinetra, which Lab's build does not read. Three Lab paths always build, because a test reads them or the build copies them: `README.md` and `docs/media/` (`kinetra_capture_tests`), and `labs/i4sim/blueprints/`. The decision is `tools/release/needs_build.sh`, the one the release workflow uses. Such a pull request needs no agent review, and merges once CI is green unless the merge rule leaves it to the user, as for the agent rules ([Kinetra rule](external/Kinetra/AGENTS.md#git)).
+**Docs-only pull requests.** A pull request that changes only Markdown, `docs/` or `.agents/`, or such files and a pointer whose Kinetra range holds only Markdown, `docs/`, `.agents/`, `.github/` or `tools/`, which Lab's build does not read, is docs-only: it gets no agent review and no design document, and merges under [Kinetra's merge rule](external/Kinetra/AGENTS.md#git). CI's `changes` job skips its build and tests and runs only the docs check, except when it touches one of three Lab paths that a test reads or the build copies: `README.md` and `docs/media/` (`kinetra_capture_tests`), and `labs/i4sim/blueprints/`. Those build in full and still need no review. The decision is `tools/release/needs_build.sh`, the one the release workflow uses.
 
 The level is decided by the whole change; one Full-level file lifts everything. In the `dev` preset (Debug), the large-factory cases of `kinetra_i4sim` and the Demo crowd soak cases take minutes. For a quick targeted run, use the `release` preset.
 
