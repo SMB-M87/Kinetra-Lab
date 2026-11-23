@@ -19,8 +19,9 @@
 #   mirror fails, lacks an index or does not deliver the indexes and packages within five
 #   minutes, from the image's own sources, with a warning.
 #
-# Every job has a time limit, and so does each install step, a few times its usual
-# duration: a stalled download fails the run within minutes instead of GitHub's six hours.
+# Every job has a time limit, and so does each install step, well above its usual
+# duration; the Ubuntu step's 15 minutes also hold the mirror's five and the fallback's
+# install. A stalled download fails the run within minutes instead of GitHub's six hours.
 #
 # The `ci` test preset runs every test, the graphics cases and the smoke runs of every
 # executable included, with SDL's offscreen driver and software Mesa: an OpenGL context

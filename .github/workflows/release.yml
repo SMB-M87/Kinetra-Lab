@@ -18,8 +18,8 @@
 # pull request's CI ran them, natively on Windows included. Bump ARCH_SNAPSHOT
 # and the image tag together with ci.yml.
 #
-# As in ci.yml, every job has a time limit, and so does the install step, a few
-# times their usual duration: a stalled download fails the run within minutes
+# As in ci.yml, every job has a time limit, and so does the install step, well
+# above their usual duration: a stalled download fails the run within minutes
 # instead of GitHub's six hours; re-run it once the cause has passed.
 name: Release
 
