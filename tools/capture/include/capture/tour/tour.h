@@ -191,6 +191,11 @@ class Tour {
     std::shared_ptr<PanelMirror> panel_;
 };
 
+/// Checks that `running`, the session the launcher runs or nullptr while its menu shows, is
+/// Demo on its Terrain scenario. Throws std::logic_error for nullptr, std::bad_cast for
+/// another application and std::runtime_error for another scenario.
+void require_demo_terrain(kinetra_lab::Session *running);
+
 /// Plays the whole tour. Calls `terrain_started` after confirming the launcher started Demo Terrain.
 void play_tour(Tour &tour, const std::function<void()> &terrain_started);
 } // namespace capture

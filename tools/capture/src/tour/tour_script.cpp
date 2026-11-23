@@ -479,10 +479,17 @@ void i4sim_chapter(Tour &tour) {
 }
 } // namespace
 
+void require_demo_terrain(kinetra_lab::Session *running) {
+    if (!running)
+        throw std::logic_error("The tour asked for its session while the launcher menu shows");
+    if (dynamic_cast<const demo::Session &>(*running).application().scene().scenario() !=
+        demo::Scenario::terrain)
+        throw std::runtime_error("The tour did not start Demo Terrain");
+}
+
 void play_tour(Tour &tour, const std::function<void()> &terrain_started) {
     launcher_chapter(tour);
-    if (demo_application(tour).scene().scenario() != demo::Scenario::terrain)
-        throw std::runtime_error("The tour did not start Demo Terrain");
+    require_demo_terrain(tour.in_menu() ? nullptr : &tour.session());
     terrain_started();
     demo_chapter(tour);
     dotio_chapter(tour);
