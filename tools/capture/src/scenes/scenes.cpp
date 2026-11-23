@@ -3,6 +3,7 @@
 #include "capture/dotio_player.h"
 #include "capture/scenes/busy_stretch.h"
 #include "capture/scenes/showcase.h"
+#include "capture/scenes/ui_clips.h"
 #include "capture/stage.h"
 
 #include "demo/scenario.h"
@@ -19,6 +20,10 @@
 #include <string>
 
 namespace capture {
+std::filesystem::path output_subdirectory(Gallery gallery) {
+    return gallery == Gallery::kinetra ? "kinetra" : "";
+}
+
 void apply_menu_click(std::span<const kinetra::DebugEntry> menu, const MenuClick &click,
                       std::string_view application) {
     const bool found = click.row < menu.size() && menu[click.row].label == click.label;
@@ -390,6 +395,11 @@ Scene shot(std::string_view name, void (*script)(Stage &)) {
 Scene clip(std::string_view name, void (*script)(Stage &)) {
     return {name, SceneKind::clip, clip_width, clip_height, script};
 }
+
+/// A clip of the shared UI for Kinetra's README, at the size of the other clips.
+Scene ui_clip(std::string_view name, void (*script)(Stage &)) {
+    return {name, SceneKind::clip, clip_width, clip_height, script, Gallery::kinetra};
+}
 } // namespace
 
 const std::vector<Scene> &scenes() {
@@ -423,6 +433,11 @@ const std::vector<Scene> &scenes() {
         clip("i4sim-showcase-predictive-passing-clip",
              [](Stage &stage) { i4sim_showcase(stage, "predictive-passing"); }),
         clip("i4sim-showcase-h-crossing-clip", [](Stage &stage) { i4sim_showcase(stage, "h-crossing"); }),
+        ui_clip("ui-launcher", ui_launcher),
+        ui_clip("ui-settings", ui_settings),
+        ui_clip("ui-debug-menu", ui_debug_menu),
+        ui_clip("ui-inspector", ui_inspector),
+        ui_clip("ui-debug-layers", ui_debug_layers),
     };
     return all;
 }

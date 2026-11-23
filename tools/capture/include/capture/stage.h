@@ -121,6 +121,8 @@ class Stage {
     /// that draw without a session.
     void write_frame() const;
 
+    /// Where a clip of this scene writes its frames: `<output>/<scene>`.
+    std::filesystem::path clip_directory() const { return output_ / scene_; }
     /// Size of the window in logical pixels.
     kinetra::Vec2 viewport() const { return runtime_.camera.viewport; }
     /// The Runtime, for scenes that draw without a session.
