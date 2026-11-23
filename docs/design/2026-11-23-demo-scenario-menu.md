@@ -64,6 +64,16 @@ Checked that Terrain's camera interpolation and streaming keep their original pa
 | The Maze test did not resize the active scene | `355e0c4` resizes while the player is following a route, checks every wall and replans to the original goal |
 | The GIF roadmap still called the configuration page missing | `1d59f51` removes the stale statement and keeps the link to the new page's design |
 
+### Second review round
+
+*Ready to merge* on `5a5f6a9`, with three nits:
+
+| Nit | Resolution |
+| --- | --- |
+| The Demo README did not state the trace's conditions | The README says that the trace uses the default motion and wander settings, RECIPROCAL avoidance and no input |
+| The README's count of logic cases was 27 | Corrected to 30 |
+| The tour throws `std::bad_cast` instead of its own message when the launcher starts another application | Left for a later change to the capture tool, because it is code; the smoke test still fails in that case |
+
 ## Verification
 
 - `ctest --preset graphics -R '^kinetra_demo|^kinetra_menu|^kinetra_graphics|^kinetra_capture|^kinetra_smoke:(demo|launcher.*)$' -LE soak -j 6 --output-on-failure` passed all 124 selected checks. This includes the terrain fingerprints, fixed scenario tests, launcher, capture and graphics suites, and the smoke runs.
