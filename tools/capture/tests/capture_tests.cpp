@@ -723,7 +723,10 @@ TEST_CASE("a clip recorder keeps every n-th frame from its start, numbered from 
         ("clip-recorder-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     {
         capture::ClipRecorder recorder(directory, 4, 15);
-        CHECK(read_file(directory / "framerate") == std::vector<std::uint8_t>{'1', '5', '\n'});
+        // Read as a number: the file is text, which Windows ends with \r\n.
+        int rate = 0;
+        std::ifstream(directory / "framerate") >> rate;
+        CHECK(rate == 15);
         for (std::uint8_t frame = 0; frame < 3; ++frame)
             recorder.record(numbered_frame(3, frame));
         CHECK_MESSAGE(recorder.written() == 0, "Frames before start() are dropped");
