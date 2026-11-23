@@ -65,6 +65,9 @@ No lessons yet.
 
 ## Media and tools
 
+- **Compare a text file that a test reads by its content, never by its bytes** · added 2026-11-23 · source: #104
+  A `std::ofstream` in text mode ends lines with `\r\n` on Windows, so #104's recorder test, which compared `framerate` with `15\n`, failed only in the `windows` job, as Demo's trace lines did before (41bdef0). Parse the number or the lines instead.
+
 - **Test a UI identifier by using it as CLI input** · added 2026-11-22 · source: #74
   Display formatting and clipping can change an identifier even when the inspector and trace share a row builder. Pass the identifier shown to the user into the real executable.
 
