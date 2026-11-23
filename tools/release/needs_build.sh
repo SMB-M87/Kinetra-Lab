@@ -5,15 +5,19 @@
 #
 # Usage: tools/release/needs_build.sh <base> <head>
 #   Run from a Lab checkout of <head> with full history. Prints "false" only when every
-#   changed Lab path is Markdown, docs/ or .agents/ and, for a moved external/Kinetra
-#   pointer, every path of that Kinetra range is Markdown, docs/, .agents/, .github/ or
-#   tools/. Prints "true" otherwise, and on any doubt: a missing or unrelated base, a failed
-#   diff, or a Kinetra clone that does not answer. The reason goes to stderr.
+#   changed Lab path is Markdown, docs/ or .agents/, except the three below, and, for a
+#   moved external/Kinetra pointer, every path of that Kinetra range is Markdown, docs/,
+#   .agents/, .github/ or tools/. Prints "true" otherwise, and on any doubt: a missing or
+#   unrelated base, a failed diff, or a Kinetra clone that does not answer. The reason goes
+#   to stderr.
 #
-# Neither the build, the tests nor the zip read these paths: Lab's .github/ is not among
-# them because it is Lab's own CI; Kinetra's .github/ is Kinetra's CI, and its tools/ are
-# Python helpers that no build step runs (CI's docs check, which runs on every pull request,
-# uses check_docs.py). The zip's own README comes from tools/release/README-windows.txt.
+# Neither the build, the tests nor the zip read these paths, with three exceptions that
+# always build: kinetra_capture_tests reads README.md and checks docs/media/, and the
+# labs/i4sim/blueprints/ directory, its README included, is copied next to every executable
+# and into the zip. Lab's .github/ is not among the paths because it is Lab's own CI;
+# Kinetra's .github/ is Kinetra's CI, and its tools/ are Python helpers that no build step
+# runs (CI's docs check, which runs on every pull request, uses check_docs.py). The zip's
+# own README comes from tools/release/README-windows.txt.
 set -uo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -23,6 +27,7 @@ fi
 base="$1"
 head="$2"
 docs='(\.md$|^docs/|^\.agents/)'
+read_anyway='(^README\.md$|^docs/media/|^labs/i4sim/blueprints/)'
 kinetra_unread='(\.md$|^docs/|^\.agents/|^\.github/|^tools/)'
 
 build() {
@@ -42,6 +47,8 @@ printf 'Lab %s..%s changed:\n%s\n' "$base" "$head" "${files:-(nothing)}" >&2
 
 sources="$(printf '%s\n' "$files" | grep -v -x 'external/Kinetra' | grep -v -E "$docs" | grep . || true)"
 [[ -z "$sources" ]] || build "Lab files outside Markdown, docs/ and .agents/ changed"
+read="$(printf '%s\n' "$files" | grep -E "$read_anyway" || true)"
+[[ -z "$read" ]] || build "README.md, docs/media/ or labs/i4sim/blueprints/ changed, which a test reads or the build copies"
 
 if printf '%s\n' "$files" | grep -q -x 'external/Kinetra'; then
     old="$(git rev-parse "$base:external/Kinetra")" || build "no Kinetra pointer at $base"

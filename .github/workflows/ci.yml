@@ -59,7 +59,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The decision needs commits and trees, not the contents of old files such as the
+          # tour videos that were once in docs/media.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Decide whether build and tests are needed
         id: decide
