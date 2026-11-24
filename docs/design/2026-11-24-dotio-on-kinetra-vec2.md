@@ -127,11 +127,11 @@ Title: `feat(simulation): compare Vec2 values with ==`
 
 **Design.** The change has one design document, in Kinetra-Lab, where most of it is: `docs/design/2026-11-24-dotio-on-kinetra-vec2.md` on the Lab branch `ccr-5f0ec773-qklel2`. The user chose `==` in Kinetra over component comparisons in Lab only.
 
-**Verification.** `cmake --build --preset dev` and `ctest --preset dev`: 279 of 279 passed, the new case with 7 assertions; clang-format and the docs check clean. Kinetra-Lab built against this commit in the `dev` and `graphics` presets.
+**Verification.** `cmake --build --preset dev` and `ctest --preset dev`: 279 of 279 passed, the new case with 7 assertions; clang-format and the docs check clean. Kinetra-Lab built against this commit: all of Lab in its `dev` preset with 319 of 319 tests passing, and Dotio's presentation tests, Dotio smoke and capture smoke in `graphics` (7 of 7).
 
 **Review notes.** No existing expression changes meaning: a comparison of two `Vec2` did not compile before.
 
-**Dependencies and merge order.** Merges before the Kinetra-Lab pull request *refactor(dotio): use kinetra::Vec2*, with a merge commit, so the Lab pointer stays reachable.
+**Dependencies and merge order.** Merges before [SMB-M87/Kinetra-Lab#114](https://github.com/SMB-M87/Kinetra-Lab/pull/114), *refactor(dotio): use kinetra::Vec2*, with a merge commit, so the Lab pointer stays reachable.
 
 **Follow-up.** Kinetra's `tests/runtime_tests.cpp:250` and the Lab applications still compare components; they can use `==` (open point in the design document).
 
