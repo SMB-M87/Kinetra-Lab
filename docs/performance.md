@@ -75,7 +75,7 @@ Run time per layout in the baseline, both seeds, three runs:
 | `3840x2400` | 25 | 1.1–1.3 s | 1.3–1.4 s |
 | `8640x4800` | 106 | 12.2–13.1 s | 17.8–18.9 s |
 
-The large layout is 86% of the run, so the profile is mostly its profile. Share of the run time after hotspot 2, profiled on the machine of its [measured change](#measured-changes) from about 10,700 samples (default) and 18,800 (with passing):
+After hotspot 2 the large layout is 86% of the run (88% in the baseline), so the profile is mostly its profile. Share of the run time after hotspot 2, profiled on the machine of its [measured change](#measured-changes) from about 10,700 samples (default) and 18,800 (with passing):
 
 | Where | Default | With passing | Why |
 | --- | --- | --- | --- |
