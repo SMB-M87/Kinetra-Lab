@@ -62,7 +62,7 @@ void launcher_chapter(Tour &tour) {
     tour.fade_in(0.7);
     tour.wait(2.2);
     tour.caption("THREE APPLICATIONS ON THE KINETRA ENGINE");
-    const kinetra::MenuLayout layout(tour.viewport(), launcher_rows);
+    const auto layout = tour.menu_layout(launcher_rows);
     for (const std::size_t row : {std::size_t{2}, std::size_t{1}, std::size_t{0}}) {
         tour.move_to(layout.row_center(row) + Vec2{60, 4});
         tour.pause(0.35, 0.6);
@@ -71,7 +71,7 @@ void launcher_chapter(Tour &tour) {
     tour.pause(0.6, 0.9);
     tour.click();
     tour.caption("CHOOSE A DEMO SCENARIO");
-    tour.move_to(kinetra::MenuLayout(tour.viewport(), demo::scenario_labels().size()).row_center(0));
+    tour.move_to(tour.menu_layout(demo::scenario_labels().size()).row_center(0));
     tour.pause(0.35, 0.6);
     tour.click();
 }
@@ -264,7 +264,7 @@ void dotio_chapter(Tour &tour) {
     tour.caption("DOTIO: A SURVIVAL GAME AND AI EXPERIMENT");
     tour.click_menu_page_row(1, launcher_rows);
     tour.pause(0.6, 0.9);
-    const kinetra::MenuLayout difficulties(tour.viewport(), difficulty_rows);
+    const auto difficulties = tour.menu_layout(difficulty_rows);
     tour.move_to(difficulties.row_center(0) + Vec2{50, 2});
     tour.pause(0.3, 0.5);
     tour.move_to(difficulties.row_center(2) + Vec2{50, 2});
@@ -455,7 +455,7 @@ void i4sim_chapter(Tour &tour) {
     tour.click_settings_action(SettingsOverlay::launcher_x);
     tour.wait(1.0);
     tour.caption("");
-    tour.move_to(kinetra::MenuLayout(tour.viewport(), launcher_rows).footer_center() + Vec2{0, 2});
+    tour.move_to(tour.menu_layout(launcher_rows).footer_center() + Vec2{0, 2});
     tour.pause(0.5, 0.8);
     tour.click();
 }

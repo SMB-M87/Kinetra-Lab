@@ -38,7 +38,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
-No lessons yet.
+- **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
+  Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
 
 ## CI
 
@@ -64,6 +65,9 @@ No lessons yet.
   Lab has a `windows` job that Kinetra does not. #98 copied "and so does each install step" from Kinetra's header, true there, while Lab's `setup-msys2` step had no time limit.
 
 ## Media and tools
+
+- **Rebuild after changing an embedded image before capturing scenes that display it** · added 2026-11-24 · source: [#110](https://github.com/SMB-M87/Kinetra-Lab/pull/110)
+  A combined capture can otherwise publish a fresh lab screenshot beside a launcher image rendered with the old still. Verify the combined command with a deliberately stale embedded image.
 
 - **Compare a text file that a test reads by its content, never by its bytes** · added 2026-11-23 · source: #104
   A `std::ofstream` in text mode ends lines with `\r\n` on Windows, so #104's recorder test, which compared `framerate` with `15\n`, failed only in the `windows` job, as Demo's trace lines did before (41bdef0). Parse the number or the lines instead.
