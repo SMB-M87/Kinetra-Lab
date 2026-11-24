@@ -2,13 +2,13 @@
 # Refreshes docs/media: renders every screenshot and clip with kinetra_capture, turns the
 # clips into looping GIFs with ffmpeg and copies the results into docs/media, and the
 # shared-UI clips of Kinetra's README into external/Kinetra/docs/media.
-# Refreshes the embedded launcher still when a lab's main screenshot is rendered.
+# Refreshes embedded stills and rebuilds the capture tool before recording the launcher.
 #
 # Usage: tools/capture/capture_media.sh [build-directory] [scene...]
 #   build-directory  a configured build with the runtime, relative to the current directory
 #                    (default: build-graphics in the repository)
 #   scene            only these scenes (default: all; see `kinetra_capture --help`)
-# Needs bash, ffmpeg and a kinetra_capture binary in the build directory. The tool renders
+# Needs bash, CMake, ffmpeg and a kinetra_capture binary in the build directory. The tool renders
 # offscreen with software Mesa, so it needs no display and gives the same pixels every run.
 set -euo pipefail
 
@@ -31,7 +31,45 @@ fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-"$tool" "$work" "$@" 2> >(grep -v '^MESA' >&2)
+capture_scenes() {
+    "$tool" "$work" "$@" 2> >(grep -v '^MESA' >&2)
+}
+
+launcher_scenes=()
+if (($# == 0)); then
+    capture_scenes
+    launcher_scenes=(launcher ui-launcher)
+else
+    other_scenes=()
+    for scene in "$@"; do
+        case "$scene" in
+            launcher|ui-launcher) launcher_scenes+=("$scene") ;;
+            *) other_scenes+=("$scene") ;;
+        esac
+    done
+    if ((${#other_scenes[@]})); then
+        capture_scenes "${other_scenes[@]}"
+    fi
+fi
+
+for lab in demo dotio i4sim; do
+    [[ -f $work/$lab.png ]] || continue
+    ffmpeg -loglevel error -y -i "$work/$lab.png" -vf scale=320:180:flags=area \
+        -frames:v 1 -c:v rawvideo -threads:v 1 -pix_fmt rgba -f rawvideo "$work/$lab.rgba"
+    still="$repository/launcher/previews/$lab.rgba"
+    if ! cmp -s "$work/$lab.rgba" "$still"; then
+        cp "$work/$lab.rgba" "$still"
+    fi
+done
+
+if ((${#launcher_scenes[@]})); then
+    # Even a launcher-only refresh can follow an earlier change to an embedded still.
+    cmake --build "$build" --target kinetra_capture
+    # The default capture may already have frames with the old images. Render the clip
+    # into an empty directory so it cannot inherit frames from that first pass.
+    rm -rf -- "$work/kinetra/ui-launcher"
+    capture_scenes "${launcher_scenes[@]}"
+fi
 
 shopt -s nullglob
 
@@ -64,12 +102,6 @@ copy_media() {
 encode_clips "$work"
 encode_clips "$work/kinetra"
 copy_media "$work" "$media"
-for lab in demo dotio i4sim; do
-    [[ -f $work/$lab.png ]] || continue
-    ffmpeg -loglevel error -y -i "$work/$lab.png" -vf scale=320:180:flags=area \
-        -frames:v 1 -c:v rawvideo -threads:v 1 -pix_fmt rgba -f rawvideo "$work/$lab.rgba"
-    cp "$work/$lab.rgba" "$repository/launcher/previews/"
-done
 if [[ -d $work/kinetra ]]; then
     # An empty submodule directory would take the GIFs outside any Kinetra checkout.
     if [[ ! -d $kinetra_media ]]; then

@@ -43,7 +43,7 @@ Real application captures behind the project's README gallery, what each one sho
 
 ## Which captures a change makes stale
 
-The capture script also scales the three main lab screenshots down for the launcher. When those stills change, rebuild before refreshing `launcher` and `ui-launcher`.
+The capture script scales the three main lab screenshots down for the launcher. If the requested scenes include `launcher` or `ui-launcher`, it rebuilds the capture tool after updating the stills and records those scenes with the new images.
 
 A pull request that changes what a capture shows refreshes it in the same pull request ([rule](../../external/Kinetra/AGENTS.md#repository-documentation)). Refresh the captures of every row the change touches and commit no other: a refresh on another machine can change a few pixels of a GIF without a reason, through another Mesa or ffmpeg. The shared-UI GIFs of Kinetra's README have their own [table](../../external/Kinetra/docs/media/README.md#which-gifs-a-change-makes-stale).
 

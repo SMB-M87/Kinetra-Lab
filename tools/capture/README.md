@@ -172,7 +172,7 @@ sequenceDiagram
 
 ## Changing this module
 
-The capture script converts `demo.png`, `dotio.png` and `i4sim.png` to 320 × 180 RGBA stills in [launcher/previews](../../launcher/previews/). CMake embeds these in the launcher. When one changes, rebuild the capture tool before rendering `launcher` and `ui-launcher` so those captures show the updated still.
+The capture script converts `demo.png`, `dotio.png` and `i4sim.png` to 320 × 180 RGBA stills in [launcher/previews](../../launcher/previews/). If `launcher` or `ui-launcher` is requested, the script rebuilds the capture tool with CMake after refreshing the stills, then records the requested launcher scenes. For example, `tools/capture/capture_media.sh build-graphics demo launcher ui-launcher` updates the Demo still and both launcher captures together.
 
 | To | Change | Test with |
 | --- | --- | --- |
