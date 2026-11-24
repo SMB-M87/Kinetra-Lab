@@ -24,9 +24,7 @@ Nothing in progress.
 
 ## Next
 
-- **Review sessions that can post on both repositories** · agents, with Kinetra · added 2026-11-24
-  A review of a change across Kinetra and Lab is usually started from a Lab session and must also post on Kinetra. On 2026-11-24 the review of Kinetra-Lab#114 and Kinetra#52 stopped until the user granted push access to Kinetra, as Kinetra#42's review had been lost before. Lab's part is its own `.claude/settings.json` and the sessions started from Lab.
-  Next step: Kinetra's item leads, because the workflow and the `pr-review` skill live there; Lab follows its choice. Where: Kinetra item of the same name.
+Nothing agreed next.
 
 ## Later
 
