@@ -225,9 +225,18 @@ void MotionStep::resolve_contacts(Goals &goals) {
     const auto borders = goals.floor.borders();
     // Count contacts before correction and resolve each unordered pair once.
     std::set<std::pair<std::size_t, std::size_t>> current;
+    // Pairs are found on these copies, so resolving one pair never changes which pairs follow.
+    // Every pair is tested on bounds computed once per mover: with about a hundred movers this
+    // is cheaper than a spatial-index query per mover, and it keeps the pair order trivially.
+    const std::size_t count = movers.size();
     std::vector<Body> integrated;
-    for (const auto &m : movers)
+    std::vector<Aabb> boxes;
+    integrated.reserve(count);
+    boxes.reserve(count);
+    for (const auto &m : movers) {
         integrated.push_back(m.body);
+        boxes.push_back(bounds(m.body));
+    }
     for (auto &m : movers)
         m.contacting = false;
     auto contact = [&](std::size_t a, std::size_t b) {
@@ -249,9 +258,9 @@ void MotionStep::resolve_contacts(Goals &goals) {
         }
         ++movers[a].collision_ticks;
     };
-    for (std::size_t i = 0; i < movers.size(); ++i) {
-        for (std::size_t j = i + 1; j < movers.size(); ++j)
-            if (bounds(integrated[i]).overlaps(bounds(integrated[j])))
+    for (std::size_t i = 0; i < count; ++i) {
+        for (std::size_t j = i + 1; j < count; ++j)
+            if (boxes[i].overlaps(boxes[j]))
                 if (auto c = collide(integrated[i], integrated[j]); c && c->penetration > 0) {
                     contact(i, j);
                     ++movers[j].collision_ticks;
