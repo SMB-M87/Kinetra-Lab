@@ -27,7 +27,7 @@ void Grid::fill(int value) {
 }
 
 kinetra::CollisionGrid Grid::collision_view() const {
-    return {{&cells_[0][0], std::size_t(rows * columns)}, rows, columns, cell_size, {origin.x, origin.y}};
+    return {{&cells_[0][0], std::size_t(rows * columns)}, rows, columns, cell_size, origin};
 }
 
 // Seeded depth-first mazes reproduce the narrow, irregular passages of the original

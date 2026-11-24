@@ -116,9 +116,9 @@ class Player {
             if (goal_row < 1 || goal_column < 1 || goal_row >= rows - 1 || goal_column >= columns - 1 ||
                 wall(application, goal_row, goal_column))
                 continue;
-            for (const auto point : grid.path({position.x, position.y}, {(float(goal_column) + 0.5f) * cell,
-                                                                         (float(goal_row) + 0.5f) * cell}))
-                route_.push_back({point.x, point.y});
+            for (const auto point :
+                 grid.path(position, {(float(goal_column) + 0.5f) * cell, (float(goal_row) + 0.5f) * cell}))
+                route_.push_back(point);
         }
     }
 

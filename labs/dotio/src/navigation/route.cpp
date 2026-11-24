@@ -85,7 +85,7 @@ Route plan_shelter(const Grid &grid, kinetra::Vec2 from, kinetra::Vec2 player, f
     const auto accept = [&](int id) {
         const auto center = grid.navigation().center(id);
         kinetra::Vec2 hit{};
-        if (!grid.is_intersecting_any_cell({{center.x, center.y}, player}, hit))
+        if (!grid.is_intersecting_any_cell({center, player}, hit))
             return false;
         // The count includes this cell; a fear of 2.5 takes the third hidden cell.
         return float(++hidden) > fear;
