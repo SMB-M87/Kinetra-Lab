@@ -1,11 +1,13 @@
 #pragma once
-// The clips of Kinetra's README: the shared launcher and overlays, played in the real
-// launcher and Demo by a Tour, with its pointer, click rings and keycaps.
+// The clips a Tour plays in the real launcher, with its pointer, click rings and keycaps:
+// the shared launcher and overlays in Demo for Kinetra's README, and i4sim's loadscreen for
+// Lab's.
 namespace capture {
 class Stage;
 
 /// The launcher menu with the pointer over each entry, DEMO, its configuration page with the
-/// pointer over the scenarios, and the start of DOORWAY.
+/// pointer over the scenarios, the start of DOORWAY, and the debug menu's SCENARIOS back to
+/// the configuration page with DOORWAY selected.
 void ui_launcher(Stage &stage);
 /// In Doorway: Ctrl opens the settings panel, STATISTICS goes off and on, SIM CONTROLS and
 /// DEBUG CONTROLS open their help and close it, and RESUME closes the panel.
@@ -19,4 +21,8 @@ void ui_inspector(Stage &stage);
 /// In Terrain, with agents that wander by planned routes: every layer of the debug menu off
 /// and on again, HOME RANGE, and the wheel zooming out.
 void ui_debug_layers(Stage &stage);
+/// i4sim's loadscreen, reached through the launcher unrecorded: the pointer over a few
+/// floors, SHOWCASE, a scene that Space starts, the debug menu's BLUEPRINTS back to the
+/// catalog, and a floor that loads and runs.
+void i4sim_loadscreen(Stage &stage);
 } // namespace capture

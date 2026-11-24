@@ -79,7 +79,7 @@ Checked that Terrain's camera interpolation and streaming keep their original pa
 - `ctest --preset graphics -R '^kinetra_demo|^kinetra_menu|^kinetra_graphics|^kinetra_capture|^kinetra_smoke:(demo|launcher.*)$' -LE soak -j 6 --output-on-failure` passed all 124 selected checks. This includes the terrain fingerprints, fixed scenario tests, launcher, capture and graphics suites, and the smoke runs.
 - `ctest --preset dev -R 'kinetra_demo_inspector_trace|kinetra_demo:(Maze|seeded Doorway)' --output-on-failure` passed five targeted checks after the follow-up build.
 - Started all four choices through `kinetra --scenario` and `kinetra_demo --scenario` with software OpenGL. The launcher rejected an invalid scenario and a scenario requested with i4sim.
-- Captured and inspected [the Demo menu](../media/launcher-demo-scenarios.png), [Gravity](../media/demo-gravity.png), [Maze](../media/demo-maze.png) and [Doorway](../media/demo-doorway.png). The two existing Terrain screenshots matched the earlier capture byte for byte.
+- Captured and inspected [the Demo menu](../media/launcher-demo-scenarios.png), Gravity, Maze and Doorway (stills that [clips](2026-11-24-lab-readme-gifs.md) replaced on 2026-11-24). The two existing Terrain screenshots matched the earlier capture byte for byte.
 - Docs links, copies and changed-file formatting passed. Pull request CI supplies the Full level.
 
 ## Pull request

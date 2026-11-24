@@ -14,6 +14,9 @@
 #include <string>
 #include <string_view>
 
+namespace demo {
+class Application;
+}
 namespace dotio {
 class Application;
 }
@@ -73,6 +76,9 @@ class Stage {
     /// The application of the session start_dotio() started, for reading between steps; valid
     /// until the next start. Throws std::logic_error when the running session is not such one.
     dotio::Application &dotio();
+    /// The application of the running Demo session, for reading between steps; valid until
+    /// the next start. Throws std::logic_error when Demo does not run.
+    const demo::Application &demo() const;
     /// Starts i4sim with the blueprint file `blueprint` from the bundled catalog, paused, at
     /// i4sim_updates_per_second. `blueprint` is relative to the catalog directory.
     void start_i4sim(std::string_view blueprint);

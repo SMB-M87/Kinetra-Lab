@@ -66,8 +66,8 @@ sequenceDiagram
             alt none
                 Host->>Session: render(runtime)
                 Session->>Runtime: draw world and overlays
-            else menu
-                Host->>Session: destroy, draw the menu
+            else menu or configurations
+                Host->>Session: destroy, draw the menu (for configurations, the application's page)
             else exit
                 Host->>Session: destroy, end the loop
             end
@@ -75,9 +75,9 @@ sequenceDiagram
     end
 ```
 
-*Takeaway:* the launcher owns no loop of its own; a session leaves by returning a request from its settings overlay.
+*Takeaway:* the launcher owns no loop of its own; a session leaves by returning a request from its settings overlay or its debug menu.
 
-The bundled launcher calls `kinetra::run_launcher` with Lab's registrations and bindings ([launcher](../launcher/README.md)). `SessionHost` owns at most one session. Each session returns its `kinetra::SettingsOverlay`'s request (LAUNCHER gives `menu`, EXIT gives `exit`), and i4sim's blueprint screen adds its own `menu` request on Escape or M.
+The bundled launcher calls `kinetra::run_launcher` with Lab's registrations and bindings ([launcher](../launcher/README.md)). `SessionHost` owns at most one session. Each session returns its `kinetra::SettingsOverlay`'s request (LAUNCHER gives `menu`, EXIT gives `exit`). Demo's SCENARIOS and Dotio's DIFFICULTY in the debug menu give `configurations`, which returns to the application's page of the launcher menu with the running choice selected, and i4sim's blueprint screen adds its own `menu` request on Escape or M.
 
 Runtime outlives every session; sessions own application state. Applications choose timing, bindings, pause behavior and world residency. Debug overlay pointers and callbacks borrow application state and must remain valid during update and draw. The direct executables (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) use the core `run_session` loop.
 
