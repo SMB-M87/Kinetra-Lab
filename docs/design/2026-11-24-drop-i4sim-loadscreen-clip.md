@@ -82,6 +82,13 @@ The change touches `README.md` and `docs/media/`, so CI builds in full; that is 
 
 The copies search (`check_copies.py --term 'i4sim-loadscreen-clip' --term 'i4sim_loadscreen' --term 'loadscreen clip' --term 'loadscreen GIF' --term '1.1 MB' --term 'tour clip of Lab' --term 'catalog_row' --term 'require_blueprint'`) finds only this document's index row and `1680x960+` in the blueprint README, which names the floor, not the clip. The earlier design documents that name the clip are history and stay.
 
+The agent review ([#120](https://github.com/SMB-M87/Kinetra-Lab/pull/120#pullrequestreview-6038260322), medium, on 6d544ec) concluded *Ready to merge*: goals 3 of 3, checklist 10 of 10, no correctness findings, no lessons proposed.
+
+| Finding | Resolution |
+| --- | --- |
+| Nit: the *Full* row under [Verification](#verification) still read "Pending at hand-over" | Records CI green on 6d544ec |
+| Point of attention: the review session ran below the effort `high` | Not so: the session was created at `high`, and its record shows `effort_level: high`; answered on the pull request |
+
 ## Verification
 
 | Check | Command | Result |
@@ -91,7 +98,7 @@ The copies search (`check_copies.py --term 'i4sim-loadscreen-clip' --term 'i4sim
 | Format | `clang-format --dry-run --Werror` on the four C++ files | Clean |
 | Targeted | `cmake --build --preset dev --target kinetra_capture_tests kinetra_capture` and `ctest --preset dev -R '^kinetra_capture'` | Built without warnings; 34 of 34 passed |
 | The removed name | `kinetra_capture <dir> i4sim-loadscreen-clip` | `Unknown scene 'i4sim-loadscreen-clip'`, exit 1 |
-| Full | The pull request's CI | Pending at hand-over |
+| Full | The pull request's CI on 6d544ec | Green: `changes`, `linux (arch)`, `linux (ubuntu)`, `windows`, `checks` |
 
 Not run locally: the `graphics` smoke test `kinetra_capture_smoke`, which plays the tour and `ui-launcher`, neither of which this change touches; CI runs it.
 
