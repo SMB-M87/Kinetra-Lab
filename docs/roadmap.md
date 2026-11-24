@@ -92,6 +92,9 @@ Nothing in progress.
 - **Cloud setup edge cases** · build, tools · added 2026-11-23
   Three small gaps the agent review left as optional in the cloud setup scripts, two in Kinetra's `tools/cloud_setup.sh` and one in Lab's: a third-party apt source whose update exits 100 still stops the install, `dpkg --configure -a`'s failure is reported as an apt failure, and Lab's message for an old Kinetra commit points to a page that does not name the clang-format version. Like *Ready-to-build cloud sessions*, one item here covers both scripts.
   Where: [Ready-to-build cloud sessions, open points](design/2026-11-23-ready-to-build-cloud-sessions.md#open-points).
+- **Vec2 equality in place of component comparisons** · i4sim, demo, capture, with Kinetra · added 2026-11-24
+  Since Kinetra#52, `kinetra::Vec2` has `==`, and Dotio uses it. i4sim's tests, Demo's inspector and the capture tool's tests still compare the components one by one (for example `labs/i4sim/tests/simulation_tests.cpp:1588`, `labs/demo/src/world/inspector.cpp:20`, `tools/capture/tests/capture_tests.cpp:667`); they can use `==`. Kinetra's item of the same name covers its own.
+  Where: [Dotio on `kinetra::Vec2`, open points](design/2026-11-24-dotio-on-kinetra-vec2.md#open-points).
 
 ## Ideas
 

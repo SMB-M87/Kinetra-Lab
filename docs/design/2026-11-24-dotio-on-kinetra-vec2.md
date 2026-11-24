@@ -55,7 +55,7 @@ Dotio carries its own vector type, `dotio::math::Vec2`, with seven aliases and s
 - **Operations.** Each member becomes the Kinetra function it already called: `v.get_length()` is `kinetra::length(v)`, `get_normalized` is `kinetra::normalized`, `rotate` is `v = kinetra::rotated(v, angle)`, `get_direction` is `kinetra::atan2(v.y, v.x)`, `dot_product` and `determinant` are `kinetra::dot` and `kinetra::cross`. `modulo` becomes `std::fmod` per axis in `cell.cpp`, and `(a - b) < reach` becomes `kinetra::length(a - b) < reach`. Because `vector.cpp` already delegated to these functions, every result is the same float as before.
 - **Aim math.** `intercept` and the three-argument `signed_angle_difference` move into `ai/state.cpp`'s anonymous namespace: `intercept()` keeps its body, and `aimed_arrow()` holds the aiming that `AttackState::update` and `KamikazeState::update` repeated line for line, with the same operations in the same order.
 - **Adapters.** `physics_vector`, `legacy_vector`, `planner_point` and `route_of` disappear; `physics_body` and `apply_body` copy the fields directly, and `Route` takes the planner's points as they come. `to_world` and `from_world` stay in `application.h`, now with contracts that name both units.
-- **Equality.** Kinetra's `Vec2` gets `constexpr bool operator==(const Vec2 &) const = default;`, so `!=` follows in C++20. It compares by IEEE rules, as Dotio's `operator==` did (`x == other.x && y == other.y`): +0 equals -0 and NaN equals nothing. Dotio's three comparisons in the logic and its test checks stay as they are.
+- **Equality.** Kinetra's `Vec2` gets `constexpr bool operator==(const Vec2 &) const = default;`, so `!=` follows in C++20. It compares by IEEE rules, as Dotio's `operator==` did (`x == other.x && y == other.y`): +0 equals -0 and NaN equals nothing. Dotio's three comparisons in the logic and its test checks stay as they are; after the review, the presentation's interpolation guard, its tests and the behavior benchmark compare with `==` and `!=` too, instead of component by component.
 - **Construction.** `kinetra::Vec2` is an aggregate, while Dotio's type had an `explicit Vec2(float s)` for (s, s). A single-argument brace initializer would now set only `x`. A search for one-argument constructions of every alias finds only copies (`Vec2{position - origin}`, `Vector2 next{position + velocity}`), so no call changes meaning; the compiler flags narrowing in braces.
 
 ## Affected areas
@@ -65,7 +65,7 @@ Dotio carries its own vector type, `dotio::math::Vec2`, with seven aliases and s
 - `tools/capture/`: `dotio_player.h`, `dotio_player.cpp`, `tests/capture_tests.cpp`.
 - `labs/dotio/CMakeLists.txt`: `src/math/vector.cpp` leaves `kinetra_dotio_logic`.
 - Kinetra: `include/kinetra/simulation/math.h` (`operator==`), `tests/simulation_tests.cpp` (its test), `docs/engine/math-physics.md` (the contract row); the `external/Kinetra` pointer follows the Kinetra branch.
-- Docs: Dotio README (layout, `math/` table, open points, the fingerprint paragraph), the roadmap.
+- Docs: Dotio README (layout, `math/` table, open points, the fingerprint paragraph, the case counts of its test table), the roadmap in both repositories.
 
 ## Test plan
 
@@ -92,6 +92,15 @@ The change touches `presentation/` and `tools/capture/`, so the whole branch end
 | *Nit.* The renderer copied a `kinetra::Color` field by field, a leftover of the conversion from `RGBA` | It passes the color through (675e695) |
 | Two findings in commits already merged on `main` (`capture_media.sh` stills, the launcher's generated header), because the local `main` was behind | Out of scope; `main` updated for the next diffs |
 
+Agent review, round 1 (Kinetra#52 *Ready to merge* on `38a08f2`; Kinetra-Lab#114 *Fix first* on `07850e4`):
+
+| Finding | Resolution |
+| --- | --- |
+| *Should fix* (#114). The open points and both *Follow-up* sections reach neither roadmap, so they would be lost once this document is history | An item *Vec2 equality in place of component comparisons* in each roadmap (Kinetra `b86a2ed`, followed by the pointer in 38e39e2); the `GridEntry` aliases, which no one intends to change, move to the Dotio README's open points |
+| *Nit* (#52). The same follow-up for Kinetra's tests appeared only here | Kinetra's roadmap item above |
+| *Nit* (#114). The Dotio README counted 44 cases in `kinetra_dotio` | Corrected: 46, and 5 in `kinetra_dotio_graphics`, not 3; the earlier open point's 45 was a miscount of CTest's list |
+| *Nit* (#114). Six field-by-field copies of a `kinetra::Vec2` into a `kinetra::Vec2` remained (`inspector.cpp`, `grid.cpp`, `route.cpp`, `behavior_benchmark.cpp`) | The vectors are passed as they are (e36a3e9). Dotio's remaining component comparisons, in the presentation's interpolation guard, its tests and the benchmark, use `==` and `!=` (08b6e92) |
+
 ## Verification
 
 Local, on Ubuntu with GCC 13 and clang-format 23.1.5; Kinetra at `38a08f2` (`feat/vec2-equality`):
@@ -106,6 +115,7 @@ Local, on Ubuntu with GCC 13 and clang-format 23.1.5; Kinetra at `38a08f2` (`fea
 | `cmake --build --preset dev` (all of Lab against the new Kinetra commit), `ctest --preset dev -LE soak -j4` | No error or warning; 319 of 319 passed |
 | `clang-format --dry-run --Werror` on every changed source | Clean |
 | `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| After the review round, Kinetra at `b86a2ed`: `ctest --preset dev -R '^kinetra_dotio:\|^kinetra_capture\|dotio_behavior' -LE soak`, `ctest --preset graphics -L graphics -R 'kinetra_dotio_graphics\|kinetra_smoke:dotio'` | 81 of 81 and 6 of 6 passed; fingerprint unchanged |
 | `python3 external/Kinetra/tools/check_copies.py` with the removed names (`legacy vector`, `get_signed`, `physics_vector`, `legacy_vector`, `planner_point`, `dotio::math::Vec2`, `math/vector.h`, `dotio::math::RGBA`, `dotio::math::Segment`, `Point2`, `signed_angle_difference`, `get_normalized`, `get_length`) | Only this document's index row and the word "Positions" in `docs/architecture.md` |
 
 The Full level is the CI of both pull requests.
@@ -124,6 +134,7 @@ Title: `feat(simulation): compare Vec2 values with ==`
 - `include/kinetra/simulation/math.h`: `constexpr bool operator==(const Vec2 &) const = default;`, with a contract that +0 equals -0, NaN equals nothing, and arithmetic results that may round differently want a tolerance.
 - `tests/simulation_tests.cpp`: `vectors are equal exactly when both components compare equal`, on run-time inputs and with a `static_assert` for the constant case.
 - `docs/engine/math-physics.md`: the contract row of `math.h` names exact equality.
+- `docs/roadmap.md`: a *Later* item, *Vec2 equality in place of component comparisons*, for Kinetra's own `same()` in `physics.cpp` and `tests/runtime_tests.cpp:250`, linked to Lab's item of the same name.
 
 **Design.** The change has one design document, in Kinetra-Lab, where most of it is: `docs/design/2026-11-24-dotio-on-kinetra-vec2.md` on the Lab branch `ccr-5f0ec773-qklel2`. The user chose `==` in Kinetra over component comparisons in Lab only.
 
@@ -133,7 +144,7 @@ Title: `feat(simulation): compare Vec2 values with ==`
 
 **Dependencies and merge order.** Merges before [SMB-M87/Kinetra-Lab#114](https://github.com/SMB-M87/Kinetra-Lab/pull/114), *refactor(dotio): use kinetra::Vec2*, with a merge commit, so the Lab pointer stays reachable.
 
-**Follow-up.** Kinetra's `tests/runtime_tests.cpp:250` and the Lab applications still compare components; they can use `==` (open point in the design document).
+**Follow-up.** The roadmap item *Vec2 equality in place of component comparisons*, here and in Kinetra-Lab.
 
 ### Kinetra-Lab
 
@@ -144,23 +155,22 @@ Title: `refactor(dotio): use kinetra::Vec2`
 **Changes.**
 - Dotio: the members it still used become the Kinetra functions they already called (`length`, `normalized`, `rotated`, `atan2`, `std::fmod` for the cell remainder); the aim math moves into `ai/state.cpp` as `intercept()` and `aimed_arrow()`, which also removes the aiming that two states repeated; about thirty unused operators and helpers go, `get_signed` among them.
 - Dotio: the identity conversions `physics_vector`, `legacy_vector`, `planner_point` and `route_of` go; `to_world`, `from_world` and `teleport_clear` name their unit, because legacy pixels and world units now share a type.
-- Dotio tests: the test of Dotio's vector wrappers becomes `legacy and world coordinates convert both ways`; the other checks are unchanged and compare with Kinetra's new `==`.
+- Dotio tests: the test of Dotio's vector wrappers becomes `legacy and world coordinates convert both ways`; the other checks are unchanged and compare with Kinetra's new `==`, as do the presentation tests, the presentation's interpolation guard and the behavior benchmark, which compared components before. No vector is copied field by field into another any more.
 - Capture tool: its Dotio player and tests follow the rename.
-- Docs: Dotio README (concepts, layout, `math/`, units, fingerprint, open points), the design document, the roadmap item removed.
-- `external/Kinetra`: pointer to the Kinetra branch commit with `operator==`.
+- Docs: Dotio README (concepts, layout, `math/`, units, fingerprint, the case counts of its test table, open points), the design document; the roadmap item removed, and *Vec2 equality in place of component comparisons* added for i4sim, Demo and the capture tool.
+- `external/Kinetra`: pointer to the head of Kinetra's `feat/vec2-equality`, with `operator==` and its roadmap item.
 
 **Design.** This document. The user chose `==` in Kinetra over component comparisons in Lab only; unit safety between legacy pixels and world units moves from types to names.
 
 **Verification.** See [Verification](#verification): the fingerprint after every commit, `kinetra_dotio`, `kinetra_capture` and the behavior benchmark in `dev`, the Dotio presentation, Dotio smoke and capture smoke in `graphics`, and the whole Lab in `dev` against the new Kinetra commit; CI is the Full level.
 
-**Review notes.** Commits: the design; the pointer; *make Vec2 an alias of kinetra::Vec2* (the only commit with changed expressions); *drop the conversions between identical vectors*; *use kinetra::Vec2, Segment and Color throughout* (a compiler-checked rename); *say which unit a vector holds where both meet* (review fixes). Reviewing them one by one is easier than the whole diff.
+**Review notes.** Commits: the design; the pointer; *make Vec2 an alias of kinetra::Vec2* (the only commit with changed expressions); *drop the conversions between identical vectors*; *use kinetra::Vec2, Segment and Color throughout* (a compiler-checked rename); *say which unit a vector holds where both meet* (fixes from the author's review); then the agent review's round 1: *pass vectors instead of copying fields*, *compare vectors with ==*, the pointer to Kinetra's roadmap item, and the docs. Reviewing them one by one is easier than the whole diff.
 
 **Dependencies and merge order.** Kinetra pull request [SMB-M87/Kinetra#52](https://github.com/SMB-M87/Kinetra/pull/52), *feat(simulation): compare Vec2 values with ==*, merges first, with a merge commit; this one then merges with its pointer at the Kinetra branch commit; Kinetra's `lab-pointer` workflow opens the pointer-only pull request to the merge commit.
 
-**Follow-up.** i4sim, Demo and the capture tool can use `==` instead of component comparisons; `GridEntry` keeps three aliases; the Dotio README's case count is off by one from before this branch (open points).
+**Follow-up.** The roadmap item *Vec2 equality in place of component comparisons*, here and in Kinetra; `GridEntry` keeps three aliases, an open point of the Dotio README.
 
 ## Open points
 
-- i4sim, Demo, the capture tool and Kinetra's own tests still compare vectors component by component (for example `labs/i4sim/tests/simulation_tests.cpp:1588`, `labs/demo/src/world/inspector.cpp:20`, `tools/capture/tests/capture_tests.cpp:667`, Kinetra's `tests/runtime_tests.cpp:250`); they can use `==` now.
-- `GridEntry` keeps its three aliases (`GridSize`, `GridPosition`, `GridCoordinates`).
-- The Dotio README's test table counts 44 cases in `kinetra_dotio`; CTest lists 45, before this branch as after it.
+- i4sim, Demo, the capture tool and Kinetra still compare vectors component by component (for example `labs/i4sim/tests/simulation_tests.cpp:1588`, `labs/demo/src/world/inspector.cpp:20`, `tools/capture/tests/capture_tests.cpp:667`, Kinetra's `same()` in `src/simulation/physics.cpp` and `tests/runtime_tests.cpp:250`); they can use `==` now. Roadmap item *Vec2 equality in place of component comparisons*, in each repository.
+- `GridEntry` keeps its three aliases (`GridSize`, `GridPosition`, `GridCoordinates`); no one intends to change them, so they are an open point of the [Dotio README](../../labs/dotio/README.md#open-points), not a roadmap item.
