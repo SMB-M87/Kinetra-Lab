@@ -29,11 +29,13 @@ flowchart LR
 
 ## Quick start from WSL
 
-Requires the Linux prerequisites from the [README](../README.md#quick-start) plus the cross compiler. On Arch Linux:
+Requires the Linux prerequisites from the [README](../README.md#quick-start) plus the cross compiler. On Ubuntu 24.04, install the POSIX MinGW-w64 compiler used by the release workflow.
 
 ```sh
-pacman -S --needed mingw-w64-gcc
+sudo apt install g++-mingw-w64-x86-64-posix
 ```
+
+On Arch Linux, install `mingw-w64-gcc`.
 
 Build and test (the first configure downloads SDL2 and nlohmann_json once per build directory):
 

@@ -7,20 +7,15 @@
 #   nothing that goes into the zip changed since the commit main-build was built
 #   from: tools/release/needs_build.sh, the decision CI uses too (only Markdown,
 #   docs/ or .agents/ in Lab, apart from README.md, docs/media/ and the blueprints,
-#   and in a moved Kinetra range also .claude/, .github/ or tools/, apart from its README.md
-#   and docs/media/). main-build then stays on that commit.
+#   and in a moved Kinetra range also .claude/, .codex/config.toml, .github/ or tools/,
+#   apart from its README.md and docs/media/). main-build then stays on that commit.
 # - A tag v* publishes a release of its own with the same zip, always built.
 # - workflow_dispatch always builds; on main it also refreshes main-build.
 #
-# The zip comes from the MinGW-w64 cross build (the "windows" preset), on the
-# same pinned Arch toolchain as ci.yml: it links the GCC runtime statically and
-# needs only SDL2.dll beside the executables. Tests are not run here; the
-# pull request's CI ran them, natively on Windows included. Bump ARCH_SNAPSHOT
-# and the image tag together with ci.yml.
+# Ubuntu 24.04 cross-builds the zip with MinGW-w64 (the "windows" preset). The build links
+# the GCC runtime statically and checks that the executables need only SDL2.dll and
+# Windows system DLLs. The pull request's CI tests the applications, including on Windows.
 #
-# As in ci.yml, every job has a time limit, and so does the install step, well
-# above their usual duration: a stalled download fails the run within minutes
-# instead of GitHub's six hours; re-run it once the cause has passed.
 name: Release
 
 on:
@@ -37,7 +32,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ARCH_SNAPSHOT: "2026/11/17"
   PACKAGE: Kinetra-Lab-windows-x64
 
 jobs:
@@ -46,7 +40,7 @@ jobs:
   # said "false".
   changes:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       build: ${{ steps.decide.outputs.build }}
@@ -75,28 +69,45 @@ jobs:
     needs: changes
     # changes is skipped for a tag or workflow_dispatch; that, or a failed decision, builds.
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.build != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A run takes about two minutes; the limit leaves room for an install step that runs
     # out its 15 minutes and for a slow runner.
     timeout-minutes: 30
-    container: archlinux:base-devel-20261108.0.623074
+    container: ubuntu:24.04
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Install pinned toolchain and the MinGW-w64 cross compiler
-        # Usually half a minute.
+      - name: Install Ubuntu's MinGW-w64 cross toolchain
         timeout-minutes: 15
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          # As in ci.yml: when the Arch Linux Archive does not answer, the image's own mirrors
-          # serve the current packages instead; such a zip is not built with the pinned
-          # toolchain, so the run says so in a warning, and the versions below show what it got.
-          packages="git cmake ninja ccache mingw-w64-gcc"
-          cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.image
-          echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
-          if ! pacman -Syyuu --noconfirm --needed $packages; then
-            echo "::warning title=Toolchain not pinned::The Arch Linux Archive did not answer, so this zip is built with the current Arch packages instead of snapshot ${ARCH_SNAPSHOT}."
-            cp /etc/pacman.d/mirrorlist.image /etc/pacman.d/mirrorlist
-            pacman -Syyuu --noconfirm --needed $packages
+          packages="git ca-certificates cmake ninja-build ccache g++-mingw-w64-x86-64-posix"
+          # Use the same Azure mirror and fallback as the pull request build.
+          sources=/etc/apt/sources.list.d/ubuntu.sources
+          cp "$sources" /etc/apt/ubuntu.sources.image
+          sed -i -E 's#^URIs: http://(archive|security)\.ubuntu\.com/ubuntu/?$#URIs: http://azure.archive.ubuntu.com/ubuntu/#' "$sources"
+          grep '^URIs:' "$sources"
+          if grep -q -v -x 'URIs: http://azure\.archive\.ubuntu\.com/ubuntu/' <<< "$(grep '^URIs:' "$sources")"; then
+            echo "::warning title=Ubuntu mirror not used::A URI of the image's ubuntu.sources does not match this step's pattern, so this run installs from that source instead of the Azure mirror."
           fi
-          x86_64-w64-mingw32-g++ --version | head -1; cmake --version | head -1
+          apt_install() { apt-get install -y --no-install-recommends $packages; }
+          # Bound only the downloads so fallback has time to run and dpkg can finish.
+          export packages
+          if ! { timeout -k 10 300 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
+            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within five minutes, so this run installs from the image's own sources."
+            cp /etc/apt/ubuntu.sources.image "$sources"
+            apt-get update
+            apt_install
+          fi
+
+      - name: Tool versions
+        run: |
+          command -v x86_64-w64-mingw32-g++ x86_64-w64-mingw32-objdump cmake ninja
+          x86_64-w64-mingw32-g++ --version | sed -n 1p
+          cmake --version | sed -n 1p
+          ninja --version
 
       - uses: actions/checkout@v7
 
@@ -134,7 +145,7 @@ jobs:
     needs: package
     # Explicit: the default success() also looks at changes, which is skipped for a tag.
     if: ${{ !cancelled() && needs.package.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write

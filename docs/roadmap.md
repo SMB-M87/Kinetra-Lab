@@ -41,15 +41,12 @@ Nothing agreed next.
 - **Golden tests on Windows** · tests, with Kinetra · added 2026-11-22
   Four Demo crowd characterization cases and i4sim's RVO case still differ on Windows after Kinetra's `atan2` and `asin`, so the Windows presets exclude them; Dotio's fingerprint and the rest hold there. Another function of Windows' C runtime rounds differently, among `sinf`, `cosf`, `expf`, `powf` and `hypot`. Routing it through Kinetra as well would also move the recorded lines on Linux, because glibc's `sinf` and `cosf` are not correctly rounded either, so the lines would be recorded again once.
   Next step: find the function by trying each on Windows CI with a correctly rounded replacement, then the user decides whether to re-record. Where: [Windows tests](windows.md#tests), [Linux beyond Arch, open points](design/2026-11-22-linux-beyond-arch.md#open-points).
-- **Linux release** · release · added 2026-11-21
-  A download for Linux next to the Windows zip: the launcher and the three applications with `i4sim-blueprints/` and the licenses, built on an older distribution (for example Ubuntu 22.04) so that its C library runs on current ones, first as a tarball with SDL2 inside and OpenGL from the system; an AppImage can follow. The release workflow gets a second job, and the README a second link.
-  Unblocked by *Linux beyond Arch* (2026-11-22); it stays here until the user orders it. Where: [release tool](../tools/release/README.md).
 - **Frame pacing in WSLg** · runtime, build · added 2026-11-21
   The Linux build stutters in WSLg and the Windows build does not; the design document lists three options and recommends measuring option 1 (Wayland with frame callbacks) first. On 2026-11-22 the user kept the choice open.
   Next step: the user's choice, when they come back to it. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
 - **CI image with the toolchain built in** · CI, with Kinetra · added 2026-11-22
-  CI installs the pinned toolchain from the Arch Linux Archive in every run and falls back to the current packages when the archive does not answer, as on 2026-11-21. An image with the pinned packages installed, on GitHub's container registry, would make CI independent of the archive and faster; it can only be built while the archive answers.
-  Next step: Kinetra's item leads: a design of who builds and publishes the image, and how a snapshot bump updates it; Lab's `ci.yml` and `release.yml` then use the same image. Where: Kinetra item of the same name.
+  Ubuntu package installation repeats for Linux tests and for the Windows cross build. The two jobs use different toolchains.
+  Next step: follow the Kinetra item and measure whether the Windows packaging job would also benefit from a prebuilt Ubuntu image.
 - **Impact-based verification script** · tools · added 2026-11-21
   One command that reads the changed paths and runs the level, targets and CTest regex of the table in [verification in Lab](../AGENTS.md#verification-in-lab), with that table in a file both the script and the page use. The `verify` skill and developers then run the same selection, and a forgotten target becomes rare.
   Next step: a design: where the table lives, and how Kinetra's own table joins it.
