@@ -60,10 +60,6 @@ A survival game and AI experiment: the player walks a seeded, endless maze and s
 
 A local factory simulation: movers carry products between the stations of a floor read from a JSON blueprint, under motion profiles, path planners and traffic policies that can be switched while the factory runs. Its loadscreen lists the floors and a SHOWCASE page of small scenes that each show one policy at work. [i4sim guide](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md)
 
-The loadscreen: the floors, SHOWCASE and its junction crossing, BLUEPRINTS in the debug menu back to the catalog, and the `1680x960+` floor running:
-
-![i4sim loadscreen: the catalog, the showcase page, the junction crossing scene, Blueprints back to the catalog, and a floor that starts](docs/media/i4sim-loadscreen-clip.gif)
-
 The `4320x2400` floor, 29 movers and 18 producers, under the Reciprocal profile:
 
 | Normal view | Debug view |

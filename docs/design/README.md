@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-24 | [Drop the i4sim loadscreen clip](2026-11-24-drop-i4sim-loadscreen-clip.md): the root README's loadscreen GIF and its sentence go, and with them the clip's scene, script, GIF and every page that names it | implemented |
 | 2026-11-24 | [Kinetra's .claude/ does not build Lab](2026-11-24-kinetra-claude-unread.md): a pointer move whose Kinetra range adds only `.claude/` runs only the docs check | implemented |
 | 2026-11-24 | [The labs in GIFs, and back to the configuration page](2026-11-24-lab-readme-gifs.md): a README section per lab with its GIFs, the launcher stills out, and SCENARIOS and DIFFICULTY rows that return to the launcher's configuration page through Kinetra's new `SessionRequest::configurations` | implemented |
 | 2026-11-24 | [Dotio on `kinetra::Vec2`](2026-11-24-dotio-on-kinetra-vec2.md): Dotio uses Kinetra's vector, segment and color types, and Kinetra's vector gets `==`; `dotio::math::Vec2`, its seven aliases and its unused operations go, with the golden fingerprint unchanged | implemented |

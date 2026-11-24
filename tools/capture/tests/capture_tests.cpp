@@ -215,7 +215,6 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "i4sim-showcase-corridor-recovery-clip",
                                          "i4sim-showcase-predictive-passing-clip",
                                          "i4sim-showcase-h-crossing-clip",
-                                         "i4sim-loadscreen-clip",
                                          "ui-launcher",
                                          "ui-settings",
                                          "ui-debug-menu",
