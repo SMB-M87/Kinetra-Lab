@@ -136,7 +136,7 @@ Ordered by what an optimization would save. The direction is a proposal; its pul
 | 5 | `bounds` of a box calls `sincosf` twice | Kinetra | i4sim: 7% in `sincosf`; after hotspot 4 `bounds` 3% (2% with passing), `sincosf` 2% (1%) | Not done, decided on 2026-11-24: after hotspots 1 to 4, one rotation per call would save about half of `sincosf`, about 1% of i4sim, too little for a pull request of its own ([design](../external/Kinetra/docs/design/2026-11-24-engine-hotspots.md#step-4-box-bounds-not-done)) |
 | 6 | Dotio's shelter search that finds nothing, repeated at every decision | Lab | none on average; up to 7.5 ms per search | Bound the search's cost, or search again only when the player or the enemy changes cell; the behavior benchmark gets a time column and a cornered-enemy case |
 
-Not worth an optimization now: Dotio's prop contacts (41% of 0.3% of a frame), i4sim's production scheduling and `validate` (4% each in the baseline; 13% and 10% after hotspot 4, as the rest shrinks: a later profile decides).
+Not worth an optimization now: Dotio's prop contacts (41% of 0.3% of a frame). i4sim's production scheduling and `validate` were 4% each in the baseline and are 13% and 10% after hotspot 4, now the largest shares after steering and the spatial queries; they are the next candidates, under *Open points*.
 
 ## Measured changes
 
@@ -152,5 +152,6 @@ Each optimization measures its workload before and after on one machine, in one 
 ## Open points
 
 - The runs are headless: drawing and the runtime are not in this baseline, and neither is the desktop target (Artix). A frame-time check of Demo at time scale 4 belongs in a playtest, with the frame-time graph of the debug menu.
-- After hotspot 2, about a third of i4sim's contact resolution, 3% of the run, is the distance from every mover to every border segment. Skipping far segments by their boxes needs a margin that cannot change a result near the threshold; it is worth that argument only if a later profile ranks it higher.
+- About a third of i4sim's contact resolution is the distance from every mover to every border segment: 3% of the run after hotspot 2, about 5% after hotspot 4, more than `bounds` now. Skipping far segments by their boxes needs a margin that cannot change a result near the threshold.
+- After hotspot 4, i4sim's production scheduling (13%) and `kinetra::validate` (10%, run on every body each steering and collision call is given) are the largest shares after steering and the spatial queries. Neither has a roadmap item yet; a new baseline would rank them with the border distances.
 - The Dotio benchmark reports no time, and the shelter search's worst case was measured with a program that is not in the repository; hotspot 6 adds both to the benchmark.
