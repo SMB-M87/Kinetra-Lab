@@ -20,9 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Engine hotspots from the performance baseline** · demo, i4sim, with Kinetra · added 2026-11-23
-  The baseline of 2026-11-23 found four engine hotspots: `World::step` rebuilds its spatial grid 14 times per tick from every body, fixed terrain included, which is 64% of a Demo tick at the default 48 agents and why Demo falls behind at time scale 4; `SpatialGrid::query` hashes every cell, allocates and sorts on every call (23% of i4sim with predictive passing, 22% of Demo at 240 agents); `priority_steer`'s prediction loop (22% of i4sim); and `bounds` of a box (7% of i4sim in `sincosf`). Kinetra's item takes them one per pull request in that order; Lab measures each with the page's workloads, keeps the golden lines and updates the page.
-  In progress as two stacks, one per repository, one pull request per hotspot ([design](../external/Kinetra/docs/design/2026-11-24-engine-hotspots.md)); Lab's hotspot 2 merged on 2026-11-24 and left `bounds` at 1% of i4sim. Next step: steps 1 and 2 in review (#111, #112), step 3, `priority_steer`, on `ccr-perf-engine-hotspots-hotspot4` (#113). Where: [performance, hotspots](performance.md#hotspots); Kinetra item *Engine performance*.
+Nothing in progress.
 
 ## Next
 
