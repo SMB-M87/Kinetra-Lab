@@ -1,4 +1,4 @@
-# Runs kinetra_capture for one screenshot and four clips, and checks the files: an i4sim
+# Runs kinetra_capture for one screenshot and five clips, and checks the files: an i4sim
 # clip, whose script sets motion settings through the debug menu; the Dotio debug clip, whose
 # player is scripted against the session's world; a showcase clip, whose blueprint lies in a
 # subdirectory of the catalog and whose length is measured; and the shared-UI clips of the

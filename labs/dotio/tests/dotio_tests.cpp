@@ -874,10 +874,21 @@ TEST_CASE("DIFFICULTY asks for the difficulty page and changes nothing else") {
     CHECK_FALSE(application.difficulty_requested);
     const auto difficulty = menu_row(application, "DIFFICULTY");
     CHECK((difficulty.kind == kinetra::DebugEntryKind::button && difficulty.depth == 0));
+    const auto preset = application.world().difficulty_settings().movement_multiplier;
+    // Values away from their defaults, which RESET PARAMETERS would restore.
+    menu_row(application, "SPEED").increase();
+    menu_row(application, "GHOST CAMERA").action();
+    menu_row(application, "ENEMIES").action();
+    menu_row(application, "MOVE SPEED").increase();
+    const auto movement = application.world().difficulty_settings().movement_multiplier;
+    const auto time_scale = application.time_scale;
     const bool paused = application.paused;
     difficulty.action();
     CHECK(application.difficulty_requested);
-    CHECK_MESSAGE((application.paused == paused && !application.ghost && application.time_scale == 1),
+    CHECK_MESSAGE((application.paused == paused && application.ghost &&
+                   application.time_scale == time_scale && time_scale != 1 &&
+                   application.world().difficulty_settings().movement_multiplier == movement &&
+                   movement != preset),
                   "DIFFICULTY changed the run it leaves");
     open_map(application.world().grid());
 }

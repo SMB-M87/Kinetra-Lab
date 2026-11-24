@@ -81,13 +81,22 @@ TEST_CASE("SCENARIOS asks for the scenario page and changes nothing else") {
     CHECK_FALSE(f.panel.scenarios_requested());
     const auto scenarios = f.row("SCENARIOS");
     CHECK((scenarios.kind == DebugEntryKind::button && scenarios.depth == 0));
-    const auto tuning = f.application.tuning().motion.max_speed;
+    // Values away from their defaults, which RESET PARAMETERS would restore.
+    f.row("SPEED").increase();
+    f.open("MOTION");
+    f.row("MAX SPEED").increase();
+    f.row("GHOST CAMERA").action();
+    const auto time_scale = f.panel.time_scale();
+    const auto max_speed = f.application.tuning().motion.max_speed;
     const auto before = applied(f.panel);
     scenarios.action();
     CHECK(f.panel.scenarios_requested());
     const auto after = applied(f.panel);
-    CHECK_MESSAGE((f.application.tuning().motion.max_speed == tuning && !f.application.paused() &&
-                   after.toggle_pause == before.toggle_pause && after.single_step == before.single_step),
+    CHECK_MESSAGE((f.panel.time_scale() == time_scale && time_scale != 1 &&
+                   f.application.tuning().motion.max_speed == max_speed &&
+                   max_speed != demo::Tuning{}.motion.max_speed && f.row("GHOST CAMERA").active() &&
+                   after.ghost && after.toggle_pause == before.toggle_pause &&
+                   after.single_step == before.single_step),
                   "SCENARIOS changed the scene it leaves");
 }
 
