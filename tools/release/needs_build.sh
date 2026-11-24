@@ -7,7 +7,7 @@
 #   Run from a Lab checkout of <head> with full history. Prints "false" only when every
 #   changed Lab path is Markdown, docs/ or .agents/, except the three below, and, for a
 #   moved external/Kinetra pointer, every path of that Kinetra range is Markdown, docs/,
-#   .agents/, .github/ or tools/, except the two below. Prints "true" otherwise, and on any
+#   .agents/, .claude/, .github/ or tools/, except the two below. Prints "true" otherwise, and on any
 #   doubt: a missing or unrelated base, a failed diff, or a Kinetra clone that does not
 #   answer. The reason goes to stderr.
 #
@@ -15,8 +15,9 @@
 # always build: kinetra_capture_tests reads README.md and checks docs/media/, in Lab and in
 # Kinetra (the shared-UI GIFs), and the labs/i4sim/blueprints/ directory, its README
 # included, is copied next to every executable and into the zip. Lab's .github/ is not among
-# the paths because it is Lab's own CI; Kinetra's .github/ is Kinetra's CI, and its tools/
-# are Python helpers that no build step runs (CI's docs check, which runs on every pull
+# the paths because it is Lab's own CI; Kinetra's .claude/ holds the settings of a Claude Code
+# session in Kinetra, its .github/ is Kinetra's CI, and its tools/ are Python helpers that no
+# build step runs (CI's docs check, which runs on every pull
 # request, uses check_docs.py). The zip's own README comes from
 # tools/release/README-windows.txt. A new input under these paths comes out of the filter:
 # a Lab path into read_anyway, a Kinetra path into kinetra_read_anyway, since read_anyway
@@ -32,7 +33,7 @@ head="$2"
 # ^$ keeps the empty line of an empty diff out of the paths that are left.
 docs='(\.md$|^docs/|^\.agents/|^$)'
 read_anyway='(^README\.md$|^docs/media/|^labs/i4sim/blueprints/)'
-kinetra_unread='(\.md$|^docs/|^\.agents/|^\.github/|^tools/|^$)'
+kinetra_unread='(\.md$|^docs/|^\.agents/|^\.claude/|^\.github/|^tools/|^$)'
 kinetra_read_anyway='(^README\.md$|^docs/media/)'
 
 build() {
@@ -90,8 +91,8 @@ if has_match '^external/Kinetra$' "$files"; then
         build "Kinetra's README.md or docs/media/ changed, which kinetra_capture_tests reads"
     fi
     keep_outside "$kinetra_unread" "$kfiles"
-    [[ -z "$left" ]] || build "Kinetra files outside Markdown, docs/, .agents/, .github/ and tools/ changed"
+    [[ -z "$left" ]] || build "Kinetra files outside Markdown, docs/, .agents/, .claude/, .github/ and tools/ changed"
 fi
 
-echo "skip: only Markdown, docs/ or .agents/ changed, and in Kinetra also .github/ or tools/" >&2
+echo "skip: only Markdown, docs/ or .agents/ changed, and in Kinetra also .claude/, .github/ or tools/" >&2
 echo false
