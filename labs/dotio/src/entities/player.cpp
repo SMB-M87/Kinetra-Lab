@@ -42,7 +42,8 @@ void Player::shoot(const dotio::math::Coordinates mouse, const bool debug) {
         return;
 
     dotio::math::Vector2 force{(6.0f + (bolt_speed * (static_cast<float>(kills) / max_bullet_kills))), 0.0f};
-    force.rotate((mouse - position).get_direction());
+    const auto aim = mouse - position;
+    force = kinetra::rotated(force, kinetra::atan2(aim.y, aim.x));
     world_->add_bolt(position, force);
     if (!debug)
         mana -= 10.0f;

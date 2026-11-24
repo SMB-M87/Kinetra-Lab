@@ -77,7 +77,7 @@ std::vector<dotio::math::Vec2> population(float dt, float resources, dotio::math
                            std::abs(delta.y) - enemy.radius > active.y / 1.75f * 1.1f),
                           "Spawned enemy body overlaps 1.1x maximum normal player view");
             for (const auto position : positions)
-                CHECK_MESSAGE((enemy.position - position).get_length() >=
+                CHECK_MESSAGE(kinetra::length(enemy.position - position) >=
                                   dotio::settings_for(difficulty).spawn_spacing,
                               "Spawn spacing allowed a dense enemy cluster");
             positions.push_back(enemy.position);
@@ -122,7 +122,7 @@ Encounter encounter(dotio::Difficulty difficulty) {
     enemy.reset_cooldown();
     const float cooldown = enemy.get_cooldown();
     enemy.get_state().execute(1);
-    const float acceleration = enemy.velocity.get_length();
+    const float acceleration = kinetra::length(enemy.velocity);
     for (int tick = 0; tick < 60; ++tick)
         enemy.tick();
     int shots = 0;
@@ -130,7 +130,7 @@ Encounter encounter(dotio::Difficulty difficulty) {
     for (const auto &arrow : world->get_arrows())
         if (arrow.is_active) {
             ++shots;
-            speed = arrow.velocity.get_length();
+            speed = kinetra::length(arrow.velocity);
         }
     enemy.reset_pursue();
     for (int cycle = 0; cycle < 10; ++cycle)
@@ -215,7 +215,7 @@ float acceleration(dotio::Enemy &enemy, dotio::State &state) {
     enemy.line_of_sight = true;
     enemy.set_state(state);
     state.execute(1);
-    return enemy.velocity.get_length();
+    return kinetra::length(enemy.velocity);
 }
 
 /// Distance the fixture's enemy covers in one second on the open arena at a movement
@@ -232,7 +232,7 @@ float travelled(float movement_multiplier, bool pursuing) {
     }
     for (int update = 0; update < 60; ++update)
         world->update_enemies(1, false);
-    return (enemy.position - start).get_length();
+    return kinetra::length(enemy.position - start);
 }
 } // namespace
 
@@ -608,7 +608,7 @@ TEST_CASE("no enemy stands still in a moving state around a standing player for 
                 // shelter: both stand still on purpose.
                 const bool holds = enemy.is_attacking() || (enemy.is_recovering() && enemy.path.empty());
                 if (!enemy.is_active || enemy.frozen || holds ||
-                    (enemy.position - anchor.position).get_length() > 25) {
+                    kinetra::length(enemy.position - anchor.position) > 25) {
                     anchor = {enemy.position, tick};
                     continue;
                 }
@@ -1254,24 +1254,10 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
     CHECK_MESSAGE(camera.pixels_per_unit == 2.5f, "Debug Dotio zoom failed to extend view");
 }
 
-TEST_CASE("legacy vector math and coordinate conversion keep their contracts") {
-    const dotio::math::Vec2 vector{3, 4};
-    CHECK_MESSAGE((vector.get_length() == 5 && vector.dot_product({2, -1}) == 2),
-                  "Legacy vector units or dot product changed");
-    CHECK_MESSAGE(vector.determinant({2, -1}) == -11, "Legacy cross product changed");
-    CHECK_MESSAGE(dotio::math::Vec2{}.get_normalized() == dotio::math::Vec2{},
-                  "Legacy zero normalization changed");
-    auto normalized = vector.get_normalized();
-    CHECK_MESSAGE((std::abs(normalized.x - 0.6f) < 0.000001f && std::abs(normalized.y - 0.8f) < 0.000001f),
-                  "Legacy normalization changed");
-    auto rotated = dotio::math::Vec2{1, 0}.rotate(std::numbers::pi_v<float> / 2);
-    CHECK_MESSAGE((std::abs(rotated.x) < 0.000001f && std::abs(rotated.y - 1) < 0.000001f),
-                  "Legacy rotation orientation changed");
-    CHECK_MESSAGE(std::abs(dotio::math::Vec2{1, 0}.signed_angle_difference({0, 1}) -
-                           std::numbers::pi_v<float> / 2) < 0.000001f,
-                  "Legacy signed angle changed");
-    CHECK_MESSAGE((dotio::from_world(dotio::to_world({250, -125})) == dotio::math::Vec2{250, -125}),
-                  "Legacy/world coordinate conversion changed");
+TEST_CASE("legacy and world coordinates convert both ways") {
+    CHECK(dotio::to_world({250, -125}) == kinetra::Vec2{10, 5});
+    CHECK(dotio::from_world({10, 5}) == dotio::math::Vec2{250, -125});
+    CHECK(dotio::from_world(dotio::to_world({250, -125})) == dotio::math::Vec2{250, -125});
 }
 
 TEST_CASE("a world starts with the preset of its difficulty and the default enemy tuning") {
@@ -1429,7 +1415,7 @@ TEST_CASE("the largest accepted speed does not carry an enemy through a wall") {
         for (int update = 0; update < 120; ++update) {
             const auto before = enemy.position;
             world->update_enemies(1, false);
-            fastest = std::max(fastest, (enemy.position - before).get_length());
+            fastest = std::max(fastest, kinetra::length(enemy.position - before));
             deepest = std::max(deepest, enemy.position.x + enemy.radius - wall);
         }
     }
@@ -1503,7 +1489,7 @@ TEST_CASE("a steering wanderer turns away from a wall ahead before touching it a
         for (int update = second * 60; update < second * 60 + 60; ++update) {
             const auto before = enemy.position;
             run(*world, 1, update);
-            walked += (enemy.position - before).get_length();
+            walked += kinetra::length(enemy.position - before);
             if (enemy.position.x < nearest) {
                 nearest = enemy.position.x;
                 retreat = 0;
@@ -1553,8 +1539,8 @@ TEST_CASE("a steering wanderer heading into a corner keeps walking and gets out 
                 const auto before = enemy.position;
                 const float facing = enemy.wander_heading;
                 run(*world, 1, update);
-                walked += (enemy.position - before).get_length();
-                const float distance = (enemy.position - corner).get_length();
+                walked += kinetra::length(enemy.position - before);
+                const float distance = kinetra::length(enemy.position - corner);
                 if (distance < closest) {
                     closest = distance;
                     retreat = 0;
@@ -1587,8 +1573,10 @@ TEST_CASE("the wander feelers follow the heading and steering reacts to exactly 
     for (std::size_t i = 0; i < feelers.size(); ++i) {
         const auto reach = feelers[i].end - feelers[i].start;
         CHECK_MESSAGE(feelers[i].start == enemy.position, "A feeler does not start at the enemy");
-        CHECK_MESSAGE(std::abs(reach.get_length() - lengths[i]) < 0.001f, "A feeler has the wrong length");
-        CHECK_MESSAGE(std::abs(reach.get_direction() - angles[i]) < 0.0001f, "A feeler has the wrong angle");
+        CHECK_MESSAGE(std::abs(kinetra::length(reach) - lengths[i]) < 0.001f,
+                      "A feeler has the wrong length");
+        CHECK_MESSAGE(std::abs(kinetra::atan2(reach.y, reach.x) - angles[i]) < 0.0001f,
+                      "A feeler has the wrong angle");
     }
     CHECK_MESSAGE((dotio::wander_forward_feeler == 0 && dotio::wander_positive_feeler == 1 &&
                    dotio::wander_negative_feeler == 2),

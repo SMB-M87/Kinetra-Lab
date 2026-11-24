@@ -18,7 +18,7 @@ void Arrow::update(float delta) {
 }
 
 void Arrow::draw(dotio::Renderer &renderer) {
-    renderer.draw_segment({position, position - (velocity).get_normalized() * 30.0f},
+    renderer.draw_segment({position, position - kinetra::normalized(velocity) * 30.0f},
                           {1.0f, 0.8f, 0.8f, 1.0f});
 }
 } // namespace dotio

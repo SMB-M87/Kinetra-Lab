@@ -42,7 +42,7 @@ dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
     for (auto &enemy : world.get_enemies()) {
         if (!on_screen(enemy, camera))
             continue;
-        const float distance = (enemy.position - player).get_length();
+        const float distance = kinetra::length(enemy.position - player);
         if (distance < nearest_distance && clear_shot(world, player, enemy.position)) {
             nearest = &enemy;
             nearest_distance = distance;

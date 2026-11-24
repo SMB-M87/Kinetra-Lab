@@ -77,7 +77,7 @@ class Player {
         dotio::Commands commands;
         if (next_ < route_.size()) {
             auto to = route_[next_] - position;
-            const float distance = to.get_length();
+            const float distance = kinetra::length(to);
             if (distance < best_) {
                 best_ = distance;
                 waiting_ = 0;
@@ -128,7 +128,7 @@ class Player {
         for (const auto &enemy : application.world().get_enemies()) {
             if (!enemy.is_active || enemy.frozen)
                 continue;
-            const float distance = (enemy.position - position).get_length();
+            const float distance = kinetra::length(enemy.position - position);
             if (distance < nearest_distance && !sight_blocked(application, position, enemy.position)) {
                 nearest = &enemy;
                 nearest_distance = distance;
@@ -287,7 +287,7 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
             slot.anchor -= shift;
             if (!enemy.is_active) {
                 if (slot.active && !reset) {
-                    const float gap = (slot.position - (player_before - shift)).get_length();
+                    const float gap = kinetra::length(slot.position - (player_before - shift));
                     if (gap < 2 * enemy.radius + 12) {
                         ++totals.contacts;
                         totals.kamikaze_contacts += slot.state == State::kamikaze;
@@ -341,10 +341,10 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
                 totals.routeless_ticks += route_empty(enemy);
             }
             if (state == State::attack) {
-                totals.attack_distance += (enemy.position - self.position).get_length();
+                totals.attack_distance += kinetra::length(enemy.position - self.position);
                 ++totals.attack_distance_ticks;
             }
-            if ((enemy.position - slot.anchor).get_length() > stuck_radius) {
+            if (kinetra::length(enemy.position - slot.anchor) > stuck_radius) {
                 slot.anchor = enemy.position;
                 slot.anchor_tick = tick;
                 slot.stuck = false;

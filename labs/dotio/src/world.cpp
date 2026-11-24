@@ -189,7 +189,7 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
     for (const auto &enemy : get_enemies())
         if (enemy.is_active && !outside(enemy.position, retained_half)) {
             nearby_count += !outside(enemy.position, admission_half);
-            const float distance = (enemy.position - player_.position).get_length();
+            const float distance = kinetra::length(enemy.position - player_.position);
             nearby_load += std::clamp((1200 - distance) / 700, 0.f, 1.f);
         }
     const float spawn_rate =
@@ -227,10 +227,10 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
                             get_enemies().get_instances() + get_enemies().get_capacity(),
                             [&](const Enemy &other) {
                                 return other.is_active &&
-                                       (other.position - spawn).get_length() < settings.spawn_spacing;
+                                       kinetra::length(other.position - spawn) < settings.spawn_spacing;
                             }) ||
                 std::any_of(props_.begin(), props_.end(), [&](const Prop &prop) {
-                    return (dotio::legacy_vector(prop.body.position) - spawn).get_length() < 50;
+                    return kinetra::length(dotio::legacy_vector(prop.body.position) - spawn) < 50;
                 });
             const auto delta = spawn - player_.position;
             // Keep the complete body outside 1.1x maximum normal view, at every zoom.
@@ -273,7 +273,7 @@ void World::update_objects(float delta) {
             }
             for (auto &enemy : get_enemies()) {
                 if (!enemy.is_active || enemy.frozen ||
-                    (enemy.position - dotio::legacy_vector(body.position)).get_length() > 60)
+                    kinetra::length(enemy.position - dotio::legacy_vector(body.position)) > 60)
                     continue;
                 auto actor = dotio::physics_body(enemy);
                 if (const auto hit = kinetra::collide(actor, body)) {
@@ -384,17 +384,17 @@ void World::update_arrows(const float delta, const bool debug) {
         const bool hits_player =
             Grid::segment_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
         const auto object = first_object_hit(segment, 0);
-        const float object_distance = object ? object->second * (segment.end - segment.start).get_length()
+        const float object_distance = object ? object->second * kinetra::length(segment.end - segment.start)
                                              : std::numeric_limits<float>::infinity();
-        if (object && (!blocked || object_distance < (wall - segment.start).get_length()) &&
-            (!hits_player || object_distance < (hit - segment.start).get_length())) {
+        if (object && (!blocked || object_distance < kinetra::length(wall - segment.start)) &&
+            (!hits_player || object_distance < kinetra::length(hit - segment.start))) {
             const auto point = segment.start + (segment.end - segment.start) * object->second;
             kinetra::apply_body_impulse(props_[object->first].body,
                                         dotio::physics_vector(arrow.velocity) * 0.2f,
                                         dotio::physics_vector(point));
             arrow.is_active = false;
-        } else if (hits_player &&
-                   (!blocked || (hit - segment.start).get_length() < (wall - segment.start).get_length())) {
+        } else if (hits_player && (!blocked || kinetra::length(hit - segment.start) <
+                                                   kinetra::length(wall - segment.start))) {
             arrow.is_active = false;
             if (!debug)
                 get_player().health -= 10;
@@ -418,7 +418,7 @@ void World::update_bolts(const float delta) {
         dotio::math::Point2 wall{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         float nearest =
-            blocked ? (wall - segment.start).get_length() : std::numeric_limits<float>::infinity();
+            blocked ? kinetra::length(wall - segment.start) : std::numeric_limits<float>::infinity();
         Enemy *victim = nullptr;
         std::size_t index = 0;
         for (auto &enemy : get_enemies()) {
@@ -434,14 +434,14 @@ void World::update_bolts(const float delta) {
                 dotio::physics_vector(previous), enemy.radius + Bolt::radius);
             if (!fraction)
                 continue;
-            const float distance = *fraction * (segment.end - segment.start).get_length();
+            const float distance = *fraction * kinetra::length(segment.end - segment.start);
             if (distance < nearest) {
                 nearest = distance;
                 victim = &enemy;
             }
         }
         const auto object = first_object_hit(segment, Bolt::radius);
-        if (object && object->second * (segment.end - segment.start).get_length() < nearest) {
+        if (object && object->second * kinetra::length(segment.end - segment.start) < nearest) {
             const auto point = segment.start + (segment.end - segment.start) * object->second;
             kinetra::apply_body_impulse(props_[object->first].body,
                                         dotio::physics_vector(bolt.velocity) * 0.5f,

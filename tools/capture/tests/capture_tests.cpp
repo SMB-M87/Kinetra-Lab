@@ -436,7 +436,7 @@ TEST_CASE("lead_offset aims where a bolt meets a moving target, and at the targe
         CHECK(aim.y > 0);
         // The target needs as long to its part of the way as the bolt to the whole.
         const float target_ticks = (aim.y - offset.y) / velocity.y;
-        CHECK(aim.get_length() / bolt == doctest::Approx(target_ticks));
+        CHECK(kinetra::length(aim) / bolt == doctest::Approx(target_ticks));
     }
     SUBCASE("a target that outruns the bolt is aimed at directly") {
         const auto aim = capture::lead_offset({300, 0}, {7, 0}, bolt);
@@ -488,9 +488,9 @@ TEST_CASE("the scripted Dotio player does not shoot through a crate") {
     float nearest = 400;
     for (const auto &object : read_only.get_objects())
         if (const auto offset = dotio::legacy_vector(object.body.position) - player;
-            offset.get_length() < nearest) {
+            kinetra::length(offset) < nearest) {
             crate = offset;
-            nearest = offset.get_length();
+            nearest = kinetra::length(offset);
         }
     REQUIRE_MESSAGE(nearest < 400, "the seeded world has no crate near the player's start");
     // Behind the crate on the same line, and as far away to the other side.
@@ -512,7 +512,7 @@ TEST_CASE("dotio_bolt_speed is the speed of the bolt the player fires") {
         float fired = 0;
         for (auto &bolt : world.world().get_bolts())
             if (bolt.is_active)
-                fired = bolt.velocity.get_length();
+                fired = kinetra::length(bolt.velocity);
         CHECK(fired == doctest::Approx(capture::dotio_bolt_speed(player)));
     }
 }

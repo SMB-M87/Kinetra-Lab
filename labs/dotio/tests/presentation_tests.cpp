@@ -113,7 +113,7 @@ TEST_CASE("Dotio inspector allows world fire and Ghost teleport and consumes clo
     const auto target = free_target(player.position);
     const auto absolute = target + world.world_offset();
     click(camera.world_to_screen(dotio::to_world(target)));
-    CHECK((player.position + world.world_offset() - absolute).get_length() < 0.01f);
+    CHECK(kinetra::length(player.position + world.world_offset() - absolute) < 0.01f);
     REQUIRE(application.selected_enemy());
     const auto after_teleport = player.position + world.world_offset();
     const auto blocked_click_target = free_target(player.position);

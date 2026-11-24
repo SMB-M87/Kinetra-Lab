@@ -36,7 +36,8 @@ bool GridEntry::from_world(const Position &position, const Coordinates &origin, 
 
 Position GridEntry::get_cell_position(const Position &position, const Coordinates &origin,
                                       const float cell_size) {
-    return Vec2{position - origin}.modulo(cell_size);
+    const Vec2 local = position - origin;
+    return {std::fmod(local.x, cell_size), std::fmod(local.y, cell_size)};
 }
 
 uint8_t GridEntry::get_square_partition(const Position &position, const float semi_width,
