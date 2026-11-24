@@ -20,13 +20,13 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **README media as GIFs** · media, capture, docs · added 2026-11-23
+  The user wants the Lab README to be about the labs themselves, with as many GIFs as it takes to show how each lab works and what it supports, because a clip shows behavior a screenshot cannot. Kinetra's half, the shared UI in GIFs, came with the rule that a change refreshes the captures a media guide's table names for it, which replaces rendering the tour after larger changes (*Tour video for YouTube*), and with clips that show a pointer ([design](design/2026-11-23-shared-ui-gifs.md)). The Lab gallery has eleven clips and three launcher screenshots.
+  Branch: `claude/roadmap-readme-media-demo-p1ywc6`, Kinetra `claude/roadmap-readme-media-demo-p1ywc6`; with SCENARIOS and DIFFICULTY rows that return to the launcher's configuration page ([design](design/2026-11-24-lab-readme-gifs.md)). Where: [media guide](media/README.md), [capture tool](../tools/capture/README.md).
 
 ## Next
 
-- **README media as GIFs** · media, capture, docs · added 2026-11-23
-  The user wants the Lab README to be about the labs themselves, with as many GIFs as it takes to show how each lab works and what it supports, because a clip shows behavior a screenshot cannot. Kinetra's half, the shared UI in GIFs, came with the rule that a change refreshes the captures a media guide's table names for it, which replaces rendering the tour after larger changes (*Tour video for YouTube*), and with clips that show a pointer ([design](design/2026-11-23-shared-ui-gifs.md)). The Lab gallery has eleven clips and three launcher screenshots.
-  Next step: choose the scenes per lab, with or without the pointer of the shared-UI clips, and a size budget per GIF (the shared-UI GIFs stay at about 1 MB each), then rework the README around them; each new scene gets its row in the media guide's [table](media/README.md#which-captures-a-change-makes-stale). Where: [media guide](media/README.md), [capture tool](../tools/capture/README.md).
+Nothing planned next; the user orders the next item from *Later*.
 
 ## Later
 

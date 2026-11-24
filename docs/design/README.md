@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-24 | [The labs in GIFs, and back to the configuration page](2026-11-24-lab-readme-gifs.md): a README section per lab with its GIFs, the launcher stills out, and SCENARIOS and DIFFICULTY rows that return to the launcher's configuration page through Kinetra's new `SessionRequest::configurations` | accepted |
 | 2026-11-24 | [i4sim contact resolution without every pair](2026-11-24-i4sim-contact-pairs.md): `MotionStep::resolve_contacts` computes each mover's bounds once instead of for every pair, which halves the motion benchmark with every result unchanged; a spatial-index broad phase measured slower at this fleet size | implemented |
 | 2026-11-23 | [Ready-to-build cloud sessions](2026-11-23-ready-to-build-cloud-sessions.md): a SessionStart hook in Kinetra and Kinetra-Lab runs one setup script, which loads the submodule, installs the Ubuntu packages and CI's clang-format 23.1.5 at the start of every cloud session | implemented |
 | 2026-11-23 | [The shared UI in GIFs in Kinetra's README](2026-11-23-shared-ui-gifs.md): five GIFs of the launcher and overlays from Demo, with a pointer, a fixed frame time in Kinetra's runtime, and a rule to refresh the captures a change makes stale | implemented |
