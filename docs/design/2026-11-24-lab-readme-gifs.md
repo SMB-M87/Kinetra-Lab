@@ -1,6 +1,6 @@
 # The labs in GIFs, and back to the configuration page
 
-Status: accepted · Branch: `claude/roadmap-readme-media-demo-p1ywc6`, Kinetra `claude/roadmap-readme-media-demo-p1ywc6` · Related: [roadmap](../roadmap.md), [media guide](../media/README.md), [capture tool](../../tools/capture/README.md), [shared-UI GIFs](2026-11-23-shared-ui-gifs.md), [Demo scenario menu](2026-11-23-demo-scenario-menu.md)
+Status: implemented · Branch: `claude/roadmap-readme-media-demo-p1ywc6`, Kinetra `claude/roadmap-readme-media-demo-p1ywc6` ([Kinetra#53](https://github.com/SMB-M87/Kinetra/pull/53)) · Related: [roadmap](../roadmap.md), [media guide](../media/README.md), [capture tool](../../tools/capture/README.md), [shared-UI GIFs](2026-11-23-shared-ui-gifs.md), [Demo scenario menu](2026-11-23-demo-scenario-menu.md)
 
 This change finishes the roadmap item *README media as GIFs*. Lab's README gets a section per lab, with GIFs that show what each lab does and supports. The launcher screenshots leave the README, because Kinetra's README already shows the launcher. Demo and Dotio each get a debug-menu row that returns to their page of the launcher menu, as i4sim's BLUEPRINTS returns to its catalog. Doing that needs a new request in Kinetra, `SessionRequest::configurations`, and Kinetra's `ui-launcher` GIF now ends with that return.
 
@@ -46,6 +46,7 @@ This change finishes the roadmap item *README media as GIFs*. Lab's README gets 
 | README structure | Under the tour's thumbnail, a section per lab: what it is and supports, its normal and debug clips side by side, then a table of its scenarios or showcase scenes, and a link to its guide. Build and architecture follow below | The user's choice on 2026-11-24: the README is about the labs |
 | The return in Kinetra's README | `ui-launcher` continues after Doorway starts: Shift+Ctrl, SCENARIOS, and back on the scenario page with DOORWAY selected | The user's choice on 2026-11-24. The engine change is a launcher change, so `ui-launcher` is stale anyway |
 | Row labels and place | SCENARIOS in Demo, DIFFICULTY in Dotio, both last in the menu, as BLUEPRINTS is in i4sim | Confirmed with the plan on 2026-11-24 |
+| ADR | None: `configurations` adds to [ADR 0014](../../external/Kinetra/docs/decisions/0014-session-navigation-requests.md) without changing its decision (one request, read by the host after every advance), and a value is easy to remove | The ADR criteria ask for a decision that is hard to reverse |
 | Direct start without a launcher | `run_session` ends the run on `configurations`, as it does on `menu`. In `kinetra_demo` and `kinetra_dotio` the new row ends the program, as LAUNCHER already does | There is no menu to return to. This is consistent with LAUNCHER |
 | The launcher screenshots | The files `launcher.png`, `launcher-difficulty.png` and `launcher-demo-scenarios.png` stay and are linked from the module READMEs. `launcher-loadscreen.png` and the three Demo scenario stills leave with their scenes | Clips replace these four stills. The other three still show a page that the README no longer shows |
 
@@ -110,27 +111,64 @@ sequenceDiagram
 
 | Behavior | Test | Level |
 | --- | --- | --- |
-| `show_configurations` opens the page with the configuration selected; an application without configurations shows the list with it selected; unknown indices throw and change nothing | New case in Kinetra's `launcher_tests.cpp` (headless) | Targeted in Kinetra |
+| `show_configurations` opens the page with the configuration selected; a pointer left over another row keeps the selection until it moves; an application without configurations shows the list with it selected; unknown indices throw and change nothing | New case in Kinetra's `launcher_tests.cpp` (headless) | Targeted in Kinetra |
 | `SessionHost::selection()` follows `start()` and `return_to_menu()`, and stays unchanged when a factory throws | The SessionHost case in `launcher_tests.cpp` | Targeted in Kinetra |
 | `run_launcher` destroys the session on `configurations`, draws the menu in that frame, and the next Enter starts the same configuration again | New graphics case in Kinetra's `runtime_tests.cpp` with a scripted application that has configurations | Full (graphics) |
 | `run_session` ends on `configurations` | The existing request case, extended with the new value | Full (graphics) |
-| Demo's SCENARIOS row is last and sets the flag; nothing else changes | New case in `kinetra_demo_tests` | Targeted |
-| Dotio's DIFFICULTY row is last and sets the flag | New case in `kinetra_dotio_tests` | Targeted |
+| Demo's SCENARIOS row is last and sets the flag; tuned values, speed and the ghost camera stay as they were | New case in `kinetra_demo_tests` | Targeted |
+| Dotio's DIFFICULTY row is last and sets the flag; tuned balance, speed and the ghost camera stay | New case in `kinetra_dotio_tests` | Targeted |
 | A Demo session and a Dotio session answer `configurations` after the row's action | Graphics cases in the launcher's `runtime_tests.cpp`, next to the existing LAUNCHER and EXIT checks | Full (graphics) |
 | The scene list matches the media guide and the README; the new clips render | `capture_tests.cpp` scene-list case; `kinetra_capture_smoke` | Targeted, Full |
+| With Lab's registrations, SCENARIOS returns to Demo's page with DOORWAY selected | `kinetra_capture_smoke` plays `ui-launcher`, whose script throws otherwise | Full (graphics in CI) |
 | The GIFs show what their rows say | A contact sheet per new or refreshed GIF and PNG | Manual |
 
 ## Review
 
-To be filled in.
+The agent reviewed its own work: `git diff origin/main...HEAD` in both repositories, the copies check, and `/code-review` at medium depth.
+
+| Finding | Resolution |
+| --- | --- |
+| After `show_configurations` the menu's last pointer position was stale, so its first update hovered whatever row lay under a pointer the session had left there, replacing the configuration that ran | Kinetra 96c3ca7: the next update records the pointer without hovering; a test case rests the pointer on another row, then moves it |
+| The loadscreen clip clicked absolute catalog rows without paging, never checked what loaded, and its hover loop underflowed for a catalog without floors | 9c0fcb5: `catalog_row` throws beyond the first page, `require_blueprint` checks the session's status after each click, and the clip throws for an empty catalog |
+| The SCENARIOS and DIFFICULTY tests checked values that sat at their defaults, so a reset would have passed | 9c0fcb5: both first move speed, a tuning value and the ghost camera away from their defaults |
+| The smoke test's header counted four clips; Kinetra's `run_session` case still said "menu or exit" | 9c0fcb5 and Kinetra 96c3ca7 |
+| `show_configurations` and `SessionHost::start` each checked the configuration their own way | Kinetra c9ef1fd: one `known_configuration` |
+| Copies: Kinetra's architecture diagram still said `alt menu or exit`; the capture README spoke of a "README gallery" | Kinetra ce10e8d; 171b84e |
+| `ui-launcher` was checked only by looking at it | 171b84e: the smoke test plays it, and its script throws unless DOORWAY is selected on Demo's page |
+
+The copies check (`check_copies.py`) ran with the old wordings `none, menu, exit`, `menu or exit`, `both requests`, `launcher-loadscreen`, the three scenario stills, `screenshots-and-demo`, `Screenshots and demo`, `README gallery`, `shared-UI clips`, `GHOST CAMERA and RESET PARAMETERS`, `eleven clips`, `5.1 MB` and `three launcher screenshots`. Every hit was judged: ADR 0014 keeps its decision text, and the remaining "shared-UI clips" name Kinetra's clips on purpose. Older design documents now link the new anchor and name the removed stills as text.
 
 ## Verification
 
-To be filled in.
+| Check | Command | Result |
+| --- | --- | --- |
+| Kinetra launcher and runtime | In `external/Kinetra`: `cmake --preset graphics -DKINETRA_WARNINGS=ON`, `cmake --build --preset graphics --target kinetra_launcher_tests kinetra_engine_runtime_tests`, `ctest --preset graphics -R 'kinetra_launcher\|kinetra_engine_graphics'` | 34 of 34 passed, no warnings. The new `run_launcher` case and the resting-pointer check each fail without their change |
+| Lab, everything | `cmake --preset graphics -DKINETRA_LAB_WARNINGS=ON`, `cmake --build --preset graphics`, `ctest --preset graphics -LE soak` | 347 of 347 passed, 0 warnings, before the review fixes |
+| Lab, after the review | `ctest --preset graphics -R '^kinetra_demo:\|^kinetra_dotio:\|^kinetra_capture\|^kinetra_graphics\|^kinetra_menu' -LE soak` | 136 of 136 passed, the smoke test with `ui-launcher` included |
+| Format | clang-format 23.1.5 `--dry-run --Werror` on every changed C++ file in both repositories | Clean |
+| Docs | `python3 external/Kinetra/tools/check_docs.py`; in Kinetra `python3 tools/check_docs.py` | All links resolve |
+| Determinism | `capture_media.sh build-graphics` for every refreshed and new capture, twice | Byte-identical files |
+| Looked at | Contact sheets of every new or refreshed clip; crops of the debug menus in `demo-debug.png` and `dotio-debug.png` | Each shows what its row in the media guide says. Gravity's statistics line reads FPS 0 for its first half second, as the application does after a start |
+| Sizes | `capture_media.sh` | `demo-gravity-clip` 348 KB, `demo-maze-clip` 148 KB, `demo-doorway-clip` 256 KB, `i4sim-loadscreen-clip` 304 KB, `ui-launcher` 216 KB |
+| Full | The pull requests' CI | Pending |
 
 ## Pull request
 
-To be filled in.
+**feat(demo,dotio): the labs in GIFs, and SCENARIOS and DIFFICULTY back to the configuration page**
+
+- **Summary:** Lab's README has a section per lab with its clips. New clips show Demo's Gravity, Maze and Doorway scenarios and i4sim's loadscreen. The launcher stills leave the README. Demo's and Dotio's debug menus end with SCENARIOS and DIFFICULTY, which return to the launcher's configuration page through Kinetra's new `SessionRequest::configurations`.
+- **Changes:**
+  - The rows in `DebugPanel` and `dotio::Application`, and the sessions' `request()`, with headless and graphics tests.
+  - The capture tour follows `run_launcher`. There are three Demo scenario clips, a tour clip `i4sim-loadscreen-clip`, and `ui-launcher` ending with SCENARIOS; the smoke test plays `ui-launcher`.
+  - `demo-debug.png` and `dotio-debug.png` are refreshed. Four stills are removed.
+  - The README is rebuilt around the labs, and the media guide, capture README, module READMEs and launcher-overlays page are updated.
+  - The roadmap item is closed.
+  - The pointer moves to Kinetra `claude/roadmap-readme-media-demo-p1ywc6`.
+- **Design:** this document.
+- **Verification:** the table above; CI is the Full level.
+- **Review notes:** the new README and its clips; the request's name and its contract in Kinetra#53; that Kinetra's `ui-debug-menu`, `ui-debug-layers` and `ui-inspector` are not refreshed (*Open points*).
+- **Dependencies and merge order:** Kinetra#53 merges first, with a merge commit. This pull request then merges with its pointer at the Kinetra branch commit it was verified with. Kinetra's `lab-pointer` workflow records the merge commit after that.
+- **Follow-up:** none planned.
 
 ## Open points
 
