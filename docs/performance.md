@@ -104,7 +104,7 @@ The world holds 489 bodies at 48 agents and 681 at 240; 362 of them are fixed te
 | --- | --- | --- | --- |
 | `kinetra::World::step` ([physics.cpp](../external/Kinetra/src/simulation/physics.cpp)) | 32% | 47% | Two substeps, each with a sweep pass and six correction passes. Before hotspot 1 it was 55% and 88% |
 | of which `SpatialGrid::rebuild` | 8% | 9% | Every pass rebuilds the index of the moving bodies, at least 14 times per tick; the fixed terrain has an index of its own, rebuilt only when a fixed body changes. Before hotspot 1 every rebuild took all bodies, 35% and 64% |
-| of which `SpatialGrid::query` | 15% | 21% | About 3,900 queries per tick at 240 agents (callgrind, baseline), each now into both indexes: bodies in the sweep passes, moving bodies in the correction passes |
+| of which `SpatialGrid::query` | 15% | 21% | About 3,900 queries per tick at 240 agents (callgrind, baseline): bodies in the sweep passes, moving bodies in the correction passes. A moving body queries both indexes; a fixed body, in the sweep passes, only the moving one |
 | `Scene::steer_agents` ([scene.cpp](../labs/demo/src/world/scene.cpp)) | 62% | 36% | |
 | of which `SpatialGrid::query` | 32% | 22% | Two queries per agent per tick, for neighbors and terrain, each hashing every cell it covers, then allocating and sorting its result |
 | of which `kinetra::avoid_collisions` | 16% | 5% | Reciprocal avoidance |
@@ -145,7 +145,7 @@ Each optimization measures its workload before and after on one machine, in one 
 | Date | Change | Workload | Before | After | Change in time |
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-24 | Hotspot 2: i4sim's contact resolution computes bounds once per mover ([design](design/2026-11-24-i4sim-contact-pairs.md)) | i4sim motion benchmark, default; with `--predictive-passing` | 40.6 s; 59.0 s | 21.6 s; 38.2 s | −47%; −35%. On `8640x4800` 0.36 to 0.19 ms per tick, with passing 0.54 to 0.34 ms. Cloud machine: four cores of an Intel Xeon at 2.1 GHz, GCC 13.3, about 1.45 times slower than the baseline's |
-| 2026-11-24 | Hotspot 1: `World::step` indexes fixed bodies once, when they change ([design](../external/Kinetra/docs/design/2026-11-24-engine-hotspots.md)) | Demo crowd soak at 48 agents, steering and route wander; at 240 agents, seeds 123 and 456 and route wander | 12.1 s, 12.0 s; 28.0 s, 28.9 s, 26.0 s | 2.7 s, 2.5 s; 18.1 s, 18.5 s, 16.3 s | −78%, −79%; −35%, −36%, −37%. The golden scenarios 1.0–1.5 s instead of 2.0–2.7 s; i4sim and Dotio within run-to-run noise (−1% to −3%). Cloud machine: four cores of an Intel Xeon at 2.1 GHz, GCC 13.3 |
+| 2026-11-24 | Hotspot 1: `World::step` indexes fixed bodies once, when they change ([design](../external/Kinetra/docs/design/2026-11-24-engine-hotspots.md)) | Demo crowd soak at 48 agents, steering and route wander; at 240 agents, seeds 123 and 456 and route wander | 12.1 s, 12.0 s; 28.0 s, 28.9 s, 26.0 s | 2.7 s, 2.5 s; 18.1 s, 18.5 s, 16.3 s | −78%, −79%; −35%, −36%, −37%. The golden scenarios 1.0–1.5 s instead of 2.0–2.7 s; i4sim and Dotio within run-to-run noise (−1% to −3%). Cloud machine: four cores of an Intel Xeon at 2.1 GHz, GCC 13.3, about 1.25 times slower than the baseline's on Demo |
 
 ## Open points
 
