@@ -6,6 +6,7 @@
 #include "capture/scenes/ui_clips.h"
 #include "capture/stage.h"
 
+#include "demo/application.h"
 #include "demo/scenario.h"
 #include "i4sim/blueprint/blueprint.h"
 
@@ -160,18 +161,25 @@ void demo_debug(Stage &stage) {
 constexpr Vec2 demo_maze_goal{17, 8};
 
 /// Records `frames` of Demo's `scenario` from its start, in Debug Mode as it starts. The
-/// Maze clip clicks demo_maze_goal in its first frame, so the player walks the route.
+/// Maze clip clicks demo_maze_goal in its first frame, so the player walks the route, and
+/// throws std::runtime_error when the click set no goal or the clip ended before the player
+/// arrived: a missed click or a slower walk would otherwise leave a clip that stops halfway.
 void demo_scenario_clip(Stage &stage, demo::Scenario scenario, int frames) {
     stage.start(Variant::demo, static_cast<std::size_t>(scenario));
     stage.step();
+    const bool maze = scenario == demo::Scenario::maze;
     stage.record(frames, [&](int frame) {
         Input input;
-        if (scenario == demo::Scenario::maze && frame == 0) {
+        if (maze && frame == 0) {
             stage.aim(stage.runtime().camera.world_to_screen(demo_maze_goal));
             input.clicked = input.mouse_down = true;
         }
+        if (maze && frame == 1 && !stage.demo().scene().player_goal())
+            throw std::runtime_error("The Maze clip's click gave the player no goal");
         return input;
     });
+    if (maze && stage.demo().scene().player_goal())
+        throw std::runtime_error("The Maze clip ended before the player reached its goal");
 }
 
 void demo_clip(Stage &stage) {
