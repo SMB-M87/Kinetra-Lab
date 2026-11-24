@@ -14,7 +14,7 @@ struct Bolt : MovingObject {
     static constexpr float radius = 5.f;
     /// A bolt at `position` flying at `velocity` legacy pixels per update; inactive until its
     /// pool slot activates it.
-    explicit Bolt(dotio::math::Position position, dotio::math::Vector2 velocity);
+    explicit Bolt(kinetra::Vec2 position, kinetra::Vec2 velocity);
 
     Bolt();
 

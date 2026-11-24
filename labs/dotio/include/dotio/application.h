@@ -19,10 +19,13 @@
 
 namespace dotio {
 
-inline kinetra::Vec2 to_world(dotio::math::Vec2 point) {
+/// `point` in legacy pixels (+Y down the screen) as Kinetra world units (25 pixels each, +Y
+/// up). With from_world() the only place a vector changes between the two, which share a type.
+inline kinetra::Vec2 to_world(kinetra::Vec2 point) {
     return {point.x / 25, -point.y / 25};
 }
-inline dotio::math::Vec2 from_world(kinetra::Vec2 point) {
+/// `point` in Kinetra world units as legacy pixels; the inverse of to_world().
+inline kinetra::Vec2 from_world(kinetra::Vec2 point) {
     return {point.x * 25, -point.y * 25};
 }
 
@@ -78,7 +81,7 @@ class Application {
     kinetra::FixedClock clock_{tick_seconds, 8};
     int tick_{};
     /// moving_positions() before and after the last tick; presentation only.
-    std::vector<std::optional<dotio::math::Vec2>> before_tick_, after_tick_;
+    std::vector<std::optional<kinetra::Vec2>> before_tick_, after_tick_;
     /// Whether the previous frame was paused; the first running frame drops the old snapshots.
     bool was_paused_{};
     /// Set by the SINGLE TICK row; the next advance() runs one tick of the paused world.
@@ -251,16 +254,16 @@ class Application {
     }
     /// Positions of moving_objects() including the world offset, so a streaming shift between
     /// two snapshots cancels out; empty for an inactive slot.
-    std::vector<std::optional<dotio::math::Vec2>> moving_positions() {
+    std::vector<std::optional<kinetra::Vec2>> moving_positions() {
         const auto offset = world_->world_offset();
-        std::vector<std::optional<dotio::math::Vec2>> result;
+        std::vector<std::optional<kinetra::Vec2>> result;
         for (const auto *object : moving_objects())
             result.push_back(object->is_active ? std::optional{object->position + offset} : std::nullopt);
         return result;
     }
     /// moving_positions() before and after the last tick, for drawing between them.
-    const std::vector<std::optional<dotio::math::Vec2>> &before_tick() const { return before_tick_; }
-    const std::vector<std::optional<dotio::math::Vec2>> &after_tick() const { return after_tick_; }
+    const std::vector<std::optional<kinetra::Vec2>> &before_tick() const { return before_tick_; }
+    const std::vector<std::optional<kinetra::Vec2>> &after_tick() const { return after_tick_; }
     /// Fraction of the next tick already accumulated, in [0, 1); one while paused, so a
     /// paused frame shows the exact state.
     double interpolation() const { return paused ? 1.0 : clock_.interpolation(); }
@@ -295,13 +298,14 @@ class Application {
     std::optional<kinetra::InspectorSnapshot> inspect_enemy(std::size_t slot, std::uint64_t generation) const;
     /// Simulated seconds per update in a running world.
     static constexpr double tick_seconds = 1.0 / 60;
-    /// Reject destinations overlapping terrain, physical props or active enemies.
-    bool teleport_clear(dotio::math::Position point, float radius) {
+    /// Reject destinations overlapping terrain, physical props or active enemies. `point` and
+    /// `radius` are in legacy pixels of the resident window, not world units.
+    bool teleport_clear(kinetra::Vec2 point, float radius) {
         if (!std::isfinite(point.x) || !std::isfinite(point.y) || std::abs(point.x) > 10000000 ||
             std::abs(point.y) > 10000000)
             return false;
         auto candidate = physics_body(world_->get_player());
-        candidate.position = physics_vector(point);
+        candidate.position = point;
         candidate.radius = radius;
         const auto area = kinetra::bounds(candidate);
         const float cell = dotio::Grid::cell_size;
@@ -374,7 +378,7 @@ class Application {
         for (int step = 0; step < steps; ++step) {
             auto &player = world_->get_player();
             player.heading =
-                ghost ? dotio::math::Vec2{} : dotio::math::Vec2{commands.direction.x, -commands.direction.y};
+                ghost ? kinetra::Vec2{} : kinetra::Vec2{commands.direction.x, -commands.direction.y};
             if (!running)
                 continue;
             if (step == steps - 1) {

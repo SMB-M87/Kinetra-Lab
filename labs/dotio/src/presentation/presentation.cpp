@@ -45,17 +45,17 @@ class RuntimeRenderer final : public dotio::Renderer {
   public:
     explicit RuntimeRenderer(Runtime &runtime)
         : runtime_(runtime), half_view_(runtime.camera.viewport / (2 * runtime.camera.pixels_per_unit)) {}
-    void draw_circle(dotio::math::Position center, float radius, dotio::math::RGBA color) override {
+    void draw_circle(kinetra::Vec2 center, float radius, kinetra::Color color) override {
         const auto position = to_world(center);
         const float world_radius = radius / 25;
         if (visible(position, {world_radius, world_radius}))
-            runtime_.circle(position, world_radius, {color.r, color.g, color.b, color.a});
+            runtime_.circle(position, world_radius, color);
     }
-    void draw_segment(dotio::math::Segment segment, dotio::math::RGBA color) override {
+    void draw_segment(kinetra::Segment segment, kinetra::Color color) override {
         const auto start = to_world(segment.start), end = to_world(segment.end);
         const Vec2 half{std::abs(end.x - start.x) / 2 + 0.03f, std::abs(end.y - start.y) / 2 + 0.03f};
         if (visible((start + end) / 2, half))
-            runtime_.line(start, end, 0.06f, {color.r, color.g, color.b, color.a});
+            runtime_.line(start, end, 0.06f, color);
     }
 };
 Color color_of_state(dotio::Enemy &enemy) {
@@ -82,7 +82,7 @@ PresentedPositions::PresentedPositions(Application &application) {
             continue;
         // Anything but the last tick moved it (teleport, respawn into the slot): exact.
         const auto absolute = object->position + offset;
-        if (absolute.x != after[i]->x || absolute.y != after[i]->y)
+        if (absolute != *after[i])
             continue;
         simulated_.emplace_back(object, object->position);
         object->position = {before[i]->x + (after[i]->x - before[i]->x) * blend - offset.x,
@@ -128,10 +128,10 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 draw_debug_box(runtime, center, {2, 2}, 0, {0.6f, 0.8f, 1});
         }
     for (const auto &prop : world.get_objects()) {
-        const auto center = to_world(legacy_vector(prop.body.position));
-        renderer.draw_circle(legacy_vector(prop.body.position), prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
+        const auto center = to_world(prop.body.position);
+        renderer.draw_circle(prop.body.position, prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
         if (application.debug && application.vectors)
-            draw_debug_vector(runtime, center, to_world(legacy_vector(prop.body.velocity)), {1, 0.8f, 0.2f});
+            draw_debug_vector(runtime, center, to_world(prop.body.velocity), {1, 0.8f, 0.2f});
         if (application.debug && application.collisions)
             draw_debug_circle(runtime, center, prop.body.radius / 25, {1, 0.8f, 0.2f});
     }
@@ -195,9 +195,9 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const Vec2 position = to_world(enemy.position);
             const Vec2 heading = normalized(to_world(enemy.velocity));
             // A feeler and, where it meets a wall, the point of contact.
-            const auto draw_probe = [&](dotio::math::Segment probe) {
+            const auto draw_probe = [&](kinetra::Segment probe) {
                 runtime.line(to_world(probe.start), to_world(probe.end), 0.04f, color_of_state(enemy));
-                dotio::math::Point2 hit{};
+                kinetra::Vec2 hit{};
                 if (application.world().grid().is_intersecting_any_cell(probe, hit))
                     runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
             };
@@ -214,7 +214,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                                                                               (angle == 0 ? 4.f : 1.2f))});
             }
             if (p[5] && enemy.is_recovering()) {
-                dotio::math::Point2 hit{};
+                kinetra::Vec2 hit{};
                 if (application.world().grid().is_intersecting_any_cell({enemy.position, enemy.target},
                                                                         hit)) {
                     runtime.line(to_world(enemy.position), to_world(enemy.target), 0.04f,

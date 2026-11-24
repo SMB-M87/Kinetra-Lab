@@ -35,7 +35,7 @@ class Enemy final : public PhysicsObject {
     RecoverState recover_;
     KamikazeState kamikaze_;
     std::uint64_t generation_{};
-    dotio::math::Vec2 steering_{};
+    kinetra::Vec2 steering_{};
 
     void player_bumped_into_enemy();
     void spatial_partitioning(const float delta);
@@ -49,8 +49,8 @@ class Enemy final : public PhysicsObject {
 
     /// The player's position and velocity, set by the World before every update; legacy
     /// pixels and legacy pixels per update.
-    dotio::math::Vec2 target{};
-    dotio::math::Vec2 target_velocity{};
+    kinetra::Vec2 target{};
+    kinetra::Vec2 target_velocity{};
     /// The route the current state follows; empty while it needs none or found none.
     dotio::Route path;
     /// How far the enemy keeps from the player when it attacks, in grid cells, scaled by the
@@ -75,14 +75,13 @@ class Enemy final : public PhysicsObject {
 
     Enemy();
 
-    explicit Enemy(World *world, dotio::math::Position position, dotio::math::Position target,
-                   float direction, float fear);
+    explicit Enemy(World *world, kinetra::Vec2 position, kinetra::Vec2 target, float direction, float fear);
 
     ~Enemy() override = default;
     /// Lifetime counter for this pool slot. reset() begins a new lifetime.
     std::uint64_t generation() const { return generation_; }
     /// Velocity change applied by the AI state during the latest update, in legacy pixels/update.
-    dotio::math::Vec2 steering() const { return steering_; }
+    kinetra::Vec2 steering() const { return steering_; }
 
     /// Movement of one update: the current state's execute(), then separation from the
     /// neighbors in its partition cells. Does nothing while frozen.

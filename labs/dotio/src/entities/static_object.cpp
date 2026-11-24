@@ -2,7 +2,7 @@
 
 namespace dotio {
 StaticObject::~StaticObject() = default;
-StaticObject::StaticObject(const dotio::math::Position start, const float start_direction, bool active)
+StaticObject::StaticObject(const kinetra::Vec2 start, const float start_direction, bool active)
     : is_active(active), position(start), direction(start_direction) {
 }
 

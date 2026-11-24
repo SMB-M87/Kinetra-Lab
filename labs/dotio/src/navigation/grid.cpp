@@ -27,7 +27,7 @@ void Grid::fill(int value) {
 }
 
 kinetra::CollisionGrid Grid::collision_view() const {
-    return {{&cells_[0][0], std::size_t(rows * columns)}, rows, columns, cell_size, {origin.x, origin.y}};
+    return {{&cells_[0][0], std::size_t(rows * columns)}, rows, columns, cell_size, origin};
 }
 
 // Seeded depth-first mazes reproduce the narrow, irregular passages of the original
@@ -152,29 +152,26 @@ void Grid::handle_grid_collision(dotio::PhysicsObject &object) const {
     dotio::apply_body(object, body);
 }
 
-bool Grid::segment_intersects_circle(const dotio::math::Segment &segment, const dotio::math::Point2 center,
+bool Grid::segment_intersects_circle(const kinetra::Segment &segment, const kinetra::Vec2 center,
                                      const float radius) {
-    dotio::math::Point2 hit;
+    kinetra::Vec2 hit;
     return segment_circle_intersection(segment, center, radius, hit) & 1;
 }
 
-uint8_t Grid::segment_circle_intersection(const dotio::math::Segment &segment,
-                                          const dotio::math::Point2 center, const float radius,
-                                          dotio::math::Point2 &intersection) {
-    const auto start = dotio::physics_vector(segment.start), end = dotio::physics_vector(segment.end);
-    const auto c = dotio::physics_vector(center);
-    const uint8_t flags =
-        (kinetra::length(start - c) <= radius ? 2 : 0) | (kinetra::length(end - c) <= radius ? 4 : 0);
-    if (const auto fraction = kinetra::segment_circle(start, end, c, radius)) {
-        intersection = dotio::legacy_vector(start + (end - start) * *fraction);
+uint8_t Grid::segment_circle_intersection(const kinetra::Segment &segment, const kinetra::Vec2 center,
+                                          const float radius, kinetra::Vec2 &intersection) {
+    const auto start = segment.start, end = segment.end;
+    const uint8_t flags = (kinetra::length(start - center) <= radius ? 2 : 0) |
+                          (kinetra::length(end - center) <= radius ? 4 : 0);
+    if (const auto fraction = kinetra::segment_circle(start, end, center, radius)) {
+        intersection = start + (end - start) * *fraction;
         return flags | 1;
     }
     return flags;
 }
 
-bool Grid::is_intersecting_any_cell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const {
-    if (const auto fraction = kinetra::segment_grid(dotio::physics_vector(segment.start),
-                                                    dotio::physics_vector(segment.end), collision_view())) {
+bool Grid::is_intersecting_any_cell(kinetra::Segment segment, kinetra::Vec2 &intersection) const {
+    if (const auto fraction = kinetra::segment_grid(segment.start, segment.end, collision_view())) {
         intersection = segment.start + (segment.end - segment.start) * *fraction;
         return true;
     }
@@ -195,7 +192,7 @@ dotio::math::GridEntry Grid::generate_grid_entry(dotio::math::GridEntry around, 
     return candidates[std::size_t(dotio::math::index(random, int(candidates.size())))];
 }
 
-dotio::math::Position Grid::generate_position(std::mt19937 &random) const {
+kinetra::Vec2 Grid::generate_position(std::mt19937 &random) const {
     // Rows and columns from 3 to 152, both included, as the original game chose them.
     constexpr int margin = 3;
     constexpr int choices = rows - 2 * margin + 1;

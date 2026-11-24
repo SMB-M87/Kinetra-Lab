@@ -12,7 +12,6 @@ add_library(kinetra_dotio_logic
     src/entities/static_object.cpp
     src/inspector.cpp
     src/math/cell.cpp
-    src/math/vector.cpp
     src/navigation/grid.cpp
     src/navigation/route.cpp
     src/world.cpp

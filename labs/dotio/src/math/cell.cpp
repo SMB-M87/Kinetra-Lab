@@ -10,8 +10,8 @@ GridEntry::GridEntry(const int cell_row, const int cell_column) : row(cell_row),
 }
 GridEntry::GridEntry(const int size) : GridEntry(size, size) {
 }
-Coordinates GridEntry::to_world(const int row, const int column, const float cell_size,
-                                const Coordinates &origin) {
+kinetra::Vec2 GridEntry::to_world(const int row, const int column, const float cell_size,
+                                  const kinetra::Vec2 &origin) {
     return {(static_cast<float>(column) * cell_size) + origin.x,
             (static_cast<float>(row) * cell_size) + origin.y};
 }
@@ -20,7 +20,7 @@ bool GridEntry::in_bounds(const GridEntry &entry, const GridEntry &size) {
     return !(entry.row >= size.row || entry.column >= size.column || entry.row < 0 || entry.column < 0);
 }
 
-bool GridEntry::from_world(const Position &position, const Coordinates &origin, const float cell_size,
+bool GridEntry::from_world(const kinetra::Vec2 &position, const kinetra::Vec2 &origin, const float cell_size,
                            const GridEntry &grid_size, GridEntry &output) {
     // clang-format off
         const GridEntry temp = {
@@ -34,14 +34,15 @@ bool GridEntry::from_world(const Position &position, const Coordinates &origin, 
     return in_bounds(temp, grid_size);
 }
 
-Position GridEntry::get_cell_position(const Position &position, const Coordinates &origin,
-                                      const float cell_size) {
-    return Vec2{position - origin}.modulo(cell_size);
+kinetra::Vec2 GridEntry::get_cell_position(const kinetra::Vec2 &position, const kinetra::Vec2 &origin,
+                                           const float cell_size) {
+    const kinetra::Vec2 local = position - origin;
+    return {std::fmod(local.x, cell_size), std::fmod(local.y, cell_size)};
 }
 
-uint8_t GridEntry::get_square_partition(const Position &position, const float semi_width,
-                                        const Coordinates &origin, float cell_size) {
-    const Position cell_position = get_cell_position(position, origin, cell_size);
+uint8_t GridEntry::get_square_partition(const kinetra::Vec2 &position, const float semi_width,
+                                        const kinetra::Vec2 &origin, float cell_size) {
+    const kinetra::Vec2 cell_position = get_cell_position(position, origin, cell_size);
     uint8_t result{};
 
     if (cell_position.x > cell_size - semi_width) {
@@ -78,7 +79,7 @@ uint8_t GridEntry::get_square_partition(const Position &position, const float se
 
     return result;
 }
-void GridEntry::get_partitions(uint8_t partition, const Position &position, const Coordinates &origin,
+void GridEntry::get_partitions(uint8_t partition, const kinetra::Vec2 &position, const kinetra::Vec2 &origin,
                                const float cell_size, const GridEntry &grid_size, GridEntry output[4]) {
     GridEntry cell;
 

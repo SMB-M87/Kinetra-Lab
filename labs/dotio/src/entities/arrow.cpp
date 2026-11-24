@@ -5,8 +5,7 @@
 #include "dotio/entities/arrow.h"
 
 namespace dotio {
-Arrow::Arrow(dotio::math::Position start, dotio::math::Vector2 start_velocity)
-    : MovingObject(start, 0, false) {
+Arrow::Arrow(kinetra::Vec2 start, kinetra::Vec2 start_velocity) : MovingObject(start, 0, false) {
     velocity = start_velocity;
 }
 
@@ -18,7 +17,7 @@ void Arrow::update(float delta) {
 }
 
 void Arrow::draw(dotio::Renderer &renderer) {
-    renderer.draw_segment({position, position - (velocity).get_normalized() * 30.0f},
+    renderer.draw_segment({position, position - kinetra::normalized(velocity) * 30.0f},
                           {1.0f, 0.8f, 0.8f, 1.0f});
 }
 } // namespace dotio

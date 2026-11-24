@@ -1,9 +1,9 @@
 #pragma once
 
-#include "dotio/math/vector.h"
-
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <kinetra/simulation/math.h>
 
 namespace dotio::math {
 /// A grid cell (row, column), or a grid size when used as GridSize. Rows grow down the
@@ -19,25 +19,25 @@ typedef struct GridEntry {
     explicit GridEntry(const int size);
     GridEntry(const int row, const int column);
     /// Legacy position of the corner of cell (row, column).
-    static Coordinates to_world(const int row, const int column, const float cell_size,
-                                const Coordinates &origin);
+    static kinetra::Vec2 to_world(const int row, const int column, const float cell_size,
+                                  const kinetra::Vec2 &origin);
     /// Whether `entry` lies inside a grid of `size`.
     static bool in_bounds(const GridEntry &entry, const GridEntry &size);
     /// Stores the cell containing `position` in `output` and returns whether it lies inside a
     /// grid of `grid_size`; `output` is set either way.
-    static bool from_world(const Position &position, const Coordinates &origin, const float cell_size,
+    static bool from_world(const kinetra::Vec2 &position, const kinetra::Vec2 &origin, const float cell_size,
                            const GridEntry &grid_size, GridEntry &output);
     /// Position of `position` inside its cell, from the cell's corner.
-    static Position get_cell_position(const Position &position, const Coordinates &origin,
-                                      const float cell_size);
+    static kinetra::Vec2 get_cell_position(const kinetra::Vec2 &position, const kinetra::Vec2 &origin,
+                                           const float cell_size);
     /// Bit mask of the neighboring cells a square of half width `semi_width` around
     /// `position` reaches into (left or right, up or down, and the diagonal between them).
-    static unsigned char get_square_partition(const Position &position, float semi_width,
-                                              const Coordinates &origin, float cell_size);
+    static unsigned char get_square_partition(const kinetra::Vec2 &position, float semi_width,
+                                              const kinetra::Vec2 &origin, float cell_size);
     /// The cells of `partition` for `position`: its own cell in `output[0]`, the horizontal,
     /// vertical and diagonal neighbor in `output[1..3]` when the mask names them and they lie
     /// in the grid. Leaves the other entries as they were; nothing when `position` is outside.
-    static void get_partitions(uint8_t partition, const Position &position, const Coordinates &origin,
+    static void get_partitions(uint8_t partition, const kinetra::Vec2 &position, const kinetra::Vec2 &origin,
                                float cell_size, const GridEntry &grid_size, GridEntry output[4]);
     bool operator==(const GridEntry &other) const;
     /// {-1, -1}: no cell.

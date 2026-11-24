@@ -33,11 +33,11 @@ class Player final : public PhysicsObject {
     int kills{1};
     float max_bullet_kills{100.0f};
     /// Movement input in legacy coordinates (+Y down), each component in [-1, 1].
-    dotio::math::Vec2 heading;
+    kinetra::Vec2 heading;
 
     Player();
 
-    explicit Player(World *world, dotio::math::Position position, float direction);
+    explicit Player(World *world, kinetra::Vec2 position, float direction);
 
     ~Player() override = default;
 
@@ -49,6 +49,6 @@ class Player final : public PhysicsObject {
 
     /// Fires a bolt from the player toward `mouse` (legacy pixels) when the cooldown is over
     /// and at least 10 mana is left. With `debug` (invulnerable debug mode) it costs no mana.
-    void shoot(const dotio::math::Coordinates mouse, const bool debug);
+    void shoot(const kinetra::Vec2 mouse, const bool debug);
 };
 } // namespace dotio
