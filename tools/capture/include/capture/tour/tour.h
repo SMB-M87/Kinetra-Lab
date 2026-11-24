@@ -120,6 +120,9 @@ class Tour {
     kinetra_lab::Session &session();
     kinetra::Vec2 viewport() const { return runtime_.camera.viewport; }
     const kinetra::Camera2D &camera() const { return runtime_.camera; }
+    /// Current launcher layout in the launcher, or the layout of `rows` blueprint rows
+    /// while i4sim is running.
+    kinetra::MenuLayout menu_layout(std::size_t rows) const;
     /// Clicks row `row` of a kinetra::LaunchMenu page that lists `rows` rows: the launcher's
     /// own menu, its configuration page, or i4sim's blueprint screen.
     void click_menu_page_row(std::size_t row, std::size_t rows);

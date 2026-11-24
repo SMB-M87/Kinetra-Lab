@@ -24,6 +24,7 @@ The launcher lets a user try every Lab application without restarting, and gives
 | --- | --- |
 | [include/launcher/applications.h](include/launcher/applications.h) | `Variant`, `Options`, Lab's `LauncherBindings`, and the `applications()` and `selection()` declarations |
 | [src/applications.cpp](src/applications.cpp) | Registrations, Demo scenarios, Dotio difficulties, camera resets and session factories |
+| [previews](previews/) and [EmbedPreviews.cmake](EmbedPreviews.cmake) | Captured stills and their build-time embedding |
 | [src/main.cpp](src/main.cpp) | Arguments, the world seed and the call to `kinetra::run_launcher` |
 
 `kinetra_sessions` builds `applications.cpp` and links the three presentation libraries and `Kinetra::Launcher`. The `kinetra` executable uses it. The [capture tool](../tools/capture/README.md) starts its sessions through the same registrations, so its screenshots show what the launcher starts.
@@ -49,6 +50,8 @@ stateDiagram-v2
 2. `launcher::applications(options)` builds the registrations. Each factory resets the camera and creates a fresh session from the options.
 3. `kinetra::run_launcher` shows the menu, or starts `--variant` directly, and hosts one session at a time with `launcher::bindings` (no menu key, no Escape shutdown).
 
+Moving the pointer or using the arrow keys on the application list updates the preview with a capture and a short description of the highlighted lab. Demo scenarios and Dotio difficulties appear on their own pages after confirmation.
+
 Selecting an application always creates a new session, so returning to the menu discards the old run. A factory that throws reports the error and ends the program.
 
 ## Arguments
@@ -68,11 +71,13 @@ Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README
 - **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `kinetra_lab::Session`, returns its settings overlay's request, titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name, and add its scenes to the [capture tool](../tools/capture/README.md#changing-this-module).
 - **Add an application option:** add it to `Options`, parse it in `main.cpp`, and capture it in the factory. Configurations shown in the menu come from the application (as Dotio's difficulties do), not from the launcher.
 
+To refresh a preview, pass the lab's main screenshot, `launcher` and `ui-launcher` to the [capture script](../tools/capture/README.md) in one command. It embeds the new still before capturing the launcher.
+
 ## Tests
 
 | CTest | Covers | Needs |
 | --- | --- | --- |
-| `kinetra_menu` | Registration order, Demo scenarios, Dotio difficulties, defaults, and configuration picking at resized viewports | Runtime build, no window |
+| `kinetra_menu` | Registration order and previews, Demo scenarios, Dotio difficulties, defaults, and configuration picking at resized viewports | Runtime build, no window |
 | `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), FRAME LIMIT, LAUNCHER and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 | `kinetra_smoke:launcher*` | `kinetra` starts in the menu and with each `--variant`, draws 120 frames and exits with 0 | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 

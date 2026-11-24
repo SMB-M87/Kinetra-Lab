@@ -4,8 +4,16 @@ if(KINETRA_LAB_BUILD_RUNTIME)
         kinetra_add_doctest(kinetra_menu_tests PREFIX kinetra_menu
             SOURCES tests/menu_tests.cpp LIBRARIES kinetra_sessions)
     endif()
-    add_library(kinetra_sessions src/applications.cpp)
+    set(preview_dir "${CMAKE_CURRENT_SOURCE_DIR}/previews")
+    set(preview_header "${CMAKE_CURRENT_BINARY_DIR}/preview_pixels.h")
+    add_custom_command(OUTPUT "${preview_header}"
+        COMMAND "${CMAKE_COMMAND}" "-Dinput_dir=${preview_dir}" "-Doutput=${preview_header}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/EmbedPreviews.cmake"
+        DEPENDS EmbedPreviews.cmake previews/demo.rgba previews/dotio.rgba previews/i4sim.rgba
+        VERBATIM)
+    add_library(kinetra_sessions src/applications.cpp "${preview_header}")
     target_include_directories(kinetra_sessions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_include_directories(kinetra_sessions PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(kinetra_sessions PUBLIC kinetra_demo_presentation kinetra_dotio_presentation kinetra_i4sim_presentation Kinetra::Launcher)
     add_executable(kinetra src/main.cpp)
     target_link_libraries(kinetra PRIVATE kinetra_sessions)
