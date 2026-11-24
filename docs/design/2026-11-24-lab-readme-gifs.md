@@ -138,13 +138,28 @@ The agent reviewed its own work: `git diff origin/main...HEAD` in both repositor
 
 The copies check (`check_copies.py`) ran with the old wordings `none, menu, exit`, `menu or exit`, `both requests`, `launcher-loadscreen`, the three scenario stills, `screenshots-and-demo`, `Screenshots and demo`, `README gallery`, `shared-UI clips`, `GHOST CAMERA and RESET PARAMETERS`, `eleven clips`, `5.1 MB` and `three launcher screenshots`. Every hit was judged: ADR 0014 keeps its decision text, and the remaining "shared-UI clips" name Kinetra's clips on purpose. Older design documents now link the new anchor and name the removed stills as text.
 
+### Agent review, first round
+
+*Fix first* on both pull requests, Kinetra at 96c3ca7 and Lab at 411474d, at level high.
+
+| Finding | Resolution |
+| --- | --- |
+| Should fix, Kinetra: the `menu_key` contract (`launcher.h`, `launcher-overlays.md`) still named `SessionRequest::menu` as the only request that leaves a run when the key is unbound | Kinetra 82ca284: both name the session's own `menu` and `configurations` requests |
+| Should fix, Lab: `docs/architecture.md` let a session leave only through its settings overlay, with no `configurations` branch in the session-flow diagram | The diagram's `else menu or configurations` branch, the takeaway and the sentence after it name the debug-menu rows; the *Add an application* bullet of `launcher/README.md` names `configurations` too |
+| Nit, Lab: the Maze clip promised an end state that nothing checked | `demo_scenario_clip` throws when the click set no goal or the clip ends before the player arrives, through the new `Stage::demo()`; a 200-frame clip now stops with "The Maze clip ended before the player reached its goal" |
+| Nit, Kinetra, pre-existing: after a plain `menu` request the application list still hovers the row under a pointer the session left there | Not in this change: *Open points* |
+| Lesson: search each existing member of a set that a change extends | Kinetra c4630fa, in Kinetra's review lessons |
+
+The copies check ran again with `SessionRequest::menu`, `settings overlay's request`, `LAUNCHER gives` and `request() == menu`. The remaining hits name `menu` for LAUNCHER alone, or stand next to their own `configurations` line.
+
 ## Verification
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Kinetra launcher and runtime | In `external/Kinetra`: `cmake --preset graphics -DKINETRA_WARNINGS=ON`, `cmake --build --preset graphics --target kinetra_launcher_tests kinetra_engine_runtime_tests`, `ctest --preset graphics -R 'kinetra_launcher\|kinetra_engine_graphics'` | 34 of 34 passed, no warnings. The new `run_launcher` case and the resting-pointer check each fail without their change |
+| Kinetra launcher and runtime, also after the review round | In `external/Kinetra`: `cmake --preset graphics -DKINETRA_WARNINGS=ON`, `cmake --build --preset graphics --target kinetra_launcher_tests kinetra_engine_runtime_tests`, `ctest --preset graphics -R 'kinetra_launcher\|kinetra_engine_graphics'` | 34 of 34 passed, no warnings. The new `run_launcher` case and the resting-pointer check each fail without their change |
 | Lab, everything | `cmake --preset graphics -DKINETRA_LAB_WARNINGS=ON`, `cmake --build --preset graphics`, `ctest --preset graphics -LE soak` | 347 of 347 passed, 0 warnings, before the review fixes |
-| Lab, after the review | `ctest --preset graphics -R '^kinetra_demo:\|^kinetra_dotio:\|^kinetra_capture\|^kinetra_graphics\|^kinetra_menu' -LE soak` | 136 of 136 passed, the smoke test with `ui-launcher` included |
+| Lab, after the review | `ctest --preset graphics -R '^kinetra_demo:\|^kinetra_dotio:\|^kinetra_capture\|^kinetra_graphics\|^kinetra_menu' -LE soak` | 136 of 136 passed, the smoke test with `ui-launcher` included; again after the agent review's first round |
+| Maze clip check | `kinetra_capture <dir> demo-maze-clip` at 300 frames, and once at 200 | Passes at 300; at 200 it stops with "The Maze clip ended before the player reached its goal" |
 | Format | clang-format 23.1.5 `--dry-run --Werror` on every changed C++ file in both repositories | Clean |
 | Docs | `python3 external/Kinetra/tools/check_docs.py`; in Kinetra `python3 tools/check_docs.py` | All links resolve |
 | Determinism | `capture_media.sh build-graphics` for every refreshed and new capture, twice | Byte-identical files |
@@ -163,7 +178,7 @@ The copies check (`check_copies.py`) ran with the old wordings `none, menu, exit
   - `demo-debug.png` and `dotio-debug.png` are refreshed. Four stills are removed.
   - The README is rebuilt around the labs, and the media guide, capture README, module READMEs and launcher-overlays page are updated.
   - The roadmap item is closed.
-  - The pointer moves to Kinetra `claude/roadmap-readme-media-demo-p1ywc6`.
+  - The pointer moves to Kinetra `claude/roadmap-readme-media-demo-p1ywc6`, at c4630fa.
 - **Design:** this document.
 - **Verification:** the table above; CI is the Full level.
 - **Review notes:** the new README and its clips; the request's name and its contract in Kinetra#53; that Kinetra's `ui-debug-menu`, `ui-debug-layers` and `ui-inspector` are not refreshed (*Open points*).
@@ -172,4 +187,5 @@ The copies check (`check_copies.py`) ran with the old wordings `none, menu, exit
 
 ## Open points
 
+- After a plain `menu` request, such as Lab's LAUNCHER, the application list still hovers the row under a pointer that the session left there; only `show_configurations` settles the pointer. Settling it on every return would be a small Kinetra change, should the user want it (agent review of Kinetra#53).
 - Once refreshed, Kinetra's `ui-debug-menu`, `ui-debug-layers` and `ui-inspector` will show Demo's new SCENARIOS row. They follow with the next Kinetra change that makes them stale, as Kinetra's media guide says.
