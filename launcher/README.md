@@ -40,6 +40,7 @@ stateDiagram-v2
     Menu --> Running: I4SIM
     Configuration --> Running: confirm
     Running --> Menu: Settings LAUNCHER, or Escape/M on the i4sim blueprint screen
+    Running --> Configuration: SCENARIOS or DIFFICULTY in the debug menu
     Running --> [*]: Settings EXIT or window closed
     Menu --> [*]: EXIT or window closed
 ```
@@ -50,7 +51,7 @@ stateDiagram-v2
 2. `launcher::applications(options)` builds the registrations. Each factory resets the camera and creates a fresh session from the options.
 3. `kinetra::run_launcher` shows the menu, or starts `--variant` directly, and hosts one session at a time with `launcher::bindings` (no menu key, no Escape shutdown).
 
-Moving the pointer or using the arrow keys on the application list updates the preview with a capture and a short description of the highlighted lab. Demo scenarios and Dotio difficulties appear on their own pages after confirmation.
+Moving the pointer or using the arrow keys on the application list updates the preview with a capture and a short description of the highlighted lab ([screenshot](../docs/media/launcher.png)). Demo scenarios and Dotio difficulties appear on their own pages after confirmation. The last row of Demo's and Dotio's debug menu, SCENARIOS or DIFFICULTY, returns to that page with the running choice selected (`kinetra::SessionRequest::configurations`).
 
 Selecting an application always creates a new session, so returning to the menu discards the old run. A factory that throws reports the error and ends the program.
 
@@ -68,7 +69,7 @@ Controls are in the [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README
 
 ## Changing this module
 
-- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `kinetra_lab::Session`, returns its settings overlay's request, titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name, and add its scenes to the [capture tool](../tools/capture/README.md#changing-this-module).
+- **Add an application:** add its value to `Variant` (menu order), a registration in `applications()`, and its presentation library to `kinetra_sessions` in [CMakeLists.txt](CMakeLists.txt). Its session derives from `kinetra_lab::Session`, returns its settings overlay's request (and `configurations` from a debug-menu row, as Demo's SCENARIOS does, when it has configurations), titles the window with the application's name and reports its state through `status()`. Extend `kinetra_menu` with the new name, and add its scenes to the [capture tool](../tools/capture/README.md#changing-this-module).
 - **Add an application option:** add it to `Options`, parse it in `main.cpp`, and capture it in the factory. Configurations shown in the menu come from the application (as Dotio's difficulties do), not from the launcher.
 
 To refresh a preview, pass the lab's main screenshot, `launcher` and `ui-launcher` to the [capture script](../tools/capture/README.md) in one command. It embeds the new still before capturing the launcher.

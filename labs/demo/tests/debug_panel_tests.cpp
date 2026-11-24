@@ -63,16 +63,41 @@ FrameCommands applied(DebugPanel &panel, bool debug_mode = true, bool pointer_ca
 }
 } // namespace
 
-TEST_CASE("the menu starts with the simulation section open and ends with zoom ghost camera and reset") {
+TEST_CASE(
+    "the menu starts with the simulation section open and ends with zoom ghost camera reset and scenarios") {
     Fixture f;
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "SPEED", "GRAVITY",
                                                  "LAYERS", "MOTION", "AGENTS", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+                                                 "RESET PARAMETERS", "SCENARIOS"});
     const auto menu = f.panel.entries();
     CHECK((menu[0].kind == DebugEntryKind::group && menu[0].active() && menu[0].depth == 0));
     CHECK(menu[1].depth == 1);
     CHECK_MESSAGE((menu[8].rule_above && menu[8].depth == 0), "a rule sets the commands apart");
     CHECK((menu[9].kind == DebugEntryKind::check && menu[9].depth == 0 && !menu[9].active()));
+}
+
+TEST_CASE("SCENARIOS asks for the scenario page and changes nothing else") {
+    Fixture f;
+    CHECK_FALSE(f.panel.scenarios_requested());
+    const auto scenarios = f.row("SCENARIOS");
+    CHECK((scenarios.kind == DebugEntryKind::button && scenarios.depth == 0));
+    // Values away from their defaults, which RESET PARAMETERS would restore.
+    f.row("SPEED").increase();
+    f.open("MOTION");
+    f.row("MAX SPEED").increase();
+    f.row("GHOST CAMERA").action();
+    const auto time_scale = f.panel.time_scale();
+    const auto max_speed = f.application.tuning().motion.max_speed;
+    const auto before = applied(f.panel);
+    scenarios.action();
+    CHECK(f.panel.scenarios_requested());
+    const auto after = applied(f.panel);
+    CHECK_MESSAGE((f.panel.time_scale() == time_scale && time_scale != 1 &&
+                   f.application.tuning().motion.max_speed == max_speed &&
+                   max_speed != demo::Tuning{}.motion.max_speed && f.row("GHOST CAMERA").active() &&
+                   after.ghost && after.toggle_pause == before.toggle_pause &&
+                   after.single_step == before.single_step),
+                  "SCENARIOS changed the scene it leaves");
 }
 
 TEST_CASE("a section heading opens its rows and closes the open section") {
@@ -81,10 +106,10 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "VECTORS", "STEERING PROBES",
                                                  "PATHS", "COLLISION SHAPES", "ACTIVE AGENTS", "HOME RANGE",
                                                  "MOTION", "AGENTS", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+                                                 "RESET PARAMETERS", "SCENARIOS"});
     f.row("LAYERS").action();
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AGENTS", "ZOOM",
-                                                 "GHOST CAMERA", "RESET PARAMETERS"});
+                                                 "GHOST CAMERA", "RESET PARAMETERS", "SCENARIOS"});
 }
 
 TEST_CASE("the layer rows carry their colors and start as the session shows them") {
@@ -117,7 +142,7 @@ TEST_CASE("the motion section lists the rows of the chosen avoidance model") {
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AVOIDANCE", "MAX SPEED",
                                                  "ACCELERATION", "RESPONSE", "CLEARANCE", "HORIZON",
                                                  "PASSING BIAS", "AGENTS", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+                                                 "RESET PARAMETERS", "SCENARIOS"});
     CHECK(f.row("AVOIDANCE").value() == "RECIPROCAL");
     CHECK(applied(f.panel).reciprocal_avoidance);
     f.row("AVOIDANCE").action();
@@ -130,7 +155,7 @@ TEST_CASE("the motion section lists the rows of the chosen avoidance model") {
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AVOIDANCE", "MAX SPEED",
                                                  "ACCELERATION", "RESPONSE", "CLEARANCE", "LOOKAHEAD",
                                                  "SEPARATION", "SEP WEIGHT", "AGENTS", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+                                                 "RESET PARAMETERS", "SCENARIOS"});
 }
 
 TEST_CASE("the agents section chooses the wander mode and lists the steering rows only for steering") {
@@ -139,7 +164,7 @@ TEST_CASE("the agents section chooses the wander mode and lists the steering row
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AGENTS", "WANDER",
                                                  "HOME RANGE", "WANDER REACH", "WANDER JITTER",
                                                  "CLICK SETS GOAL", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+                                                 "RESET PARAMETERS", "SCENARIOS"});
     CHECK(f.row("WANDER").value() == "STEERING");
     f.row("WANDER").action();
     f.row("ROUTE").action();
@@ -147,7 +172,7 @@ TEST_CASE("the agents section chooses the wander mode and lists the steering row
     CHECK(f.row("WANDER").value() == "ROUTE");
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AGENTS", "WANDER",
                                                  "HOME RANGE", "CLICK SETS GOAL", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+                                                 "RESET PARAMETERS", "SCENARIOS"});
 }
 
 TEST_CASE("every tuning row changes its value and stops at a value the scene can run with") {

@@ -73,6 +73,13 @@ void Stage::start_dotio() {
     session_ = std::move(session);
 }
 
+const demo::Application &Stage::demo() const {
+    const auto *running = dynamic_cast<const demo::Session *>(session_.get());
+    if (!running)
+        throw std::logic_error("Scene " + scene_ + " asked for Demo's application while Demo does not run");
+    return running->application();
+}
+
 dotio::Application &Stage::dotio() {
     if (!dotio_)
         throw std::logic_error("Scene " + scene_ + " asked for Dotio's application without start_dotio()");

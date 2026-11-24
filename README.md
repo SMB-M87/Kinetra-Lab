@@ -4,14 +4,17 @@
 
 # Kinetra-Lab
 
-Applications and experiments using the reusable [Kinetra](https://github.com/SMB-M87/Kinetra) core library. Launcher, Demo, Dotio and i4sim live here; engine implementation stays in Kinetra.
+Three labs built on the reusable [Kinetra](https://github.com/SMB-M87/Kinetra) core library: Demo, a reference for its physics, navigation and steering; Dotio, a survival game with an AI experiment; and i4sim, a factory simulation. The bundled launcher `kinetra` starts each of them. Engine implementation stays in Kinetra.
 
 ## Table of contents
 
-- [Visual overview](#visual-overview)
-- [Applications](#applications)
-- [Screenshots and demo](#screenshots-and-demo)
+- [The labs](#the-labs)
+  - [Demo](#demo)
+  - [Dotio](#dotio)
+  - [i4sim](#i4sim)
 - [Quick start](#quick-start)
+- [Applications](#applications)
+- [Visual overview](#visual-overview)
 - [Kinetra development workflow](#kinetra-development-workflow)
 - [Tests and resources](#tests-and-resources)
 - [Architecture documentation](#architecture-documentation)
@@ -21,53 +24,53 @@ Applications and experiments using the reusable [Kinetra](https://github.com/SMB
 
 Directory guides: [docs](docs/README.md), [external](external/README.md), [labs](labs/README.md), [launcher](launcher/README.md).
 
-## Visual overview
-
-Arrows show which layer consumes another; application rules stay in Lab. The i4sim presentation also uses `Kinetra::Launcher` directly, for its blueprint screen.
-
-```mermaid
-flowchart TD
-    Launcher["Bundled launcher"] --> Demo["Demo presentation"]
-    Launcher --> Dotio["Dotio presentation"]
-    Launcher --> Factory["i4sim presentation"]
-    Launcher --> Host["Kinetra::Launcher"]
-    Factory --> Host
-    Demo --> DemoLogic["Demo application"]
-    Dotio --> DotioLogic["Dotio logic"]
-    Factory --> FactoryLogic["i4sim simulation"]
-    DemoLogic --> Simulation["Kinetra::Simulation"]
-    DotioLogic --> Simulation
-    FactoryLogic --> Simulation
-    Demo --> Runtime["Kinetra::Runtime"]
-    Dotio --> Runtime
-    Factory --> Runtime
-    Host --> Runtime
-```
-
-## Applications
-
-See the [Labs overview](labs/README.md) for application sources and headless test commands.
-
-| Directory | Targets | Purpose |
-| --- | --- | --- |
-| [launcher](launcher/README.md) | `kinetra` | Menu, registration and application switching |
-| [labs/demo](labs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_demo_logic` | Terrain, navigation and physics reference |
-| [labs/i4sim](labs/i4sim/README.md) | `kinetra_i4sim`, `kinetra_i4sim_logic`, `kinetra_i4sim_presentation` | Local factory simulation and original JSON blueprints |
-| [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
-
-## Screenshots and demo
+## The labs
 
 [![Kinetra-Lab tour on YouTube: the launcher, Demo, Dotio and i4sim](docs/media/kinetra-lab-tour-thumbnail.png)](https://youtu.be/jkPwx831MOU)
 
-The video can be older than the code; the screenshots and clips below are refreshed whenever what they show changes.
+The video can be older than the code; the clips below are refreshed whenever what they show changes ([media guide](docs/media/README.md)). The launcher's menu and the overlays every lab shares, the settings panel, the debug menu and the agent inspector, are shown in [Kinetra's README](https://github.com/SMB-M87/Kinetra#shared-ui).
 
-| Application | Normal view | Debug view |
-| --- | --- | --- |
-| **Demo** | ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with steering probes, vectors and collision shapes: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
-| **Dotio** | ![Dotio: the player runs through the corridors and shoots at the enemies in sight](docs/media/dotio-clip.gif) | ![Dotio zoomed out with AI states, paths and feelers: enemies wander by steering, attack, run for shelter to reload, and come back](docs/media/dotio-debug-clip.gif) |
-| **i4sim** | ![i4sim: 29 movers drive between the stations of the 4320x2400 floor under the Reciprocal profile](docs/media/i4sim-clip.gif) | ![i4sim with the debug layers: routes, forces, borders and detection ranges](docs/media/i4sim-debug-clip.gif) |
+Demo and i4sim start with Debug Mode and all visual layers on; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every lab and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with change while it runs. The menu's last row returns to the lab's own choice: SCENARIOS in Demo and DIFFICULTY in Dotio go back to the launcher's page for them, BLUEPRINTS in i4sim to its loadscreen.
 
-The i4sim [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes) from the loadscreen's SHOWCASE page, each one full cycle in Debug Mode at 200 ticks per second:
+### Demo
+
+The reference for Kinetra's mechanisms: physics and contacts, A* navigation, steering and reciprocal avoidance, in four scenarios that the launcher offers when DEMO is chosen. In Terrain a player walks a streamed, seeded world among a crowd of agents that wander around their homes, by steering or by planned routes, and a click sends the player along a planned route. The debug menu tunes the agents' motion and wander while they run. [Demo guide](labs/demo/README.md)
+
+| Normal view | Debug view |
+| --- | --- |
+| ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with steering probes, vectors and collision shapes: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
+
+The other three scenarios each show one mechanism, from its start, in Debug Mode:
+
+| Scenario | Clip |
+| --- | --- |
+| **Gravity**: dynamic shapes fall onto two ramps; some slide off, and all come to rest | ![Demo Gravity: circles and boxes fall onto two ramps and come to rest](docs/media/demo-gravity-clip.gif) |
+| **Maze**: a click beyond the last wall plans a route through the alternating gaps, and the player walks it | ![Demo Maze: the player follows its planned route through three walls](docs/media/demo-maze-clip.gif) |
+| **Doorway**: two groups with opposing goals meet in one opening and pass each other by reciprocal avoidance | ![Demo Doorway: two groups of three agents cross through one opening](docs/media/demo-doorway-clip.gif) |
+
+### Dotio
+
+A survival game and AI experiment: the player walks a seeded, endless maze and shoots at enemies that wander, pursue, attack, run for shelter to reload and turn kamikaze, decided by a small state machine with fuzzy rules. The launcher asks for Easy, Medium or Hard; the debug menu tunes the enemies' balance and spawning while the game runs. [Dotio guide](labs/dotio/README.md)
+
+| Normal view | Debug view |
+| --- | --- |
+| ![Dotio: the player runs through the corridors and shoots at the enemies in sight](docs/media/dotio-clip.gif) | ![Dotio zoomed out with AI states, paths and feelers: enemies wander by steering, attack, run for shelter to reload, and come back](docs/media/dotio-debug-clip.gif) |
+
+### i4sim
+
+A local factory simulation: movers carry products between the stations of a floor read from a JSON blueprint, under motion profiles, path planners and traffic policies that can be switched while the factory runs. Its loadscreen lists the floors and a SHOWCASE page of small scenes that each show one policy at work. [i4sim guide](labs/i4sim/README.md), [architecture](docs/factory-simulation-architecture.md)
+
+The loadscreen: the floors, SHOWCASE and its junction crossing, BLUEPRINTS in the debug menu back to the catalog, and the `1680x960+` floor running:
+
+![i4sim loadscreen: the catalog, the showcase page, the junction crossing scene, Blueprints back to the catalog, and a floor that starts](docs/media/i4sim-loadscreen-clip.gif)
+
+The `4320x2400` floor, 29 movers and 18 producers, under the Reciprocal profile:
+
+| Normal view | Debug view |
+| --- | --- |
+| ![i4sim: 29 movers drive between the stations of the 4320x2400 floor under the Reciprocal profile](docs/media/i4sim-clip.gif) | ![i4sim with the debug layers: routes, forces, borders and detection ranges](docs/media/i4sim-debug-clip.gif) |
+
+The [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes), each one full cycle in Debug Mode at 200 ticks per second:
 
 | Showcase scene | Clip |
 | --- | --- |
@@ -77,11 +80,7 @@ The i4sim [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes) fro
 | **Predictive passing**: movers on a head-on course agree on sides | ![i4sim predictive passing: two movers agree on sides and pass](docs/media/i4sim-showcase-predictive-passing-clip.gif) |
 | **H crossing**: four movers swap diagonal corners without path planning, straight through the middle bar | ![i4sim H crossing: four movers swap diagonal corners without path planning](docs/media/i4sim-showcase-h-crossing-clip.gif) |
 
-| Launcher | Dotio difficulty selection | i4sim loadscreen |
-| --- | --- | --- |
-| ![Launcher with Demo, Dotio and i4sim](docs/media/launcher.png) | ![Dotio difficulty selection with Medium selected](docs/media/launcher-difficulty.png) | ![i4sim loadscreen with blueprint selection](docs/media/launcher-loadscreen.png) |
-
-Demo and i4sim start with Debug Mode and all visual layers enabled; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every application and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with (steering and wander in Demo, enemy balance and spawning in Dotio, motion and traffic in i4sim) change while it runs. The [capture tool](tools/capture/README.md) generates every screenshot and clip, the tour and its thumbnail, and the GIFs of the launcher and the overlays in [Kinetra's README](https://github.com/SMB-M87/Kinetra#shared-ui); the [media guide](docs/media/README.md) has the details.
+The [capture tool](tools/capture/README.md) renders every clip and screenshot, the tour and its thumbnail, and the GIFs of the launcher and the overlays in Kinetra's README.
 
 ## Quick start
 
@@ -153,6 +152,40 @@ With the presets, `cmake --workflow --preset dev` configures, builds and tests a
 `./build.sh` builds and tests both Kinetra and Lab. When the MinGW-w64 cross compiler, Ninja and ccache are installed, it also builds the Windows executables in `build-windows/` without running their tests ([Windows](docs/windows.md#quick-start-from-wsl)); otherwise it says it skipped them. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
 In every application, Ctrl or the SETTINGS button opens the shared settings panel (zoom, statistics, Debug Mode, controls, Launcher and Exit) and pauses the run. The full controls are in the [Demo](labs/demo/README.md#controls), [Dotio](labs/dotio/README.md#launch-and-controls) and [i4sim](labs/i4sim/README.md#controls) guides.
+
+## Applications
+
+See the [Labs overview](labs/README.md) for application sources and headless test commands.
+
+| Directory | Targets | Purpose |
+| --- | --- | --- |
+| [launcher](launcher/README.md) | `kinetra` | Menu, registration and application switching |
+| [labs/demo](labs/demo/README.md) | `kinetra_demo`, `kinetra_demo_presentation`, `kinetra_demo_logic` | Terrain, navigation and physics reference |
+| [labs/i4sim](labs/i4sim/README.md) | `kinetra_i4sim`, `kinetra_i4sim_logic`, `kinetra_i4sim_presentation` | Local factory simulation and original JSON blueprints |
+| [labs/dotio](labs/dotio/README.md) | `kinetra_dotio`, `kinetra_dotio_presentation`, `kinetra_dotio_logic` | Survival game and AI experiment |
+
+## Visual overview
+
+Arrows show which layer consumes another; application rules stay in Lab. The i4sim presentation also uses `Kinetra::Launcher` directly, for its blueprint screen.
+
+```mermaid
+flowchart TD
+    Launcher["Bundled launcher"] --> Demo["Demo presentation"]
+    Launcher --> Dotio["Dotio presentation"]
+    Launcher --> Factory["i4sim presentation"]
+    Launcher --> Host["Kinetra::Launcher"]
+    Factory --> Host
+    Demo --> DemoLogic["Demo application"]
+    Dotio --> DotioLogic["Dotio logic"]
+    Factory --> FactoryLogic["i4sim simulation"]
+    DemoLogic --> Simulation["Kinetra::Simulation"]
+    DotioLogic --> Simulation
+    FactoryLogic --> Simulation
+    Demo --> Runtime["Kinetra::Runtime"]
+    Dotio --> Runtime
+    Factory --> Runtime
+    Host --> Runtime
+```
 
 ## Kinetra development workflow
 

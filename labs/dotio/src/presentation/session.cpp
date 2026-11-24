@@ -77,7 +77,14 @@ class DotioSession final : public Session {
         frame_limit_.apply(runtime);
         dotio::render(runtime, application_, settings_, menu_, &inspector_);
     }
-    kinetra::SessionRequest request() const override { return settings_.request(); }
+    /// The settings panel's LAUNCHER and EXIT, or else the debug menu's DIFFICULTY, which
+    /// asks for the launcher's page of difficulties.
+    kinetra::SessionRequest request() const override {
+        const auto requested = settings_.request();
+        if (requested == kinetra::SessionRequest::none && application_.difficulty_requested)
+            return kinetra::SessionRequest::configurations;
+        return requested;
+    }
     std::string title() override { return "Dotio"; }
     std::string status() override { return dotio::status_text(application_); }
     std::vector<kinetra_lab::DebugRow> debug_rows() override {

@@ -151,9 +151,14 @@ void Tour::step(const Input &input) {
         const auto request = host_.session()->request();
         if (request == kinetra::SessionRequest::exit)
             finished_ = true;
-        else if (request == kinetra::SessionRequest::menu)
-            // Destroyed before the menu draws, as in run_launcher.
+        else if (request == kinetra::SessionRequest::menu ||
+                 request == kinetra::SessionRequest::configurations) {
+            const auto ran = host_.selection();
+            // Destroyed before the menu draws, and back on the page of what ran, as in run_launcher.
             host_.return_to_menu();
+            if (request == kinetra::SessionRequest::configurations && ran)
+                menu_.show_configurations(*ran);
+        }
     }
     if (finished_)
         return;

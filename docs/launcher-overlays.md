@@ -43,6 +43,7 @@ The window title is "Launcher" in the menu and the application's name in a sessi
 | Action | In the launcher | In a direct executable (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) |
 | --- | --- | --- |
 | Settings LAUNCHER (`SessionRequest::menu`) | Back to the menu | Ends the program (`run_session` has no menu) |
+| Debug menu SCENARIOS (Demo) or DIFFICULTY (Dotio) (`SessionRequest::configurations`) | Back to the application's configuration page, with the running configuration selected | Ends the program |
 | Settings EXIT (`SessionRequest::exit`) | Ends the program | Ends the program |
 | i4sim blueprint screen: Escape or M (`menu`) | Back to the menu | Ends the program |
 | Window close button | Ends the program | Ends the program |
@@ -82,7 +83,7 @@ Every application builds its rows in its logic layer, as `kinetra::DebugEntry` v
 | SIMULATION | RUNNING, SINGLE TICK, the speed of time (SPEED, or UPS in i4sim) and the application's own switches |
 | LAYERS | What Debug Mode draws, each row with the color it is drawn in |
 | Tuning sections | Values the simulation reads while it runs: MOTION and AGENTS in Demo, ENEMIES and SPAWNING in Dotio, MOTION and TRAFFIC in i4sim |
-| Below the rule | ZOOM, then the application's commands (GHOST CAMERA and RESET PARAMETERS, or FRAME SCENE and BLUEPRINTS) |
+| Below the rule | ZOOM, then the application's commands, the last of which leaves for the application's own menu: GHOST CAMERA, RESET PARAMETERS and SCENARIOS in Demo or DIFFICULTY in Dotio, which return to the launcher's configuration page; FRAME SCENE and BLUEPRINTS in i4sim, which returns to its blueprint screen |
 
 One section is open at a time (`kinetra::DebugFolds`). The rows of each application are listed in its README: [Demo](../labs/demo/README.md), [Dotio](../labs/dotio/README.md), [i4sim](../labs/i4sim/README.md).
 
@@ -94,7 +95,8 @@ One section is open at a time (`kinetra::DebugFolds`). The rows of each applicat
 | --- | --- |
 | Overlay layout, rows, capture and actions, Ctrl and Shift+Ctrl | Kinetra `kinetra_settings_view` |
 | Debug-menu clicks and buttons | Kinetra `kinetra_launcher` |
-| `run_launcher` requests, menu key and Escape policy | Kinetra `kinetra_engine_graphics` |
+| `run_launcher` requests, the configuration page, menu key and Escape policy | Kinetra `kinetra_engine_graphics` |
+| SCENARIOS and DIFFICULTY ask for the configuration page | `kinetra_graphics` |
 | Movement mapping, modal pause, the settings rows, the ZOOM and SPEED rows | `kinetra_lab` |
 | Each application's menu rows and what they change | `kinetra_demo_logic`, `kinetra_dotio`, `kinetra_i4sim_controller` |
 | The registrations: names, order, Dotio difficulties and default | `kinetra_menu` |

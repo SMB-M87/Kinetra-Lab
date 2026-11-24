@@ -21,7 +21,7 @@ Below the tour thumbnail, the README repeated the YouTube link in a sentence. Th
 
 ## Problem
 
-- [README.md](../../README.md#screenshots-and-demo) shows the thumbnail as a link to YouTube, then links the same video again in the next sentence ("The full tour on YouTube (5 min 12 s): ...").
+- [README.md](../../README.md#the-labs) shows the thumbnail as a link to YouTube, then links the same video again in the next sentence ("The full tour on YouTube (5 min 12 s): ...").
 - Nothing tells a reader that the YouTube copy is uploaded by hand and can show an older state than the code. The newer render in `docs/media/kinetra-lab-tour.mp4` is not mentioned in the README at all.
 
 ## Goals and non-goals
@@ -45,7 +45,7 @@ In the [media guide](../media/README.md), the tour's row says that the README po
 
 ## Affected areas
 
-- [README.md](../../README.md#screenshots-and-demo): the sentence below the thumbnail.
+- [README.md](../../README.md#the-labs): the sentence below the thumbnail.
 - [docs/media/README.md](../media/README.md): the tour's row and the refresh section.
 - This document and the [design index](README.md#index).
 
