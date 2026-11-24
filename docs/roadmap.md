@@ -20,16 +20,15 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **i4sim contact resolution without every pair** · i4sim · added 2026-11-23
+  `MotionStep::resolve_contacts` tests all 5,565 pairs of movers on `8640x4800` every tick and computes both bodies' bounds again for each pair: 46% of the motion benchmark. Bounds once per mover and the tick's spatial index as broad phase, visiting pairs in the same order, should keep the golden lines.
+  Where: [design](design/2026-11-24-i4sim-contact-pairs.md), branch `ccr-0b1cf811-ur7qrd`; [performance, hotspots](performance.md#hotspots), hotspot 2.
 
 ## Next
 
 - **Engine hotspots from the performance baseline** · demo, i4sim, with Kinetra · added 2026-11-23
   The baseline of 2026-11-23 found four engine hotspots: `World::step` rebuilds its spatial grid 14 times per tick from every body, fixed terrain included, which is 64% of a Demo tick at the default 48 agents and why Demo falls behind at time scale 4; `SpatialGrid::query` hashes every cell, allocates and sorts on every call (23% of i4sim with predictive passing, 22% of Demo at 240 agents); `priority_steer`'s prediction loop (22% of i4sim); and `bounds` of a box (7% of i4sim in `sincosf`). Kinetra's item takes them one per pull request in that order; Lab measures each with the page's workloads, keeps the golden lines and updates the page.
   Next step: the `World::step` rebuilds, keeping the order of the candidate pairs. Where: [performance, hotspots](performance.md#hotspots); Kinetra item *Engine performance*.
-- **i4sim contact resolution without every pair** · i4sim · added 2026-11-23
-  `MotionStep::resolve_contacts` tests all 5,565 pairs of movers on `8640x4800` every tick and computes both bodies' bounds again for each pair: 46% of the motion benchmark. Bounds once per mover and the tick's spatial index as broad phase, visiting pairs in the same order, should keep the golden lines.
-  Where: [performance, hotspots](performance.md#hotspots), hotspot 2.
 - **README media as GIFs** · media, capture, docs · added 2026-11-23
   The user wants the Lab README to be about the labs themselves, with as many GIFs as it takes to show how each lab works and what it supports, because a clip shows behavior a screenshot cannot. Kinetra's half, the shared UI in GIFs, came with the rule that a change refreshes the captures a media guide's table names for it, which replaces rendering the tour after larger changes (*Tour video for YouTube*), and with clips that show a pointer ([design](design/2026-11-23-shared-ui-gifs.md)). The Lab gallery has eleven clips and three launcher screenshots.
   Next step: choose the scenes per lab, with or without the pointer of the shared-UI clips, and a size budget per GIF (the shared-UI GIFs stay at about 1 MB each), then rework the README around them; each new scene gets its row in the media guide's [table](media/README.md#which-captures-a-change-makes-stale). Where: [media guide](media/README.md), [capture tool](../tools/capture/README.md).
