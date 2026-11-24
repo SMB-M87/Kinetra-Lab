@@ -27,6 +27,9 @@ Nothing in progress.
 - **README media as GIFs** · media, capture, docs · added 2026-11-23
   The user wants the Lab README to be about the labs themselves, with as many GIFs as it takes to show how each lab works and what it supports, because a clip shows behavior a screenshot cannot. Kinetra's half, the shared UI in GIFs, came with the rule that a change refreshes the captures a media guide's table names for it, which replaces rendering the tour after larger changes (*Tour video for YouTube*), and with clips that show a pointer ([design](design/2026-11-23-shared-ui-gifs.md)). The Lab gallery has eleven clips and three launcher screenshots.
   Next step: choose the scenes per lab, with or without the pointer of the shared-UI clips, and a size budget per GIF (the shared-UI GIFs stay at about 1 MB each), then rework the README around them; each new scene gets its row in the media guide's [table](media/README.md#which-captures-a-change-makes-stale). Where: [media guide](media/README.md), [capture tool](../tools/capture/README.md).
+- **Review sessions that can post on both repositories** · agents, with Kinetra · added 2026-11-24
+  A review of a change across Kinetra and Lab is usually started from a Lab session and must also post on Kinetra. On 2026-11-24 the review of Kinetra-Lab#114 and Kinetra#52 stopped until the user granted push access to Kinetra, as Kinetra#42's review had been lost before. Lab's part is its own `.claude/settings.json` and the sessions started from Lab.
+  Next step: Kinetra's item leads, because the workflow and the `pr-review` skill live there; Lab follows its choice. Where: Kinetra item of the same name.
 
 ## Later
 
