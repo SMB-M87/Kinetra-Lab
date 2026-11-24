@@ -36,6 +36,21 @@ TEST_CASE("the registrations follow the variant order") {
     CHECK(registrations[std::size_t(Variant::i4sim)].choice.name == "I4SIM");
 }
 
+TEST_CASE("every bundled application has its own still and description") {
+    const auto registrations = launcher::applications({0, 42, dotio::default_difficulty});
+    for (const auto &registration : registrations) {
+        const auto &choice = registration.choice;
+        CAPTURE(choice.name);
+        CHECK_FALSE(choice.description.empty());
+        REQUIRE(choice.preview);
+        CHECK(choice.preview->width() == 320);
+        CHECK(choice.preview->height() == 180);
+    }
+    CHECK(registrations[0].choice.preview != registrations[1].choice.preview);
+    CHECK(registrations[1].choice.preview != registrations[2].choice.preview);
+    CHECK(registrations[0].choice.preview != registrations[2].choice.preview);
+}
+
 TEST_CASE("dotio offers its difficulties with the configured default") {
     const auto registrations = launcher::applications({0, 42, 2});
     const auto &dotio_choice = registrations[dotio_row].choice;
@@ -77,7 +92,7 @@ TEST_CASE("hover preselects and keyboard selection survives a resting pointer") 
     auto menu = lab_menu();
     const kinetra::Vec2 viewport{1280, 800};
     kinetra::Input input;
-    input.mouse = kinetra::MenuLayout(viewport, 3).row_center(dotio_row);
+    input.mouse = menu.layout(viewport).row_center(dotio_row);
     CHECK_MESSAGE((!menu.update(input, viewport) && menu.selected() == dotio_row && !menu.configuring()),
                   "hover must preselect Dotio without launching");
     input.pressed[std::size_t(kinetra::Key::up)] = true;
@@ -86,9 +101,9 @@ TEST_CASE("hover preselects and keyboard selection survives a resting pointer") 
     input.pressed = {};
     CHECK_MESSAGE((!menu.update(input, viewport) && menu.selected() == 0),
                   "a resting pointer must preserve the keyboard selection");
-    input.mouse = kinetra::MenuLayout(viewport, 3).row_center(0);
+    input.mouse = menu.layout(viewport).row_center(0);
     menu.update(input, viewport);
-    input.mouse = kinetra::MenuLayout(viewport, 3).row_center(dotio_row);
+    input.mouse = menu.layout(viewport).row_center(dotio_row);
     CHECK_MESSAGE((!menu.update(input, viewport) && menu.selected() == dotio_row),
                   "moving back over Dotio must restore the hover selection");
 }
@@ -121,16 +136,16 @@ TEST_CASE("cancel leaves the difficulty screen") {
 }
 
 TEST_CASE("picking works at resized viewports") {
-    for (const auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{200, 150}}) {
+    for (const auto viewport : {kinetra::Vec2{1280, 800}, kinetra::Vec2{200, 150}, kinetra::Vec2{360, 620}}) {
         CAPTURE(viewport.x);
         for (std::size_t scenario = 0; scenario < demo::scenario_labels().size(); ++scenario) {
             CAPTURE(scenario);
             auto menu = lab_menu();
             kinetra::Input input;
             input.clicked = true;
-            input.mouse = kinetra::MenuLayout(viewport, 3).row_center(demo_row);
+            input.mouse = menu.layout(viewport).row_center(demo_row);
             CHECK((!menu.update(input, viewport) && menu.configuring()));
-            input.mouse = kinetra::MenuLayout(viewport, demo::scenario_labels().size()).row_center(scenario);
+            input.mouse = menu.layout(viewport).row_center(scenario);
             const auto picked = menu.update(input, viewport);
             CHECK((picked && picked->application == demo_row && picked->configuration == scenario));
         }
@@ -138,7 +153,7 @@ TEST_CASE("picking works at resized viewports") {
             auto menu = lab_menu();
             kinetra::Input input;
             input.clicked = true;
-            input.mouse = kinetra::MenuLayout(viewport, 3).row_center(std::size_t(Variant::i4sim));
+            input.mouse = menu.layout(viewport).row_center(std::size_t(Variant::i4sim));
             const auto picked = menu.update(input, viewport);
             CHECK((picked && picked->application == std::size_t(Variant::i4sim)));
         }
@@ -147,10 +162,10 @@ TEST_CASE("picking works at resized viewports") {
             auto menu = lab_menu();
             kinetra::Input input;
             input.clicked = true;
-            input.mouse = kinetra::MenuLayout(viewport, 3).row_center(dotio_row);
+            input.mouse = menu.layout(viewport).row_center(dotio_row);
             CHECK_MESSAGE((!menu.update(input, viewport) && menu.configuring()),
                           "Dotio click skipped difficulty");
-            input.mouse = kinetra::MenuLayout(viewport).row_center(difficulty);
+            input.mouse = menu.layout(viewport).row_center(difficulty);
             const auto picked = menu.update(input, viewport);
             CHECK_MESSAGE((picked && picked->application == dotio_row && picked->configuration == difficulty),
                           "resized difficulty picking missed");

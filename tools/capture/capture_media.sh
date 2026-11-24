@@ -2,6 +2,7 @@
 # Refreshes docs/media: renders every screenshot and clip with kinetra_capture, turns the
 # clips into looping GIFs with ffmpeg and copies the results into docs/media, and the
 # shared-UI clips of Kinetra's README into external/Kinetra/docs/media.
+# Refreshes the embedded launcher still when a lab's main screenshot is rendered.
 #
 # Usage: tools/capture/capture_media.sh [build-directory] [scene...]
 #   build-directory  a configured build with the runtime, relative to the current directory
@@ -63,6 +64,12 @@ copy_media() {
 encode_clips "$work"
 encode_clips "$work/kinetra"
 copy_media "$work" "$media"
+for lab in demo dotio i4sim; do
+    [[ -f $work/$lab.png ]] || continue
+    ffmpeg -loglevel error -y -i "$work/$lab.png" -vf scale=320:180:flags=area \
+        -frames:v 1 -c:v rawvideo -threads:v 1 -pix_fmt rgba -f rawvideo "$work/$lab.rgba"
+    cp "$work/$lab.rgba" "$repository/launcher/previews/"
+done
 if [[ -d $work/kinetra ]]; then
     # An empty submodule directory would take the GIFs outside any Kinetra checkout.
     if [[ ! -d $kinetra_media ]]; then

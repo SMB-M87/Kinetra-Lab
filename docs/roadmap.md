@@ -20,8 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Lab preview in the launcher** · launcher, with Kinetra · added 2026-11-23
-  Branch `feat/lab-launcher-preview`. See the shared design on the Kinetra branch `feat/launcher-images`.
+Nothing in progress.
 
 ## Next
 
