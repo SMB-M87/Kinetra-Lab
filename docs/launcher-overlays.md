@@ -31,6 +31,7 @@ flowchart LR
 - [applications.cpp](../launcher/src/applications.cpp) registers Demo, Dotio and i4sim in `launcher::Variant` order. Each factory resets the camera to the origin at the application's initial zoom (`demo::initial_zoom`, `dotio::initial_zoom`, `i4sim::initial_zoom`) and creates a fresh session.
 - Demo and Dotio supply their configuration names through `demo::scenario_labels()` and `dotio::difficulty_names()`. The launcher passes the selected index to the application's factory.
 - `--variant` starts an application directly through `launcher::selection()`. `--scenario` selects a Demo layout and `--difficulty` selects a Dotio difficulty.
+- The application list shows an embedded screenshot and a short description for the highlighted lab. The pointer and arrow keys use the same selection.
 - Dotio's world is a singleton. `SessionHost` destroys the old session before the factory creates the next one, so two Dotio worlds never coexist.
 
 ## Navigation

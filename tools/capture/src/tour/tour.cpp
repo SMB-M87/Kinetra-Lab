@@ -388,12 +388,16 @@ void Tour::title(std::string text, double seconds) {
     title_remaining_ = seconds;
 }
 
+kinetra::MenuLayout Tour::menu_layout(std::size_t rows) const {
+    return in_menu() ? menu_.layout(viewport()) : kinetra::MenuLayout(viewport(), rows);
+}
+
 void Tour::click_menu_page_row(std::size_t row, std::size_t rows) {
-    click_at(kinetra::MenuLayout(viewport(), rows).row_center(row));
+    click_at(menu_layout(rows).row_center(row));
 }
 
 void Tour::click_menu_page_exit(std::size_t rows) {
-    click_at(kinetra::MenuLayout(viewport(), rows).footer_center());
+    click_at(menu_layout(rows).footer_center());
 }
 
 void Tour::toggle_debug_menu() {
