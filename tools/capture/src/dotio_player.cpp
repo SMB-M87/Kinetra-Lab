@@ -23,8 +23,7 @@ bool clear_shot(const dotio::World &world, dotio::math::Vec2 from, dotio::math::
     if (world.grid().is_intersecting_any_cell({from, to}, hit))
         return false;
     for (const auto &crate : world.get_objects())
-        if (kinetra::segment_circle(dotio::physics_vector(from), dotio::physics_vector(to),
-                                    crate.body.position, crate.body.radius + dotio::Bolt::radius))
+        if (kinetra::segment_circle(from, to, crate.body.position, crate.body.radius + dotio::Bolt::radius))
             return false;
     return true;
 }

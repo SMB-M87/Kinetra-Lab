@@ -128,10 +128,10 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 draw_debug_box(runtime, center, {2, 2}, 0, {0.6f, 0.8f, 1});
         }
     for (const auto &prop : world.get_objects()) {
-        const auto center = to_world(legacy_vector(prop.body.position));
-        renderer.draw_circle(legacy_vector(prop.body.position), prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
+        const auto center = to_world(prop.body.position);
+        renderer.draw_circle(prop.body.position, prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
         if (application.debug && application.vectors)
-            draw_debug_vector(runtime, center, to_world(legacy_vector(prop.body.velocity)), {1, 0.8f, 0.2f});
+            draw_debug_vector(runtime, center, to_world(prop.body.velocity), {1, 0.8f, 0.2f});
         if (application.debug && application.collisions)
             draw_debug_circle(runtime, center, prop.body.radius / 25, {1, 0.8f, 0.2f});
     }

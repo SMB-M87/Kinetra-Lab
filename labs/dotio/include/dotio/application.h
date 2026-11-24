@@ -295,7 +295,7 @@ class Application {
             std::abs(point.y) > 10000000)
             return false;
         auto candidate = physics_body(world_->get_player());
-        candidate.position = physics_vector(point);
+        candidate.position = point;
         candidate.radius = radius;
         const auto area = kinetra::bounds(candidate);
         const float cell = dotio::Grid::cell_size;

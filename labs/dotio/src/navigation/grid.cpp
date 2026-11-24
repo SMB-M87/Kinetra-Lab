@@ -161,20 +161,18 @@ bool Grid::segment_intersects_circle(const dotio::math::Segment &segment, const 
 uint8_t Grid::segment_circle_intersection(const dotio::math::Segment &segment,
                                           const dotio::math::Point2 center, const float radius,
                                           dotio::math::Point2 &intersection) {
-    const auto start = dotio::physics_vector(segment.start), end = dotio::physics_vector(segment.end);
-    const auto c = dotio::physics_vector(center);
-    const uint8_t flags =
-        (kinetra::length(start - c) <= radius ? 2 : 0) | (kinetra::length(end - c) <= radius ? 4 : 0);
-    if (const auto fraction = kinetra::segment_circle(start, end, c, radius)) {
-        intersection = dotio::legacy_vector(start + (end - start) * *fraction);
+    const auto start = segment.start, end = segment.end;
+    const uint8_t flags = (kinetra::length(start - center) <= radius ? 2 : 0) |
+                          (kinetra::length(end - center) <= radius ? 4 : 0);
+    if (const auto fraction = kinetra::segment_circle(start, end, center, radius)) {
+        intersection = start + (end - start) * *fraction;
         return flags | 1;
     }
     return flags;
 }
 
 bool Grid::is_intersecting_any_cell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const {
-    if (const auto fraction = kinetra::segment_grid(dotio::physics_vector(segment.start),
-                                                    dotio::physics_vector(segment.end), collision_view())) {
+    if (const auto fraction = kinetra::segment_grid(segment.start, segment.end, collision_view())) {
         intersection = segment.start + (segment.end - segment.start) * *fraction;
         return true;
     }

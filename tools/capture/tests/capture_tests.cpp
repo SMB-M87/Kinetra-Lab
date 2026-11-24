@@ -487,8 +487,7 @@ TEST_CASE("the scripted Dotio player does not shoot through a crate") {
     dotio::math::Vec2 crate{};
     float nearest = 400;
     for (const auto &object : read_only.get_objects())
-        if (const auto offset = dotio::legacy_vector(object.body.position) - player;
-            kinetra::length(offset) < nearest) {
+        if (const auto offset = object.body.position - player; kinetra::length(offset) < nearest) {
             crate = offset;
             nearest = kinetra::length(offset);
         }

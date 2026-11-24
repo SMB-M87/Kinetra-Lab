@@ -17,7 +17,7 @@ PhysicsObject::PhysicsObject(const float mass, const float body_radius, const fl
 void PhysicsObject::apply_force(const dotio::math::Vector2 &force, const float) {
     // Legacy steering supplies a velocity change, not a force in newtons.
     auto body = dotio::physics_body(*this);
-    kinetra::apply_body_impulse(body, dotio::physics_vector(force) * body.mass, body.position);
+    kinetra::apply_body_impulse(body, force * body.mass, body.position);
     dotio::apply_body(*this, body);
 }
 

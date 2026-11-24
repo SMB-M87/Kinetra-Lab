@@ -91,7 +91,7 @@ void Enemy::player_bumped_into_enemy() {
 void Enemy::spatial_partitioning(const float delta) {
     auto motion = dotio::physics_body(*this);
     kinetra::integrate(motion, delta, friction_);
-    velocity = dotio::legacy_vector(motion.velocity);
+    velocity = motion.velocity;
 
     dotio::math::Vector2 next{position + velocity};
     uint8_t p = dotio::math::GridEntry::get_square_partition(next, radius, dotio::Grid::origin,
@@ -116,11 +116,11 @@ void Enemy::spatial_partitioning(const float delta) {
                     continue;
 
                 auto body = dotio::physics_body(*this);
-                body.position = dotio::physics_vector(next);
+                body.position = next;
                 auto neighbor = dotio::physics_body(other);
                 if (const auto contact = kinetra::collide(body, neighbor)) {
                     kinetra::resolve_contact(body, neighbor, *contact);
-                    next = dotio::legacy_vector(body.position);
+                    next = body.position;
                     dotio::apply_body(other, neighbor);
                 }
             }

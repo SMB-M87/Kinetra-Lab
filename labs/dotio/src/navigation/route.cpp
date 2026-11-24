@@ -10,18 +10,6 @@
 
 namespace dotio {
 namespace {
-kinetra::Vec2 planner_point(dotio::math::Vec2 point) {
-    return {point.x, point.y};
-}
-
-Route route_of(const std::vector<kinetra::Vec2> &points) {
-    std::vector<dotio::math::Vec2> waypoints;
-    waypoints.reserve(points.size());
-    for (const auto point : points)
-        waypoints.push_back({point.x, point.y});
-    return Route(std::move(waypoints));
-}
-
 /// Cell of `point`, or {-1, -1} outside the grid.
 dotio::math::GridEntry cell_of(dotio::math::Vec2 point) {
     dotio::math::GridEntry cell;
@@ -78,7 +66,7 @@ void Route::clear() {
 }
 
 Route plan_route(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 to) {
-    return route_of(grid.navigation().path(planner_point(from), planner_point(to)));
+    return Route(grid.navigation().path(from, to));
 }
 
 Route plan_shelter(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 player, float fear) {
@@ -102,6 +90,6 @@ Route plan_shelter(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 p
         // The count includes this cell; a fear of 2.5 takes the third hidden cell.
         return float(++hidden) > fear;
     };
-    return route_of(grid.navigation().search(planner_point(from), accept, enter));
+    return Route(grid.navigation().search(from, accept, enter));
 }
 } // namespace dotio
