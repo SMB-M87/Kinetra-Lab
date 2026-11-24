@@ -1,6 +1,6 @@
 # Dotio on `kinetra::Vec2`
 
-Status: accepted · Branch: `ccr-5f0ec773-qklel2`, Kinetra `feat/vec2-equality` · Related: roadmap item *Dotio on `kinetra::Vec2`*, [Dotio open points](../../labs/dotio/README.md#open-points), [Dotio restructuring, open points](2026-11-21-dotio-restructuring.md#open-points)
+Status: implemented · Branch: `ccr-5f0ec773-qklel2`, Kinetra `feat/vec2-equality` · Related: roadmap item *Dotio on `kinetra::Vec2`*, [Dotio open points](../../labs/dotio/README.md#open-points), [Dotio restructuring, open points](2026-11-21-dotio-restructuring.md#open-points)
 
 Dotio carries its own vector type, `dotio::math::Vec2`, with seven aliases and some forty operations, while every other Lab application and Kinetra itself use `kinetra::Vec2`. This change puts Dotio on Kinetra's vector, segment and color types and removes `dotio/math/vector.h`, without changing a single decision of the game: the golden fingerprint stays the same. Kinetra gets the one operation Dotio needs and its vector lacks, exact equality; that part is a Kinetra pull request of its own, which this document covers and which merges first.
 
@@ -94,7 +94,21 @@ The change touches `presentation/` and `tools/capture/`, so the whole branch end
 
 ## Verification
 
-*Filled in after verification.*
+Local, on Ubuntu with GCC 13 and clang-format 23.1.5; Kinetra at `38a08f2` (`feat/vec2-equality`):
+
+| Command | Result |
+| --- | --- |
+| Kinetra: `cmake --build --preset dev`, `ctest --preset dev` | 279 of 279 passed; the new equality case with 7 assertions |
+| A trial build with `dotio::math::Vec2` as an alias of `kinetra::Vec2`, before any change | 89 errors, the list in [Problem](#problem) |
+| `ctest --preset dev -R fingerprint` after each code commit | `0x9d126f5dc5068339` each time |
+| `cmake --build --preset dev --target kinetra_dotio_tests kinetra_dotio_behavior_benchmark kinetra_capture_tests kinetra_dotio_presentation kinetra_dotio kinetra_capture kinetra`, `ctest --preset dev -R '^kinetra_dotio:\|^kinetra_capture\|dotio_behavior' -LE soak` | No warning; 81 of 81 passed after each code commit, 80 after the review fixes without the benchmark |
+| `cmake --preset graphics`, build of `kinetra_dotio_presentation_tests kinetra_dotio kinetra kinetra_capture`, `ctest --preset graphics -L graphics -R 'kinetra_dotio_graphics\|kinetra_smoke:dotio\|kinetra_capture_smoke'` | 7 of 7 passed; 6 of 6 again after the review fixes |
+| `cmake --build --preset dev` (all of Lab against the new Kinetra commit), `ctest --preset dev -LE soak -j4` | No error or warning; 319 of 319 passed |
+| `clang-format --dry-run --Werror` on every changed source | Clean |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| `python3 external/Kinetra/tools/check_copies.py` with the removed names (`legacy vector`, `get_signed`, `physics_vector`, `legacy_vector`, `planner_point`, `dotio::math::Vec2`, `math/vector.h`, `dotio::math::RGBA`, `dotio::math::Segment`, `Point2`, `signed_angle_difference`, `get_normalized`, `get_length`) | Only this document's index row and the word "Positions" in `docs/architecture.md` |
+
+The Full level is the CI of both pull requests.
 
 ## Pull request
 
@@ -141,7 +155,7 @@ Title: `refactor(dotio): use kinetra::Vec2`
 
 **Review notes.** Commits: the design; the pointer; *make Vec2 an alias of kinetra::Vec2* (the only commit with changed expressions); *drop the conversions between identical vectors*; *use kinetra::Vec2, Segment and Color throughout* (a compiler-checked rename); *say which unit a vector holds where both meet* (review fixes). Reviewing them one by one is easier than the whole diff.
 
-**Dependencies and merge order.** Kinetra pull request *feat(simulation): compare Vec2 values with ==* merges first, with a merge commit; this one then merges with its pointer at the Kinetra branch commit; Kinetra's `lab-pointer` workflow opens the pointer-only pull request to the merge commit.
+**Dependencies and merge order.** Kinetra pull request [SMB-M87/Kinetra#52](https://github.com/SMB-M87/Kinetra/pull/52), *feat(simulation): compare Vec2 values with ==*, merges first, with a merge commit; this one then merges with its pointer at the Kinetra branch commit; Kinetra's `lab-pointer` workflow opens the pointer-only pull request to the merge commit.
 
 **Follow-up.** i4sim, Demo and the capture tool can use `==` instead of component comparisons; `GridEntry` keeps three aliases; the Dotio README's case count is off by one from before this branch (open points).
 
