@@ -25,7 +25,7 @@ It is not a collision-free crowd simulation. Steering and navigation use conserv
 
 ## Scenarios
 
-Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launcher-demo-scenarios.png).
+Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launcher-demo-scenarios.png). The debug menu's SCENARIOS returns to it, with the running scenario selected, as the settings panel's LAUNCHER returns to the application list. In `kinetra_demo`, which has no launcher, both end the program.
 
 | Scenario | What to try |
 | --- | --- |
@@ -67,7 +67,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | LAYERS | VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES, ACTIVE AGENTS, HOME RANGE, each with the color it is drawn in. HOME RANGE draws a line from every awake agent to its home, and the range circle of the selected agent |
 | MOTION | AVOIDANCE (RECIPROCAL or LEGACY), MAX SPEED, ACCELERATION, RESPONSE, CLEARANCE; then HORIZON and PASSING BIAS for reciprocal avoidance, or LOOKAHEAD, SEPARATION and SEP WEIGHT for legacy steering |
 | AGENTS | WANDER (STEERING or ROUTE), HOME RANGE, then WANDER REACH and WANDER JITTER for steering wander, and CLICK SETS GOAL |
-| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, speed 1×) |
+| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, speed 1×), SCENARIOS (back to the launcher's scenario page, with the running scenario selected) |
 
 The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain, Maze and Doorway. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and time scale persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
 

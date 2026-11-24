@@ -82,7 +82,14 @@ class DemoSession final : public Session {
                       .inspector = &inspector_,
                       .inspection = snapshot ? &*snapshot : nullptr});
     }
-    kinetra::SessionRequest request() const override { return settings_.request(); }
+    /// The settings panel's LAUNCHER and EXIT, or else the debug menu's SCENARIOS, which
+    /// asks for the launcher's page of scenarios.
+    kinetra::SessionRequest request() const override {
+        const auto requested = settings_.request();
+        if (requested == kinetra::SessionRequest::none && panel_.scenarios_requested())
+            return kinetra::SessionRequest::configurations;
+        return requested;
+    }
     std::string title() override {
         const auto scenario = application_.scene().scenario();
         return scenario == Scenario::terrain ? "Demo" : "Demo - " + std::string(scenario_label(scenario));

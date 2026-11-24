@@ -188,6 +188,10 @@ class Application {
     bool paused{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
     bool statistics{}, active_agents{}, frame_times{};
+    /// Set by the debug menu's DIFFICULTY row. The session then asks its host for the
+    /// launcher's page of difficulties (kinetra::SessionRequest::configurations), which ends
+    /// the session, so it is never reset.
+    bool difficulty_requested{};
     /// Simulated seconds per elapsed second, set by the debug menu's SPEED row.
     float time_scale{1};
     /// Which section and which list of the debug menu are open.
@@ -198,8 +202,9 @@ class Application {
     kinetra::RateCounter frame_rate, update_rate, decision_rate;
     /// The rows of the debug menu in display order: the headings SIMULATION, LAYERS, ENEMIES
     /// and SPAWNING, each followed by its rows while it is open, then, below a rule, ZOOM,
-    /// GHOST CAMERA and RESET PARAMETERS. At most one section is open; SIMULATION is at the
-    /// start. PATHS lists its four parts only while it is on.
+    /// GHOST CAMERA, RESET PARAMETERS and DIFFICULTY. At most one section is open; SIMULATION
+    /// is at the start. PATHS lists its four parts only while it is on. DIFFICULTY sets
+    /// difficulty_requested.
     ///
     /// The tuning rows change the world's balance (dotio::World::settings) and its enemy
     /// tuning in place, within tuning_step; RESET PARAMETERS restores both and the time
@@ -226,6 +231,7 @@ class Application {
                                world_->reset_tuning();
                                time_scale = 1;
                            }});
+        entries.push_back({.label = "DIFFICULTY", .action = [this] { difficulty_requested = true; }});
         return entries;
     }
     /// The PATHS layer and its parts: [0] the layer, [1] WANDER, [2] PURSUE, [3] KAMIKAZE,

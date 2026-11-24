@@ -16,6 +16,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace kinetra;
@@ -443,6 +444,25 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
                   "Demo Ghost click failed to teleport into free space");
     session->render(runtime);
     CHECK(glGetError() == GL_NO_ERROR);
+}
+
+TEST_CASE("SCENARIOS in demo and DIFFICULTY in dotio ask for the launcher's configuration page") {
+    Runtime runtime("Configuration rows", 640, 480);
+    runtime.poll(false);
+    for (const auto &[variant, label] :
+         {std::pair{Variant::demo, "SCENARIOS"}, std::pair{Variant::dotio, "DIFFICULTY"}}) {
+        CAPTURE(label);
+        auto session = start(variant, runtime.camera);
+        session->advance(0, {}, runtime.camera);
+        session->advance(0, debug_keys(), runtime.camera);
+        const auto rows = dynamic_cast<kinetra_lab::Session &>(*session).debug_rows();
+        REQUIRE(!rows.empty());
+        CHECK_MESSAGE(rows.back().label == label, "the row is not the last of the debug menu");
+        CHECK(session->request() == SessionRequest::none);
+        session->advance(0, menu_click(runtime, rows.size() - 1), runtime.camera);
+        CHECK_MESSAGE(session->request() == SessionRequest::configurations,
+                      "the row did not ask for the configuration page");
+    }
 }
 
 TEST_CASE("every session reports the rows of its debug menu") {

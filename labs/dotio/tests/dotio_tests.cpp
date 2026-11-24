@@ -854,16 +854,31 @@ kinetra::DebugEntry menu_row(dotio::Application &application, std::string_view l
 }
 } // namespace
 
-TEST_CASE("the debug menu starts with the simulation section and ends with zoom ghost camera and reset") {
+TEST_CASE("the debug menu starts with the simulation section and ends with zoom ghost camera reset and "
+          "difficulty") {
     dotio::Application application(42);
-    CHECK(menu_labels(application) ==
-          std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "SPEED", "INVULNERABLE", "LAYERS",
-                                   "ENEMIES", "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+    CHECK(menu_labels(application) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK",
+                                                               "SPEED", "INVULNERABLE", "LAYERS", "ENEMIES",
+                                                               "SPAWNING", "ZOOM", "GHOST CAMERA",
+                                                               "RESET PARAMETERS", "DIFFICULTY"});
     const auto ghost = menu_row(application, "GHOST CAMERA");
     CHECK((ghost.kind == kinetra::DebugEntryKind::check && ghost.depth == 0 && !ghost.active()));
     ghost.action();
     CHECK(application.ghost);
     CHECK_MESSAGE(menu_row(application, "ZOOM").rule_above, "a rule sets the commands apart");
+    open_map(application.world().grid());
+}
+
+TEST_CASE("DIFFICULTY asks for the difficulty page and changes nothing else") {
+    dotio::Application application(42);
+    CHECK_FALSE(application.difficulty_requested);
+    const auto difficulty = menu_row(application, "DIFFICULTY");
+    CHECK((difficulty.kind == kinetra::DebugEntryKind::button && difficulty.depth == 0));
+    const bool paused = application.paused;
+    difficulty.action();
+    CHECK(application.difficulty_requested);
+    CHECK_MESSAGE((application.paused == paused && !application.ghost && application.time_scale == 1),
+                  "DIFFICULTY changed the run it leaves");
     open_map(application.world().grid());
 }
 
@@ -873,7 +888,7 @@ TEST_CASE("the layers section lists paths with unchecked parts in their state co
     CHECK(menu_labels(application) ==
           std::vector<std::string>{"SIMULATION", "LAYERS", "VECTORS", "STEERING PROBES", "PATHS",
                                    "COLLISION SHAPES", "ACTIVE AGENTS", "AI STATES", "HIDING HITS", "ENEMIES",
-                                   "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+                                   "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS", "DIFFICULTY"});
     menu_row(application, "PATHS").action();
     REQUIRE(application.paths[0]);
     CHECK_MESSAGE(
@@ -900,16 +915,17 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
     const auto preset = world.difficulty_settings();
     menu_row(application, "ENEMIES").action();
     CHECK(menu_labels(application) ==
-          std::vector<std::string>{"SIMULATION", "LAYERS", "ENEMIES", "WANDER", "MOVE SPEED", "FIRE INTERVAL",
-                                   "ARROW SPEED", "PREDICTION", "PURSUIT CYCLES", "HITS", "WANDER FORCE",
-                                   "ATTACK FORCE", "PURSUE FORCE", "RECOVER FORCE", "KAMIKAZE FORCE",
-                                   "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+          std::vector<std::string>{"SIMULATION",     "LAYERS",        "ENEMIES",          "WANDER",
+                                   "MOVE SPEED",     "FIRE INTERVAL", "ARROW SPEED",      "PREDICTION",
+                                   "PURSUIT CYCLES", "HITS",          "WANDER FORCE",     "ATTACK FORCE",
+                                   "PURSUE FORCE",   "RECOVER FORCE", "KAMIKAZE FORCE",   "SPAWNING",
+                                   "ZOOM",           "GHOST CAMERA",  "RESET PARAMETERS", "DIFFICULTY"});
     CHECK(menu_row(application, "WANDER").value() == "STEERING");
     menu_row(application, "WANDER").action();
     menu_row(application, "PATH").action();
     CHECK(world.enemy_tuning().wander == dotio::WanderMode::path);
     CHECK(menu_row(application, "WANDER").value() == "PATH");
-    CHECK_MESSAGE(menu_labels(application).size() == 19, "choosing a value closes the list");
+    CHECK_MESSAGE(menu_labels(application).size() == 20, "choosing a value closes the list");
 
     menu_row(application, "MOVE SPEED").increase();
     CHECK(world.difficulty_settings().movement_multiplier ==
