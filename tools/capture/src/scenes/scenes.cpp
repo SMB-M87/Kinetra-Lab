@@ -46,7 +46,9 @@ using launcher::Variant;
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
-/// Lengths of the Demo scenario clips (TBD after looking).
+/// Lengths of the Demo scenario clips from their start: Gravity until its shapes rest (8 s),
+/// Maze until the player has walked the route and stands at its goal (20 s), Doorway until
+/// both groups are through the opening (8 s).
 constexpr int demo_gravity_frames = 120, demo_maze_frames = 300, demo_doorway_frames = 120;
 /// Length of the Dotio debug clip and the i4sim clips: twelve seconds. Long enough for a
 /// Dotio enemy to run for shelter, reload and come back, and for an i4sim mover to cross
