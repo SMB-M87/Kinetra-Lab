@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-24 | [Dotio on `kinetra::Vec2`](2026-11-24-dotio-on-kinetra-vec2.md): Dotio uses Kinetra's vector, segment and color types, and Kinetra's vector gets `==`; `dotio::math::Vec2`, its seven aliases and its unused operations go, with the golden fingerprint unchanged | accepted |
 | 2026-11-24 | [i4sim contact resolution without every pair](2026-11-24-i4sim-contact-pairs.md): `MotionStep::resolve_contacts` computes each mover's bounds once instead of for every pair, which halves the motion benchmark with every result unchanged; a spatial-index broad phase measured slower at this fleet size | implemented |
 | 2026-11-23 | [Ready-to-build cloud sessions](2026-11-23-ready-to-build-cloud-sessions.md): a SessionStart hook in Kinetra and Kinetra-Lab runs one setup script, which loads the submodule, installs the Ubuntu packages and CI's clang-format 23.1.5 at the start of every cloud session | implemented |
 | 2026-11-23 | [The shared UI in GIFs in Kinetra's README](2026-11-23-shared-ui-gifs.md): five GIFs of the launcher and overlays from Demo, with a pointer, a fixed frame time in Kinetra's runtime, and a rule to refresh the captures a change makes stale | implemented |

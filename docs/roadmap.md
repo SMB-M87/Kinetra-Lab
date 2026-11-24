@@ -20,7 +20,9 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Dotio on `kinetra::Vec2`** · dotio · added 2026-11-21
+  `dotio::math::Vec2` duplicates Kinetra's vector with extra operators and seven aliases.
+  Where: branch `ccr-5f0ec773-qklel2`, [design](design/2026-11-24-dotio-on-kinetra-vec2.md).
 
 ## Next
 
@@ -58,9 +60,6 @@ Nothing in progress.
 - **Reproducible Dotio captures** · capture, media · added 2026-11-21
   Dotio draws from its seed since phase 6, and the capture tool starts it with `capture_seed`, yet the capture README and `capture_tour.sh` still say its part differs per run, and its scripts react to the world instead of following a timeline. Check whether two captures are now identical, and update the docs and scripts. The tour is no longer rendered here: on 2026-11-23 the user decided that one more tour video is made, for YouTube (*Tour video for YouTube*).
   Where: [capture tool open points](../tools/capture/README.md#open-points).
-- **Dotio on `kinetra::Vec2`** · dotio · added 2026-11-21
-  `dotio::math::Vec2` duplicates Kinetra's vector with extra operators and seven aliases.
-  Where: [Dotio open points](../labs/dotio/README.md#open-points).
 - **Smoother pursuit in Dotio** · dotio, with Kinetra · added 2026-11-21
   Route following passes waypoints by distance and does not skip those already in sight, so pursuers cut fewer corners than they could.
   Depends on: Kinetra's *Raster route target*. Where: [Dotio open points](../labs/dotio/README.md#open-points).
