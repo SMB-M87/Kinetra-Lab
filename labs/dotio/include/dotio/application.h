@@ -19,9 +19,12 @@
 
 namespace dotio {
 
+/// `point` in legacy pixels (+Y down the screen) as Kinetra world units (25 pixels each, +Y
+/// up). With from_world() the only place a vector changes between the two, which share a type.
 inline kinetra::Vec2 to_world(kinetra::Vec2 point) {
     return {point.x / 25, -point.y / 25};
 }
+/// `point` in Kinetra world units as legacy pixels; the inverse of to_world().
 inline kinetra::Vec2 from_world(kinetra::Vec2 point) {
     return {point.x * 25, -point.y * 25};
 }
@@ -289,7 +292,8 @@ class Application {
     std::optional<kinetra::InspectorSnapshot> inspect_enemy(std::size_t slot, std::uint64_t generation) const;
     /// Simulated seconds per update in a running world.
     static constexpr double tick_seconds = 1.0 / 60;
-    /// Reject destinations overlapping terrain, physical props or active enemies.
+    /// Reject destinations overlapping terrain, physical props or active enemies. `point` and
+    /// `radius` are in legacy pixels of the resident window, not world units.
     bool teleport_clear(kinetra::Vec2 point, float radius) {
         if (!std::isfinite(point.x) || !std::isfinite(point.y) || std::abs(point.x) > 10000000 ||
             std::abs(point.y) > 10000000)

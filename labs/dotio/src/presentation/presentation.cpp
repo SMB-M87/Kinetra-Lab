@@ -49,13 +49,13 @@ class RuntimeRenderer final : public dotio::Renderer {
         const auto position = to_world(center);
         const float world_radius = radius / 25;
         if (visible(position, {world_radius, world_radius}))
-            runtime_.circle(position, world_radius, {color.r, color.g, color.b, color.a});
+            runtime_.circle(position, world_radius, color);
     }
     void draw_segment(kinetra::Segment segment, kinetra::Color color) override {
         const auto start = to_world(segment.start), end = to_world(segment.end);
         const Vec2 half{std::abs(end.x - start.x) / 2 + 0.03f, std::abs(end.y - start.y) / 2 + 0.03f};
         if (visible((start + end) / 2, half))
-            runtime_.line(start, end, 0.06f, {color.r, color.g, color.b, color.a});
+            runtime_.line(start, end, 0.06f, color);
     }
 };
 Color color_of_state(dotio::Enemy &enemy) {
