@@ -65,6 +65,9 @@ No lessons yet.
 
 ## Media and tools
 
+- **Rebuild after changing an embedded image before capturing scenes that display it** · added 2026-11-24 · source: [#110](https://github.com/SMB-M87/Kinetra-Lab/pull/110)
+  A combined capture can otherwise publish a fresh lab screenshot beside a launcher image rendered with the old still. Verify the combined command with a deliberately stale embedded image.
+
 - **Compare a text file that a test reads by its content, never by its bytes** · added 2026-11-23 · source: #104
   A `std::ofstream` in text mode ends lines with `\r\n` on Windows, so #104's recorder test, which compared `framerate` with `15\n`, failed only in the `windows` job, as Demo's trace lines did before (41bdef0). Parse the number or the lines instead.
 
