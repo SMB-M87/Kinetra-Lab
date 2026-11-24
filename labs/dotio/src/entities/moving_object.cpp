@@ -2,7 +2,7 @@
 #include "dotio/entities/physics_adapter.h"
 
 namespace dotio {
-MovingObject::MovingObject(const dotio::math::Position start, const float start_direction, bool active)
+MovingObject::MovingObject(const kinetra::Vec2 start, const float start_direction, bool active)
     : StaticObject(start, start_direction, active) {
 }
 

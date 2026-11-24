@@ -59,7 +59,7 @@ void World::initialize(std::uint32_t seed, Difficulty difficulty) {
     }
 }
 
-std::optional<std::pair<std::size_t, float>> World::first_object_hit(dotio::math::Segment segment,
+std::optional<std::pair<std::size_t, float>> World::first_object_hit(kinetra::Segment segment,
                                                                      float radius) const {
     std::optional<std::pair<std::size_t, float>> nearest;
     for (std::size_t i = 0; i < props_.size(); ++i)
@@ -94,7 +94,7 @@ void World::populate_objects() {
         }
 }
 
-dotio::math::Vec2 World::stream_around_player() {
+kinetra::Vec2 World::stream_around_player() {
     const auto shift_axis = [](float position) {
         const int cell = int(std::floor(position / Grid::cell_size));
         return cell < 48 || cell > 106 ? int(std::floor(static_cast<float>(cell - 77) / 16.f)) * 16 : 0;
@@ -102,8 +102,8 @@ dotio::math::Vec2 World::stream_around_player() {
     const int columns = shift_axis(player_.position.x), rows = shift_axis(player_.position.y);
     if (!columns && !rows)
         return {};
-    const dotio::math::Vec2 shift{static_cast<float>(columns) * Grid::cell_size,
-                                  static_cast<float>(rows) * Grid::cell_size};
+    const kinetra::Vec2 shift{static_cast<float>(columns) * Grid::cell_size,
+                              static_cast<float>(rows) * Grid::cell_size};
     offset_column_ += columns;
     offset_row_ += rows;
     grid_.generate(seed_, offset_row_, offset_column_);
@@ -140,11 +140,11 @@ dotio::math::Vec2 World::stream_around_player() {
     return shift;
 }
 
-void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 normal_half,
-                           dotio::math::Vec2 active_half, dotio::math::Vec2 retained_half, float elapsed) {
+void World::stream_enemies(kinetra::Vec2 center, kinetra::Vec2 normal_half, kinetra::Vec2 active_half,
+                           kinetra::Vec2 retained_half, float elapsed) {
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Spawn elapsed time must be finite and nonnegative");
-    const auto outside = [&](dotio::math::Position position, dotio::math::Vec2 half) {
+    const auto outside = [&](kinetra::Vec2 position, kinetra::Vec2 half) {
         return std::abs(position.x - center.x) > half.x || std::abs(position.y - center.y) > half.y;
     };
     // Trim residency at cell boundaries, independently of camera pan/zoom.
@@ -210,15 +210,15 @@ void World::stream_enemies(dotio::math::Position center, dotio::math::Vec2 norma
         }
         if (!enemy.is_active && spawn_due && attempts++ < 8) {
             const auto unit = [&]() { return dotio::math::unit(population_random_); };
-            const dotio::math::Vec2 position{center.x + (unit() * 2 - 1) * placement_half.x,
-                                             center.y + (unit() * 2 - 1) * placement_half.y};
+            const kinetra::Vec2 position{center.x + (unit() * 2 - 1) * placement_half.x,
+                                         center.y + (unit() * 2 - 1) * placement_half.y};
             dotio::math::GridEntry cell;
             if (!dotio::math::GridEntry::from_world(position, Grid::origin, Grid::cell_size, Grid::grid_size,
                                                     cell) ||
                 grid_.cell(cell.row, cell.column))
                 continue;
-            const dotio::math::Vec2 spawn{(static_cast<float>(cell.column) + 0.5f) * Grid::cell_size,
-                                          (static_cast<float>(cell.row) + 0.5f) * Grid::cell_size};
+            const kinetra::Vec2 spawn{(static_cast<float>(cell.column) + 0.5f) * Grid::cell_size,
+                                      (static_cast<float>(cell.row) + 0.5f) * Grid::cell_size};
             const bool occupied =
                 std::any_of(get_enemies().get_instances(),
                             get_enemies().get_instances() + get_enemies().get_capacity(),
@@ -338,15 +338,15 @@ dotio::Player &World::get_ghost() {
     return ghost_;
 }
 
-void World::add_enemy(const dotio::math::Position position, dotio::math::Position target, const float fear) {
+void World::add_enemy(const kinetra::Vec2 position, kinetra::Vec2 target, const float fear) {
     enemies_ += Enemy(this, position, target, 0.0f, fear);
 }
 
-void World::add_arrow(const dotio::math::Position position, const dotio::math::Vector2 velocity) {
+void World::add_arrow(const kinetra::Vec2 position, const kinetra::Vec2 velocity) {
     arrows_ += Arrow(position, velocity);
 }
 
-void World::add_bolt(const dotio::math::Position position, const dotio::math::Vector2 velocity) {
+void World::add_bolt(const kinetra::Vec2 position, const kinetra::Vec2 velocity) {
     bolts_ += Bolt(position, velocity);
 }
 
@@ -374,8 +374,8 @@ void World::update_arrows(const float delta, const bool debug) {
     for (auto &arrow : get_arrows()) {
         if (!arrow.is_active)
             continue;
-        const dotio::math::Segment segment{arrow.position, arrow.position + arrow.velocity * delta};
-        dotio::math::Point2 wall{}, hit{};
+        const kinetra::Segment segment{arrow.position, arrow.position + arrow.velocity * delta};
+        kinetra::Vec2 wall{}, hit{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         const bool hits_player =
             Grid::segment_circle_intersection(segment, get_player().position, get_player().radius, hit) & 1;
@@ -408,8 +408,8 @@ void World::update_bolts(const float delta) {
     for (auto &bolt : get_bolts()) {
         if (!bolt.is_active)
             continue;
-        const dotio::math::Segment segment{bolt.position, bolt.position + bolt.velocity * delta};
-        dotio::math::Point2 wall{};
+        const kinetra::Segment segment{bolt.position, bolt.position + bolt.velocity * delta};
+        kinetra::Vec2 wall{};
         const bool blocked = grid_.is_intersecting_any_cell(segment, wall);
         float nearest =
             blocked ? kinetra::length(wall - segment.start) : std::numeric_limits<float>::infinity();
@@ -420,7 +420,7 @@ void World::update_bolts(const float delta) {
             ++index;
             // Sweep relative motion, including the visible projectile radius. Convert
             // the relative hit parameter back to world distance for wall ordering.
-            const dotio::math::Segment relative{segment.start, segment.end - (enemy.position - previous)};
+            const kinetra::Segment relative{segment.start, segment.end - (enemy.position - previous)};
             if (!enemy.is_active)
                 continue;
             const auto fraction =

@@ -45,13 +45,13 @@ class RuntimeRenderer final : public dotio::Renderer {
   public:
     explicit RuntimeRenderer(Runtime &runtime)
         : runtime_(runtime), half_view_(runtime.camera.viewport / (2 * runtime.camera.pixels_per_unit)) {}
-    void draw_circle(dotio::math::Position center, float radius, dotio::math::RGBA color) override {
+    void draw_circle(kinetra::Vec2 center, float radius, kinetra::Color color) override {
         const auto position = to_world(center);
         const float world_radius = radius / 25;
         if (visible(position, {world_radius, world_radius}))
             runtime_.circle(position, world_radius, {color.r, color.g, color.b, color.a});
     }
-    void draw_segment(dotio::math::Segment segment, dotio::math::RGBA color) override {
+    void draw_segment(kinetra::Segment segment, kinetra::Color color) override {
         const auto start = to_world(segment.start), end = to_world(segment.end);
         const Vec2 half{std::abs(end.x - start.x) / 2 + 0.03f, std::abs(end.y - start.y) / 2 + 0.03f};
         if (visible((start + end) / 2, half))
@@ -195,9 +195,9 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const Vec2 position = to_world(enemy.position);
             const Vec2 heading = normalized(to_world(enemy.velocity));
             // A feeler and, where it meets a wall, the point of contact.
-            const auto draw_probe = [&](dotio::math::Segment probe) {
+            const auto draw_probe = [&](kinetra::Segment probe) {
                 runtime.line(to_world(probe.start), to_world(probe.end), 0.04f, color_of_state(enemy));
-                dotio::math::Point2 hit{};
+                kinetra::Vec2 hit{};
                 if (application.world().grid().is_intersecting_any_cell(probe, hit))
                     runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
             };
@@ -214,7 +214,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                                                                               (angle == 0 ? 4.f : 1.2f))});
             }
             if (p[5] && enemy.is_recovering()) {
-                dotio::math::Point2 hit{};
+                kinetra::Vec2 hit{};
                 if (application.world().grid().is_intersecting_any_cell({enemy.position, enemy.target},
                                                                         hit)) {
                     runtime.line(to_world(enemy.position), to_world(enemy.target), 0.04f,

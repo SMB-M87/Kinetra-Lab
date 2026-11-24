@@ -11,7 +11,7 @@
 namespace dotio {
 namespace {
 /// Cell of `point`, or {-1, -1} outside the grid.
-dotio::math::GridEntry cell_of(dotio::math::Vec2 point) {
+dotio::math::GridEntry cell_of(kinetra::Vec2 point) {
     dotio::math::GridEntry cell;
     if (!dotio::math::GridEntry::from_world(point, Grid::origin, Grid::cell_size, Grid::grid_size, cell))
         return {-1, -1};
@@ -36,23 +36,23 @@ struct Sides {
 };
 } // namespace
 
-Route::Route(std::vector<dotio::math::Vec2> waypoints) : waypoints_(std::move(waypoints)) {
+Route::Route(std::vector<kinetra::Vec2> waypoints) : waypoints_(std::move(waypoints)) {
 }
 
-const dotio::math::Vec2 &Route::next() const {
+const kinetra::Vec2 &Route::next() const {
     if (empty())
         throw std::out_of_range("Empty Dotio route");
     return waypoints_[next_];
 }
 
-const dotio::math::Vec2 &Route::destination() const {
+const kinetra::Vec2 &Route::destination() const {
     if (empty())
         throw std::out_of_range("Empty Dotio route");
     return waypoints_.back();
 }
 
-std::span<const dotio::math::Vec2> Route::remaining() const {
-    return std::span<const dotio::math::Vec2>(waypoints_).subspan(empty() ? waypoints_.size() : next_);
+std::span<const kinetra::Vec2> Route::remaining() const {
+    return std::span<const kinetra::Vec2>(waypoints_).subspan(empty() ? waypoints_.size() : next_);
 }
 
 void Route::advance() {
@@ -65,11 +65,11 @@ void Route::clear() {
     next_ = 0;
 }
 
-Route plan_route(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 to) {
+Route plan_route(const Grid &grid, kinetra::Vec2 from, kinetra::Vec2 to) {
     return Route(grid.navigation().path(from, to));
 }
 
-Route plan_shelter(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 player, float fear) {
+Route plan_shelter(const Grid &grid, kinetra::Vec2 from, kinetra::Vec2 player, float fear) {
     const auto start = cell_of(from);
     const auto hunter = cell_of(player);
     if (start.row < 0 || hunter.row < 0)
@@ -84,7 +84,7 @@ Route plan_shelter(const Grid &grid, dotio::math::Vec2 from, dotio::math::Vec2 p
     int hidden = 0;
     const auto accept = [&](int id) {
         const auto center = grid.navigation().center(id);
-        dotio::math::Point2 hit{};
+        kinetra::Vec2 hit{};
         if (!grid.is_intersecting_any_cell({{center.x, center.y}, player}, hit))
             return false;
         // The count includes this cell; a fear of 2.5 takes the third hidden cell.

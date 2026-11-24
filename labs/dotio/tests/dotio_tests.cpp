@@ -54,22 +54,22 @@ std::unique_ptr<dotio::World> fixture() {
 /// Streams a seeded world with enemies around its player for `duration` seconds in steps
 /// of `dt`, checks spawn placement, spacing and admission, and returns the positions of
 /// the active enemies. `active` is the normal player view in world units.
-std::vector<dotio::math::Vec2> population(float dt, float resources, dotio::math::Vec2 active = {1120, 700},
-                                          dotio::Difficulty difficulty = dotio::Difficulty::easy,
-                                          float duration = 20) {
+std::vector<kinetra::Vec2> population(float dt, float resources, kinetra::Vec2 active = {1120, 700},
+                                      dotio::Difficulty difficulty = dotio::Difficulty::easy,
+                                      float duration = 20) {
     CAPTURE(dt);
     CAPTURE(duration);
     auto world = std::make_unique<dotio::World>();
     world->initialize(42, difficulty);
     auto &player = world->get_player();
     const auto center = player.position;
-    const dotio::math::Vec2 retained{8000, 8000};
+    const kinetra::Vec2 retained{8000, 8000};
     world->stream_enemies(center, active / 1.75f, active * (9.f / 1.75f), retained);
     open_map(world->grid());
     player.health = player.mana = resources;
     for (int frame = 0; float(frame) < duration / dt; ++frame)
         world->stream_enemies(center, active / 1.75f, active * (9.f / 1.75f), retained, dt);
-    std::vector<dotio::math::Vec2> positions;
+    std::vector<kinetra::Vec2> positions;
     for (const auto &enemy : world->get_enemies())
         if (enemy.is_active) {
             const auto delta = enemy.position - center;
@@ -113,7 +113,7 @@ Encounter encounter(dotio::Difficulty difficulty) {
     world->initialize(42, difficulty);
     open_map(world->grid());
     auto &enemy = world->get_enemies()[0];
-    enemy.position = world->get_player().position + dotio::math::Vec2{700, 0};
+    enemy.position = world->get_player().position + kinetra::Vec2{700, 0};
     enemy.target = world->get_player().position;
     enemy.fear = 9;
     enemy.is_active = true;
@@ -160,7 +160,7 @@ void carve(dotio::Grid &grid, int row, int column, int last_row, int last_column
 }
 
 /// Center of a cell in legacy coordinates.
-dotio::math::Vec2 cell_center(int row, int column) {
+kinetra::Vec2 cell_center(int row, int column) {
     return {(float(column) + 0.5f) * dotio::Grid::cell_size, (float(row) + 0.5f) * dotio::Grid::cell_size};
 }
 
@@ -178,7 +178,7 @@ std::unique_ptr<dotio::World> walled_world(std::uint32_t seed = 42) {
 
 /// Wakes pool slot `index` as a wandering enemy at rest at `position`, facing `heading`
 /// radians in legacy coordinates.
-dotio::Enemy &wanderer(dotio::World &world, dotio::math::Vec2 position, float heading, int index = 0) {
+dotio::Enemy &wanderer(dotio::World &world, kinetra::Vec2 position, float heading, int index = 0) {
     auto &enemy = world.get_enemies()[index];
     enemy.position = position;
     enemy.velocity = {};
@@ -242,7 +242,7 @@ TEST_CASE("incremental residency matches the terrain of a full rebuild and keeps
     for (int step = 0; step < 12; ++step) {
         if (step == 8)
             world->initialize(43);
-        const dotio::math::Position center{7050.f + float(step * 100), 7950.f + float((step % 3) * 100)};
+        const kinetra::Vec2 center{7050.f + float(step * 100), 7950.f + float((step % 3) * 100)};
         const float half = step % 4 == 0 ? 1200.f : 2400.f;
         world->stream_enemies(center, {100, 100}, {500, 500}, {half, half});
         for (int row = 0; row < dotio::Grid::rows; ++row)
@@ -269,7 +269,7 @@ TEST_CASE("incremental residency matches the terrain of a full rebuild and keeps
 
 TEST_CASE("projectile segments and line of sight stop at walls and routes and shelters avoid them") {
     auto world = fixture();
-    dotio::math::Point2 hit{};
+    kinetra::Vec2 hit{};
     CHECK_MESSAGE(
         ((dotio::Grid::segment_circle_intersection({{550, 300}, {550, 800}}, {550, 550}, 20, hit) & 1) &&
          std::abs(hit.y - 530) < 0.01f),
@@ -401,7 +401,7 @@ TEST_CASE("combat rewards hits behind no wall and reset restores resources and A
         CHECK_MESSAGE(!bolt.is_active, "Reset retained live bolts");
     enemy.is_active = true;
     enemy.frozen = false;
-    enemy.position = player.position + dotio::math::Vec2{10, 0};
+    enemy.position = player.position + kinetra::Vec2{10, 0};
     enemy.target = player.position;
     player.mana = 50;
     enemy.tick();
@@ -410,7 +410,7 @@ TEST_CASE("combat rewards hits behind no wall and reset restores resources and A
                   "Contact kill bypassed the timed offscreen spawn controller");
     enemy.is_active = true;
     enemy.frozen = false;
-    enemy.position = player.position + dotio::math::Vec2{10, 0};
+    enemy.position = player.position + kinetra::Vec2{10, 0};
     enemy.target = player.position;
     enemy.set_state(enemy.get_kamikaze_state());
     enemy.debug = true;
@@ -508,7 +508,7 @@ TEST_CASE("one seed and one command sequence give the same run and another seed 
 namespace {
 /// A random free cell of `world`'s grid at least three cells inside the window and in the
 /// connected part of the generated floor (rows and columns below 128), drawn from `random`.
-dotio::math::Vec2 free_cell(dotio::World &world, std::mt19937 &random) {
+kinetra::Vec2 free_cell(dotio::World &world, std::mt19937 &random) {
     for (;;) {
         const int row = 3 + int(random() % 124), column = 3 + int(random() % 124);
         if (!world.grid().cell(row, column))
@@ -517,9 +517,9 @@ dotio::math::Vec2 free_cell(dotio::World &world, std::mt19937 &random) {
 }
 
 /// Whether every leg of `route`, starting at `from`, stays off the walls of `grid`.
-bool clear_of_walls(const dotio::Grid &grid, dotio::math::Vec2 from, const dotio::Route &route) {
+bool clear_of_walls(const dotio::Grid &grid, kinetra::Vec2 from, const dotio::Route &route) {
     for (const auto waypoint : route.remaining()) {
-        dotio::math::Point2 hit{};
+        kinetra::Vec2 hit{};
         if (grid.is_intersecting_any_cell({from, waypoint}, hit))
             return false;
         from = waypoint;
@@ -554,11 +554,11 @@ TEST_CASE("a pursuer far away in a generated maze reaches a hidden player along 
         std::mt19937 random(seed);
         // An enemy out of sight whose route to the player is longer than the 50 cells the
         // original path storage held.
-        dotio::math::Vec2 start{};
+        kinetra::Vec2 start{};
         std::size_t length = 0;
         for (int attempt = 0; attempt < 400 && length <= 50; ++attempt) {
             start = free_cell(*world, random);
-            dotio::math::Point2 hit{};
+            kinetra::Vec2 hit{};
             if (world->grid().is_intersecting_any_cell({start, player.position}, hit))
                 length = dotio::plan_route(world->grid(), start, player.position).size();
         }
@@ -594,7 +594,7 @@ TEST_CASE("no enemy stands still in a moving state around a standing player for 
         camera.pixels_per_unit = dotio::initial_zoom;
         auto &enemies = application->world().get_enemies();
         struct Anchor {
-            dotio::math::Vec2 position;
+            kinetra::Vec2 position;
             int since{};
         };
         std::vector<Anchor> anchors(enemies.get_capacity());
@@ -690,7 +690,7 @@ TEST_CASE("crates interact with actors and streaming keeps geometry continuous a
         const auto old_position = player.position;
         const auto old_ghost = world.get_ghost().position;
         const auto shift = world.stream_around_player();
-        CHECK_MESSAGE(shift != dotio::math::Vec2{}, "Streaming window did not advance");
+        CHECK_MESSAGE(shift != kinetra::Vec2{}, "Streaming window did not advance");
         CHECK_MESSAGE(player.position + world.world_offset() == absolute,
                       "Streaming changed absolute player position");
         CHECK_MESSAGE(world.get_ghost().position == old_ghost - shift, "Streaming failed to rebase camera");
@@ -703,7 +703,7 @@ TEST_CASE("crates interact with actors and streaming keeps geometry continuous a
                               "Streamed collision and terrain geometry diverged");
     }
     CHECK_MESSAGE(world.world_offset().x < initial_offset.x, "Negative world exploration did not stream");
-    player.position = dotio::math::Vec2{8050, 8050} - world.world_offset();
+    player.position = kinetra::Vec2{8050, 8050} - world.world_offset();
     world.stream_around_player();
     CHECK_MESSAGE(world.world_offset() == initial_offset, "Return trip did not recover original window");
     CHECK_MESSAGE(cells_of(world.grid()) == first, "Revisited world geometry changed");
@@ -738,7 +738,7 @@ TEST_CASE("bolts hit enemies within their combined radii including moving target
         auto &target = matching->get_enemies()[0];
         target.position = {575.0001f, 550};
         matching->update_enemies(0, false);
-        target.position += dotio::math::Vec2{599.9998f, 0};
+        target.position += kinetra::Vec2{599.9998f, 0};
         matching->add_bolt({550, 550}, {600, 0});
         matching->update_bolts(1);
         CHECK_MESSAGE(!target.is_active, "Co-moving bullet tunneled through enemy at tiny relative speed");
@@ -804,24 +804,23 @@ TEST_CASE("debug teleport accepts only free targets in range and keeps absolute 
     application.paused = true;
     player.velocity = {4, 5};
     application.advance(0, commands, camera);
-    CHECK_MESSAGE(
-        (player.position == dotio::math::Vec2{8150, 8050} && player.velocity == dotio::math::Vec2{}),
-        "Paused debug teleport failed");
+    CHECK_MESSAGE((player.position == kinetra::Vec2{8150, 8050} && player.velocity == kinetra::Vec2{}),
+                  "Paused debug teleport failed");
     application.world().grid().set_cell(80, 82, 1);
     commands.teleport_target = dotio::to_world({8190, 8050});
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.position == dotio::math::Vec2{8150, 8050}),
+    CHECK_MESSAGE((player.position == kinetra::Vec2{8150, 8050}),
                   "Teleport accepted circle overlapping wall");
     commands.teleport_target = dotio::to_world({100000000, 550});
     application.advance(0, commands, camera);
-    CHECK_MESSAGE((player.position == dotio::math::Vec2{8150, 8050}),
+    CHECK_MESSAGE((player.position == kinetra::Vec2{8150, 8050}),
                   "Teleport accepted outside supported coordinate range");
     // A distant Ghost click can cross the current local raster while paused.
     bool teleported = false;
     const auto offset = application.world().world_offset();
     for (int row = 75; row < 85 && !teleported; ++row)
         for (int col = -20; col < -1 && !teleported; ++col) {
-            const dotio::math::Vec2 target{(float(col) + 0.5f) * 100, (float(row) + 0.5f) * 100};
+            const kinetra::Vec2 target{(float(col) + 0.5f) * 100, (float(row) + 0.5f) * 100};
             if (!application.teleport_clear(target, player.radius))
                 continue;
             commands.teleport_target = dotio::to_world(target);
@@ -1070,7 +1069,7 @@ TEST_CASE("pause and Ghost work and long play keeps finite state") {
         commands = {};
         commands.direction = {frame % 60 < 30 ? 1.f : -1.f, 0};
         commands.shoot = true;
-        commands.aim = dotio::to_world(player.position + dotio::math::Vec2{500, 0});
+        commands.aim = dotio::to_world(player.position + kinetra::Vec2{500, 0});
         application.advance(1.0 / 60, commands, camera);
         CHECK_MESSAGE((std::isfinite(player.position.x) && std::isfinite(player.position.y)),
                       "Nonfinite player pose");
@@ -1118,7 +1117,7 @@ TEST_CASE("paused frames and a crowded player area spawn no new enemies") {
         CHECK_MESSAGE(!enemy.is_active, "Paused/render-only frames created enemies");
     for (int i = 0; i < 5; ++i) {
         auto &enemy = world->get_enemies()[i];
-        enemy.position = center + dotio::math::Vec2{float(100 + i * 50), 0};
+        enemy.position = center + kinetra::Vec2{float(100 + i * 50), 0};
         enemy.is_active = true;
     }
     for (int second = 0; second < 120; ++second)
@@ -1151,7 +1150,7 @@ TEST_CASE("difficulty sets enemy hit points and the spawn range grows with survi
         }
         enemy.reset();
         CHECK_MESSAGE(enemy.hits_remaining == hits, "Reused enemy retained previous damage");
-        const dotio::math::Vec2 normal{640, 400}, active{5760, 3600}, retained{8000, 5000};
+        const kinetra::Vec2 normal{640, 400}, active{5760, 3600}, retained{8000, 5000};
         const auto initial = world->spawn_half(normal, active);
         CHECK_MESSAGE(initial == normal * 1.75f, "Initial spawn range changed");
         world->stream_enemies(world->get_player().position, normal, active, retained, 150);
@@ -1231,7 +1230,7 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
         population[i].frozen = true;
         population[i].position =
             player_center +
-            dotio::math::Vec2{i == 0 ? 2000.f : camera.viewport.x * 4.5f + (i == 1 ? -1.f : 1.f), 0};
+            kinetra::Vec2{i == 0 ? 2000.f : camera.viewport.x * 4.5f + (i == 1 ? -1.f : 1.f), 0};
     }
     application.advance(0, {}, camera);
     CHECK_MESSAGE((!population[0].frozen && !population[1].frozen && population[2].frozen),
@@ -1240,7 +1239,7 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
     application.debug = true;
     application.ghost = true;
     application.world().get_ghost().position =
-        application.world().get_player().position + dotio::math::Vec2{5000, 5000};
+        application.world().get_player().position + kinetra::Vec2{5000, 5000};
     application.advance(0, commands, camera);
     for (const auto &agent : application.world().get_enemies())
         if (agent.is_active) {
@@ -1256,8 +1255,8 @@ TEST_CASE("enemies freeze outside the activity window and release their state wh
 
 TEST_CASE("legacy and world coordinates convert both ways") {
     CHECK(dotio::to_world({250, -125}) == kinetra::Vec2{10, 5});
-    CHECK(dotio::from_world({10, 5}) == dotio::math::Vec2{250, -125});
-    CHECK(dotio::from_world(dotio::to_world({250, -125})) == dotio::math::Vec2{250, -125});
+    CHECK(dotio::from_world({10, 5}) == kinetra::Vec2{250, -125});
+    CHECK(dotio::from_world(dotio::to_world({250, -125})) == kinetra::Vec2{250, -125});
 }
 
 TEST_CASE("a world starts with the preset of its difficulty and the default enemy tuning") {
@@ -1410,7 +1409,7 @@ TEST_CASE("the largest accepted speed does not carry an enemy through a wall") {
     float fastest = 0, deepest = 0;
     // Different starts make the last and longest step meet the wall at different depths.
     for (int start = 0; start < 50; start += 5) {
-        enemy.position = cell_center(10, 11) + dotio::math::Vec2{float(start), 0};
+        enemy.position = cell_center(10, 11) + kinetra::Vec2{float(start), 0};
         enemy.velocity = {};
         for (int update = 0; update < 120; ++update) {
             const auto before = enemy.position;
@@ -1527,7 +1526,7 @@ TEST_CASE("a steering wanderer heading into a corner keeps walking and gets out 
         CAPTURE(heading);
         auto world = walled_world();
         carve(world->grid(), 10, 10, 30, 30);
-        const dotio::math::Vec2 corner{31 * dotio::Grid::cell_size, 10 * dotio::Grid::cell_size};
+        const kinetra::Vec2 corner{31 * dotio::Grid::cell_size, 10 * dotio::Grid::cell_size};
         auto &enemy = wanderer(*world, cell_center(11, 29), heading);
         float slowest_half_second = std::numeric_limits<float>::infinity();
         float closest = std::numeric_limits<float>::infinity();
@@ -1581,8 +1580,8 @@ TEST_CASE("the wander feelers follow the heading and steering reacts to exactly 
     CHECK_MESSAGE((dotio::wander_forward_feeler == 0 && dotio::wander_positive_feeler == 1 &&
                    dotio::wander_negative_feeler == 2),
                   "The feeler order changed");
-    const auto blocked = [&world](const dotio::math::Segment &feeler) {
-        dotio::math::Point2 hit{};
+    const auto blocked = [&world](const kinetra::Segment &feeler) {
+        kinetra::Vec2 hit{};
         return world->grid().is_intersecting_any_cell(feeler, hit);
     };
     const auto blocked_feelers = [&](const dotio::Enemy &subject) {

@@ -5,8 +5,7 @@
 #include "dotio/entities/arrow.h"
 
 namespace dotio {
-Arrow::Arrow(dotio::math::Position start, dotio::math::Vector2 start_velocity)
-    : MovingObject(start, 0, false) {
+Arrow::Arrow(kinetra::Vec2 start, kinetra::Vec2 start_velocity) : MovingObject(start, 0, false) {
     velocity = start_velocity;
 }
 

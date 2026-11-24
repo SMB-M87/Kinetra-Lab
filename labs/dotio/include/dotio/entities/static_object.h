@@ -10,11 +10,11 @@ class StaticObject {
     /// Whether this object is alive. Pool slots that are not in use are inactive.
     bool is_active;
     /// Center, in legacy pixels.
-    dotio::math::Position position{};
+    kinetra::Vec2 position{};
     /// Orientation in radians; kept for the physics adapter, no rule reads it.
     float direction{};
 
-    explicit StaticObject(dotio::math::Position position, float direction, bool active);
+    explicit StaticObject(kinetra::Vec2 position, float direction, bool active);
 
     virtual ~StaticObject();
 

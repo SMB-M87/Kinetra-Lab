@@ -12,7 +12,7 @@ namespace dotio {
 struct Arrow : MovingObject {
     /// An arrow at `position` flying at `velocity` legacy pixels per update; inactive until
     /// its pool slot activates it.
-    explicit Arrow(dotio::math::Position position, dotio::math::Vector2 velocity);
+    explicit Arrow(kinetra::Vec2 position, kinetra::Vec2 velocity);
 
     Arrow();
 

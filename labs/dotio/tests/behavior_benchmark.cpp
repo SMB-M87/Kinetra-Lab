@@ -37,8 +37,8 @@ bool wall(dotio::Application &application, int row, int column) {
     return application.world().grid().cell(row, column) != 0;
 }
 
-bool sight_blocked(dotio::Application &application, dotio::math::Vec2 from, dotio::math::Vec2 to) {
-    dotio::math::Point2 hit{};
+bool sight_blocked(dotio::Application &application, kinetra::Vec2 from, kinetra::Vec2 to) {
+    kinetra::Vec2 hit{};
     return application.world().grid().is_intersecting_any_cell({from, to}, hit);
 }
 
@@ -98,7 +98,7 @@ class Player {
     }
 
   private:
-    void plan(dotio::Application &application, dotio::math::Vec2 position) {
+    void plan(dotio::Application &application, kinetra::Vec2 position) {
         route_.clear();
         next_ = 0;
         waiting_ = 0;
@@ -122,7 +122,7 @@ class Player {
         }
     }
 
-    const dotio::Enemy *nearest_visible_enemy(dotio::Application &application, dotio::math::Vec2 position) {
+    const dotio::Enemy *nearest_visible_enemy(dotio::Application &application, kinetra::Vec2 position) {
         const dotio::Enemy *nearest = nullptr;
         float nearest_distance = shooting_range;
         for (const auto &enemy : application.world().get_enemies()) {
@@ -138,11 +138,11 @@ class Player {
     }
 
     std::mt19937 random_;
-    std::vector<dotio::math::Vec2> route_;
+    std::vector<kinetra::Vec2> route_;
     std::size_t next_{};
     int waiting_{};
     float best_{std::numeric_limits<float>::infinity()};
-    dotio::math::Vec2 offset_{};
+    kinetra::Vec2 offset_{};
     std::uint64_t resets_{};
 };
 
@@ -220,7 +220,7 @@ struct Totals {
 struct Slot {
     bool active{};
     State state{State::wander};
-    dotio::math::Vec2 position{}, anchor{};
+    kinetra::Vec2 position{}, anchor{};
     int anchor_tick{}, pursuit_start{};
     bool stuck{};
 };

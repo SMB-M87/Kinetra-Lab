@@ -7,11 +7,11 @@ namespace dotio {
 class MovingObject : public StaticObject {
   public:
     /// Legacy pixels per update.
-    dotio::math::Vector2 velocity{};
+    kinetra::Vec2 velocity{};
     /// Radians per update.
     float angular_velocity{};
 
-    explicit MovingObject(dotio::math::Position position, float direction, bool active);
+    explicit MovingObject(kinetra::Vec2 position, float direction, bool active);
 
     /// An inactive object at the origin.
     MovingObject();

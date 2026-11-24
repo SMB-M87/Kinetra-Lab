@@ -23,7 +23,7 @@ constexpr float shelter_reach_cells = 0.1f;
 /// The point `enemy` steers toward on its route, or nothing for an empty route. A waypoint
 /// closer than `reach` legacy pixels is passed and the next one taken; after the last one
 /// is passed, the enemy still steers toward it for this update.
-std::optional<dotio::math::Vec2> steering_point(Enemy &enemy, float reach) {
+std::optional<kinetra::Vec2> steering_point(Enemy &enemy, float reach) {
     auto &route = enemy.path;
     if (route.empty())
         return std::nullopt;
@@ -38,10 +38,10 @@ std::optional<dotio::math::Vec2> steering_point(Enemy &enemy, float reach) {
 
 /// Accelerates `enemy` toward `point` by `force` legacy pixels per update, over `delta`
 /// updates and scaled by the difficulty's movement multiplier, as every state does.
-void accelerate_toward(Enemy &enemy, dotio::math::Vec2 point, float force, float delta) {
+void accelerate_toward(Enemy &enemy, kinetra::Vec2 point, float force, float delta) {
     if (point == enemy.position)
         return;
-    const dotio::math::Vec2 acceleration = kinetra::normalized(point - enemy.position) * force;
+    const kinetra::Vec2 acceleration = kinetra::normalized(point - enemy.position) * force;
     enemy.apply_force(acceleration * (delta * enemy.get_world().difficulty_settings().movement_multiplier),
                       0.5f * enemy.get_mass());
 }
@@ -61,8 +61,8 @@ float intercept(float target_speed, float arrow_speed, float angle) {
 
 /// Velocity of an arrow that `enemy` fires at its target: `arrow_speed` long, aimed at the
 /// target and led by `prediction` times the lead angle of the target's motion.
-dotio::math::Vec2 aimed_arrow(const Enemy &enemy, float arrow_speed, float prediction) {
-    const dotio::math::Vec2 heading{arrow_speed, 0.0f};
+kinetra::Vec2 aimed_arrow(const Enemy &enemy, float arrow_speed, float prediction) {
+    const kinetra::Vec2 heading{arrow_speed, 0.0f};
     const float lead = intercept(kinetra::length(enemy.target_velocity), arrow_speed,
                                  kinetra::signed_angle(enemy.target_velocity, enemy.position - enemy.target));
     return kinetra::rotated(heading, kinetra::signed_angle(heading, enemy.target - enemy.position) +
@@ -70,7 +70,7 @@ dotio::math::Vec2 aimed_arrow(const Enemy &enemy, float arrow_speed, float predi
 }
 
 /// Cell of `point`, or {-1, -1} outside the grid.
-dotio::math::GridEntry cell_of(dotio::math::Vec2 point) {
+dotio::math::GridEntry cell_of(kinetra::Vec2 point) {
     dotio::math::GridEntry cell;
     if (!dotio::math::GridEntry::from_world(point, Grid::origin, Grid::cell_size, Grid::grid_size, cell))
         return {-1, -1};
@@ -88,7 +88,7 @@ void follow_target(Enemy &enemy) {
 }
 
 /// Center of `cell` in legacy pixels.
-dotio::math::Vec2 center_of(dotio::math::GridEntry cell) {
+kinetra::Vec2 center_of(dotio::math::GridEntry cell) {
     return {(float(cell.column) + 0.5f) * Grid::cell_size, (float(cell.row) + 0.5f) * Grid::cell_size};
 }
 } // namespace
@@ -105,10 +105,10 @@ void WanderState::execute(const float delta) {
     // update, so path wanderers sway along their route.
     const float angle =
         dotio::math::unit(enemy_->get_world().behavior_random()) * 2 * std::numbers::pi_v<float>;
-    const dotio::math::Vec2 displacement{Grid::cell_size * std::cos(angle),
-                                         Grid::cell_size * 0.4f * std::sin(angle)};
-    const dotio::math::Vec2 force = kinetra::normalized(*point + displacement - enemy_->position) *
-                                    enemy_->get_world().enemy_tuning().wander_force;
+    const kinetra::Vec2 displacement{Grid::cell_size * std::cos(angle),
+                                     Grid::cell_size * 0.4f * std::sin(angle)};
+    const kinetra::Vec2 force = kinetra::normalized(*point + displacement - enemy_->position) *
+                                enemy_->get_world().enemy_tuning().wander_force;
     enemy_->apply_force(force * (delta * enemy_->get_world().difficulty_settings().movement_multiplier),
                         0.5f * enemy_->get_mass());
 }
@@ -140,9 +140,9 @@ void AttackState::execute(const float delta) {
         (dotio::Grid::cell_size * (enemy_->fear * (enemy_->ammo_used_ratio())) +
          dotio::Grid::cell_size * 0.5f);
 
-    dotio::math::Vec2 force = {kinetra::normalized(boundary ? enemy_->position - enemy_->target
-                                                            : enemy_->target - enemy_->position) *
-                               enemy_->get_world().enemy_tuning().attack_force};
+    kinetra::Vec2 force = {kinetra::normalized(boundary ? enemy_->position - enemy_->target
+                                                        : enemy_->target - enemy_->position) *
+                           enemy_->get_world().enemy_tuning().attack_force};
 
     enemy_->apply_force(force * (delta * enemy_->get_world().difficulty_settings().movement_multiplier),
                         0.5f * enemy_->get_mass());

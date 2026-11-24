@@ -61,7 +61,7 @@ std::optional<kinetra::InspectorSnapshot> Application::inspect_enemy(std::size_t
         force = tuning.attack_force;
     }
     const auto offset = world_->world_offset();
-    const auto location = [&](dotio::math::Vec2 point) {
+    const auto location = [&](kinetra::Vec2 point) {
         point += offset;
         return inspector_vector({point.x, point.y}, " PX");
     };
