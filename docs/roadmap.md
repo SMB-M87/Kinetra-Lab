@@ -20,9 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Dotio on `kinetra::Vec2`** · dotio · added 2026-11-21
-  `dotio::math::Vec2` duplicates Kinetra's vector with extra operators and seven aliases.
-  Where: branch `ccr-5f0ec773-qklel2`, [design](design/2026-11-24-dotio-on-kinetra-vec2.md).
+Nothing in progress.
 
 ## Next
 

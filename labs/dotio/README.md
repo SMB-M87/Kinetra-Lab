@@ -36,7 +36,7 @@ The logic (`kinetra_dotio_logic`) is headless and builds without the runtime. Th
 
 | Term | Meaning |
 | --- | --- |
-| Legacy pixels | Dotio's own unit: 100 per grid cell, +Y down the screen. Kinetra world units are 25 legacy pixels with +Y up (`to_world`, `from_world` in [application.h](include/dotio/application.h)) |
+| Legacy pixels | Dotio's own unit: 100 per grid cell, +Y down the screen. Kinetra world units are 25 legacy pixels with +Y up (`to_world`, `from_world` in [application.h](include/dotio/application.h)). Both are `kinetra::Vec2` values: the names, not the type, say which unit a vector holds |
 | Update | One fixed step of 1/60 s. Speeds are legacy pixels per update, forces are speed gained per update |
 | Decision tick | Every third update (20 Hz): enemies look, decide and plan |
 | Grid, cell | The 155×155-cell occupancy raster of the resident window (`dotio::Grid`); a cell is a wall or floor. `GridEntry` is one (row, column) |
@@ -123,7 +123,7 @@ labs/dotio/
                    physics_object.h static_object.h physics_adapter.h
     ai/            state.h wander.h fuzzy.h tracker.h
     navigation/    grid.h route.h
-    math/          vector.h cell.h random.h
+    math/          cell.h random.h
     presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
         entities/ ai/ navigation/ math/ presentation/
@@ -136,7 +136,7 @@ labs/dotio/
 | `entities/` | Moving and static world objects and their physics |
 | `ai/` | The enemy state machine, steering wander, fuzzy decisions and the population tracker |
 | `navigation/` | The occupancy grid with its route planner (Kinetra's `WeightedGrid`), and enemy routes |
-| `math/` | The legacy vector and grid-cell types and seeded random values, in namespace `dotio::math` |
+| `math/` | Grid cells and seeded random values, in namespace `dotio::math`; vectors, segments and colors are Kinetra's (`kinetra::Vec2`, `kinetra::Segment`, `kinetra::Color`) |
 | `presentation/` | Session and drawing; needs `Kinetra::Runtime` |
 
 ### Top level
@@ -201,7 +201,6 @@ classDiagram
 
 | Header | Source | Responsibility |
 | --- | --- | --- |
-| [vector.h](include/dotio/math/vector.h) | [vector.cpp](src/math/vector.cpp) | Legacy vector (`Vec2` and its aliases), color and segment types and their operators; canonical vector math delegates to Kinetra |
 | [cell.h](include/dotio/math/cell.h) | [cell.cpp](src/math/cell.cpp) | Grid cells (`GridEntry`): conversion from and to legacy positions, and the neighbor partitions enemies separate by |
 | [random.h](include/dotio/math/random.h) | header only | Uniform values from the raw bits of a seeded `std::mt19937`, the same on every standard library |
 
@@ -354,7 +353,7 @@ Separate streams keep one feature from shifting another's sequence. The executab
 - **One seed, one run.** The same seed, difficulty and command sequence give the same world, enemies and outcome on one platform; the golden fingerprint pins it. Nothing in the logic reads `std::rand`, `std::random_device` or the clock.
 - **The grid owns the walls.** Raster and route planner change only together (`Grid::set_cell`, `Grid::fill`, `Grid::generate`); collision, sight, sweeps and routes read the same cells.
 - **Stable addresses.** The world lives behind a `unique_ptr` in `Application` and is not copyable; pool slots never move. Enemies, states and the partition map keep raw pointers into them. An enemy is not copied after `initialize()` bound its states.
-- **Units.** Logic positions are legacy pixels of the resident window; anything kept across streaming adds `world_offset()`. Times are updates (movement) or seconds (cooldowns, spawning).
+- **Units.** Logic positions are legacy pixels of the resident window; anything kept across streaming adds `world_offset()`. `Commands` and the camera are in world units. Both are `kinetra::Vec2`, so a vector crosses between them only through `to_world` and `from_world`. Times are updates (movement) or seconds (cooldowns, spawning).
 - **Tuning within limits.** `World::settings()` and `enemy_tuning()` are not checked when written; the debug rows stay inside what `dotio::validate` accepts (`tuning_step` in [application.h](include/dotio/application.h)).
 - **Headless logic.** Nothing in `kinetra_dotio_logic` includes a runtime-only header; the debug panel lives in the session.
 
@@ -376,7 +375,7 @@ Both test programs are doctest suites: each `TEST_CASE` is one behavior, named a
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (3) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`. Needs an OpenGL context (label `graphics`) |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:dotio` (1) | `kinetra_dotio --difficulty medium --seed 42 --frames 120` starts, draws and exits with 0. Needs an OpenGL context (label `graphics`) |
 
-Every world owns its grid (`dotio::World::grid()`); cases that build on the plain bordered arena call `open_map()` on it, and `fixture()` starts on one. No case depends on another case or on the order in which they run. The golden fingerprint (`a seeded game reproduces its recorded fingerprint`) runs on Linux and Windows with the same recorded value, because `Vec2` takes its angles from `kinetra::atan2` and `kinetra::asin` ([Windows tests](../../docs/windows.md#tests)).
+Every world owns its grid (`dotio::World::grid()`); cases that build on the plain bordered arena call `open_map()` on it, and `fixture()` starts on one. No case depends on another case or on the order in which they run. The golden fingerprint (`a seeded game reproduces its recorded fingerprint`) runs on Linux and Windows with the same recorded value, because the logic takes its angles from `kinetra::atan2` and `kinetra::asin` ([Windows tests](../../docs/windows.md#tests)).
 
 From the repository root, for the tests that need no window:
 
@@ -405,9 +404,8 @@ Not covered: gameplay balance and desktop feel (a playtest), recovery under real
 
 ## Open points
 
-- `dotio::math::Vec2` duplicates `kinetra::Vec2` with extra operators (length comparisons, component products) and seven type aliases (`Position`, `Point2`, …). Replacing it is a larger change than renaming.
 - Route following passes waypoints by distance; it does not skip waypoints that are already in sight, as Kinetra's `route_target` does for `Navigation`. A raster version would make pursuers cut corners less.
-- `Vec2::get_signed` returns absolute values, as in the original game; `Tracker::add_instance` overwrites the next slot whether it is in use or not.
+- `Tracker::add_instance` overwrites the next slot whether it is in use or not.
 - `Enemy` keeps three independent flags (`line_of_sight`, `debug`, `frozen`): perception, debug mode and residency, not one lifecycle, so they are not an enum.
 - `<kinetra/runtime/timing.h>` (`FixedClock`) is header-only and headless but lives under Kinetra's `runtime/`; Demo and i4sim logic include it too.
 - The shelter search may settle the whole resident window (24,025 cells) when no shelter exists, which takes milliseconds, and a recovering enemy near the player repeats it at every decision ([performance](../../docs/performance.md#dotio)).
