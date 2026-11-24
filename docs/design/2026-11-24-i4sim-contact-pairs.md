@@ -1,6 +1,6 @@
 # i4sim contact resolution without every pair
 
-Status: accepted · Branch: `ccr-0b1cf811-ur7qrd` · Related: [performance, hotspot 2](../performance.md#hotspots), roadmap item *i4sim contact resolution without every pair*
+Status: implemented · Branch: `ccr-0b1cf811-ur7qrd` · Related: [performance, hotspot 2](../performance.md#hotspots), roadmap item *i4sim contact resolution without every pair*
 
 `MotionStep::resolve_contacts` was the largest single cost of i4sim's motion benchmark: it computed both movers' bounds again for every pair of movers, every tick. This change computes them once per mover and keeps every other part of the step, so the run stays the same to the bit and the benchmark gets faster. It is hotspot 2 of the [performance baseline](../performance.md); the engine hotspots run in their own stack in Kinetra.
 
@@ -65,8 +65,52 @@ The change must not alter behavior, so the tests that pin it are the existing on
 
 ## Review
 
+- `/code-review` (low) on `main...HEAD`: no findings.
+- Correctness: `bounds` is a pure function of the body, and `Aabb::overlaps` is unchanged, so every pair test has the same answer as before; the pairs are found on `integrated` and `boxes`, which resolving a pair does not touch, so the pairs and their order cannot change. The benchmark CSVs confirm it on the large layout for five profiles and policies.
+- Readability: `resolve_contacts` grows from 68 to 77 lines, past the conventions' 60; it was past them before. Splitting off the border loop is a refactor without a performance reason, an open point below.
+- Copies: `check_copies.py` with "tick's spatial index", "broad phase", "hotspot 2", "4,000 ticks per second", "goes with 2", "bounds once per mover" and "contact resolution". The hits are the roadmap item this branch removes, the updated performance page, and Kinetra's pages on `World`'s own broad phase, which this change does not touch.
+- The roadmap item *Engine hotspots from the performance baseline* still quotes the baseline's 7% for `bounds`; it says what the baseline found, and its session decides on hotspot 5 with the new numbers, which it has.
+
 ## Verification
+
+Measured on a cloud machine with four cores of an Intel Xeon at 2.1 GHz, GCC 13.3, release preset, nothing else running. The baseline is Lab `401cdc8` with Kinetra `73adc66`, built in `build-before` before the change.
+
+| Version | Default, three runs | Median | With `--predictive-passing` | Median |
+| --- | --- | --- | --- | --- |
+| Before | 40.4–41.1 s | 40.6 s | 58.7–60.8 s | 59.0 s |
+| Bounds once per mover, this branch | 21.2–21.7 s | 21.6 s | 37.4–38.6 s | 38.2 s |
+| First version, which read the mover count in every loop test | 21.7–22.4 s | 22.4 s | 39.3–39.6 s | 39.3 s |
+| The first version plus a `SpatialGrid` over the moved movers, one query per mover (not kept) | 25.5–26.7 s | 25.7 s | 43.0–44.7 s | 44.4 s |
+
+- Results: for every version, all eleven CSV files (three default and three passing runs at 50,000 ticks; `--profile original`, `--profile rvo`, `--profile reciprocal`, `--recovery` and `--profile reciprocal --parking-traffic --junction-traffic --corridor-traffic` at 20,000 ticks) are identical to the baseline in every column but `elapsed_ms`.
+- Profile: `perf record -F 499 --call-graph fp` on a frame-pointer build, default (10,671 samples) and with passing (18,792 samples), as on the [performance page](../performance.md#how-to-measure).
+- Targeted level: `cmake --preset dev`, `cmake --build --preset dev --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` without warnings, `ctest --preset dev -R '^kinetra_i4sim'`: 147 of 147 passed in 104 s.
+- `clang-format --dry-run --Werror labs/i4sim/src/simulation/motion_step.cpp`: clean.
+- `python3 external/Kinetra/tools/check_docs.py`: all links resolve.
+- Full level: the pull request's CI.
 
 ## Pull request
 
+Title: `perf(i4sim): compute contact bounds once per mover`
+
+**Summary.** `MotionStep::resolve_contacts` computed both movers' bounds again for every pair of movers, every tick: 46% of the i4sim motion benchmark. It now computes them once per mover. Every result stays the same, and the benchmark takes 47% less time, 35% less with predictive passing. Hotspot 2 of the performance baseline.
+
+**Changes.**
+- i4sim: `resolve_contacts` takes each mover's bounds once, and the pair loop tests the ready boxes; pairs, order and resolution are unchanged.
+- Performance page: a new section *Measured changes* with this change's before and after, the i4sim profile and the hotspot table profiled again, the i4sim summary and an open point on the border loop.
+- Roadmap: the item *i4sim contact resolution without every pair* is removed.
+
+**Design.** This document, `docs/design/2026-11-24-i4sim-contact-pairs.md`. The roadmap proposed the tick's `SpatialGrid` as broad phase; measured, a fresh index over the moved movers made it slower (25.7 s against 22.4 s for the same code without it), so every pair is still tested, on boxes computed once.
+
+**Verification.** Motion benchmark before and after on one machine, three runs each: 40.6 → 21.6 s, with passing 59.0 → 38.2 s; all eleven CSVs (five profiles and policies) identical apart from `elapsed_ms`. `ctest --preset dev -R '^kinetra_i4sim'`: 147 of 147 passed; no new warnings; docs check clean.
+
+**Review notes.** The numbers come from a cloud machine about 1.45 times slower than the baseline's, so the page keeps the baseline tables and puts this change's before and after in *Measured changes*; the engine stack adds its rows there. The i4sim ceiling in the summary is scaled from the baseline by the measured ratio, and says so.
+
+**Dependencies and merge order.** None. The engine hotspots run as a separate stack in Kinetra and Lab and edit the same performance page and roadmap; whichever merges second merges `main` in.
+
+**Follow-up.** Hotspot 5 (`bounds` with `sincosf`) is down to about 1% of i4sim; the engine stack decides whether it still gets a pull request. The border loop of `resolve_contacts` is an open point on the performance page.
+
 ## Open points
+
+- `resolve_contacts` is 77 lines; splitting off the border loop would bring it under the conventions' 60, as a refactor of its own.
+- The border loop is about a third of what is left of the function, 3% of the run; on the [performance page](../performance.md#open-points).

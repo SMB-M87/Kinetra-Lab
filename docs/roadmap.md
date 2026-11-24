@@ -20,9 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **i4sim contact resolution without every pair** · i4sim · added 2026-11-23
-  `MotionStep::resolve_contacts` tests all 5,565 pairs of movers on `8640x4800` every tick and computes both bodies' bounds again for each pair: 46% of the motion benchmark. Bounds once per mover and the tick's spatial index as broad phase, visiting pairs in the same order, should keep the golden lines.
-  Where: [design](design/2026-11-24-i4sim-contact-pairs.md), branch `ccr-0b1cf811-ur7qrd`; [performance, hotspots](performance.md#hotspots), hotspot 2.
+Nothing in progress.
 
 ## Next
 
