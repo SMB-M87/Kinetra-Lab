@@ -8,13 +8,16 @@
 #include "demo/presentation/session.h"
 #include "demo/scenario.h"
 #include "demo/world/inspector.h"
+#include "i4sim/blueprint/blueprint.h"
 
 #include "kinetra_lab/inspector.h"
 #include <kinetra/runtime/inspector_view.h>
 #include <kinetra/runtime/launcher.h>
 #include <kinetra/runtime/settings_view.h>
 
+#include <algorithm>
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <initializer_list>
 #include <stdexcept>
@@ -40,6 +43,11 @@ constexpr float rest_x = .8f, rest_y = .78f;
 /// Distance from the inspector's top-right corner to the middle of its X button, in logical
 /// pixels: the button's margin and half its side (Kinetra's inspector_view.cpp).
 constexpr float inspector_close_inset = 12;
+/// The launcher's I4SIM row.
+constexpr std::size_t i4sim_launcher_row = 2;
+/// The showcase scene and the floor the loadscreen clip starts: a short scene whose movers
+/// meet at once, and the smallest floor, whose stations stay readable at clip size.
+constexpr std::string_view loadscreen_scene = "junction-crossing.json", loadscreen_floor = "1680x960+.json";
 /// The layers the layers clip turns off and on again, in the menu's order; HOME RANGE, which
 /// starts off, comes after them.
 constexpr std::string_view demo_layers[]{"VECTORS", "STEERING PROBES", "PATHS", "COLLISION SHAPES",
@@ -97,6 +105,17 @@ Vec2 inspector_close_button(Tour &tour, bool frame_times) {
     return {bounds.max.x - inspector_close_inset, bounds.min.y + inspector_close_inset};
 }
 
+/// Row of `file` among `files`, after `rows_before` other rows. Throws std::runtime_error when
+/// the catalog has no such file.
+std::size_t catalog_row(const std::vector<std::filesystem::path> &files, std::string_view file,
+                        std::size_t rows_before) {
+    const auto found = std::find_if(files.begin(), files.end(),
+                                    [&](const auto &path) { return path.filename().string() == file; });
+    if (found == files.end())
+        throw std::runtime_error("The i4sim catalog has no " + std::string(file));
+    return rows_before + static_cast<std::size_t>(found - files.begin());
+}
+
 /// Clicks every row of `labels` in turn.
 void click_rows(Tour &tour, std::initializer_list<std::string_view> labels) {
     for (const auto label : labels) {
@@ -126,6 +145,15 @@ void ui_launcher(Stage &stage) {
         tour.click_menu_page_row(static_cast<std::size_t>(demo::Scenario::doorway),
                                  demo::scenario_labels().size());
         tour.wait(1.6);
+        // SCENARIOS in the debug menu returns to the configuration page, DOORWAY selected.
+        tour.toggle_debug_menu();
+        tour.pause(0.4, 0.6);
+        tour.click_row("SCENARIOS");
+        const auto &page = tour.menu();
+        if (!tour.in_menu() || !page.configuring() ||
+            page.row_name(page.selected()) != demo::scenario_label(demo::Scenario::doorway))
+            throw std::runtime_error("SCENARIOS did not return to Demo's page with DOORWAY selected");
+        tour.wait(1.2);
     });
 }
 
@@ -198,6 +226,45 @@ void ui_inspector(Stage &stage) {
         tour.click_at(inspector_close_button(tour, true));
         require_selection(tour, false, "did not close the inspector with its X");
         tour.wait(0.8);
+    });
+}
+
+void i4sim_loadscreen(Stage &stage) {
+    record_ui_clip(stage, [](Tour &tour, ClipRecorder &recorder) {
+        const auto directory = i4sim::default_blueprint_directory();
+        const auto floors = i4sim::discover_blueprints(directory);
+        const auto scenes = i4sim::discover_blueprints(directory / "showcase");
+        // The loadscreen lists SHOWCASE first, then the floors.
+        const std::size_t catalog_rows = floors.size() + 1;
+        tour.click_menu_page_row(i4sim_launcher_row, launcher_rows);
+        // Long enough for the click's ring to fade before the clip starts.
+        tour.wait(0.8);
+        recorder.start();
+        tour.wait(0.5);
+        // The pointer moves up the floors to SHOWCASE.
+        const auto catalog = tour.menu_layout(catalog_rows);
+        for (std::size_t row = std::min(catalog_rows, kinetra::MenuLayout::page_size) - 2; row > 0; --row) {
+            tour.move_to(catalog.row_center(row) + Vec2{40, 3});
+            tour.pause(0.25, 0.35);
+        }
+        tour.click_menu_page_row(0, catalog_rows);
+        tour.pause(0.6, 0.8);
+        tour.click_menu_page_row(catalog_row(scenes, loadscreen_scene, 0), scenes.size());
+        rest(tour);
+        tour.wait(0.8);
+        tour.tap({kinetra::Key::space});
+        tour.wait(4.0);
+        tour.toggle_debug_menu();
+        tour.pause(0.4, 0.6);
+        tour.click_row("BLUEPRINTS");
+        tour.wait(0.8);
+        tour.click_menu_page_row(catalog_row(floors, loadscreen_floor, 1), catalog_rows);
+        tour.wait(0.6);
+        // The floor loads paused, with the menu still open; closed, it shows the whole floor.
+        tour.toggle_debug_menu();
+        rest(tour);
+        tour.tap({kinetra::Key::space});
+        tour.wait(3.0);
     });
 }
 

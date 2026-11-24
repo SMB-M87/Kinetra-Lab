@@ -70,7 +70,7 @@ flowchart LR
 
 - New: [tools/capture/tour_thumbnail.sh](../../tools/capture/tour_thumbnail.sh) and [docs/media/kinetra-lab-tour-thumbnail.png](../media/kinetra-lab-tour-thumbnail.png).
 - [tools/capture/capture_tour.sh](../../tools/capture/capture_tour.sh): runs the thumbnail script after encoding.
-- [README.md](../../README.md#screenshots-and-demo): the thumbnail at the top of the gallery; the text link at the bottom goes.
+- [README.md](../../README.md#the-labs): the thumbnail at the top of the gallery; the text link at the bottom goes.
 - [docs/media/README.md](../media/README.md) and [tools/capture/README.md](../../tools/capture/README.md): the new file and script, and why the README shows a thumbnail.
 - This document and the [design index](README.md#index).
 - No C++ code, CMake or public API changes.

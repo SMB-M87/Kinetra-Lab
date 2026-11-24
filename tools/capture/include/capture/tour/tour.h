@@ -113,6 +113,8 @@ class Tour {
 
     /// Whether the launcher menu shows instead of a session.
     bool in_menu() const { return host_.session() == nullptr; }
+    /// The launcher menu, for a script that checks which page and row it shows.
+    const kinetra::LaunchMenu &menu() const { return menu_; }
     /// Whether EXIT was chosen, in the menu or in a settings panel; frames then repeat the
     /// last picture.
     bool finished() const { return finished_; }

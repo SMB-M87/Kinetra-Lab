@@ -46,6 +46,8 @@ using launcher::Variant;
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
+/// Lengths of the Demo scenario clips (TBD after looking).
+constexpr int demo_gravity_frames = 120, demo_maze_frames = 300, demo_doorway_frames = 120;
 /// Length of the Dotio debug clip and the i4sim clips: twelve seconds. Long enough for a
 /// Dotio enemy to run for shelter, reload and come back, and for an i4sim mover to cross
 /// its floor at the session's own speed.
@@ -118,12 +120,6 @@ void launcher_difficulty(Stage &stage) {
     launcher_menu(stage, Variant::dotio);
 }
 
-void launcher_loadscreen(Stage &stage) {
-    stage.start(Variant::i4sim);
-    stage.step();
-    stage.shot();
-}
-
 // Demo: starts in Debug Mode with its default layers on; the normal view turns it off.
 
 /// The player walks to a point on the right, then to one on the lower left.
@@ -157,17 +153,23 @@ void demo_debug(Stage &stage) {
     stage.shot();
 }
 
-void demo_scenario(Stage &stage, demo::Scenario scenario) {
+/// Where the Maze clip clicks, in world units: the open floor beyond the last wall, so the
+/// route winds through every gap.
+constexpr Vec2 demo_maze_goal{17, 8};
+
+/// Records `frames` of Demo's `scenario` from its start, in Debug Mode as it starts. The
+/// Maze clip clicks demo_maze_goal in its first frame, so the player walks the route.
+void demo_scenario_clip(Stage &stage, demo::Scenario scenario, int frames) {
     stage.start(Variant::demo, static_cast<std::size_t>(scenario));
-    stage.wait(0.4);
-    if (scenario == demo::Scenario::maze) {
-        stage.aim(stage.runtime().camera.world_to_screen({17, 8}));
-        Input walk;
-        walk.clicked = true;
-        stage.step(walk);
-    }
-    stage.wait(1.2);
-    stage.shot();
+    stage.step();
+    stage.record(frames, [&](int frame) {
+        Input input;
+        if (scenario == demo::Scenario::maze && frame == 0) {
+            stage.aim(stage.runtime().camera.world_to_screen(demo_maze_goal));
+            input.clicked = input.mouse_down = true;
+        }
+        return input;
+    });
 }
 
 void demo_clip(Stage &stage) {
@@ -407,14 +409,16 @@ const std::vector<Scene> &scenes() {
         shot("launcher", launcher_page),
         shot("launcher-demo-scenarios", launcher_demo_scenarios),
         shot("launcher-difficulty", launcher_difficulty),
-        shot("launcher-loadscreen", launcher_loadscreen),
         shot("demo", demo),
         shot("demo-debug", demo_debug),
-        shot("demo-gravity", [](Stage &stage) { demo_scenario(stage, demo::Scenario::gravity); }),
-        shot("demo-maze", [](Stage &stage) { demo_scenario(stage, demo::Scenario::maze); }),
-        shot("demo-doorway", [](Stage &stage) { demo_scenario(stage, demo::Scenario::doorway); }),
         clip("demo-clip", demo_clip),
         clip("demo-debug-clip", demo_debug_clip),
+        clip("demo-gravity-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::gravity, demo_gravity_frames); }),
+        clip("demo-maze-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::maze, demo_maze_frames); }),
+        clip("demo-doorway-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::doorway, demo_doorway_frames); }),
         shot("dotio", dotio),
         shot("dotio-debug", dotio_debug),
         shot("dotio-settings", dotio_settings),
@@ -433,6 +437,7 @@ const std::vector<Scene> &scenes() {
         clip("i4sim-showcase-predictive-passing-clip",
              [](Stage &stage) { i4sim_showcase(stage, "predictive-passing"); }),
         clip("i4sim-showcase-h-crossing-clip", [](Stage &stage) { i4sim_showcase(stage, "h-crossing"); }),
+        clip("i4sim-loadscreen-clip", i4sim_loadscreen),
         ui_clip("ui-launcher", ui_launcher),
         ui_clip("ui-settings", ui_settings),
         ui_clip("ui-debug-menu", ui_debug_menu),

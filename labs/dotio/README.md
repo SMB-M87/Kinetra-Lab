@@ -50,7 +50,7 @@ The logic (`kinetra_dotio_logic`) is headless and builds without the runtime. Th
 
 ## Launch and controls
 
-The bundled launcher asks for Easy, Medium or Hard, default Medium. M cancels difficulty selection. Direct `--variant dotio --difficulty hard` skips the menu. The independent `kinetra_dotio` executable accepts `--difficulty`, `--frames` and `--seed N`; it prints the seed it plays, and the same seed gives the same maze and the same enemy decisions for the same input. The bundled launcher prints a random world seed at start; `kinetra_dotio --seed` replays it. `--agents` in the bundled launcher affects Demo only.
+The bundled launcher asks for Easy, Medium or Hard, default Medium ([difficulty page](../../docs/media/launcher-difficulty.png)); the debug menu's DIFFICULTY returns to that page. M cancels difficulty selection. Direct `--variant dotio --difficulty hard` skips the menu. The independent `kinetra_dotio` executable accepts `--difficulty`, `--frames` and `--seed N`; it prints the seed it plays, and the same seed gives the same maze and the same enemy decisions for the same input. The bundled launcher prints a random world seed at start; `kinetra_dotio --seed` replays it. `--agents` in the bundled launcher affects Demo only.
 
 | Input | Behavior |
 | --- | --- |
