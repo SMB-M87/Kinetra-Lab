@@ -20,13 +20,12 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Engine hotspots from the performance baseline** · demo, i4sim, with Kinetra · added 2026-11-23
+  The baseline of 2026-11-23 found four engine hotspots: `World::step` rebuilds its spatial grid 14 times per tick from every body, fixed terrain included, which is 64% of a Demo tick at the default 48 agents and why Demo falls behind at time scale 4; `SpatialGrid::query` hashes every cell, allocates and sorts on every call (23% of i4sim with predictive passing, 22% of Demo at 240 agents); `priority_steer`'s prediction loop (22% of i4sim); and `bounds` of a box (7% of i4sim in `sincosf`). Kinetra's item takes them one per pull request in that order; Lab measures each with the page's workloads, keeps the golden lines and updates the page.
+  In progress as two stacks, one per repository, one pull request per hotspot ([design](../external/Kinetra/docs/design/2026-11-24-engine-hotspots.md)); hotspot 2, Lab's own, is the next item. Next step: step 1, fixed bodies indexed once, on `ccr-perf-engine-hotspots` with Kinetra `perf/world-fixed-index`. Where: [performance, hotspots](performance.md#hotspots); Kinetra item *Engine performance*.
 
 ## Next
 
-- **Engine hotspots from the performance baseline** · demo, i4sim, with Kinetra · added 2026-11-23
-  The baseline of 2026-11-23 found four engine hotspots: `World::step` rebuilds its spatial grid 14 times per tick from every body, fixed terrain included, which is 64% of a Demo tick at the default 48 agents and why Demo falls behind at time scale 4; `SpatialGrid::query` hashes every cell, allocates and sorts on every call (23% of i4sim with predictive passing, 22% of Demo at 240 agents); `priority_steer`'s prediction loop (22% of i4sim); and `bounds` of a box (7% of i4sim in `sincosf`). Kinetra's item takes them one per pull request in that order; Lab measures each with the page's workloads, keeps the golden lines and updates the page.
-  Next step: the `World::step` rebuilds, keeping the order of the candidate pairs. Where: [performance, hotspots](performance.md#hotspots); Kinetra item *Engine performance*.
 - **i4sim contact resolution without every pair** · i4sim · added 2026-11-23
   `MotionStep::resolve_contacts` tests all 5,565 pairs of movers on `8640x4800` every tick and computes both bodies' bounds again for each pair: 46% of the motion benchmark. Bounds once per mover and the tick's spatial index as broad phase, visiting pairs in the same order, should keep the golden lines.
   Where: [performance, hotspots](performance.md#hotspots), hotspot 2.
