@@ -67,7 +67,7 @@ class Player {
         auto &world = application.world();
         const auto position = world.get_player().position;
         const auto offset = world.world_offset();
-        if (offset.x != offset_.x || offset.y != offset_.y || world.reset_count() != resets_) {
+        if (offset != offset_ || world.reset_count() != resets_) {
             route_.clear(); // The window moved or the player respawned: the route is stale.
             offset_ = offset;
             resets_ = world.reset_count();

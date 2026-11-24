@@ -82,7 +82,7 @@ PresentedPositions::PresentedPositions(Application &application) {
             continue;
         // Anything but the last tick moved it (teleport, respawn into the slot): exact.
         const auto absolute = object->position + offset;
-        if (absolute.x != after[i]->x || absolute.y != after[i]->y)
+        if (absolute != *after[i])
             continue;
         simulated_.emplace_back(object, object->position);
         object->position = {before[i]->x + (after[i]->x - before[i]->x) * blend - offset.x,

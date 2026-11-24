@@ -251,8 +251,7 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
     const auto simulated = player.position;
     const auto offset = application.world().world_offset();
     REQUIRE(application.after_tick()[0]);
-    CHECK_MESSAGE((application.after_tick()[0]->x == simulated.x + offset.x &&
-                   application.after_tick()[0]->y == simulated.y + offset.y),
+    CHECK_MESSAGE(*application.after_tick()[0] == simulated + offset,
                   "The snapshot after the last tick must match the simulated player");
     CHECK_MESSAGE(application.before_tick()[0]->x != application.after_tick()[0]->x,
                   "The moving player did not move during the last tick");
@@ -265,14 +264,11 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
              std::abs(player.position.y + offset.y - (before.y + (after.y - before.y) * blend)) < 1e-3f),
             "While drawing, the player must sit between its last two ticks");
     }
-    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
-                  "PresentedPositions did not restore the simulated position");
+    CHECK_MESSAGE(player.position == simulated, "PresentedPositions did not restore the simulated position");
     const auto camera = reopened.camera.position;
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
-                  "Drawing left the interpolated position in the simulation");
-    CHECK_MESSAGE((reopened.camera.position.x == camera.x && reopened.camera.position.y == camera.y),
-                  "Drawing left the camera on the interpolated player");
+    CHECK_MESSAGE(player.position == simulated, "Drawing left the interpolated position in the simulation");
+    CHECK_MESSAGE(reopened.camera.position == camera, "Drawing left the camera on the interpolated player");
 }
 
 TEST_CASE("wall colors vary across the map without seams or low contrast") {
