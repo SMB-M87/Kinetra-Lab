@@ -4,6 +4,8 @@
       "mcp__claude-code-remote__check_repo_access",
       "mcp__claude-code-remote__add_repo",
       "mcp__claude-code-remote__register_repo_root",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__list_events",
       "mcp__github__pull_request_read",
       "mcp__github__pull_request_review_write",
       "mcp__github__add_comment_to_pending_review",
