@@ -24,11 +24,6 @@ Nothing in progress.
 
 ## Next
 
-The user's checks come first: each is short and unblocks the items after it. The agent's work follows, in the order settled on 2026-11-22.
-
-- **Dotio playtest and phase 6's decisions** · dotio · added 2026-11-21
-  Phase 6 ends with a playtest by the user and a review of what the agent decided alone: route planning on Kinetra's `WeightedGrid` instead of `Navigation`; Kinetra's new `search`, which picks a shelter on route cost only, so an enemy may choose a slightly different place than before; whole routes without the old 50-cell cap; four random streams from the world seed, with `--seed` on `kinetra_dotio`; and refreshed Dotio captures without a new tour video. Recovery is too rare in the benchmark to compare shelter searches, so the playtest should watch it.
-  Next step: the user plays with the [playtest checklist](design/2026-11-21-dotio-restructuring.md#playtest-checklist), then confirms or changes the decisions (agreed on 2026-11-22: after the playtest, not before). Where: [Dotio restructuring, open points](design/2026-11-21-dotio-restructuring.md#open-points).
 - **Engine hotspots from the performance baseline** · demo, i4sim, with Kinetra · added 2026-11-23
   The baseline of 2026-11-23 found four engine hotspots: `World::step` rebuilds its spatial grid 14 times per tick from every body, fixed terrain included, which is 64% of a Demo tick at the default 48 agents and why Demo falls behind at time scale 4; `SpatialGrid::query` hashes every cell, allocates and sorts on every call (23% of i4sim with predictive passing, 22% of Demo at 240 agents); `priority_steer`'s prediction loop (22% of i4sim); and `bounds` of a box (7% of i4sim in `sincosf`). Kinetra's item takes them one per pull request in that order; Lab measures each with the page's workloads, keeps the golden lines and updates the page.
   Next step: the `World::step` rebuilds, keeping the order of the candidate pairs. Where: [performance, hotspots](performance.md#hotspots); Kinetra item *Engine performance*.

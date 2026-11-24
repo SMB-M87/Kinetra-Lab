@@ -4,7 +4,7 @@ Status: implemented · Branches: `test/dotio-baseline` (step 1), `refactor/dotio
 
 Roadmap phase 6. Dotio still runs on the code it was ported with: a static occupancy grid, randomness that no seed controls, its own A*, priority queue, stack and graph, a logic header that includes a runtime header, and the naming of the original game. This phase first records how enemies behave today, then makes runs reproducible, moves route planning onto Kinetra's weighted grid, fixes the layers and names, and documents the module.
 
-The user asked for this phase on 2026-11-21 and was not available for questions while it ran. Every decision below that the user did not make is marked *agent*; they are collected under [open points](#open-points) for review.
+The user asked for this phase on 2026-11-21 and was not available for questions while it ran. Every decision below that the user did not make is marked *agent*; they are collected under [open points](#open-points) for review. The user accepted all of them on 2026-11-24, after the playtest.
 
 ## Table of contents
 
@@ -420,10 +420,10 @@ For the user, against the tour video's Dotio chapter (the old behavior). Play ea
 
 ## Open points
 
-- **For the user's review: every *agent* decision above**, in particular the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, the four random streams, and refreshing the Dotio captures in step 7.
+- The user's review of every *agent* decision above is settled: on 2026-11-24, after the playtest, the user accepted them all, the planner choice (weighted grid, not `Navigation`), the Kinetra `search` API, whole routes without the 50-cell cap, the four random streams and refreshing the Dotio captures in step 7 included.
 - The golden fingerprint's skip on Windows, once among the decisions for the user's review above, is settled: since [Linux beyond Arch](2026-11-22-linux-beyond-arch.md) the case runs on Windows.
 - The Demo crowd characterization and i4sim RVO golden cases failed on Ubuntu 24.04 (locally, before and after this phase) and passed on CI's Arch toolchain. Resolved on 2026-11-22: the cause was the C library's `atan2f` and `asinf`, not the compiler; Dotio's `Vec2` uses Kinetra's `atan2` and `asin` since then, and its fingerprint runs on Windows again ([Linux beyond Arch](2026-11-22-linux-beyond-arch.md)).
 - Route following passes waypoints by distance and does not cut corners that are already in sight; a raster version of Kinetra's `route_target` would make pursuers smoother (module README, open points).
-- Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly, and the playtest should look at it.
+- Recovery is too rare in the benchmark (an enemy must fire ten arrows) to compare shelter searches statistically; the shelter cases test it directly, and the playtest checklist named it (item 3). The user accepted the playtest on 2026-11-24.
 - `<kinetra/runtime/timing.h>` (`FixedClock`, `RateCounter`) is header-only and headless but sits under `runtime/`; Demo, Dotio and i4sim logic include it. Moving it to `view/` or `simulation/` is a Kinetra include-layout change for later.
 - `dotio::math::Vec2` duplicates `kinetra::Vec2` with extra operators (length comparisons, component products). Replacing it is a larger change than renaming and is left for later.
