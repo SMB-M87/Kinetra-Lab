@@ -1,6 +1,6 @@
 # Drop the i4sim loadscreen clip
 
-Status: accepted · Branch: `ccr-3004583e-n0otlj` · Related: [The labs in GIFs](2026-11-24-lab-readme-gifs.md), which added the clip
+Status: implemented · Branch: `ccr-3004583e-n0otlj` · Related: [The labs in GIFs](2026-11-24-lab-readme-gifs.md), which added the clip
 
 The i4sim section of the root README shows a GIF of the loadscreen with a sentence that introduces it. The user finds both superfluous. The capture tool requires every Lab clip to appear in the root README, so the clip goes as a whole: its scene, its script, its GIF and every page that names it.
 
@@ -73,8 +73,50 @@ The change touches `README.md` and `docs/media/`, so CI builds in full; that is 
 
 ## Review
 
+`/code-review` (medium) on the working tree found no correctness problems and two nits:
+
+| Finding | Resolution |
+| --- | --- |
+| The design document was untracked while the GIF's deletion was staged, so a commit of the index alone would leave the document out | Both commits name their files; the GIF's deletion is in the change commit, the document in the first |
+| `<kinetra/runtime/launcher.h>` in `ui_clips.cpp` might have served only the removed clip | No change: the include dates from fd92760, before the clip, and the three includes the clip added (d558c4b, 9c0fcb5) are the ones removed |
+
+The copies search (`check_copies.py --term 'i4sim-loadscreen-clip' --term 'i4sim_loadscreen' --term 'loadscreen clip' --term 'loadscreen GIF' --term '1.1 MB' --term 'tour clip of Lab' --term 'catalog_row' --term 'require_blueprint'`) finds only this document's index row and `1680x960+` in the blueprint README, which names the floor, not the clip. The earlier design documents that name the clip are history and stay.
+
 ## Verification
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Docs | `python3 external/Kinetra/tools/check_docs.py` | All links resolve in 90 Markdown files |
+| Copies | `check_copies.py` with the terms under [Review](#review) | Only the hits judged there |
+| Format | `clang-format --dry-run --Werror` on the four C++ files | Clean |
+| Targeted | `cmake --build --preset dev --target kinetra_capture_tests kinetra_capture` and `ctest --preset dev -R '^kinetra_capture'` | Built without warnings; 34 of 34 passed |
+| The removed name | `kinetra_capture <dir> i4sim-loadscreen-clip` | `Unknown scene 'i4sim-loadscreen-clip'`, exit 1 |
+| Full | The pull request's CI | Pending at hand-over |
+
+Not run locally: the `graphics` smoke test `kinetra_capture_smoke`, which plays the tour and `ui-launcher`, neither of which this change touches; CI runs it.
 
 ## Pull request
 
+Title: `chore(capture): drop the i4sim loadscreen clip`
+
+**Summary.** The i4sim section of the root README no longer shows the loadscreen GIF and its sentence: the showcase table and the floor clips already show what it showed. The capture test requires every Lab clip in the root README, so the clip goes as a whole: its scene, its script, its GIF and the pages that name it.
+
+**Changes.**
+
+- README: the loadscreen sentence and GIF out of the i4sim section; i4sim's README drops its link to the clip.
+- Capture tool: `i4sim-loadscreen-clip` out of `scenes()` and the scene-list test; `i4sim_loadscreen` and the helpers only it used (`catalog_row`, `require_blueprint`, its constants and three includes) out of `ui_clips`.
+- Media: `docs/media/i4sim-loadscreen-clip.gif` deleted; the media guide and the capture README no longer name it, and give 0.8 MB for the three Demo scenario GIFs.
+
+**Design.** This document, `docs/design/2026-11-24-drop-i4sim-loadscreen-clip.md`. The user chose to drop the clip as a whole rather than keep it for i4sim's guide, which would have loosened the capture test.
+
+**Verification.** Docs check, copies search and format clean; `kinetra_capture_tests` 34 of 34 in `dev` without warnings; the tool rejects the removed name. CI is the Full level.
+
+**Review notes.** The branch is the session's assigned branch, not `<type>/<topic>`. No capture other than the removed one changes, so none is refreshed. The tour video's i4sim chapter still opens the loadscreen; only the GIF goes.
+
+**Dependencies and merge order.** None; no pointer change.
+
+**Follow-up.** None.
+
 ## Open points
+
+None.
