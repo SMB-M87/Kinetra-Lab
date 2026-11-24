@@ -405,7 +405,7 @@ struct OpenDotioWorld {
     dotio::World &world() { return application.world(); }
     dotio::Player &player() { return world().get_player(); }
     /// Puts the enemy of pool slot `slot` at `offset` from the player, alive and simulated.
-    dotio::Enemy &place(int slot, dotio::math::Vec2 offset, dotio::math::Vec2 velocity = {}) {
+    dotio::Enemy &place(int slot, kinetra::Vec2 offset, kinetra::Vec2 velocity = {}) {
         auto &enemy = world().get_enemies()[slot];
         enemy.reset();
         enemy.frozen = false;
@@ -414,7 +414,7 @@ struct OpenDotioWorld {
         return enemy;
     }
     /// Blocks the grid cell that holds the point at `offset` from the player.
-    void wall(dotio::math::Vec2 offset) {
+    void wall(kinetra::Vec2 offset) {
         const auto point = player().position + offset;
         world().grid().set_cell(int(point.y / dotio::Grid::cell_size), int(point.x / dotio::Grid::cell_size),
                                 1);
@@ -430,13 +430,13 @@ TEST_CASE("lead_offset aims where a bolt meets a moving target, and at the targe
         CHECK(aim.y == doctest::Approx(-40));
     }
     SUBCASE("a crossing target is led to the point both reach at the same time") {
-        const dotio::math::Vec2 offset{300, 0}, velocity{0, 2};
+        const kinetra::Vec2 offset{300, 0}, velocity{0, 2};
         const auto aim = capture::lead_offset(offset, velocity, bolt);
         CHECK(aim.x == doctest::Approx(300));
         CHECK(aim.y > 0);
         // The target needs as long to its part of the way as the bolt to the whole.
         const float target_ticks = (aim.y - offset.y) / velocity.y;
-        CHECK(aim.get_length() / bolt == doctest::Approx(target_ticks));
+        CHECK(kinetra::length(aim) / bolt == doctest::Approx(target_ticks));
     }
     SUBCASE("a target that outruns the bolt is aimed at directly") {
         const auto aim = capture::lead_offset({300, 0}, {7, 0}, bolt);
@@ -484,13 +484,12 @@ TEST_CASE("the scripted Dotio player does not shoot through a crate") {
     const auto player = world.player().position;
     const dotio::World &read_only = world.world();
     REQUIRE_FALSE(read_only.get_objects().empty());
-    dotio::math::Vec2 crate{};
+    kinetra::Vec2 crate{};
     float nearest = 400;
     for (const auto &object : read_only.get_objects())
-        if (const auto offset = dotio::legacy_vector(object.body.position) - player;
-            offset.get_length() < nearest) {
+        if (const auto offset = object.body.position - player; kinetra::length(offset) < nearest) {
             crate = offset;
-            nearest = offset.get_length();
+            nearest = kinetra::length(offset);
         }
     REQUIRE_MESSAGE(nearest < 400, "the seeded world has no crate near the player's start");
     // Behind the crate on the same line, and as far away to the other side.
@@ -508,11 +507,11 @@ TEST_CASE("dotio_bolt_speed is the speed of the bolt the player fires") {
         player.cooldown = 0;
         for (auto &bolt : world.world().get_bolts())
             bolt.is_active = false;
-        player.shoot(player.position + dotio::math::Vec2{100, 0}, true);
+        player.shoot(player.position + kinetra::Vec2{100, 0}, true);
         float fired = 0;
         for (auto &bolt : world.world().get_bolts())
             if (bolt.is_active)
-                fired = bolt.velocity.get_length();
+                fired = kinetra::length(bolt.velocity);
         CHECK(fired == doctest::Approx(capture::dotio_bolt_speed(player)));
     }
 }
@@ -533,7 +532,7 @@ TEST_CASE("dotio_aim points at the target on screen, ahead of one that moves, in
     CHECK(aim->y > 270 + 50);
 
     // A lead that runs past the window's edge stops at the edge.
-    enemy.position = world.player().position + dotio::math::Vec2{460, 0};
+    enemy.position = world.player().position + kinetra::Vec2{460, 0};
     enemy.velocity = {0.5f, 0};
     aim = capture::dotio_aim(world.application, world.camera);
     REQUIRE(aim.has_value());
@@ -549,7 +548,7 @@ TEST_CASE("dotio_recovery_in_view finds a recovering enemy on screen, inside the
     // 180 pixels from the right edge of the 960-pixel window.
     CHECK(capture::dotio_recovery_in_view(world.application, world.camera, 170));
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 190));
-    enemy.position = world.player().position + dotio::math::Vec2{0, 400};
+    enemy.position = world.player().position + kinetra::Vec2{0, 400};
     CHECK_FALSE(capture::dotio_recovery_in_view(world.application, world.camera, 0));
 }
 

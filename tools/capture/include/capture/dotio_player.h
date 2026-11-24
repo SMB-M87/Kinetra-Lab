@@ -18,7 +18,7 @@ dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
 /// moves on at `velocity`, relative to the shooter. Lengths in legacy pixels, speeds in
 /// legacy pixels per tick. Returns `offset` when the bolt cannot catch the target or would
 /// need more than `longest_lead_ticks`, so the shot goes at the target itself.
-dotio::math::Vec2 lead_offset(dotio::math::Vec2 offset, dotio::math::Vec2 velocity, float bolt_speed);
+kinetra::Vec2 lead_offset(kinetra::Vec2 offset, kinetra::Vec2 velocity, float bolt_speed);
 
 /// Speed of the bolt `player` fires now, in legacy pixels per tick: it grows with the
 /// player's kills, as in dotio::Player::Shoot.

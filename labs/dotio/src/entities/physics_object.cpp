@@ -8,16 +8,16 @@ PhysicsObject::PhysicsObject() {
 }
 
 PhysicsObject::PhysicsObject(const float mass, const float body_radius, const float friction,
-                             const float rotational_friction, const dotio::math::Position start,
+                             const float rotational_friction, const kinetra::Vec2 start,
                              const float start_direction, bool active)
     : MovingObject(start, start_direction, active), mass_(mass), friction_(friction),
       angular_friction_(rotational_friction), radius(body_radius) {
 }
 
-void PhysicsObject::apply_force(const dotio::math::Vector2 &force, const float) {
+void PhysicsObject::apply_force(const kinetra::Vec2 &force, const float) {
     // Legacy steering supplies a velocity change, not a force in newtons.
     auto body = dotio::physics_body(*this);
-    kinetra::apply_body_impulse(body, dotio::physics_vector(force) * body.mass, body.position);
+    kinetra::apply_body_impulse(body, force * body.mass, body.position);
     dotio::apply_body(*this, body);
 }
 

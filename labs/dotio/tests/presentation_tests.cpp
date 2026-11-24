@@ -38,7 +38,7 @@ TEST_CASE("Shift and right-click select a Dotio enemy while the debug menu stays
     auto &application = session->application();
     auto &enemy = application.world().get_enemies()[0];
     enemy.reset();
-    enemy.position = application.world().get_player().position + dotio::math::Vec2{80, 0};
+    enemy.position = application.world().get_player().position + kinetra::Vec2{80, 0};
     Input pick;
     pick.mouse = runtime.camera.world_to_screen(dotio::to_world(enemy.position));
     pick.right_clicked = true;
@@ -73,7 +73,7 @@ TEST_CASE("Dotio inspector allows world fire and Ghost teleport and consumes clo
     auto &enemy = world.get_enemies()[0];
     auto &player = world.get_player();
     enemy.reset();
-    enemy.position = player.position + dotio::math::Vec2{80, 0};
+    enemy.position = player.position + kinetra::Vec2{80, 0};
     const auto pick = [&] {
         Input input;
         input.right_clicked = true;
@@ -102,8 +102,8 @@ TEST_CASE("Dotio inspector allows world fire and Ghost teleport and consumes clo
     application.debug = application.ghost = true;
     world.get_ghost().position = player.position;
     const auto free_target = [&](auto position) {
-        const std::array offsets{dotio::math::Vec2{16, 0}, dotio::math::Vec2{-16, 0},
-                                 dotio::math::Vec2{0, 16}, dotio::math::Vec2{0, -16}};
+        const std::array offsets{kinetra::Vec2{16, 0}, kinetra::Vec2{-16, 0}, kinetra::Vec2{0, 16},
+                                 kinetra::Vec2{0, -16}};
         for (auto offset : offsets)
             if (application.teleport_clear(position + offset, player.radius))
                 return position + offset;
@@ -113,7 +113,7 @@ TEST_CASE("Dotio inspector allows world fire and Ghost teleport and consumes clo
     const auto target = free_target(player.position);
     const auto absolute = target + world.world_offset();
     click(camera.world_to_screen(dotio::to_world(target)));
-    CHECK((player.position + world.world_offset() - absolute).get_length() < 0.01f);
+    CHECK(kinetra::length(player.position + world.world_offset() - absolute) < 0.01f);
     REQUIRE(application.selected_enemy());
     const auto after_teleport = player.position + world.world_offset();
     const auto blocked_click_target = free_target(player.position);
@@ -251,8 +251,7 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
     const auto simulated = player.position;
     const auto offset = application.world().world_offset();
     REQUIRE(application.after_tick()[0]);
-    CHECK_MESSAGE((application.after_tick()[0]->x == simulated.x + offset.x &&
-                   application.after_tick()[0]->y == simulated.y + offset.y),
+    CHECK_MESSAGE(*application.after_tick()[0] == simulated + offset,
                   "The snapshot after the last tick must match the simulated player");
     CHECK_MESSAGE(application.before_tick()[0]->x != application.after_tick()[0]->x,
                   "The moving player did not move during the last tick");
@@ -265,14 +264,11 @@ TEST_CASE("drawing interpolates the player and leaves the simulation and camera 
              std::abs(player.position.y + offset.y - (before.y + (after.y - before.y) * blend)) < 1e-3f),
             "While drawing, the player must sit between its last two ticks");
     }
-    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
-                  "PresentedPositions did not restore the simulated position");
+    CHECK_MESSAGE(player.position == simulated, "PresentedPositions did not restore the simulated position");
     const auto camera = reopened.camera.position;
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE((player.position.x == simulated.x && player.position.y == simulated.y),
-                  "Drawing left the interpolated position in the simulation");
-    CHECK_MESSAGE((reopened.camera.position.x == camera.x && reopened.camera.position.y == camera.y),
-                  "Drawing left the camera on the interpolated player");
+    CHECK_MESSAGE(player.position == simulated, "Drawing left the interpolated position in the simulation");
+    CHECK_MESSAGE(reopened.camera.position == camera, "Drawing left the camera on the interpolated player");
 }
 
 TEST_CASE("wall colors vary across the map without seams or low contrast") {

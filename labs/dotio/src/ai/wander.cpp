@@ -14,7 +14,7 @@ namespace {
 constexpr float pi = std::numbers::pi_v<float>;
 
 /// Unit vector of a heading in legacy coordinates.
-dotio::math::Vec2 direction(float heading) {
+kinetra::Vec2 direction(float heading) {
     return {std::cos(heading), std::sin(heading)};
 }
 
@@ -25,17 +25,17 @@ float wrapped(float heading) {
 
 /// The feelers of a body at `position` that follows `heading`; the geometry behind both
 /// wander_feelers() and the directions a blocked enemy tries.
-std::array<dotio::math::Segment, 3> feelers_at(dotio::math::Position position, float heading) {
+std::array<kinetra::Segment, 3> feelers_at(kinetra::Vec2 position, float heading) {
     const auto feeler = [&](float angle, float cells) {
-        return dotio::math::Segment{position, position + direction(angle) * (cells * Grid::cell_size)};
+        return kinetra::Segment{position, position + direction(angle) * (cells * Grid::cell_size)};
     };
     return {{feeler(heading, wander_forward_feeler_cells),
              feeler(heading + wander_side_feeler_angle_rad, wander_side_feeler_cells),
              feeler(heading - wander_side_feeler_angle_rad, wander_side_feeler_cells)}};
 }
 
-bool blocked(const Grid &grid, const dotio::math::Segment &feeler) {
-    dotio::math::Point2 hit{};
+bool blocked(const Grid &grid, const kinetra::Segment &feeler) {
+    kinetra::Vec2 hit{};
     return grid.is_intersecting_any_cell(feeler, hit);
 }
 
@@ -65,7 +65,7 @@ void turn_to_free_direction(Enemy &enemy) {
 }
 } // namespace
 
-std::array<dotio::math::Segment, 3> wander_feelers(const Enemy &enemy) {
+std::array<kinetra::Segment, 3> wander_feelers(const Enemy &enemy) {
     return feelers_at(enemy.position, enemy.wander_heading);
 }
 
@@ -99,7 +99,7 @@ void steer_wander(Enemy &enemy, const float delta) {
     }
     enemy.wander_heading = wrapped(enemy.wander_heading);
     auto &world = enemy.get_world();
-    const dotio::math::Vec2 force = direction(enemy.wander_heading) * world.enemy_tuning().wander_force;
+    const kinetra::Vec2 force = direction(enemy.wander_heading) * world.enemy_tuning().wander_force;
     enemy.apply_force(force * (delta * world.difficulty_settings().movement_multiplier),
                       0.5f * enemy.get_mass());
 }

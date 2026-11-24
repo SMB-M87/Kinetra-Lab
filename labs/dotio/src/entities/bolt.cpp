@@ -5,7 +5,7 @@
 #include "dotio/entities/bolt.h"
 
 namespace dotio {
-Bolt::Bolt(dotio::math::Position start, dotio::math::Vector2 start_velocity) : MovingObject(start, 0, false) {
+Bolt::Bolt(kinetra::Vec2 start, kinetra::Vec2 start_velocity) : MovingObject(start, 0, false) {
     velocity = start_velocity;
 }
 

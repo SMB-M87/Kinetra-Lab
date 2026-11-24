@@ -28,7 +28,7 @@ class World {
     TrackerData<Arrow, 666> arrows_;
     TrackerData<Bolt, 20> bolts_;
     dotio::Grid grid_;
-    std::array<dotio::math::Position, 666> previous_enemy_positions_{};
+    std::array<kinetra::Vec2, 666> previous_enemy_positions_{};
     bool enemies_moved_{};
     float spawn_credit_{};
     double survival_seconds_{};
@@ -53,7 +53,7 @@ class World {
     };
     std::vector<Prop> props_;
     void populate_objects();
-    std::optional<std::pair<std::size_t, float>> first_object_hit(dotio::math::Segment segment,
+    std::optional<std::pair<std::size_t, float>> first_object_hit(kinetra::Segment segment,
                                                                   float radius) const;
 
   public:
@@ -108,7 +108,7 @@ class World {
     double survival_seconds() const { return survival_seconds_; }
     /// Half extents of the spawn rectangle around the player, in legacy pixels: 1.75 times
     /// `normal_half` at the start, growing to `active_half` after five simulated minutes.
-    dotio::math::Vec2 spawn_half(dotio::math::Vec2 normal_half, dotio::math::Vec2 active_half) const {
+    kinetra::Vec2 spawn_half(kinetra::Vec2 normal_half, kinetra::Vec2 active_half) const {
         const float progress = float(std::clamp(survival_seconds_ / 300.0, 0.0, 1.0));
         const auto initial = normal_half * 1.75f;
         return {std::min(active_half.x, initial.x + (active_half.x - initial.x) * progress),
@@ -118,10 +118,10 @@ class World {
     /// 106 of it on an axis, regenerates the grid, and moves every object by the shift. Returns
     /// the shift in legacy pixels (zero when none), which the caller subtracts from its own
     /// positions. Routes and partitions are dropped.
-    dotio::math::Vec2 stream_around_player();
+    kinetra::Vec2 stream_around_player();
     /// Legacy position of the window's corner in the unbounded world: adding it turns a
     /// window position into one that streaming does not change.
-    dotio::math::Vec2 world_offset() const {
+    kinetra::Vec2 world_offset() const {
         return {float(offset_column_) * Grid::cell_size, float(offset_row_) * Grid::cell_size};
     }
     /// Terrain of window cell (row, column), resident or not: 1 for a wall.
@@ -143,8 +143,8 @@ class World {
     /// when the fuzzy spawn rate has earned a credit. Half extents in legacy pixels;
     /// `elapsed` is simulated seconds, zero while paused. Throws std::invalid_argument for a
     /// negative or nonfinite `elapsed`.
-    void stream_enemies(dotio::math::Position center, dotio::math::Vec2 normal_half,
-                        dotio::math::Vec2 active_half, dotio::math::Vec2 retained_half, float elapsed = 0);
+    void stream_enemies(kinetra::Vec2 center, kinetra::Vec2 normal_half, kinetra::Vec2 active_half,
+                        kinetra::Vec2 retained_half, float elapsed = 0);
     /// Moves the crates over `delta` updates and resolves their contacts with the player,
     /// the enemies, each other and the walls.
     void update_objects(float delta);
@@ -164,11 +164,11 @@ class World {
     dotio::Player &get_ghost();
 
     /// Fills the next pool slot (see Tracker::add_instance).
-    void add_enemy(dotio::math::Position position, dotio::math::Position target, const float fear);
+    void add_enemy(kinetra::Vec2 position, kinetra::Vec2 target, const float fear);
 
-    void add_arrow(dotio::math::Position position, dotio::math::Vector2 velocity);
+    void add_arrow(kinetra::Vec2 position, kinetra::Vec2 velocity);
 
-    void add_bolt(const dotio::math::Position position, const dotio::math::Vector2 velocity);
+    void add_bolt(const kinetra::Vec2 position, const kinetra::Vec2 velocity);
 
     /// One update of every simulated enemy: target, movement, wall collision. `debug` is the
     /// invulnerable debug mode.

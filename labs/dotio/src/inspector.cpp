@@ -61,9 +61,9 @@ std::optional<kinetra::InspectorSnapshot> Application::inspect_enemy(std::size_t
         force = tuning.attack_force;
     }
     const auto offset = world_->world_offset();
-    const auto location = [&](dotio::math::Vec2 point) {
+    const auto location = [&](kinetra::Vec2 point) {
         point += offset;
-        return inspector_vector({point.x, point.y}, " PX");
+        return inspector_vector(point, " PX");
     };
     const auto tuning_multiplier = world_->difficulty_settings().movement_multiplier;
     const auto steering = enemy->steering();
@@ -90,9 +90,8 @@ std::optional<kinetra::InspectorSnapshot> Application::inspect_enemy(std::size_t
            {"MOVEMENT MULTIPLIER", inspector_number(tuning_multiplier)},
            {"STATE FORCE", inspector_number(force) + " PX/UPDATE/UPDATE"},
            {"FRICTION", inspector_number(enemy->get_friction())},
-           {"SPEED",
-            inspector_number(kinetra::length({enemy->velocity.x, enemy->velocity.y})) + " PX/UPDATE"},
-           {"STEERING", inspector_vector({steering.x, steering.y}, " PX/UPDATE")}}},
+           {"SPEED", inspector_number(kinetra::length(enemy->velocity)) + " PX/UPDATE"},
+           {"STEERING", inspector_vector(steering, " PX/UPDATE")}}},
          std::move(route)}};
 }
 } // namespace dotio

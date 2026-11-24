@@ -37,8 +37,8 @@ bool wall(dotio::Application &application, int row, int column) {
     return application.world().grid().cell(row, column) != 0;
 }
 
-bool sight_blocked(dotio::Application &application, dotio::math::Vec2 from, dotio::math::Vec2 to) {
-    dotio::math::Point2 hit{};
+bool sight_blocked(dotio::Application &application, kinetra::Vec2 from, kinetra::Vec2 to) {
+    kinetra::Vec2 hit{};
     return application.world().grid().is_intersecting_any_cell({from, to}, hit);
 }
 
@@ -67,7 +67,7 @@ class Player {
         auto &world = application.world();
         const auto position = world.get_player().position;
         const auto offset = world.world_offset();
-        if (offset.x != offset_.x || offset.y != offset_.y || world.reset_count() != resets_) {
+        if (offset != offset_ || world.reset_count() != resets_) {
             route_.clear(); // The window moved or the player respawned: the route is stale.
             offset_ = offset;
             resets_ = world.reset_count();
@@ -77,7 +77,7 @@ class Player {
         dotio::Commands commands;
         if (next_ < route_.size()) {
             auto to = route_[next_] - position;
-            const float distance = to.get_length();
+            const float distance = kinetra::length(to);
             if (distance < best_) {
                 best_ = distance;
                 waiting_ = 0;
@@ -98,7 +98,7 @@ class Player {
     }
 
   private:
-    void plan(dotio::Application &application, dotio::math::Vec2 position) {
+    void plan(dotio::Application &application, kinetra::Vec2 position) {
         route_.clear();
         next_ = 0;
         waiting_ = 0;
@@ -116,19 +116,19 @@ class Player {
             if (goal_row < 1 || goal_column < 1 || goal_row >= rows - 1 || goal_column >= columns - 1 ||
                 wall(application, goal_row, goal_column))
                 continue;
-            for (const auto point : grid.path({position.x, position.y}, {(float(goal_column) + 0.5f) * cell,
-                                                                         (float(goal_row) + 0.5f) * cell}))
-                route_.push_back({point.x, point.y});
+            for (const auto point :
+                 grid.path(position, {(float(goal_column) + 0.5f) * cell, (float(goal_row) + 0.5f) * cell}))
+                route_.push_back(point);
         }
     }
 
-    const dotio::Enemy *nearest_visible_enemy(dotio::Application &application, dotio::math::Vec2 position) {
+    const dotio::Enemy *nearest_visible_enemy(dotio::Application &application, kinetra::Vec2 position) {
         const dotio::Enemy *nearest = nullptr;
         float nearest_distance = shooting_range;
         for (const auto &enemy : application.world().get_enemies()) {
             if (!enemy.is_active || enemy.frozen)
                 continue;
-            const float distance = (enemy.position - position).get_length();
+            const float distance = kinetra::length(enemy.position - position);
             if (distance < nearest_distance && !sight_blocked(application, position, enemy.position)) {
                 nearest = &enemy;
                 nearest_distance = distance;
@@ -138,11 +138,11 @@ class Player {
     }
 
     std::mt19937 random_;
-    std::vector<dotio::math::Vec2> route_;
+    std::vector<kinetra::Vec2> route_;
     std::size_t next_{};
     int waiting_{};
     float best_{std::numeric_limits<float>::infinity()};
-    dotio::math::Vec2 offset_{};
+    kinetra::Vec2 offset_{};
     std::uint64_t resets_{};
 };
 
@@ -220,7 +220,7 @@ struct Totals {
 struct Slot {
     bool active{};
     State state{State::wander};
-    dotio::math::Vec2 position{}, anchor{};
+    kinetra::Vec2 position{}, anchor{};
     int anchor_tick{}, pursuit_start{};
     bool stuck{};
 };
@@ -287,7 +287,7 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
             slot.anchor -= shift;
             if (!enemy.is_active) {
                 if (slot.active && !reset) {
-                    const float gap = (slot.position - (player_before - shift)).get_length();
+                    const float gap = kinetra::length(slot.position - (player_before - shift));
                     if (gap < 2 * enemy.radius + 12) {
                         ++totals.contacts;
                         totals.kamikaze_contacts += slot.state == State::kamikaze;
@@ -341,10 +341,10 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
                 totals.routeless_ticks += route_empty(enemy);
             }
             if (state == State::attack) {
-                totals.attack_distance += (enemy.position - self.position).get_length();
+                totals.attack_distance += kinetra::length(enemy.position - self.position);
                 ++totals.attack_distance_ticks;
             }
-            if ((enemy.position - slot.anchor).get_length() > stuck_radius) {
+            if (kinetra::length(enemy.position - slot.anchor) > stuck_radius) {
                 slot.anchor = enemy.position;
                 slot.anchor_tick = tick;
                 slot.stuck = false;

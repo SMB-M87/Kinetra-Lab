@@ -1,9 +1,8 @@
 #pragma once
 
-#include "dotio/math/vector.h"
-
 #include <array>
 #include <cstddef>
+#include <kinetra/simulation/math.h>
 
 namespace dotio {
 class Enemy;
@@ -42,7 +41,7 @@ inline constexpr std::size_t wander_forward_feeler = 0, wander_positive_feeler =
 /// blocked when its world's Grid::is_intersecting_any_cell reports a hit for it. steer_wander() tests exactly
 /// these segments, so a drawing of them shows what the logic sees. Reads the enemy's
 /// position and heading and Grid::cell_size; changes nothing.
-std::array<dotio::math::Segment, 3> wander_feelers(const Enemy &enemy);
+std::array<kinetra::Segment, 3> wander_feelers(const Enemy &enemy);
 
 /// Gives `enemy` a random wander heading and preferred turning side from its world's
 /// World::wander_random(). Enemy::initialize() and Enemy::reset() call it; the enemy must

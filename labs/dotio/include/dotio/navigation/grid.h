@@ -28,7 +28,7 @@ class Grid {
     static constexpr float cell_size = 100.0f;
     static inline const dotio::math::GridSize grid_size{rows, columns};
     /// Legacy position of the corner of cell (0, 0).
-    static inline const dotio::math::Coordinates origin{0.0f, 0.0f};
+    static inline const kinetra::Vec2 origin{0.0f, 0.0f};
     /// A floor-only grid: every cell 0.
     Grid();
 
@@ -55,19 +55,18 @@ class Grid {
     void handle_grid_collision(dotio::PhysicsObject &object) const;
 
     /// Whether `segment` meets the circle around `c` of radius `r`, in legacy pixels.
-    static bool segment_intersects_circle(const dotio::math::Segment &segment, const dotio::math::Point2 c,
+    static bool segment_intersects_circle(const kinetra::Segment &segment, const kinetra::Vec2 c,
                                           const float r);
 
     /// Where `segment` first meets the circle around `c` of radius `r`: bit 1 set when it
     /// does (with the point in `out_intersection`), bit 2 when the start lies inside the
     /// circle, bit 4 when the end does.
-    static uint8_t segment_circle_intersection(const dotio::math::Segment &segment,
-                                               const dotio::math::Point2 c, const float r,
-                                               dotio::math::Point2 &out_intersection);
+    static uint8_t segment_circle_intersection(const kinetra::Segment &segment, const kinetra::Vec2 c,
+                                               const float r, kinetra::Vec2 &out_intersection);
 
     /// Whether `segment` meets a wall cell or leaves the window; `intersection` receives the
     /// first point it does.
-    bool is_intersecting_any_cell(dotio::math::Segment segment, dotio::math::Point2 &intersection) const;
+    bool is_intersecting_any_cell(kinetra::Segment segment, kinetra::Vec2 &intersection) const;
 
     /// A free cell at most five cells from `around` in each direction, drawn from `random`.
     /// Throws std::runtime_error when there is none.
@@ -75,7 +74,7 @@ class Grid {
 
     /// Center of a free cell at least three cells inside the window, drawn from `random`.
     /// Draws until it finds one; the window must have a free cell there.
-    dotio::math::Position generate_position(std::mt19937 &random) const;
+    kinetra::Vec2 generate_position(std::mt19937 &random) const;
 
   private:
     int cells_[rows][columns]{};

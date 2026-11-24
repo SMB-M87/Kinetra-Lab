@@ -13,8 +13,8 @@ namespace dotio {
 Enemy::Enemy() : PhysicsObject() {
 }
 
-Enemy::Enemy(World *world, dotio::math::Position start, dotio::math::Position first_target,
-             const float start_direction, const float start_fear)
+Enemy::Enemy(World *world, kinetra::Vec2 start, kinetra::Vec2 first_target, const float start_direction,
+             const float start_fear)
     : PhysicsObject(60.0f, dotio::Grid::cell_size * 0.2, 0.2f, 0.2f, start, start_direction, true),
       world_(world), target(first_target), path{}, fear(start_fear) {
 }
@@ -47,11 +47,11 @@ void Enemy::tick() {
 }
 
 void Enemy::draw(dotio::Renderer &renderer) {
-    dotio::math::RGBA red = {1.0f, 0.0f, 0.0f, 1.0f};
-    dotio::math::RGBA orange = {1.0f, 0.65f, 0.0f, 1.0f};
-    dotio::math::RGBA kamikaze = {1.0f, 0.3f, 0.3f, 1.0f};
-    dotio::math::RGBA green = {0.0f, 1.0f, 0.0f, 1.0f};
-    dotio::math::RGBA blue = {0.0f, 0.5f, 1.0f, 1.0f};
+    kinetra::Color red = {1.0f, 0.0f, 0.0f, 1.0f};
+    kinetra::Color orange = {1.0f, 0.65f, 0.0f, 1.0f};
+    kinetra::Color kamikaze = {1.0f, 0.3f, 0.3f, 1.0f};
+    kinetra::Color green = {0.0f, 1.0f, 0.0f, 1.0f};
+    kinetra::Color blue = {0.0f, 0.5f, 1.0f, 1.0f};
     renderer.draw_circle(position, radius,
                          is_kamikazing()   ? kamikaze
                          : !debug          ? red
@@ -91,9 +91,9 @@ void Enemy::player_bumped_into_enemy() {
 void Enemy::spatial_partitioning(const float delta) {
     auto motion = dotio::physics_body(*this);
     kinetra::integrate(motion, delta, friction_);
-    velocity = dotio::legacy_vector(motion.velocity);
+    velocity = motion.velocity;
 
-    dotio::math::Vector2 next{position + velocity};
+    kinetra::Vec2 next{position + velocity};
     uint8_t p = dotio::math::GridEntry::get_square_partition(next, radius, dotio::Grid::origin,
                                                              dotio::Grid::cell_size);
     dotio::math::GridEntry partitions[4]{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}};
@@ -116,11 +116,11 @@ void Enemy::spatial_partitioning(const float delta) {
                     continue;
 
                 auto body = dotio::physics_body(*this);
-                body.position = dotio::physics_vector(next);
+                body.position = next;
                 auto neighbor = dotio::physics_body(other);
                 if (const auto contact = kinetra::collide(body, neighbor)) {
                     kinetra::resolve_contact(body, neighbor, *contact);
-                    next = dotio::legacy_vector(body.position);
+                    next = body.position;
                     dotio::apply_body(other, neighbor);
                 }
             }
@@ -244,7 +244,7 @@ bool Enemy::is_kamikazing() {
     return &get_state() == &get_kamikaze_state();
 }
 bool Enemy::is_in_line_of_sight() {
-    if (dotio::math::Point2 _;
+    if (kinetra::Vec2 _;
         world_->grid().is_intersecting_any_cell({position, world_->get_player().position}, _))
         return false;
     else {

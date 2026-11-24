@@ -18,13 +18,12 @@ bool on_screen(const dotio::Enemy &enemy, const kinetra::Camera2D &camera, float
 
 /// Whether a bolt flies from `from` to `to` without meeting a wall cell or a crate, which
 /// stops a bolt that comes within the bolt's radius of it (World::UpdateBolts).
-bool clear_shot(const dotio::World &world, dotio::math::Vec2 from, dotio::math::Vec2 to) {
-    dotio::math::Point2 hit{};
+bool clear_shot(const dotio::World &world, kinetra::Vec2 from, kinetra::Vec2 to) {
+    kinetra::Vec2 hit{};
     if (world.grid().is_intersecting_any_cell({from, to}, hit))
         return false;
     for (const auto &crate : world.get_objects())
-        if (kinetra::segment_circle(dotio::physics_vector(from), dotio::physics_vector(to),
-                                    crate.body.position, crate.body.radius + dotio::Bolt::radius))
+        if (kinetra::segment_circle(from, to, crate.body.position, crate.body.radius + dotio::Bolt::radius))
             return false;
     return true;
 }
@@ -42,7 +41,7 @@ dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
     for (auto &enemy : world.get_enemies()) {
         if (!on_screen(enemy, camera))
             continue;
-        const float distance = (enemy.position - player).get_length();
+        const float distance = kinetra::length(enemy.position - player);
         if (distance < nearest_distance && clear_shot(world, player, enemy.position)) {
             nearest = &enemy;
             nearest_distance = distance;
@@ -51,7 +50,7 @@ dotio::Enemy *dotio_target(dotio::Application &application, const kinetra::Camer
     return nearest;
 }
 
-dotio::math::Vec2 lead_offset(dotio::math::Vec2 offset, dotio::math::Vec2 velocity, float bolt_speed) {
+kinetra::Vec2 lead_offset(kinetra::Vec2 offset, kinetra::Vec2 velocity, float bolt_speed) {
     // |offset + velocity t| = bolt_speed t, solved for the earliest t > 0.
     const float a = velocity.x * velocity.x + velocity.y * velocity.y - bolt_speed * bolt_speed;
     const float b = 2 * (offset.x * velocity.x + offset.y * velocity.y);

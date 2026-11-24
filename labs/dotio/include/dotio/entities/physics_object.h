@@ -27,14 +27,14 @@ class PhysicsObject : public MovingObject {
     PhysicsObject();
 
     explicit PhysicsObject(float mass, float radius, float friction, float rotational_friction,
-                           dotio::math::Position position, float direction, bool active);
+                           kinetra::Vec2 position, float direction, bool active);
 
     virtual ~PhysicsObject();
 
     /// Adds `force` to the velocity: despite the name it is a change of speed, in legacy
     /// pixels per update. The second argument is ignored; the original game passed half the
     /// mass.
-    void apply_force(const dotio::math::Vector2 &force, float mass);
+    void apply_force(const kinetra::Vec2 &force, float mass);
 
     /// Moves over `delta` updates and then loses `friction_` of its speed per update.
     void update(float delta) override;
