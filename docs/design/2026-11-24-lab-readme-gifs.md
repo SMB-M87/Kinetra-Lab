@@ -150,6 +150,8 @@ The copies check (`check_copies.py`) ran with the old wordings `none, menu, exit
 | Nit, Kinetra, pre-existing: after a plain `menu` request the application list still hovers the row under a pointer the session left there | Not in this change: *Open points* |
 | Lesson: search each existing member of a set that a change extends | Kinetra c4630fa, in Kinetra's review lessons |
 
+Lab `main` moved its pointer to b86a2ed (Kinetra-Lab#114, Kinetra#52) during the round, so this branch conflicted. As Lab's [lesson from #78](../review-lessons.md#submodule-and-merge-order) says, Kinetra `main` was merged into the Kinetra branch (5a30722), Lab `main` into this branch (12c3a32), and the pointer resolved to 5a30722. Then `ctest --preset graphics -LE soak` passed 347 of 347, and every capture of this change rendered byte for byte the same.
+
 The copies check ran again with `SessionRequest::menu`, `settings overlay's request`, `LAUNCHER gives` and `request() == menu`. The remaining hits name `menu` for LAUNCHER alone, or stand next to their own `configurations` line.
 
 ## Verification
@@ -178,7 +180,7 @@ The copies check ran again with `SessionRequest::menu`, `settings overlay's requ
   - `demo-debug.png` and `dotio-debug.png` are refreshed. Four stills are removed.
   - The README is rebuilt around the labs, and the media guide, capture README, module READMEs and launcher-overlays page are updated.
   - The roadmap item is closed.
-  - The pointer moves to Kinetra `claude/roadmap-readme-media-demo-p1ywc6`, at c4630fa.
+  - The pointer moves to Kinetra `claude/roadmap-readme-media-demo-p1ywc6`, at 5a30722, which merged Kinetra `main` (6051dad) after Lab `main` had moved its pointer to b86a2ed.
 - **Design:** this document.
 - **Verification:** the table above; CI is the Full level.
 - **Review notes:** the new README and its clips; the request's name and its contract in Kinetra#53; that Kinetra's `ui-debug-menu`, `ui-debug-layers` and `ui-inspector` are not refreshed (*Open points*).
