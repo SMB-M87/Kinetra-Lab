@@ -86,10 +86,6 @@ Nothing in progress.
   The `asan` preset (AddressSanitizer and UBSan) and `.clang-tidy` exist, but CI runs neither. A sanitizer job, clang-tidy on the changed files and a coverage report of the logic suites would find memory errors, undefined behavior and untested code before review.
 - **Blueprint loader fuzzing** · i4sim, tests · added 2026-11-21
   Blueprints are files, so the JSON loader is an input boundary. A fuzz target on the loader (libFuzzer with clang) would check that every invalid file ends in an error, never in a crash.
-- **Lab preview in the launcher** · launcher, with Kinetra · added 2026-11-23
-  While a lab is highlighted in the launcher menu, by the pointer or the arrow keys, an overlay shows a picture or a short clip of it with its description, so a new user sees what each lab is before starting it. The registrations already carry a description (`launcher/src/applications.cpp`: "PHYSICS AND NAVIGATION", "SURVIVAL", "LOCAL FACTORY SIMULATION"), but Kinetra's menu does not draw it, and its runtime draws only colored shapes and bitmap text, so images are Kinetra's part. Lab's part: a description of a few lines per lab, and its preview, made by the capture tool.
-  Open questions: a still picture, an animated clip or the live session in miniature; previews built into the executable or read from files next to it, as `i4sim-blueprints/` is.
-  Depends on: Kinetra's *Images in the launcher menu*; the lab clips of *README media as GIFs*. Where: [launcher](../launcher/README.md), [Kinetra roadmap](../external/Kinetra/docs/roadmap.md#later).
 - **Dotio shelter search without spikes** · dotio · added 2026-11-23
   A shelter search that finds nothing settles up to the whole window, 7.5 ms when measured on its own, and a recovering enemy near the player repeats it at every decision, 20 times a second. Bound its cost, or search again only when the player or the enemy changes cell. The behavior benchmark gets a time column and a cornered-enemy case: the Dotio benchmark that the baseline item asked for.
   Where: [performance, Dotio](performance.md#dotio), hotspot 6; [Dotio open points](../labs/dotio/README.md#open-points).

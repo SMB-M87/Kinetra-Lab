@@ -111,14 +111,14 @@ void ui_launcher(Stage &stage) {
         recorder.start();
         tour.wait(0.5);
         // Hover preselects an entry without starting it.
-        const kinetra::MenuLayout menu(tour.viewport(), launcher_rows);
+        const auto menu = tour.menu_layout(launcher_rows);
         for (const std::size_t row : {std::size_t{2}, std::size_t{1}, std::size_t{0}}) {
             tour.move_to(menu.row_center(row) + Vec2{40, 3});
             tour.pause(0.3, 0.45);
         }
         tour.click();
         tour.wait(0.5);
-        const kinetra::MenuLayout scenarios(tour.viewport(), demo::scenario_labels().size());
+        const auto scenarios = tour.menu_layout(demo::scenario_labels().size());
         for (const auto scenario : {demo::Scenario::gravity, demo::Scenario::maze}) {
             tour.move_to(scenarios.row_center(static_cast<std::size_t>(scenario)) + Vec2{40, 3});
             tour.pause(0.3, 0.45);
