@@ -59,9 +59,6 @@ Nothing agreed next.
 - **Timing header out of `runtime/`** · demo, dotio, i4sim, with Kinetra · added 2026-11-21
   The logic of all three applications includes `<kinetra/runtime/timing.h>`, which is headless; their includes follow when Kinetra moves it.
   Depends on: Kinetra's *Headless timing outside `runtime/`*.
-- **Capture on Kinetra's frame read-back** · capture, tests, with Kinetra · added 2026-11-21
-  The capture tool and the graphics tests call `glReadPixels` themselves.
-  Depends on: Kinetra's *Frame read-back on `Runtime`*. Where: [capture tool open points](../tools/capture/README.md#open-points).
 - **Menu rows by label in tests and scripts** · i4sim, capture, tests · added 2026-11-21
   The i4sim graphics suite and the clip and screenshot scripts click debug-menu rows by number, while the tour finds them by label (`kinetra_lab::Session::debug_rows()`). Labels remove numbers that are kept up to date by hand. Related: with LAYERS open the i4sim debug menu is 24 rows high, so in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge.
   Where: [i4sim open points](../labs/i4sim/README.md#open-points), [capture tool open points](../tools/capture/README.md#open-points).
