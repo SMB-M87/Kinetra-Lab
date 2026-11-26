@@ -7,7 +7,7 @@
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
-#include <kinetra/runtime/timing.h>
+#include <kinetra/view/timing.h>
 
 namespace demo {
 namespace {

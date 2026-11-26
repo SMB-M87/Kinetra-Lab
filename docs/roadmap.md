@@ -56,9 +56,6 @@ Nothing agreed next.
 - **Smoother pursuit in Dotio** · dotio, with Kinetra · added 2026-11-21
   Route following passes waypoints by distance and does not skip those already in sight, so pursuers cut fewer corners than they could.
   Depends on: Kinetra's *Raster route target*. Where: [Dotio open points](../labs/dotio/README.md#open-points).
-- **Timing header out of `runtime/`** · demo, dotio, i4sim, with Kinetra · added 2026-11-21
-  The logic of all three applications includes `<kinetra/runtime/timing.h>`, which is headless; their includes follow when Kinetra moves it.
-  Depends on: Kinetra's *Headless timing outside `runtime/`*.
 - **Capture on Kinetra's frame read-back** · capture, tests, with Kinetra · added 2026-11-21
   The capture tool and the graphics tests call `glReadPixels` themselves.
   Depends on: Kinetra's *Frame read-back on `Runtime`*. Where: [capture tool open points](../tools/capture/README.md#open-points).
