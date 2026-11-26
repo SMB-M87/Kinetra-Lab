@@ -9,8 +9,9 @@
 
 #include "kinetra_lab/debug.h"
 #include "kinetra_lab/input.h"
-#include <kinetra/runtime/engine.h>
+#include <kinetra/view/camera.h>
 #include <kinetra/view/debug_menu.h>
+#include <kinetra/view/input.h>
 
 #include <cstddef>
 #include <cstdint>

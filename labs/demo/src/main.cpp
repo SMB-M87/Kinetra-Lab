@@ -6,6 +6,7 @@
 
 #include <kinetra/runtime/engine.h>
 #include <kinetra/runtime/session.h>
+#include <kinetra/simulation/clock.h>
 
 #include <cstdlib>
 #include <iostream>
