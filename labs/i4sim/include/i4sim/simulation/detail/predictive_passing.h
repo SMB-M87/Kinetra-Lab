@@ -5,6 +5,7 @@
 #include "i4sim/simulation/simulation.h"
 
 #include <kinetra/simulation/math.h>
+#include <kinetra/simulation/passing.h>
 #include <kinetra/simulation/spatial_grid.h>
 
 #include <array>
@@ -99,8 +100,9 @@ class PredictivePassing {
     static bool stalled(Plan &plan, const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick);
     void form_plans(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
                     std::uint64_t tick, const kinetra::SpatialGrid &index, EventLog &log);
-    bool try_form(std::size_t a, std::size_t b, const std::vector<Vec2> &directions, const FloorPlan &floor,
-                  const Fleet &fleet, std::uint64_t tick, const kinetra::SpatialGrid &index, EventLog &log);
+    bool try_form(std::size_t a, std::size_t b, const std::vector<kinetra::PassingApproach> &approaches,
+                  const FloorPlan &floor, const Fleet &fleet, std::uint64_t tick,
+                  const kinetra::SpatialGrid &index, EventLog &log);
     bool lanes_clear(Plan &plan, const FloorPlan &floor, const Fleet &fleet,
                      const kinetra::SpatialGrid &index) const;
     void end(std::size_t index, PassingEnd reason, const FloorPlan &floor, Fleet &fleet,
