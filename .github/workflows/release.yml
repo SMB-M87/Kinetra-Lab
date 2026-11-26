@@ -95,8 +95,8 @@ jobs:
           apt_install() { apt-get install -y --no-install-recommends $packages; }
           # Bound only the downloads so fallback has time to run and dpkg can finish.
           export packages
-          if ! { timeout -k 10 300 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
-            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within five minutes, so this run installs from the image's own sources."
+          if ! { timeout -k 10 90 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
+            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within 90 seconds, so this run installs from the image's own sources."
             cp /etc/apt/ubuntu.sources.image "$sources"
             apt-get update
             apt_install

@@ -142,9 +142,11 @@ jobs:
             echo "::warning title=Ubuntu mirror not used::A URI of the image's ubuntu.sources does not match this step's pattern, so this run installs from that source instead of the Azure mirror."
           fi
           apt_install() { apt-get install -y --no-install-recommends $packages; }
-          # The mirror gets five of the step's 15 minutes to deliver the indexes and the
-          # packages: a mirror that does not answer, or stalls a download, would otherwise spend
-          # them on apt's timeouts and retries, and the fallback would never start. timeout
+          # The mirror gets 90 seconds of the step's 15 minutes to deliver the indexes and the
+          # packages, which took about ten in the runs of 2026-11-26; a stalled download then
+          # costs a run two minutes, not five and a half. A mirror that does not answer, or
+          # stalls a download, would otherwise spend the 15 minutes on apt's timeouts and
+          # retries, and the fallback would never start. timeout
           # bounds only the update and --download-only, which run no dpkg; the install from the
           # downloaded packages has no budget, because a killed apt-get install can leave dpkg
           # half-configured. timeout runs a program, not a shell function: hence bash -c and
@@ -152,8 +154,8 @@ jobs:
           # Error-Mode=any makes the mirror's update fail then, so a run never installs from a
           # partial package list.
           export packages
-          if ! { timeout -k 10 300 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
-            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within five minutes, so this run installs from the image's own sources."
+          if ! { timeout -k 10 90 bash -c 'apt-get update -o APT::Update::Error-Mode=any && apt-get install -y --no-install-recommends --download-only $packages' && apt_install; }; then
+            echo "::warning title=Ubuntu mirror not used::The Azure mirror of the Ubuntu archive failed or did not deliver the indexes and packages within 90 seconds, so this run installs from the image's own sources."
             cp /etc/apt/ubuntu.sources.image "$sources"
             apt-get update
             apt_install
