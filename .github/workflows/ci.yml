@@ -1,42 +1,9 @@
-# Checks every pull request. See
-# external/Kinetra/docs/testing.md#continuous-integration for the shared design.
-#
-# One job, "linux", builds and tests on several distributions, each in its own container:
-#
-# - arch: the reference. Same pinned toolchain as Kinetra's CI (dated Arch Linux image plus
-#   Arch Linux Archive snapshot), so engine warnings (-Werror) and clang-format output
-#   cannot change without a commit. When the archive does not answer, the run falls back
-#   to the current Arch packages and says so in a warning (Kinetra's testing.md). Bump
-#   ARCH_SNAPSHOT and the image tag together, in both repositories, with the clang-format
-#   version in Kinetra's tools/cloud_setup.sh, which cloud sessions use. Formatting runs only
-#   here, and so does the docs check, except that the `changes` job runs it when it skips
-#   the build. Warnings are errors here and in the "windows" job: the engine's
-#   and those of Lab's warning-free modules; the rest of Lab is reported until each
-#   module's roadmap phase makes it warning-free.
-# - ubuntu: Ubuntu LTS with its own GCC, glibc, CMake and SDL2, the Debian and Ubuntu
-#   package set of the README's quick start. Warnings are annotations, not errors, because
-#   another GCC warns about other things. The image tag follows Ubuntu's point releases.
-#   Its packages come from Canonical's mirror inside Azure, where the runners run; when that
-#   mirror fails, lacks an index or does not deliver the indexes and packages within five
-#   minutes, from the image's own sources, with a warning.
-#
-# Every job has a time limit, and so does each install step, well above its usual
-# duration; the Ubuntu step's 15 minutes also hold the mirror's five and the fallback's
-# install. A stalled download fails the run within minutes instead of GitHub's six hours.
-#
-# The `ci` test preset runs every test, the graphics cases and the smoke runs of every
-# executable included, with SDL's offscreen driver and software Mesa: an OpenGL context
-# without a GPU or display, the backend of the local `graphics` preset.
-#
-# The workflow name "CI" and the job id "checks" are the required status check on main.
-# "checks" passes when "changes" succeeded and every "linux" run passed, or when "changes"
-# skipped the build of a pull request that cannot change it, so every distribution in the
-# matrix is required.
-#
-# The "windows" job builds natively with MSYS2's MinGW-w64 GCC, the compiler family
-# of the local WSL cross build (docs/windows.md), and runs the non-graphics tests on
-# Windows. MSYS2 packages are not pinned like the Arch snapshot; the job follows
-# MSYS2's current release.
+# Checks pull requests on Ubuntu 24.04 LTS using the distribution's GCC, CMake and SDL2.
+# Formatting uses a pinned clang-format from PyPI. Update CLANG_FORMAT_VERSION in both
+# CI workflows and clang_format_version in Kinetra's tools/cloud_setup.sh together.
+# Package installation uses the Azure mirror with a bounded fallback to the image's sources.
+# Keep the workflow name "CI" and required status job "checks" stable.
+# The separate Windows job uses MSYS2's MinGW-w64 GCC.
 name: CI
 
 on:
@@ -50,14 +17,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ARCH_SNAPSHOT: "2026/11/17"
+  CLANG_FORMAT_VERSION: "23.1.5"
 
 jobs:
   # Decides whether this pull request can change the build or the tests, with the decision
   # of the release workflow (tools/release/needs_build.sh): not when Lab changed only
   # Markdown, docs/ or .agents/, apart from README.md, docs/media/ and the blueprints, which
   # a test reads or the build copies, and a moved Kinetra pointer brings only Markdown,
-  # docs/, .agents/, .claude/, .github/ or tools/, which Lab's build does not read, apart from Kinetra's
+  # docs/, .agents/, .claude/, .codex/config.toml, .github/ or tools/, apart from Kinetra's
   # README.md and docs/media/, which a test reads. Then the build and test
   # jobs below are skipped, only the docs check runs here, and "checks" passes on this job's
   # result. A pull request that only moves the pointer to a commit off Kinetra main is not a
@@ -69,7 +36,7 @@ jobs:
   # check, a broken decision or a broken script, fails "checks" too, and the full run still
   # runs to show the build.
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       skip_build: ${{ steps.decide.outputs.skip_build }}
@@ -143,41 +110,15 @@ jobs:
   linux:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.skip_build != 'true') }}
-    name: linux (${{ matrix.distro }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - distro: arch
-            image: archlinux:base-devel-20261108.0.623074
-          - distro: ubuntu
-            image: ubuntu:24.04
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A run takes about eight minutes.
     timeout-minutes: 45
-    container: ${{ matrix.image }}
+    container: ubuntu:24.04
     defaults:
       run:
         shell: bash
     steps:
-      - name: Install the pinned Arch toolchain and dependencies
-        if: matrix.distro == 'arch'
-        timeout-minutes: 15
-        run: |
-          # The pinned snapshot comes from the Arch Linux Archive. When the archive does not
-          # answer, the image's own mirrors serve the current packages instead; such a run is
-          # not pinned, so it says so in a warning, and the versions below show what it got.
-          packages="git python cmake ninja ccache clang sdl2-compat libglvnd mesa nlohmann-json"
-          cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.image
-          echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
-          if ! pacman -Syyuu --noconfirm --needed $packages; then
-            echo "::warning title=Toolchain not pinned::The Arch Linux Archive did not answer, so this run uses the current Arch packages instead of snapshot ${ARCH_SNAPSHOT}."
-            cp /etc/pacman.d/mirrorlist.image /etc/pacman.d/mirrorlist
-            pacman -Syyuu --noconfirm --needed $packages
-          fi
-
       - name: Install Ubuntu's packages
-        if: matrix.distro == 'ubuntu'
         # About half a minute from the mirror. archive.ubuntu.com, the image's source, once
         # served a run so slowly that this step was still downloading after an hour.
         timeout-minutes: 15
@@ -186,8 +127,8 @@ jobs:
         run: |
           # The Debian and Ubuntu package set of the README's quick start, which
           # tools/cloud_setup.sh installs in a cloud session too, plus git for the checkout and
-          # the submodule.
-          packages="build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev git ca-certificates"
+          # the submodule, and venv for clang-format.
+          packages="build-essential cmake ninja-build ccache libsdl2-dev libgl-dev libegl-dev libgl1-mesa-dri libegl-mesa0 nlohmann-json3-dev git ca-certificates python3-venv"
           # Canonical's mirror inside Azure, where the runners run, serves the same archive.
           # The copy of the image's sources stays outside sources.list.d, where apt would
           # report its extension.
@@ -233,34 +174,28 @@ jobs:
           git submodule update --init --recursive
           git submodule status
 
+      - name: Install pinned clang-format
+        timeout-minutes: 5
+        run: |
+          python3 -m venv "$RUNNER_TEMP/clang-format"
+          "$RUNNER_TEMP/clang-format/bin/python" -m pip install --only-binary=:all: "clang-format==$CLANG_FORMAT_VERSION"
+          echo "$RUNNER_TEMP/clang-format/bin" >> "$GITHUB_PATH"
+
       - name: Format check (clang-format)
-        if: matrix.distro == 'arch'
         run: |
           clang-format --version
           git ls-files -- '*.h' '*.cpp' | xargs clang-format --dry-run --Werror
 
       - name: Documentation links
-        if: matrix.distro == 'arch'
         run: python3 external/Kinetra/tools/check_docs.py
 
       - name: Headless build and test (application logic without SDL2/OpenGL)
         run: cmake --workflow --preset headless
 
       - name: Full build and test (applications, engine warnings as errors, graphics tests and smoke runs with software OpenGL)
-        if: matrix.distro == 'arch'
         run: cmake --workflow --preset ci
 
-      - name: Full build and test (applications, warnings as annotations, graphics tests and smoke runs with software OpenGL)
-        if: matrix.distro != 'arch'
-        run: |
-          cmake --preset ci -DKINETRA_WARNINGS_AS_ERRORS=OFF -DKINETRA_LAB_WARNING_FREE_AS_ERRORS=OFF
-          cmake --build --preset ci 2>&1 | tee build-ci.log
-          grep -E 'warning: ' build-ci.log | sort -u \
-            | sed "s/^/::warning title=Compiler warning on ${{ matrix.distro }}::/" || true
-          ctest --preset ci
-
-  # The required status. It passes when "changes" succeeded and every distribution of
-  # "linux" passed, or when "changes" decided that the pull request cannot change the build
+  # The required status. It passes when both "changes" and "linux" passed, or when "changes" decided that the pull request cannot change the build
   # and ran the docs check itself. Any other outcome, a failed "changes" job (a broken
   # decision, a broken needs_build.sh or a failed docs check) or a failed or cancelled
   # "linux" run included, fails it.
@@ -269,10 +204,10 @@ jobs:
     # always(), not !cancelled(): a skipped required job counts as passed, so on a
     # cancelled run this job must still run and fail.
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Every Linux run passed, or the build was rightly skipped
+      - name: Linux passed or the documentation check passed
         env:
           CHANGES: ${{ needs.changes.result }}
           SKIP: ${{ needs.changes.outputs.skip_build }}

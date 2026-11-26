@@ -1,6 +1,5 @@
 # Cross-compiles Kinetra-Lab for 64-bit Windows with the MinGW-w64 GCC toolchain
-# (Arch Linux: `pacman -S mingw-w64-gcc`). Used by the `windows` presets; see
-# docs/windows.md.
+# used by the windows presets. See docs/windows.md for distro packages.
 #
 # The executables run on Windows, and from WSL directly through WSL interop, so
 # CTest and doctest test discovery work without an emulator there.
