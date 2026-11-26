@@ -14,6 +14,7 @@
 #include <doctest/doctest.h>
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -41,23 +42,12 @@ bool paused(Session &session) {
     return status(session).find("PAUSED") != std::string::npos;
 }
 
-/// Reads one pixel at a logical window position from whichever buffer holds the frame.
-std::array<unsigned char, 4> pixel(Runtime &runtime, Vec2 point) {
-    int width, height;
-    SDL_GL_GetDrawableSize(SDL_GL_GetCurrentWindow(), &width, &height);
-    std::array<unsigned char, 4> color{};
-    auto read = [&] {
-        glReadPixels(int(point.x * float(width) / runtime.camera.viewport.x),
-                     height - 1 - int(point.y * float(height) / runtime.camera.viewport.y), 1, 1, GL_RGBA,
-                     GL_UNSIGNED_BYTE, color.data());
-    };
-    glReadBuffer(GL_FRONT);
-    read();
-    if (color[0] < 150 && color[1] < 150) {
-        glReadBuffer(GL_BACK);
-        read();
-    }
-    return color;
+/// One pixel at a logical window position of the frame the last end() read back; the case
+/// must have called read_back(true).
+std::array<std::uint8_t, 4> pixel(const Runtime &runtime, Vec2 point) {
+    const auto &frame = runtime.frame();
+    return frame.pixel(int(point.x * float(frame.width) / runtime.camera.viewport.x),
+                       int(point.y * float(frame.height) / runtime.camera.viewport.y));
 }
 
 /// A panel with the same rows as a Lab session's, used to address its rows and buttons and
@@ -128,7 +118,7 @@ Input menu_click(const Runtime &runtime, std::size_t row) {
 
 /// Whether the check box of debug-menu row `row` at nesting level `depth` is drawn as on:
 /// a filled box in the "on" color; a box that is off shows the panel through its middle.
-bool checked(Runtime &runtime, std::size_t row, int depth) {
+bool checked(const Runtime &runtime, std::size_t row, int depth) {
     const auto color =
         pixel(runtime, debug_menu_origin + Vec2{DebugMenu::label_left(depth) - DebugMenu::mark_width + 2.5f,
                                                 DebugMenu::row_top(row) + DebugMenu::text_top + 3.5f} *
@@ -139,19 +129,15 @@ bool checked(Runtime &runtime, std::size_t row, int depth) {
 
 TEST_CASE("the debug toolbar button shows beside settings only in debug mode") {
     Runtime runtime("Debug toolbar", 160, 120);
+    runtime.read_back(true);
     runtime.poll(false);
     bool debug = true;
     SettingsOverlay overlay({}, &debug);
     // The buttons are drawn three pixels inside their cells: SETTINGS to x 64, DEBUG to 112.
     const auto button = [&](float x) {
-        // Drawn twice, so both swap buffers hold the frame: which one a read returns right
-        // after a swap differs between drivers, most of all for a window's first frame.
-        for (int frame = 0; frame < 2; ++frame) {
-            runtime.begin({0, 0, 0});
-            overlay.draw(runtime);
-            runtime.end();
-        }
-        glFinish();
+        runtime.begin({0, 0, 0});
+        overlay.draw(runtime);
+        runtime.end();
         const auto color = pixel(runtime, {x, 5.5f});
         return color[2] > 40;
     };
@@ -165,6 +151,7 @@ TEST_CASE("the debug toolbar button shows beside settings only in debug mode") {
 TEST_CASE("demo and i4sim start with every visual debug layer on") {
     // Tall enough for i4sim's LAYERS section with every part listed (25 menu rows).
     Runtime runtime("Default debug views", 640, 800);
+    runtime.read_back(true);
     runtime.poll(false);
     for (auto variant : {Variant::demo, Variant::i4sim}) {
         CAPTURE(static_cast<int>(variant));
@@ -184,7 +171,6 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
         away.mouse = {600, 780};
         session->advance(0, away, runtime.camera);
         session->render(runtime);
-        glFinish();
         if (variant == Variant::demo) {
             // LAYERS heading on row 1, then VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES
             // and ACTIVE AGENTS, which start on, and HOME RANGE, which starts off.
@@ -375,6 +361,7 @@ TEST_CASE("the i4sim blueprint screen asks for the menu on escape") {
 
 TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reach the application") {
     Runtime runtime("Debug integration", 640, 480);
+    runtime.read_back(true);
     runtime.poll(false);
     {
         auto session = start(Variant::dotio, runtime.camera);
@@ -396,7 +383,6 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
         for (std::size_t row = 2; row <= 12; ++row)
             session->advance(0, menu_click(runtime, row), runtime.camera);
         session->render(runtime);
-        glFinish();
         for (std::size_t row = 2; row <= 12; ++row) {
             CAPTURE(row);
             CHECK_MESSAGE(checked(runtime, row, row >= 5 && row <= 8 ? 2 : 1), "a Dotio layer row is not on");
