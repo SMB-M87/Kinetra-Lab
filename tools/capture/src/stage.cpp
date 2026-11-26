@@ -7,7 +7,6 @@
 #include "i4sim/presentation/session.h"
 
 #include "kinetra_lab/settings.h"
-#include <glad/glad.h>
 #include <kinetra/runtime/debug_view.h>
 #include <kinetra/runtime/launcher.h>
 #include <kinetra/runtime/settings_view.h>
@@ -49,6 +48,8 @@ std::vector<kinetra::LaunchChoice> launcher_choices() {
 Stage::Stage(kinetra::Runtime &runtime, std::filesystem::path output, std::string scene)
     : runtime_(runtime), output_(std::move(output)), scene_(std::move(scene)),
       pointer_(runtime.camera.viewport - Vec2{2, 2}) {
+    // save() takes each picture from the frame that end() read back.
+    runtime_.read_back(true);
 }
 
 void Stage::start(launcher::Variant variant, std::optional<std::size_t> configuration) {
@@ -224,21 +225,14 @@ void Stage::write_frame() const {
 }
 
 void Stage::save(const std::filesystem::path &path) const {
-    // The drawable size, which equals the logical size without display scaling.
-    std::array<GLint, 4> area{};
-    glGetIntegerv(GL_VIEWPORT, area.data());
-    const auto width = static_cast<std::uint32_t>(area[2]), height = static_cast<std::uint32_t>(area[3]);
-    std::vector<std::uint8_t> pixels(std::size_t(width) * height * 3);
-    // Runtime::end() presented the frame, so it is in the front buffer, as the graphics
-    // tests read it.
-    glReadBuffer(GL_FRONT);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, area[2], area[3], GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    // OpenGL rows run bottom-up; PNG rows top-down.
-    const std::size_t stride = std::size_t(width) * 3;
-    std::vector<std::uint8_t> flipped(pixels.size());
-    for (std::uint32_t y = 0; y < height; ++y)
-        std::copy_n(pixels.data() + (height - 1 - y) * stride, stride, flipped.data() + y * stride);
-    write_png(path, width, height, flipped);
+    // The drawable size, which equals the logical size without display scaling; rows from
+    // the top, as PNG stores them. The window is opaque, so the PNG drops alpha.
+    const auto &frame = runtime_.frame();
+    const auto width = static_cast<std::uint32_t>(frame.width),
+               height = static_cast<std::uint32_t>(frame.height);
+    std::vector<std::uint8_t> rgb(std::size_t(width) * height * 3);
+    for (std::size_t pixel = 0; pixel < std::size_t(width) * height; ++pixel)
+        std::copy_n(frame.rgba.data() + pixel * 4, 3, rgb.data() + pixel * 3);
+    write_png(path, width, height, rgb);
 }
 } // namespace capture

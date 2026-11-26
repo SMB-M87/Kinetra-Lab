@@ -3,7 +3,6 @@
 #include "demo/presentation/session.h"
 #include "dotio/presentation/session.h"
 
-#include <glad/glad.h>
 #include <kinetra/runtime/debug_view.h>
 #include <kinetra_lab/settings.h>
 
@@ -131,6 +130,8 @@ Tour::Tour(kinetra::Runtime &runtime, FrameSink sink, std::uint32_t seed)
       menu_(host_.choices()), random_(seed), pointer_(runtime.camera.viewport * 0.5f + Vec2{260, 200}),
       scene_(static_cast<int>(runtime.camera.viewport.x), static_cast<int>(runtime.camera.viewport.y)),
       canvas_(scene_) {
+    // read_frame() takes each picture from the frame that end() read back.
+    runtime_.read_back(true);
 }
 
 kinetra_lab::Session &Tour::session() {
@@ -170,18 +171,13 @@ void Tour::step(const Input &input) {
 }
 
 void Tour::read_frame() {
-    const auto width = static_cast<std::size_t>(scene_.width),
-               height = static_cast<std::size_t>(scene_.height);
-    auto &pixels = read_back_;
-    pixels.resize(scene_.rgb.size());
-    // Runtime::end() presented the frame, so it is in the front buffer (reliable offscreen).
-    glReadBuffer(GL_FRONT);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, scene_.width, scene_.height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    // OpenGL rows run bottom-up; the canvas top-down.
-    const std::size_t stride = width * 3;
-    for (std::size_t y = 0; y < height; ++y)
-        std::copy_n(pixels.data() + (height - 1 - y) * stride, stride, scene_.rgb.data() + y * stride);
+    const auto &frame = runtime_.frame();
+    // The canvas has the window's logical size; with display scaling the drawable is larger.
+    if (frame.width != scene_.width || frame.height != scene_.height)
+        throw std::runtime_error("The tour needs a drawable of the window's size, without display scaling");
+    // Both run top-down; the canvas has no alpha, and the window is opaque.
+    for (std::size_t pixel = 0; pixel < scene_.rgb.size() / 3; ++pixel)
+        std::copy_n(frame.rgba.data() + pixel * 4, 3, scene_.rgb.data() + pixel * 3);
 }
 
 void Tour::draw_overlays() {

@@ -46,7 +46,7 @@ std::size_t row_with_label(std::span<const kinetra_lab::DebugRow> rows, std::str
 ///
 /// Positions are logical window pixels. Every verb returns when it is done and has emitted
 /// the frames it took. Not copyable; borrows the Runtime, which must outlive the tour and
-/// have the size of the video.
+/// have the size of the video without display scaling, and switches on its frame read-back.
 class Tour {
   public:
     /// `seed` seeds the pointer's bends and the pauses between actions.
@@ -194,8 +194,6 @@ class Tour {
     float wheel_glow_{};
     bool wheel_up_{};
     std::vector<Ring> rings_;
-    /// The frame as OpenGL returns it, bottom row first; kept so a frame needs no allocation.
-    std::vector<std::uint8_t> read_back_;
     float brightness_{1};
     std::shared_ptr<PanelMirror> panel_;
 };
