@@ -17,7 +17,7 @@ constexpr float pocket_margin_mm = 6;
 constexpr float cost_tolerance_mm = 0.01f;
 /// True when the body of `mover` overlaps `corridor` (already grown by the clearance).
 bool inside(const Mover &mover, const Body &corridor) {
-    return crosses_mover(mover.body.position, mover.body.position, mover.body.half_extents, corridor);
+    return swept_box_overlaps(mover.body.position, mover.body.position, mover.body.half_extents, corridor);
 }
 /// A box body covering `area`.
 Body box_over(Aabb area) {
@@ -191,12 +191,12 @@ bool Traffic::refuge_clear(std::size_t j, std::size_t mover, const std::vector<V
         const Aabb area{{std::min(from.x, to.x) - extent.x, std::min(from.y, to.y) - extent.y},
                         {std::max(from.x, to.x) + extent.x, std::max(from.y, to.y) + extent.y}};
         for (auto other : index.query(area))
-            if (other != mover && crosses_mover(from, to, extent, fleet.movers[other].body))
+            if (other != mover && swept_box_overlaps(from, to, extent, fleet.movers[other].body))
                 clear = false;
         for (std::size_t k = 0; k < zones_.size(); ++k) {
             if (k == j || !zones_[k].exit)
                 continue;
-            if (crosses_mover(from, to, extent, box_over(zones_[k].exit->area)))
+            if (swept_box_overlaps(from, to, extent, box_over(zones_[k].exit->area)))
                 clear = false;
         }
         from = to;
@@ -274,8 +274,8 @@ Traffic::Requests Traffic::find_requests(const FloorPlan &floor, const Fleet &fl
             // A new goal may cancel a route while the mover is still coasting
             // toward the zone. Retain the request until braking can clear it.
             const float braking_time = length(m.body.velocity) / motion.force + 1;
-            if (crosses_mover(m.body.position, m.body.position + m.body.velocity * braking_time,
-                              m.body.half_extents, zone)) {
+            if (swept_box_overlaps(m.body.position, m.body.position + m.body.velocity * braking_time,
+                                   m.body.half_extents, zone)) {
                 if (nearest > 0) {
                     nearest = 0;
                     next = j;
@@ -287,7 +287,7 @@ Traffic::Requests Traffic::find_requests(const FloorPlan &floor, const Fleet &fl
             for (auto to : m.route) {
                 const float segment = distance(from, to);
                 to = from + limited(to - from, std::max(0.f, reach - travelled));
-                if (crosses_mover(from, to, m.body.half_extents, zone)) {
+                if (swept_box_overlaps(from, to, m.body.half_extents, zone)) {
                     // Junctions have disjoint cells; route distance orders requests.
                     const float along =
                         travelled +
@@ -376,7 +376,7 @@ bool Traffic::exit_free(std::size_t j, std::size_t mover, Aabb exit, const Fleet
         const auto velocity = moving.moving() && !moving.held ? moving.body.velocity : Vec2{};
         const auto coast = moving.body.position + velocity * (length(velocity) / motion.force + 1);
         if (bodies[other].overlaps(exit) ||
-            crosses_mover(moving.body.position, coast, moving.body.half_extents, pocket))
+            swept_box_overlaps(moving.body.position, coast, moving.body.half_extents, pocket))
             available = false;
     }
     for (std::size_t k = 0; k < zones_.size(); ++k)
@@ -405,8 +405,8 @@ void Traffic::protect_exits(const Requests &requests, Fleet &fleet, const Motion
             const auto coast =
                 m.body.position + m.body.velocity * (length(m.body.velocity) / motion.force + 1);
             const auto target = m.body.position + limited(m.route.front() - m.body.position, reach);
-            if (!crosses_mover(m.body.position, target, m.body.half_extents, pocket) &&
-                !crosses_mover(m.body.position, coast, m.body.half_extents, pocket))
+            if (!swept_box_overlaps(m.body.position, target, m.body.half_extents, pocket) &&
+                !swept_box_overlaps(m.body.position, coast, m.body.half_extents, pocket))
                 continue;
             fleet.stops[id].push_back(stop_before(m.body, exit.area));
             if (floor.zones()[j].corridor)
@@ -428,7 +428,7 @@ std::optional<Aabb> Traffic::exit_space(const FloorPlan &floor, const Mover &m, 
     bool entered = false;
     Vec2 from = m.body.position;
     for (auto to : m.route) {
-        entered = entered || crosses_mover(from, to, m.body.half_extents, zone);
+        entered = entered || swept_box_overlaps(from, to, m.body.half_extents, zone);
         const bool outside = to.x < low.x || to.x > high.x || to.y < low.y || to.y > high.y;
         if (entered && outside) {
             // Find where the whole body first clears the Minkowski-expanded zone,

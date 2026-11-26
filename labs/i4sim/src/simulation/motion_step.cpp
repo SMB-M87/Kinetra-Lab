@@ -128,11 +128,17 @@ MotionStep::Surroundings MotionStep::surroundings(const Goals &goals, std::size_
 void MotionStep::choose_acceleration(const Goals &goals, Mover &m, const Body &start,
                                      const Surroundings &around, Vec2 target, bool arrival) {
     const auto &motion = goals.motion;
-    PrioritySteering settings;
-    settings.max_speed = motion.speed;
-    settings.max_acceleration = motion.force;
-    settings.prediction_steps = int(std::ceil(motion.horizon));
-    settings.arrival_radius = length(m.body.half_extents * 2) * 0.45f;
+    const PrioritySteering settings{
+        .max_speed = motion.speed,
+        .max_acceleration = motion.force,
+        .arrival_radius = length(m.body.half_extents * 2) * 0.45f,
+        .border_distance = 2,
+        .border_strength = 10,
+        .border_lookahead = 2,
+        .prediction_steps = int(std::ceil(motion.horizon)),
+        .prediction_step = 1,
+        .safety_multiplier = 1.025f,
+    };
     m.forces = priority_steer(m.body, target, around.neighbors, around.edges, settings, arrival);
     if (motion.profile == SteeringProfile::original)
         return;

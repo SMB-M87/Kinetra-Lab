@@ -245,6 +245,10 @@ The [application guide](../labs/i4sim/README.md#provenance-and-differences) is a
 
 ## Predictive passing
 
+Kinetra supplies the [conflict prediction, lane candidates and guard](../external/Kinetra/docs/engine/navigation.md#predictive-passing).
+i4sim checks candidates against its floor, movers, traffic zones and reservations. It
+owns plan state, priority, waiting, retries and route restoration.
+
 [Lab coordination](../labs/i4sim/src/simulation/predictive_passing.cpp) is an opt-in policy
 for Improved and Reciprocal. It predicts conflicting, approximately opposite route
 headings using preferred speed and a footprint-dependent lookahead. Detection uses

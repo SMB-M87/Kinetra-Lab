@@ -3,6 +3,8 @@
 #include "i4sim/simulation/detail/routing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 
+#include <kinetra/simulation/passing.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -18,59 +20,19 @@ constexpr float passing_gap_mm = 8;
 constexpr float exit_offset_mm = 16;
 /// Extra longitudinal room in millimeters a plan needs, so both lane changes fit.
 constexpr float formation_room_mm = 32;
-/// Movers count as oncoming when their headings' cosine is at most this.
-constexpr float oncoming_cosine = -0.8f;
 /// Share of the maximum speed per tick that counts as progress toward the targets.
 constexpr float progress_speed_fraction = 0.05f;
 /// Ticks the lane ahead of a waiting participant must stay clear before it drives on, so
 /// a mover passing close by does not make it start and stop in turn.
 constexpr std::uint64_t passing_resume_ticks = 20;
-/// Share of the maximum speed against a participant's heading above which another mover in
-/// its lane ahead counts as oncoming.
-constexpr float oncoming_speed_fraction = 0.25f;
 /// Ticks between two predicted positions of another mover in the lane check; at the
 /// default 2 mm/tick a mover moves 8 mm, far less than any footprint.
 constexpr int prediction_step_ticks = 4;
 
-/// The remaining legs of a participant from `position`: to its entry and exit targets
-/// before crossing, to its exit target while crossing.
-std::vector<Segment> remaining_legs(Vec2 position, Vec2 entry, Vec2 exit, bool crossing) {
-    if (crossing)
-        return {{position, exit}};
-    return {{position, entry}, {entry, exit}};
-}
-
-/// The first `reach` millimeters of `legs`.
-std::vector<Segment> ahead(const std::vector<Segment> &legs, float reach) {
-    std::vector<Segment> result;
-    for (const auto &leg : legs) {
-        const float length = distance(leg.start, leg.end);
-        if (length >= reach) {
-            result.push_back(
-                {leg.start, leg.start + (leg.end - leg.start) * (reach / std::max(length, 0.0001f))});
-            break;
-        }
-        result.push_back(leg);
-        reach -= length;
-    }
-    return result;
-}
-
-/// True when a box of `extent`, swept along `legs`, overlaps `other`.
-bool on_legs(const std::vector<Segment> &legs, Vec2 extent, const Body &other) {
-    return std::any_of(legs.begin(), legs.end(),
-                       [&](const Segment &leg) { return crosses_mover(leg.start, leg.end, extent, other); });
-}
-
-/// Bounds of `legs` swept with `extent`, grown by `margin` on every side.
-Aabb legs_bounds(const std::vector<Segment> &legs, Vec2 extent, float margin) {
-    auto area = travel_bounds(legs.front().start, legs.front().end, extent);
-    for (const auto &leg : legs) {
-        const auto box = travel_bounds(leg.start, leg.end, extent);
-        area.min = {std::min(area.min.x, box.min.x), std::min(area.min.y, box.min.y)};
-        area.max = {std::max(area.max.x, box.max.x), std::max(area.max.y, box.max.y)};
-    }
-    return {area.min - Vec2{margin, margin}, area.max + Vec2{margin, margin}};
+PassingApproach passing_approach(const Mover &mover) {
+    return {mover.body.position, mover.body.half_extents,
+            mover.route.empty() ? Vec2{} : normalized(mover.route.front() - mover.body.position),
+            mover.destination};
 }
 } // namespace
 
@@ -240,53 +202,27 @@ std::optional<PassingEnd> PredictivePassing::guard(Plan &plan, const Fleet &flee
                                                    const MotionSettings &motion, std::uint64_t tick,
                                                    const SpatialGrid &index) const {
     const int horizon = int(std::ceil(motion.horizon));
-    // The lane ahead covers what the participant can reach within the steering horizon
-    // plus the distance it needs to stop, so it stops before a predicted conflict.
-    const float reach = motion.speed * float(horizon) + braking_distance(motion.speed, motion.force);
+    const PassingPrediction prediction{motion.speed, motion.force, horizon, prediction_step_ticks};
+    const auto phase = plan.crossing ? PassingPhase::traverse : PassingPhase::approach;
+    const float margin = length(fleet.max_half) + motion.speed * float(horizon);
     std::optional<PassingEnd> result;
     for (std::size_t side = 0; side < 2; ++side) {
-        const auto id = plan.movers[side];
-        const auto &m = fleet.movers[id];
-        const auto extent = m.body.half_extents + clearance;
-        const auto legs = remaining_legs(m.body.position, plan.entry[side], plan.exit[side], plan.crossing);
-        const auto near = ahead(legs, reach);
-        // Ahead, behind and oncoming are judged along the lane, from entry to exit: the
-        // first leg to the entry target runs mostly sideways.
-        const auto axis = normalized(plan.exit[side] - plan.entry[side]);
-        const float margin = length(fleet.max_half) + motion.speed * float(horizon);
+        const auto &m = fleet.movers[plan.movers[side]];
+        const PassingLaneGuard guard(m.body, {plan.entry[side], plan.exit[side]}, phase, clearance,
+                                     prediction);
         bool intruded = false;
-        for (auto other : index.query(legs_bounds(legs, extent, margin))) {
+        for (auto other : index.query(guard.query_bounds(margin))) {
             if (other == plan.movers[0] || other == plan.movers[1])
                 continue;
-            const auto &o = fleet.movers[other];
-            // A mover behind the participant follows it or has been passed: it neither blocks
-            // the lane ahead nor clears by waiting.
-            if (dot(o.body.position - m.body.position, axis) <= 0)
+            const auto &neighbor = fleet.movers[other];
+            const bool stationary = !neighbor.moving() || neighbor.held;
+            // A stationary mover is an obstruction regardless of passing priority.
+            if (!stationary && !yields_to(plan, other))
                 continue;
-            if (!o.moving() || o.held) {
-                // A stationary mover does not clear the lane by itself.
-                if (on_legs(legs, extent, o.body))
-                    result = PassingEnd::obstructed;
-                continue;
-            }
-            if (!yields_to(plan, other))
-                continue;
-            auto predicted = o.body;
-            bool in_lane = false;
-            // Every prediction step, and the horizon itself when it is not a multiple of one.
-            for (int t = 0; !in_lane; t = std::min(t + prediction_step_ticks, horizon)) {
-                predicted.position = o.body.position + o.body.velocity * float(t);
-                in_lane = on_legs(near, extent, predicted);
-                if (t == horizon)
-                    break;
-            }
-            if (!in_lane)
-                continue;
-            // A mover that drives toward the participant along its lane does not clear it by
-            // waiting; the plan ends so both can resolve the encounter on their routes.
-            if (dot(o.body.velocity, axis) < -oncoming_speed_fraction * motion.speed)
+            const auto obstacle = guard.inspect(neighbor.body, stationary);
+            if (obstacle == PassingObstruction::blocking)
                 result = PassingEnd::obstructed;
-            else
+            if (obstacle == PassingObstruction::crossing)
                 intruded = true;
         }
         if (intruded) {
@@ -296,9 +232,7 @@ std::optional<PassingEnd> PredictivePassing::guard(Plan &plan, const Fleet &flee
                 plan.waiting_since[side] = tick;
                 // Within the braking distance the lane ahead reserves, so the stop needs no more
                 // than the acceleration limit and the participant does not overshoot and back up.
-                const float speed = length(m.body.velocity);
-                plan.hold[side] =
-                    m.body.position + normalized(m.body.velocity) * braking_distance(speed, motion.force);
+                plan.hold[side] = guard.braking_target();
             }
         } else if (plan.waiting[side] && tick - plan.intruded_at[side] >= passing_resume_ticks) {
             plan.waiting[side] = false;
@@ -322,9 +256,10 @@ void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, c
         std::max(motion.horizon, (4 * length(fleet.max_half) + formation_room_mm) / motion.speed +
                                      2 * motion.speed / motion.force);
     const float range = 2 * motion.speed * horizon + 2 * length(fleet.max_half);
-    std::vector<Vec2> directions;
+    std::vector<PassingApproach> approaches;
+    approaches.reserve(fleet.movers.size());
     for (const auto &m : fleet.movers)
-        directions.push_back(m.route.empty() ? Vec2{} : normalized(m.route.front() - m.body.position));
+        approaches.push_back(passing_approach(m));
     auto eligible = [&](std::size_t id) {
         const auto &m = fleet.movers[id];
         return !claimed[id] && m.moving() && !m.held && !m.coordination.corridor_retreating &&
@@ -338,73 +273,42 @@ void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, c
         std::vector<std::pair<float, std::size_t>> candidates;
         for (auto b : index.query(
                  {first.body.position - Vec2{range, range}, first.body.position + Vec2{range, range}})) {
-            if (b <= a || !eligible(b) || dot(directions[a], directions[b]) > oncoming_cosine)
+            if (b <= a || !eligible(b))
                 continue;
-            const Vec2 p = fleet.movers[b].body.position - first.body.position;
-            const Vec2 relative = (directions[a] - directions[b]) * motion.speed;
-            const float square = dot(relative, relative);
-            if (square <= 0 || dot(p, relative) <= 0)
-                continue;
-            const float time = dot(p, relative) / square;
-            if (time > horizon)
-                continue;
-            const auto closest = p - relative * time;
-            const auto extent = first.body.half_extents + fleet.movers[b].body.half_extents +
-                                Vec2{passing_gap_mm, passing_gap_mm};
-            if (std::abs(closest.x) < extent.x && std::abs(closest.y) < extent.y)
-                candidates.push_back({time, b});
+            if (const auto time = passing_conflict_time(approaches[a], approaches[b], motion.speed, horizon,
+                                                        passing_gap_mm))
+                candidates.push_back({*time, b});
         }
         std::sort(candidates.begin(), candidates.end());
         for (const auto &candidate : candidates)
-            if (try_form(a, candidate.second, directions, floor, fleet, tick, index, log)) {
+            if (try_form(a, candidate.second, approaches, floor, fleet, tick, index, log)) {
                 claimed[a] = claimed[candidate.second] = true;
                 break;
             }
     }
 }
 
-bool PredictivePassing::try_form(std::size_t a, std::size_t b, const std::vector<Vec2> &directions,
+bool PredictivePassing::try_form(std::size_t a, std::size_t b, const std::vector<PassingApproach> &approaches,
                                  const FloorPlan &floor, const Fleet &fleet, std::uint64_t tick,
                                  const SpatialGrid &index, EventLog &log) {
-    const auto &first = fleet.movers[a];
-    const auto &second = fleet.movers[b];
-    const auto axis = normalized(directions[a] - directions[b]);
-    const auto separation = dot(second.body.position - first.body.position, axis);
-    const float along = support(first.body, axis) + support(second.body, axis);
-    // The formation segments remain longitudinally separated, even when
-    // the two movers take different amounts of time to reach their lanes.
-    if (separation < 2 * along + formation_room_mm)
-        return false;
-    const auto midpoint = (first.body.position + second.body.position) / 2;
-    // Try both sides, each with the lanes centered on the midpoint or shifted by one lane.
-    for (float hand : {-1.f, 1.f}) {
-        const auto lateral = perpendicular(axis) * hand;
-        const float step =
-            std::max(support(first.body, lateral), support(second.body, lateral)) + passing_gap_mm;
-        for (float shift : {0.f, step, -step}) {
-            Plan plan;
-            plan.movers = {a, b};
-            plan.progress_at = tick;
-            plan.best_remaining = std::numeric_limits<float>::infinity();
-            for (std::size_t side = 0; side < 2; ++side) {
-                const auto &m = fleet.movers[plan.movers[side]];
-                const float sign = side == 0 ? 1.f : -1.f;
-                const float lane = sign * (support(m.body, lateral) + passing_gap_mm);
-                plan.entry[side] = m.body.position + axis * (sign * along / 2) +
-                                   lateral * (dot(midpoint - m.body.position, lateral) + lane + shift);
-                plan.exit[side] =
-                    midpoint + axis * (sign * (along + exit_offset_mm)) + lateral * (lane + shift);
-            }
-            if (dot(first.destination - plan.exit[0], axis) < passing_gap_mm ||
-                dot(second.destination - plan.exit[1], -axis) < passing_gap_mm)
-                continue;
-            if (!lanes_clear(plan, floor, fleet, index))
-                continue;
-            plan.id = next_plan_++;
-            record(EventKind::passing_formed, plan, tick, log);
-            plans_.push_back(std::move(plan));
-            return true;
+    constexpr PassingMargins margins{passing_gap_mm, exit_offset_mm, formation_room_mm};
+    for (const auto &lanes : passing_lane_candidates(approaches[a], approaches[b], margins)) {
+        if (!lanes)
+            continue;
+        Plan plan;
+        plan.movers = {a, b};
+        plan.progress_at = tick;
+        plan.best_remaining = std::numeric_limits<float>::infinity();
+        for (std::size_t side = 0; side < 2; ++side) {
+            plan.entry[side] = (*lanes)[side].entry;
+            plan.exit[side] = (*lanes)[side].exit;
         }
+        if (!lanes_clear(plan, floor, fleet, index))
+            continue;
+        plan.id = next_plan_++;
+        record(EventKind::passing_formed, plan, tick, log);
+        plans_.push_back(std::move(plan));
+        return true;
     }
     return false;
 }
@@ -425,7 +329,7 @@ bool PredictivePassing::lanes_clear(Plan &plan, const FloorPlan &floor, const Fl
                 break;
             }
             moving.position = from;
-            const auto area = travel_bounds(from, to, moving.half_extents);
+            const auto area = swept_box_bounds(from, to, moving.half_extents);
             for (auto other : index.query(area))
                 if (other != plan.movers[0] && other != plan.movers[1] &&
                     sweep_translation(moving, to, fleet.movers[other].body))
