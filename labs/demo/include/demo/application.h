@@ -4,7 +4,7 @@
 #include "demo/world/scene.h"
 #include "demo/world/tuning.h"
 #include "demo/zoom.h"
-#include <kinetra/runtime/timing.h>
+#include <kinetra/simulation/clock.h>
 
 namespace demo {
 

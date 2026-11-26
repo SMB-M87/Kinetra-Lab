@@ -66,7 +66,7 @@ std::vector<Vec2> grid_route(const FloorPlan &floor, const Fleet &fleet, std::si
         if (!floor.grid().clear(from, to, m.body.half_extents))
             return false;
         for (const auto *other : obstacles)
-            if (crosses_mover(from, to, m.body.half_extents + clearance, *other))
+            if (swept_box_overlaps(from, to, m.body.half_extents + clearance, *other))
                 return false;
         return true;
     };

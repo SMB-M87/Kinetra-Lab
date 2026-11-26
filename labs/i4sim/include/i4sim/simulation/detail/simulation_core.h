@@ -11,7 +11,7 @@
 #include "i4sim/simulation/detail/traffic.h"
 #include "i4sim/simulation/simulation.h"
 
-#include <kinetra/runtime/timing.h>
+#include <kinetra/simulation/clock.h>
 
 #include <cstdint>
 #include <filesystem>

@@ -8,6 +8,7 @@
 #include "kinetra_lab/inspector_trace.h"
 
 #include <kinetra/simulation/avoidance.h>
+#include <kinetra/simulation/clock.h>
 #include <kinetra/simulation/steering.h>
 
 #include <doctest/doctest.h>

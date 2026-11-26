@@ -65,7 +65,7 @@ bool Goals::parking_conflict(const Mover &m, Vec2 position) const {
             continue;
         Vec2 from = other.body.position;
         for (const auto to : other.route) {
-            if (crosses_mover(from, to, other.body.half_extents + clearance, parked))
+            if (swept_box_overlaps(from, to, other.body.half_extents + clearance, parked))
                 return true;
             from = to;
         }

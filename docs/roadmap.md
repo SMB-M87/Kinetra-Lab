@@ -36,7 +36,7 @@ Nothing agreed next.
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
 - **Shared passing mechanism** · i4sim, demo, dotio, with Kinetra · added 2026-11-21
-  Formerly phase 8 of the quality roadmap. Move the proven, application-free part of predictive passing (conflict prediction, lane agreement, maneuver guard) into Kinetra; i4sim keeps its factory policy. Run i4sim's pressure scenarios against the Kinetra mechanism, and give Demo crowds and Dotio enemies the same mechanism and scenarios. Kinetra's item also decides on one agent-motion interface for its four steering models.
+  Give Demo crowds and Dotio enemies the passing geometry used by i4sim and run equivalent pressure scenarios for each application. Use the [Kinetra passing contract](../external/Kinetra/docs/engine/navigation.md#predictive-passing).
   Depends on: *Stall detection and remedies in i4sim*. Where: [Kinetra roadmap](../external/Kinetra/docs/roadmap.md#later), *Shared passing mechanism*.
 - **Golden tests on Windows** · tests, with Kinetra · added 2026-11-22
   Four Demo crowd characterization cases and i4sim's RVO case still differ on Windows after Kinetra's `atan2` and `asin`, so the Windows presets exclude them; Dotio's fingerprint and the rest hold there. Another function of Windows' C runtime rounds differently, among `sinf`, `cosf`, `expf`, `powf` and `hypot`. Routing it through Kinetra as well would also move the recorded lines on Linux, because glibc's `sinf` and `cosf` are not correctly rounded either, so the lines would be recorded again once.
@@ -53,9 +53,6 @@ Nothing agreed next.
 - **Smoother pursuit in Dotio** · dotio, with Kinetra · added 2026-11-21
   Route following passes waypoints by distance and does not skip those already in sight, so pursuers cut fewer corners than they could.
   Depends on: Kinetra's *Raster route target*. Where: [Dotio open points](../labs/dotio/README.md#open-points).
-- **Timing header out of `runtime/`** · demo, dotio, i4sim, with Kinetra · added 2026-11-21
-  The logic of all three applications includes `<kinetra/runtime/timing.h>`, which is headless; their includes follow when Kinetra moves it.
-  Depends on: Kinetra's *Headless timing outside `runtime/`*.
 - **Capture on Kinetra's frame read-back** · capture, tests, with Kinetra · added 2026-11-21
   The capture tool and the graphics tests call `glReadPixels` themselves.
   Depends on: Kinetra's *Frame read-back on `Runtime`*. Where: [capture tool open points](../tools/capture/README.md#open-points).
@@ -93,7 +90,7 @@ Nothing agreed next.
 Wishes of the user, not yet agreed or shaped. Each needs a design session (`grilling`) before it moves up.
 
 - **Motion lab** · new application · added 2026-11-21
-  For the future, no priority (the user's words): a fourth lab that shows motion and looks polished, for example crowd control. The agent's proposal: classic scenarios (a bottleneck or doorway evacuation, counter-flow in a corridor, crossing flows, agents that swap places across a circle), the steering models side by side in the same scenario, heat maps of density, speed and stalls, trails, and live measurements (throughput, contacts, time to goal). It would also be the visual test bed for the shared passing mechanism and one agent-motion interface.
+  For the future, no priority (the user's words): a fourth lab that shows motion and looks polished, for example crowd control. The agent's proposal: classic scenarios (a bottleneck or doorway evacuation, counter-flow in a corridor, crossing flows, agents that swap places across a circle), the steering models side by side in the same scenario, heat maps of density, speed and stalls, trails, and live measurements (throughput, contacts, time to goal). It would also show how shared passing targets and arrival intent feed each of Kinetra’s four steering solvers.
   Depends on: *Shared passing mechanism*. Uses the [agent inspector](design/2026-11-22-agent-inspector-overlay.md).
 - **Kinetra-Lab on Android** · launcher, release, with Kinetra · added 2026-11-21
   Run the launcher and the applications on an Android phone or tablet. Lab's part: touch-friendly menus and overlays, the blueprints of `i4sim-blueprints/` packaged as assets, and an APK build next to the Windows zip.

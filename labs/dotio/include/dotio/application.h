@@ -8,9 +8,10 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <kinetra/runtime/timing.h>
+#include <kinetra/simulation/clock.h>
 #include <kinetra/view/camera.h>
 #include <kinetra/view/inspector.h>
+#include <kinetra/view/timing.h>
 #include <memory>
 #include <optional>
 #include <string>
