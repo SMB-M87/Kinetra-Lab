@@ -56,9 +56,6 @@ Nothing agreed next.
 - **Smoother pursuit in Dotio** · dotio, with Kinetra · added 2026-11-21
   Route following passes waypoints by distance and does not skip those already in sight, so pursuers cut fewer corners than they could.
   Depends on: Kinetra's *Raster route target*. Where: [Dotio open points](../labs/dotio/README.md#open-points).
-- **Timing header out of `runtime/`** · demo, dotio, i4sim, with Kinetra · added 2026-11-21
-  The logic of all three applications includes `<kinetra/runtime/timing.h>`, which is headless; their includes follow when Kinetra moves it.
-  Depends on: Kinetra's *Headless timing outside `runtime/`*.
 - **Menu rows by label in tests and scripts** · i4sim, capture, tests · added 2026-11-21
   The i4sim graphics suite and the clip and screenshot scripts click debug-menu rows by number, while the tour finds them by label (`kinetra_lab::Session::debug_rows()`). Labels remove numbers that are kept up to date by hand. Related: with LAYERS open the i4sim debug menu is 24 rows high, so in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge.
   Where: [i4sim open points](../labs/i4sim/README.md#open-points), [capture tool open points](../tools/capture/README.md#open-points).

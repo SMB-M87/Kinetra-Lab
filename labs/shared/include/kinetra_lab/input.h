@@ -1,6 +1,6 @@
 #pragma once
 
-#include <kinetra/runtime/engine.h>
+#include <kinetra/view/input.h>
 
 /// Input policy shared by the Lab applications. Headless: it uses only Kinetra's input
 /// types, so the rules are testable without a window.
