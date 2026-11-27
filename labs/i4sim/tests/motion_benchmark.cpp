@@ -21,25 +21,6 @@
 #include <vector>
 
 namespace {
-void prepare_event_directory(const std::filesystem::path &directory,
-                             const std::vector<std::filesystem::path> &blueprints,
-                             const std::vector<std::uint32_t> &seeds) {
-    std::set<std::string> names;
-    for (const auto &blueprint : blueprints) {
-        auto stem = blueprint.stem().string();
-        // Case variants can refer to the same output on Windows and on
-        // case-insensitive volumes. Compare ASCII names consistently.
-        for (char &letter : stem)
-            if (letter >= 'A' && letter <= 'Z')
-                letter = static_cast<char>(letter - 'A' + 'a');
-        if (!names.insert(stem).second)
-            throw std::invalid_argument("Duplicate blueprint stem for event logs: " + blueprint.string());
-    }
-    if (std::set<std::uint32_t>(seeds.begin(), seeds.end()).size() != seeds.size())
-        throw std::invalid_argument("Duplicate seed for event logs");
-    std::filesystem::create_directories(directory);
-}
-
 void write_csv_field(std::ostream &out, std::string_view field) {
     if (field.find_first_of(",\"\r\n") == std::string_view::npos) {
         out << field;
@@ -156,20 +137,28 @@ int main(int argc, char **argv) {
         }
         // MAS is a test fixture since it left the catalog; the CSV keeps its name, so runs
         // stay comparable with the recorded baselines.
+        const bool numbered_logs = blueprints.size() > 1;
         if (blueprints.empty())
             blueprints = {test::fixture_blueprint("MAS-demonstrator"),
                           default_blueprint_directory() / "3840x2400.json",
                           default_blueprint_directory() / "8640x4800.json"};
         if (seeds.empty())
             seeds = {42u, 915839214u};
-        if (event_directory)
-            prepare_event_directory(*event_directory, blueprints, seeds);
+        if (event_directory) {
+            if (std::set<std::uint32_t>(seeds.begin(), seeds.end()).size() != seeds.size())
+                throw std::invalid_argument("Duplicate seed for event logs");
+            std::filesystem::create_directories(*event_directory);
+        }
         std::cout
             << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
                "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,contact_episodes,"
                "elapsed_ms\n";
-        for (const auto &file : blueprints) {
+        for (std::size_t index = 0; index < blueprints.size(); ++index) {
+            const auto &file = blueprints[index];
             const auto name = file.stem().string();
+            // Disjoint numeric prefixes separate explicit inputs even when
+            // the volume treats some distinct Unicode stems as equivalent.
+            const auto log_stem = numbered_logs ? std::to_string(index + 1) + '-' + name : name;
             for (auto seed : seeds) {
                 Simulation simulation(load_blueprint(file), seed);
                 auto settings = simulation.motion_settings();
@@ -200,7 +189,7 @@ int main(int argc, char **argv) {
                                          .count();
                 const auto events = simulation.events();
                 if (event_directory)
-                    write_events(*event_directory / (name + '-' + std::to_string(seed) + ".csv"), events);
+                    write_events(*event_directory / (log_stem + '-' + std::to_string(seed) + ".csv"), events);
                 write_csv_field(std::cout, name);
                 std::cout << ',' << seed << ',' << simulation.completed() << ',' << simulation.collisions()
                           << ',' << simulation.contact_ticks() << ',' << acceleration_change << ','

@@ -1,0 +1,25 @@
+file(MAKE_DIRECTORY "${TEST_DIR}/before" "${TEST_DIR}/after" "${TEST_DIR}/events")
+set(before "${TEST_DIR}/before/${FIRST_STEM}.json")
+set(after "${TEST_DIR}/after/${SECOND_STEM}.json")
+file(COPY_FILE "${FIXTURE}" "${before}")
+file(COPY_FILE "${FIXTURE}" "${after}")
+
+set(first "${TEST_DIR}/events/1-${FIRST_STEM}-42.csv")
+set(second "${TEST_DIR}/events/2-${SECOND_STEM}-42.csv")
+set(existing "${TEST_DIR}/events/${FIRST_STEM}-42.csv")
+file(REMOVE "${first}" "${second}")
+file(WRITE "${existing}" "preserved")
+execute_process(COMMAND "${BENCHMARK}"
+    --blueprint "${before}" --blueprint "${after}"
+    --seed 42 --ticks 1 --events "${TEST_DIR}/events"
+    RESULT_VARIABLE result ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Benchmark failed: ${error}")
+endif()
+if(NOT EXISTS "${first}" OR NOT EXISTS "${second}")
+    message(FATAL_ERROR "Expected both numbered event logs: ${first} and ${second}")
+endif()
+file(READ "${existing}" original)
+if(NOT original STREQUAL "preserved")
+    message(FATAL_ERROR "The benchmark overwrote an existing unnumbered event log")
+endif()

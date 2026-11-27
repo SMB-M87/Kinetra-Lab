@@ -90,15 +90,25 @@ if(BUILD_TESTING)
     add_executable(kinetra_i4sim_motion_benchmark tests/motion_benchmark.cpp)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_testing)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
-    add_test(NAME kinetra_i4sim_benchmark_duplicate_blueprint_stems COMMAND kinetra_i4sim_motion_benchmark
-        --blueprint before/floor.json --blueprint after/Floor.json --seed 42 --ticks 1
-        --events "${CMAKE_CURRENT_BINARY_DIR}/benchmark-events")
-    set_tests_properties(kinetra_i4sim_benchmark_duplicate_blueprint_stems PROPERTIES
-        PASS_REGULAR_EXPRESSION "Duplicate blueprint stem for event logs")
+    add_test(NAME kinetra_i4sim_benchmark_duplicate_blueprint_stems COMMAND ${CMAKE_COMMAND}
+        "-DBENCHMARK=$<TARGET_FILE:kinetra_i4sim_motion_benchmark>"
+        "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/MAS-demonstrator.json"
+        "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/benchmark-same-stem"
+        -DFIRST_STEM=floor -DSECOND_STEM=floor
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_log_names.cmake")
     add_test(NAME kinetra_i4sim_benchmark_duplicate_seeds COMMAND kinetra_i4sim_motion_benchmark
         --seed 42 --seed 42 --ticks 1 --events "${CMAKE_CURRENT_BINARY_DIR}/benchmark-events")
     set_tests_properties(kinetra_i4sim_benchmark_duplicate_seeds PROPERTIES
         PASS_REGULAR_EXPRESSION "Duplicate seed for event logs")
+    if(UNIX)
+        # Exercise UTF-8 arguments on hosts where the CLI accepts them directly.
+        add_test(NAME kinetra_i4sim_benchmark_unicode_log_names COMMAND ${CMAKE_COMMAND}
+            "-DBENCHMARK=$<TARGET_FILE:kinetra_i4sim_motion_benchmark>"
+            "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/MAS-demonstrator.json"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/benchmark-unicode"
+            -DFIRST_STEM=Étage -DSECOND_STEM=étage
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_log_names.cmake")
+    endif()
     kinetra_add_doctest(kinetra_i4sim_tests PREFIX kinetra_i4sim
         SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_testing nlohmann_json::nlohmann_json)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)

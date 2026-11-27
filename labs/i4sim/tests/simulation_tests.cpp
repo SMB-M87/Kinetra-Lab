@@ -602,6 +602,7 @@ TEST_CASE("stall diagnosis uses stationary obstacles and meaningful direction re
     StallReason expected = StallReason::stationary_blocker;
     bool coordinated = false;
     bool change_axis = false;
+    bool straddle_anchor = false;
     SUBCASE("a neighbor blocks the swept next leg") {
     }
     SUBCASE("repeated excursions without progress") {
@@ -612,6 +613,11 @@ TEST_CASE("stall diagnosis uses stationary obstacles and meaningful direction re
         neighbor.body.position.y = 300;
         expected = StallReason::oscillating;
         change_axis = true;
+    }
+    SUBCASE("oscillation spans an excursion anchor") {
+        neighbor.body.position.y = 300;
+        expected = StallReason::oscillating;
+        straddle_anchor = true;
     }
     SUBCASE("a controlled hold is not a stall") {
         mover.coordination.exit_waiting = true;
@@ -625,6 +631,8 @@ TEST_CASE("stall diagnosis uses stationary obstacles and meaningful direction re
         fleet.progress[0].no_progress = tick;
         if (change_axis && tick > 1)
             mover.body.position = {103, tick % 2 ? 105.f : 100.f};
+        else if (straddle_anchor && tick > 1)
+            mover.body.position.x = tick == 2 ? 102.f : (tick % 2 ? 103.5f : 100.5f);
         else if (expected == StallReason::oscillating)
             mover.body.position.x = tick % 2 ? 100.f : 105.f;
         else if (expected == StallReason::unknown)

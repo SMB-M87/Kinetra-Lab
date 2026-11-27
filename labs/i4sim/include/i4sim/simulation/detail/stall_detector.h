@@ -23,6 +23,7 @@ class StallDetector {
         Vec2 goal{};
         Vec2 anchor{};
         Vec2 direction{};
+        float forward_peak{};
         unsigned observations{};
         unsigned last_no_progress{};
         unsigned reversals{};

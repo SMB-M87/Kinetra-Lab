@@ -1,15 +1,14 @@
 #include "i4sim/simulation/detail/stall_detector.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace i4sim::detail {
 using namespace kinetra;
 namespace {
 /// A larger excursion than the small adjustments of stationary steering.
-constexpr float reversal_distance_mm = 2;
-/// Require an angle greater than 120 degrees between successive excursions.
-constexpr float reversal_cosine = -0.5f;
+constexpr float excursion_distance_mm = 2;
 constexpr unsigned oscillation_reversals = 2;
 constexpr float opposing_cosine = -0.8f;
 
@@ -72,15 +71,34 @@ void record(EventLog &log, EventKind kind, std::size_t mover, std::uint64_t tick
 
 void StallDetector::Track::observe_position(Vec2 position) {
     const auto delta = position - anchor;
-    if (dot(delta, delta) < reversal_distance_mm * reversal_distance_mm)
+    constexpr float excursion_squared = excursion_distance_mm * excursion_distance_mm;
+    if (direction == Vec2{}) {
+        const float squared = dot(delta, delta);
+        if (squared >= excursion_squared) {
+            forward_peak = std::sqrt(squared);
+            direction = delta / forward_peak;
+        }
         return;
-    // Compare successive excursions so the detected axis follows the mover's
-    // motion even when it starts oscillating perpendicular to its initial drift.
-    const auto excursion = normalized(delta);
-    if (dot(direction, excursion) < reversal_cosine)
+    }
+    const float forward = dot(delta, direction);
+    forward_peak = std::max(forward_peak, forward);
+    // Measure backtracking from the turning point, including motion that
+    // straddles the anchor without getting far from it on either side.
+    if (forward_peak - forward >= excursion_distance_mm) {
         ++reversals;
-    direction = excursion;
-    anchor = position;
+        anchor = position;
+        direction = -direction;
+        forward_peak = 0;
+        return;
+    }
+    // Keep the lateral reference independent of small advances along the
+    // current axis, so a sustained sideways excursion can establish a new axis.
+    const auto sideways = delta - direction * forward;
+    if (dot(sideways, sideways) >= excursion_squared) {
+        anchor = position;
+        direction = normalized(sideways);
+        forward_peak = 0;
+    }
 }
 
 void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
