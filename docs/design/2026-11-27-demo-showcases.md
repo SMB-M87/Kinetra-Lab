@@ -157,6 +157,7 @@ Agent review, round 1 on `ad083a3` (conclusion *Fix first*):
 - `cmake --build --preset graphics` and `ctest --preset graphics -R 'kinetra_demo_inspector|kinetra_demo_graphics|kinetra_smoke:demo|kinetra_menu:|kinetra_capture'`: 50 tests passed, the capture smoke and the Doorway inspector trace among them.
 - `tools/capture/capture_media.sh build-graphics launcher launcher-demo-scenarios demo-<scenario>-clip…`: every refreshed capture looked at. A measurement confirms that the shared-turn clips last until the groups turn back (Doorway 8.07 s, Corridor 13.46 s, Crossing 10.81 s, Circle 9.54 s, Bottleneck 13.54 s).
 - `clang-format` on every changed source; `python3 external/Kinetra/tools/check_docs.py`; `python3 external/Kinetra/tools/check_copies.py` with the old scenario list, `beyond the last wall`, `alternating`, `0.8 MB` and `twenty (300)` as terms: no copy left.
+- Review round 1 (after merging `main` at `2242e49`): `ctest --preset dev -LE soak` 366 passed, `ctest --preset graphics -R 'kinetra_demo|kinetra_smoke|kinetra_menu:|kinetra_capture' -LE soak` 142 passed; the shared-turn clips re-rendered unchanged.
 - Full level: the pull request's CI.
 
 ## Pull request
