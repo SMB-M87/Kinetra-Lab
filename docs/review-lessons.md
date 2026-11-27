@@ -39,6 +39,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
+- **When a merge moves the Kinetra pointer after the measurements, record the new pointer and the engine changes its range brings in, and measure again what CI does not run** · added 2026-11-27 · source: #146, #150
+  Lab `main` moved the stack's pointer across Kinetra #69's steering change after steps 1 to 3 had measured. Step 3's "gives the base's numbers exactly" then described a pointer the pull request did not record, and measured again, step 1's gate went from a product gain to a product loss under Improved, which the user's decision rested on. This follows the #147 lesson on results recorded later.
+
 ## Applications
 
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
@@ -55,6 +58,12 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 - **Test a temporary departure while its product is still in a producer queue** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Checking only the product's optional producer can miss a lost reservation. Verify the actual queue, including order, and exercise the product reaching the front while the mover is away.
+
+- **When a policy gates a transition, gate every code path that performs that transition, not only the one the replay showed** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  DEPARTURE CHECK gated the head-of-queue departure in `approach`, but `schedule()` performs the same departure for a rescheduled product that heads an empty queue at once. Search for every caller that sets the goal (`goals.set`) before choosing where the gate goes.
+
+- **Check a grid id before indexing per-cell data with it** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  `WeightedGrid::cell` returns `-1` off the grid, and `FloorPlan::processing_cell` indexes without a check. New code that computes an id from a mover's position must check it, as the constructor does, or use an accessor that does.
 
 - **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
   Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
@@ -83,6 +92,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
   Lab has a `windows` job that Kinetra does not. #98 copied "and so does each install step" from Kinetra's header, true there, while Lab's `setup-msys2` step had no time limit.
 
 ## Media and tools
+
+- **After merging `main` into a pull request that commits captures, render them again when the merge moved the Kinetra pointer past engine or runtime sources** · added 2026-11-27 · source: [#153](https://github.com/SMB-M87/Kinetra-Lab/pull/153)
+  A capture shows the pointer it was rendered with. #153's `demo-preview` and `i4sim-preview` were rendered at `da98dfa`; #142 then moved `main` to `9841a50`, which changes steering and the settings panel. Re-render the pull request's captures after the merge, and commit what changed or record that they came out byte-identical.
 
 - **When a label moves, search for the label alone with `git grep -n -i` as well as the phrases given to `check_copies.py`, which reads only Markdown and YAML** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
   #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order.

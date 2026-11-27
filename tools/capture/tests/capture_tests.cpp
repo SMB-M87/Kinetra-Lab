@@ -196,6 +196,7 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "launcher-difficulty",
                                          "demo",
                                          "demo-debug",
+                                         "demo-preview",
                                          "demo-clip",
                                          "demo-debug-clip",
                                          "demo-gravity-clip",
@@ -208,6 +209,7 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "dotio-debug-clip",
                                          "i4sim",
                                          "i4sim-debug",
+                                         "i4sim-preview",
                                          "i4sim-clip",
                                          "i4sim-debug-clip",
                                          "i4sim-showcase-junction-crossing-clip",
@@ -221,6 +223,23 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "ui-debug-menu",
                                          "ui-inspector",
                                          "ui-debug-layers"});
+}
+
+TEST_CASE("a launcher preview is a screenshot at a whole multiple of the launcher's still") {
+    // capture_media.sh scales each preview down to the 320 x 180 still that EmbedPreviews.cmake
+    // embeds; a whole factor keeps every still pixel an average of the same number of pixels.
+    int previews = 0;
+    for (const auto &scene : capture::scenes()) {
+        if (!scene.name.ends_with("-preview"))
+            continue;
+        CAPTURE(scene.name);
+        ++previews;
+        CHECK(scene.kind == capture::SceneKind::screenshot);
+        CHECK(scene.gallery == capture::Gallery::lab);
+        CHECK(scene.width % 320 == 0);
+        CHECK(scene.width / 320 * 180 == scene.height);
+    }
+    CHECK(previews == 2);
 }
 
 TEST_CASE("select_scenes picks named scenes in order, all without names, and rejects unknown names") {
@@ -329,6 +348,15 @@ TEST_CASE("driving_movers counts the captured floor's movers step by step, the s
     CHECK_THROWS_AS(capture::driving_movers(captured_floor(), -1), std::invalid_argument);
     CHECK_THROWS_AS(capture::driving_movers(captured_floor().parent_path() / "no-such-floor.json", 1),
                     std::runtime_error);
+}
+
+TEST_CASE("the i4sim preview floor loads and sets movers off within the minute the preview searches") {
+    // The preview shows the moment most movers drive; a floor whose movers stay parked
+    // would show a still floor.
+    const auto floor = i4sim::default_blueprint_directory() / capture::i4sim_preview_blueprint;
+    const auto driving = capture::driving_movers(
+        floor, static_cast<int>(capture::i4sim_preview_search_seconds / capture::Stage::step_seconds));
+    CHECK(*std::max_element(driving.begin(), driving.end()) > 0);
 }
 
 TEST_CASE("the Dotio debug clicks find their rows and turn on every layer but not the ghost camera") {

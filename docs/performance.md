@@ -80,7 +80,7 @@ The large layout is 86% of the run after hotspot 2 (88% in the baseline), so the
 | Where | Default | With passing | Why |
 | --- | --- | --- | --- |
 | `MotionStep::choose_acceleration` | 39% | 25% | `kinetra::priority_steer` (26% and 16%), which tests only the steps of a neighbor that can overlap each step of the mover; it tested all (horizon + 1)² = 1,089 pairs, 48% and 31%, until hotspot 4. `kinetra::steer` 10% and 7% |
-| `PredictivePassing::form_plans` ([predictive_passing.cpp](../labs/i4sim/src/simulation/predictive_passing.cpp)) | – | 30% | One `SpatialGrid::query` per eligible mover per tick, over a square that grows with the passing horizon: 25% in the query. Before hotspot 3 the query and its sort were 32% of a longer run |
+| `PredictivePassing::form_plans` (since then `kinetra::PassingCoordinator::step`, which i4sim's [predictive_passing.cpp](../labs/i4sim/src/simulation/predictive_passing.cpp) calls and which forms the plans) | – | 30% | One `SpatialGrid::query` per eligible mover per tick, over a square that grows with the passing horizon: 25% in the query. Before hotspot 3 the query and its sort were 32% of a longer run |
 | `MotionStep::surroundings` | 18% | 15% | `SpatialGrid::query` per moving mover (11% and 10%) |
 | `MotionStep::resolve_contacts` ([motion_step.cpp](../labs/i4sim/src/simulation/motion_step.cpp)) | 15% | 11% | It tests every pair of movers each tick, 5,565 pairs on `8640x4800`, on bounds computed once per mover; before hotspot 2 it computed both bounds again for each pair, 46% and 32% of the run. About a third of what is left is the distance from every mover to every border |
 | `Production::update` | 13% | 8% | Product scheduling |
