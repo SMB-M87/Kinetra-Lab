@@ -3,6 +3,8 @@
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/route.h"
 #include "kinetra_lab/under_bodies.h"
+#include <kinetra/runtime/hud_text.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -247,10 +249,11 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
         else if (overlays.target_ups != real_time_ups)
             text += " UPS " + std::to_string(std::llround(overlays.ups)) + "/" +
                     std::to_string(overlays.target_ups);
-        const float width = std::min(runtime.camera.viewport.x, 20.f + float(text.size()) * 9);
+        const float width =
+            std::min(runtime.camera.viewport.x, 2 * hud::margin + float(text.size()) * 6 * hud::text_scale);
         runtime.box(runtime.camera.screen_to_world({width / 2, runtime.camera.viewport.y - 15}),
                     Vec2{width / 2, 13} / runtime.camera.pixels_per_unit, 0, {0.025f, 0.035f, 0.06f});
-        draw_text(runtime, text, {10, runtime.camera.viewport.y - 20}, 1.5f, {1, 1, 0});
+        hud::draw_line(runtime, text, 1, hud::statistics_color);
     }
     if (overlays.menu)
         overlays.menu->draw(runtime, overlays.entries);

@@ -2,7 +2,7 @@
 
 #include "i4sim/blueprint/blueprint.h"
 
-#include <kinetra/runtime/bitmap_text.h>
+#include <kinetra/runtime/hud_text.h>
 
 #include <algorithm>
 #include <stdexcept>
@@ -49,7 +49,7 @@ std::vector<LaunchChoice> BlueprintScreen::choices() const {
     return result;
 }
 
-ScreenEvent BlueprintScreen::update(const Input &input, Vec2 viewport) {
+ScreenEvent BlueprintScreen::update(const Input &input, Vec2 viewport, std::string_view message) {
     const bool leave = input.hit(Key::escape) || input.hit(Key::m);
     if (leave && menu_ && menu_->configuring()) {
         // On the SHOWCASE page, Escape and M go back to the blueprint list, which
@@ -64,7 +64,10 @@ ScreenEvent BlueprintScreen::update(const Input &input, Vec2 viewport) {
         return {ScreenAction::leave, {}};
     if (!menu_)
         return {input.hit(Key::enter) ? ScreenAction::rediscover : ScreenAction::none, {}};
-    if (const auto choice = menu_->update(input, viewport)) {
+    const auto choice = menu_->update(input, viewport, message);
+    if (menu_->error_closed())
+        return {ScreenAction::dismiss, {}};
+    if (choice) {
         // The SHOWCASE row, when there is one, precedes the blueprints; its configuration
         // is the scene.
         const bool showcase = !showcase_files_.empty();
@@ -83,15 +86,14 @@ void BlueprintScreen::draw(Runtime &runtime, std::string_view message) const {
         return;
     }
     runtime.begin();
-    draw_text(runtime, "I4SIM LOAD ERROR - ESC TO LAUNCHER", {12, 12}, 1, {1, 0.4f, 0.3f});
-    draw_text(runtime, "ENTER RETRIES BLUEPRINT DISCOVERY", {12, 30}, 1, {1, 1, 1});
-    // The message can hold a long path: wrap it at the viewport width, six pixels per
-    // character, and stop at the bottom edge.
-    const auto columns = std::size_t(std::max(1.f, (runtime.camera.viewport.x - 24) / 6));
-    float y = 50;
-    for (std::size_t offset = 0; offset < message.size() && y + 8 < runtime.camera.viewport.y;
-         offset += columns, y += 12)
-        draw_text(runtime, message.substr(offset, columns), {12, y}, 1, {1, 0.8f, 0.7f});
+    const auto top = [](int row) { return hud::margin + static_cast<float>(row) * hud::line_height; };
+    draw_text(runtime, "I4SIM LOAD ERROR - ESC TO LAUNCHER", {hud::margin, top(0)}, hud::text_scale,
+              hud::error_color);
+    draw_text(runtime, "ENTER RETRIES BLUEPRINT DISCOVERY", {hud::margin, top(1)}, hud::text_scale,
+              {1, 1, 1});
+    // The message sits at the bottom, as below the menu when blueprints load, and may use
+    // every line below the two above; it can hold a long path.
+    hud::draw_error(runtime, message, 1, hud::lines_below(runtime.camera.viewport, top(2)));
     runtime.end();
 }
 } // namespace i4sim

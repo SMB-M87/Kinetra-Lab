@@ -1,6 +1,6 @@
 #pragma once
-// The screen-space text of an i4sim frame: statistics, inspection, scene description and
-// messages, and the RUN button of a blueprint that awaits its start.
+// The screen-space text of an i4sim frame: statistics, messages, inspection and scene
+// description, and the RUN button of a blueprint that awaits its start.
 #include "i4sim/simulation/simulation.h"
 
 #include <kinetra/runtime/engine.h>
@@ -27,10 +27,28 @@ struct HudContent {
     double measured_ups{};
 };
 
-/// Draws the HUD inside a frame that the caller began, in logical screen pixels: the
-/// statistics on the two bottom lines, the inspection of the selection above them, the
-/// description above that, and the message below the toolbar. Reads the simulation only.
-/// Throws std::out_of_range for a selected index outside its list.
+/// HUD lines of the text above the statistics, counted from the bottom of the viewport as
+/// kinetra::hud::line_top() counts them (1 is the lowest).
+struct HudLines {
+    /// Lowest line of the message, directly above the two statistics lines.
+    int message{};
+    /// The inspection of the selected producer, directly above the message.
+    int inspection{};
+    /// The scene description, one empty line above the inspection.
+    int description{};
+};
+
+/// Where the HUD puts its text when the message takes `message_lines` lines (zero for none):
+/// the statistics keep lines 1 and 2 even when hidden, the message comes next, and the
+/// inspection and the description move up by its lines. Throws std::invalid_argument for a
+/// negative count.
+HudLines hud_lines(int message_lines);
+
+/// Draws the HUD inside a frame that the caller began, in logical screen pixels, in the
+/// shared HUD style (kinetra/runtime/hud_text.h): the statistics on the two bottom lines, the
+/// message in red directly above them, wrapped to the window and at most four lines, then the
+/// inspection of the selection and the description, placed by hud_lines(). Reads the
+/// simulation only. Throws std::out_of_range for a selected index outside its list.
 void draw_hud(kinetra::Runtime &runtime, const Simulation &simulation, const HudContent &content);
 
 /// Draws the RUN button in `box`, screen pixels from start_button(), inside a frame that

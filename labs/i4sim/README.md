@@ -103,6 +103,8 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 
 Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. A PLANNER change replans ordinary routes. MAKE WAY retains its checked routes until return or cancellation. Turning passing off ends plans as `disabled`. Turning MAKE WAY off cancels relief requests and returns the yielding movers when their parking routes are clear. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
 
+Messages use Kinetra's [HUD style](../../external/Kinetra/docs/engine/launcher-overlays.md#hud-text-and-errors): red, in the font and size of the statistics, directly above the two statistics lines, which keep their place when STATISTICS is off. A long message wraps over up to four lines and pushes the producer inspection and the scene description up. On the blueprint menu a load error shows in an error panel that keeps clear of LAUNCHER and EXIT, as high as it needs; only a message too long for the space above them grows over the whole window, and the wheel scrolls one longer than the window. Its X closes it. Without a catalog, the load-error screen shows the error on its bottom lines.
+
 The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space).
 
 The top-right inspector shows the selected mover's state, settings, goal, route, speed, steering forces and active passing plan. Click another mover to switch. Inspecting a producer, setting a goal and using the debug menu's RUNNING row all work while the inspector is open. The frame-time graph moves below it.
@@ -208,8 +210,8 @@ Sources and private headers, in [src/](src/) and the `detail/` folders:
 | [flow_metrics.cpp](src/simulation/flow_metrics.cpp) | `FlowMetrics` |
 | [controller.cpp](src/controller.cpp) | `FactoryController` |
 | [session.cpp](src/presentation/session.cpp) | `FactorySession`: the frame order, the settings overlay and the debug menu |
-| [blueprint_screen.cpp](src/presentation/blueprint_screen.cpp) | `BlueprintScreen`: the catalog on Kinetra's `LaunchMenu`, with the SHOWCASE page and the load-error screen |
-| [world_view.cpp](src/presentation/world_view.cpp), [hud.cpp](src/presentation/hud.cpp) | Drawing in the world, and the screen-space text |
+| [blueprint_screen.cpp](src/presentation/blueprint_screen.cpp) | `BlueprintScreen`: the catalog on Kinetra's `LaunchMenu`, with the SHOWCASE page, the error panel over it and the load-error screen |
+| [world_view.cpp](src/presentation/world_view.cpp), [hud.cpp](src/presentation/hud.cpp) | Drawing in the world, and the screen-space text in Kinetra's HUD style (`hud_lines` places it) |
 
 The headers in `detail/` are private. Callers, tests included, use the facade, so a component can change without touching them.
 
@@ -387,7 +389,7 @@ Over the 50,000-tick benchmark with MAKE WAY, on Kinetra's final rule, it lowers
 | Add a key | `FactoryController::handle_keys`; the help lines in `session.cpp`; the [controls](#controls) table | A case in `controller_tests.cpp` |
 | Add a debug-menu entry | The `add_*_entries` function of its section in `controller.cpp`; keep a row with `[-] [+]` within 21 characters | The section-listing cases in `controller_tests.cpp`. The graphics test clicks rows by number (`menu_row` in `presentation_tests.cpp`), so a new row above a clicked one moves those numbers |
 | Add a debug layer or part | A `Layer` value (and `parent_layer` for a part), a row in `layer_rows` in `controller.cpp`, the drawing in `world_view.cpp` and its color in `layer_color`; a key in `handle_keys` for a top-level layer | Controller cases for the rows and `ViewLayers::shows`; the graphics suite for the drawing |
-| Change what the HUD shows | `hud.cpp` | The graphics suite compares the statistics lines |
+| Change what the HUD shows | `hud.cpp`; its scale, line height and colors are Kinetra's `hud_text.h` | The graphics suite compares the statistics lines and checks `hud_lines` |
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
 | Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases. When a test sets up a small scene that shows the policy at work, also turn that scene into a [showcase scene](blueprints/README.md#showcase-scenes): its file in `blueprints/showcase/`, its setup in the showcase cases of `simulation_tests.cpp`, and its clip in the capture tool, the root README and the [media guide](../../docs/media/README.md) |

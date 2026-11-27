@@ -1,11 +1,12 @@
-// Session tests for blueprint-screen messages, the mover inspector, and the rendered
-// controls and traffic overlays, and world-view tests for routes, detection ranges and
-// seek arrows drawn under the movers they cross, and for a route that starts over its
-// mover. CTest labels the suite `graphics`.
+// Session tests for blueprint-screen messages and their error panel, the HUD's line layout, the mover
+// inspector, and the rendered controls and traffic overlays, and world-view tests for routes,
+// detection ranges and seek arrows drawn under the movers they cross, and for a route that
+// starts over its mover. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "i4sim/blueprint/blueprint.h"
 #include "i4sim/controller.h"
+#include "i4sim/presentation/detail/hud.h"
 #include "i4sim/presentation/detail/world_view.h"
 #include "i4sim/presentation/session.h"
 #include "i4sim/testing/showcase.h"
@@ -14,6 +15,7 @@
 
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/debug_view.h>
+#include <kinetra/runtime/error_view.h>
 #include <kinetra/runtime/launcher.h>
 #include <kinetra/runtime/overlay_style.h>
 #include <kinetra/runtime/settings_view.h>
@@ -32,6 +34,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -129,6 +132,57 @@ Vec2 blueprint_footer(Vec2 viewport, FooterButton button, bool showcase_page) {
     return mirror.layout(viewport).footer_center(*x);
 }
 } // namespace
+
+TEST_CASE("the HUD message sits directly above the statistics and pushes the text above it up") {
+    const auto none = i4sim::hud_lines(0);
+    CHECK_MESSAGE(none.message == 3, "lines 1 and 2 stay the statistics', shown or hidden");
+    CHECK(none.inspection == 3);
+    CHECK(none.description == 5);
+    const auto two = i4sim::hud_lines(2);
+    CHECK(two.message == 3);
+    CHECK(two.inspection == 5);
+    CHECK(two.description == 7);
+    CHECK_THROWS_AS(i4sim::hud_lines(-1), std::invalid_argument);
+}
+
+TEST_CASE("a load error shows in a panel over the blueprint menu that its X closes") {
+    // A folder of its own per run, as the catalog-recovery case below makes.
+    const auto directory = std::filesystem::temp_directory_path() /
+                           ("i4sim-error-panel-test-" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(directory);
+    const auto broken = directory / "broken.json";
+    std::ofstream(broken) << "{ \"name\": ";
+    auto session = i4sim::create_session(42, i4sim::default_blueprint_directory(), broken);
+    Camera2D camera;
+    camera.viewport = {1280, 720};
+    session->advance(0, {}, camera);
+    const std::string prefix = "Loadscreen | ";
+    REQUIRE(session->status().starts_with(prefix));
+    const auto message = session->status().substr(prefix.size());
+    // The blueprint menu: a SHOWCASE row, then one row per blueprint, without previews.
+    const auto rows = i4sim::discover_blueprints(i4sim::default_blueprint_directory()).size() + 1;
+    const auto footer = MenuLayout(camera.viewport, rows).footer_bounds();
+    CHECK_FALSE(error_panel::lines(message, camera.viewport, footer).empty());
+
+    const auto panel = error_panel::bounds(message, camera.viewport, footer);
+    CHECK_MESSAGE(panel.max.y <= footer.min.y, "a load error leaves LAUNCHER and EXIT free");
+    // Only a click off the X: no control lies below the panel's center, so this checks that
+    // the message stays. Kinetra's launcher tests cover the panel's capture.
+    Input on_panel;
+    on_panel.clicked = true;
+    on_panel.mouse = {(panel.min.x + panel.max.x) / 2, (panel.min.y + panel.max.y) / 2};
+    session->advance(0, on_panel, camera);
+    CHECK_MESSAGE(session->status() == prefix + message, "a click on the text keeps the message");
+
+    const auto close = error_panel::close_bounds(message, camera.viewport, footer);
+    Input on_close;
+    on_close.clicked = true;
+    on_close.mouse = (close.min + close.max) / 2;
+    session->advance(0, on_close, camera);
+    CHECK(session->status() == "Loadscreen");
+    std::filesystem::remove_all(directory);
+}
 
 TEST_CASE("a rejected goal expires on the blueprint screen") {
     auto session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
