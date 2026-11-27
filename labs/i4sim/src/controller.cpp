@@ -479,6 +479,7 @@ void FactoryController::add_traffic_entries(std::vector<kinetra::DebugEntry> &en
         passing.value = [] { return std::string("LEGACY"); };
     entries.push_back(std::move(passing));
     entries.push_back(motion_check("MAKE WAY", &MotionSettings::make_way));
+    entries.push_back(motion_check("DEPARTURE CHECK", &MotionSettings::departure_check));
 }
 
 std::vector<kinetra::DebugEntry> FactoryController::menu(const LayerColors &colors) {
