@@ -5,8 +5,8 @@ namespace capture {
 class Stage;
 
 /// The launcher menu with the pointer over each entry, DEMO, its configuration page with the
-/// pointer over the scenarios, the start of DOORWAY, and the debug menu's SCENARIOS back to
-/// the configuration page with DOORWAY selected.
+/// pointer over the scenarios, the start of DOORWAY, SCENARIOS in the settings panel back to
+/// the configuration page with DOORWAY selected, and the page's LAUNCHER back to the list.
 void ui_launcher(Stage &stage);
 /// In Doorway: Ctrl opens the settings panel, STATISTICS goes off and on, SIM CONTROLS and
 /// DEBUG CONTROLS open their help and close it, and RESUME closes the panel.

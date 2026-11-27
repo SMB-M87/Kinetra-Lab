@@ -216,9 +216,11 @@ void demo_chapter(Tour &tour) {
     tour.click_setting(SettingsRow::debug_controls);
     tour.wait(1.8);
     tour.click_setting(SettingsRow::debug_controls);
-    tour.caption("LAUNCHER RETURNS TO THE MENU");
+    tour.caption("SCENARIOS RETURNS TO THE SCENARIO PAGE, LAUNCHER TO THE MENU");
     tour.pause(0.5, 0.8);
-    tour.click_settings_action(SettingsOverlay::launcher_x);
+    tour.click_settings_action(SettingsOverlay::leave_x);
+    tour.wait(0.9);
+    tour.click_menu_footer(kinetra::FooterButton::launcher, demo::scenario_labels().size());
     tour.wait(0.9);
 }
 
@@ -336,10 +338,12 @@ void dotio_chapter(Tour &tour) {
     tour.toggle_debug_menu();
     dotio_fight(tour, 3, true);
 
-    tour.caption("BACK TO THE LAUNCHER");
+    tour.caption("DIFFICULTY, THEN BACK TO THE LAUNCHER");
     tour.open_settings(dotio_sim_lines, dotio_debug_lines);
     tour.pause(0.5, 0.8);
-    tour.click_settings_action(SettingsOverlay::launcher_x);
+    tour.click_settings_action(SettingsOverlay::leave_x);
+    tour.wait(0.9);
+    tour.click_menu_footer(kinetra::FooterButton::launcher, difficulty_rows);
     tour.wait(0.9);
 }
 
@@ -374,15 +378,19 @@ void i4sim_chapter(Tour &tour) {
     tour.caption("H CROSSING: FOUR MOVERS SWAP CORNERS WITHOUT PATH PLANNING");
     tour.tap({Key::space});
     tour.wait(11.0);
-    tour.toggle_debug_menu();
+    tour.caption("BLUEPRINTS IN THE SETTINGS RETURNS TO THE CATALOG");
+    tour.open_settings(i4sim_sim_lines, i4sim_debug_lines);
     tour.pause(0.6, 0.9);
-    tour.caption("BLUEPRINTS RETURNS TO THE CATALOG");
-    tour.click_row("BLUEPRINTS");
+    tour.click_settings_action(SettingsOverlay::leave_x);
     tour.wait(1.2);
 
     tour.caption("A FLOOR OF 4320 BY 2400 MM: 29 MOVERS, 18 PRODUCERS");
     tour.click_menu_page_row(row_of(floors, floor_blueprint, 1), catalog_rows);
-    tour.wait(1.8);
+    tour.wait(1.2);
+    // The floor's MOTION and SIMULATION rows come later; BLUEPRINTS is no longer in the debug
+    // menu, so the menu is opened here.
+    tour.toggle_debug_menu();
+    tour.wait(0.6);
     tour.caption("A CLICK INSPECTS A MOVER, SHIFT + CLICK GIVES IT A GOAL");
     // The floor loads paused, so its movers still stand where the blueprint puts them.
     const auto blueprint = i4sim::load_blueprint(directory / floor_blueprint);
@@ -453,13 +461,17 @@ void i4sim_chapter(Tour &tour) {
     tour.click_settings_action(SettingsOverlay::resume_x);
     tour.wait(4.5);
 
-    tour.caption("LAUNCHER, AND EXIT");
+    tour.caption("BLUEPRINTS, LAUNCHER AND EXIT");
     tour.open_settings(i4sim_sim_lines, i4sim_debug_lines);
     tour.pause(0.5, 0.8);
-    tour.click_settings_action(SettingsOverlay::launcher_x);
+    tour.click_settings_action(SettingsOverlay::leave_x);
+    tour.wait(1.0);
+    tour.click_menu_footer(kinetra::FooterButton::launcher, catalog_rows);
     tour.wait(1.0);
     tour.caption("");
-    tour.move_to(tour.menu_layout(launcher_rows).footer_center() + Vec2{0, 2});
+    tour.move_to(
+        tour.menu_layout(launcher_rows).footer_center(*tour.menu().footer_x(kinetra::FooterButton::exit)) +
+        Vec2{0, 2});
     tour.pause(0.5, 0.8);
     tour.click();
 }

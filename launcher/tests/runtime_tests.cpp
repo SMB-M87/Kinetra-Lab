@@ -13,10 +13,12 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -261,11 +263,11 @@ TEST_CASE("settings pause toggle and navigate in demo and dotio") {
         CHECK_MESSAGE(session->request() == SessionRequest::none, "M returns to the menu");
         session->advance(0, settings_key(), runtime.camera);
         PanelLayout reopened(variant == Variant::dotio ? 3 : 4, runtime.camera.viewport);
-        session->advance(0, reopened.click_action(SettingsOverlay::launcher_x), runtime.camera);
-        CHECK_MESSAGE(session->request() == SessionRequest::menu,
-                      "settings LAUNCHER did not ask for the menu");
         session->advance(0, reopened.click_action(SettingsOverlay::exit_x), runtime.camera);
         CHECK_MESSAGE(session->request() == SessionRequest::exit, "settings EXIT did not ask for exit");
+        session->advance(0, reopened.click_action(SettingsOverlay::leave_x), runtime.camera);
+        CHECK_MESSAGE(session->request() == SessionRequest::configurations,
+                      "the settings panel's first button did not ask for the configuration page");
         CHECK(glGetError() == GL_NO_ERROR);
     }
 }
@@ -434,21 +436,37 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
 }
 
 TEST_CASE("SCENARIOS in demo and DIFFICULTY in dotio ask for the launcher's configuration page") {
-    Runtime runtime("Configuration rows", 640, 480);
+    Runtime runtime("Configuration buttons", 640, 480);
+    runtime.read_back(true);
     runtime.poll(false);
     for (const auto &[variant, label] :
          {std::pair{Variant::demo, "SCENARIOS"}, std::pair{Variant::dotio, "DIFFICULTY"}}) {
         CAPTURE(label);
         auto session = start(variant, runtime.camera);
         session->advance(0, {}, runtime.camera);
-        session->advance(0, debug_keys(), runtime.camera);
         const auto rows = dynamic_cast<kinetra_lab::Session &>(*session).debug_rows();
-        REQUIRE(!rows.empty());
-        CHECK_MESSAGE(rows.back().label == label, "the row is not the last of the debug menu");
+        CHECK_MESSAGE(std::ranges::find(rows, label, &kinetra_lab::DebugRow::label) == rows.end(),
+                      "the button is still a row of the debug menu");
+        // The button is the settings panel's, so it works with the debug mode off; Demo
+        // starts with it on.
+        session->advance(0, settings_key(), runtime.camera);
+        PanelLayout layout(variant == Variant::dotio ? 3 : 4, runtime.camera.viewport);
+        if (variant == Variant::demo)
+            session->advance(0, layout.click_row(debug_mode_row), runtime.camera);
+        session->render(runtime);
+        // The label is drawn on the button: the second row of its first letter's left column
+        // is lit in S and D, where the shorter LAUNCHER would leave the button dark.
+        const float scale = SettingsOverlay::scale(runtime.camera.viewport);
+        const Vec2 origin = runtime.camera.viewport / 2 - layout.overlay.half_extent() * scale;
+        const float label_left =
+            SettingsOverlay::leave_x - (static_cast<float>(std::string_view(label).size()) * 6 - 1) / 2;
+        const auto lit =
+            pixel(runtime, origin + Vec2{label_left + 0.5f, layout.overlay.actions_y() + 1.5f} * scale);
+        CHECK_MESSAGE(lit[0] > 150, "the button does not show its label");
         CHECK(session->request() == SessionRequest::none);
-        session->advance(0, menu_click(runtime, rows.size() - 1), runtime.camera);
+        session->advance(0, layout.click_action(SettingsOverlay::leave_x), runtime.camera);
         CHECK_MESSAGE(session->request() == SessionRequest::configurations,
-                      "the row did not ask for the configuration page");
+                      "the button did not ask for the configuration page");
     }
 }
 

@@ -24,8 +24,9 @@ inline std::vector<DebugRow> debug_rows_of(std::span<const kinetra::DebugEntry> 
     return rows;
 }
 
-/// Base of every Lab session. Lab applications leave through their settings panel
-/// (LAUNCHER or EXIT) or the window's close button, never through Escape, which their
+/// Base of every Lab session. Lab applications leave through their settings panel (the
+/// application's SCENARIOS, DIFFICULTY or BLUEPRINTS, or EXIT), the LAUNCHER button of the
+/// page that leads to, or the window's close button, never through Escape, which their
 /// screens use themselves.
 class Session : public kinetra::Session {
   public:
