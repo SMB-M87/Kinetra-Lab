@@ -1,6 +1,6 @@
 # Stall remedies in the engine
 
-Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
+Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3), `feat/right-of-way` (step 4) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
 
 This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it is *i4sim on the passing coordinator*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
 
@@ -110,7 +110,11 @@ Three behaviors follow the engine now:
 
 i4sim marks a mover on its own route, outside every coordination, `observed`; one that is not moving or is held `standing`; any other mover `busy`. That is the eligibility of its former detector. The engine adds the reason `pushed_back` after `opposing_mover`: the mover moves back along its leg faster than `stop_speed` while a moving neighbor within 1.6 combined half diagonals, within about 78 degrees of the leg ahead, approaches faster than `stop_speed`. i4sim's `StallReason` and `StallDetails` become aliases of the engine's `StallReason` and `StallDiagnosis`.
 
-**Steps 4 and 5** are designed on their branches and written here when each starts. The contracts the user accepted:
+**Step 4: right of way.** `kinetra::RightOfWay` ([navigation contract](../../external/Kinetra/docs/engine/navigation.md#right-of-way)) takes the movers and tuning of the stall detector and a window in steps. An observed mover whose steps without progress reach the threshold, and that `pushing_neighbor()` (the push test, moved out of the detector) finds pushed back, gets the right of way for the window. It loses it early when it is no longer observed, and gets a new one at once when it is still stalled and pushed when the window passes.
+
+i4sim's `MotionSettings::right_of_way` (DEBUG → TRAFFIC → RIGHT OF WAY, `scenario.motion.rightOfWay`, `--right-of-way`) runs it at the start of `MotionStep::run`, from the state at the end of the last tick, with a window of 480 ticks (`4 × stall_ticks`). It counts a mover on its route as observed; a mover that stands or is held as standing; and a mover under a traffic control of the last tick or on a make-way trip as busy. That is the prototype's eligibility, so the measurement holds. A mover with the right of way is a fixed body in the tick's snapshot, keeping its velocity: Reciprocal's other agents do not count on it to cooperate. It still steers at its goal. `Coordination::right_of_way` marks it for the inspector, and the event log records `right_of_way_granted` (with the pusher) and `right_of_way_ended`.
+
+**Step 5** is designed on its branch and written here when it starts. The contracts the user accepted:
 
 - `StallDetector` takes, per mover, a progress counter, a state and a route heading from the application. It returns episodes with an onset diagnosis.
 - `RightOfWay` takes episodes and movers, and returns who is not cooperating for how long.
@@ -161,6 +165,17 @@ Step 3, Full level (a new public engine header):
 | i4sim's diagnoses stay, and motion does not change | the existing stall cases of `kinetra_i4sim`, the golden and pressure suites, and the long benchmark with MAKE WAY |
 | The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) is `pushed_back` by mover 8 | `kinetra_i4sim:the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back` |
 | A force so small that the braking distance is infinite still lets a tick observe stalls | `kinetra_i4sim:a force so small that braking never ends still lets stalls be observed` (fails without the clamp) |
+
+Step 4, Full level (a new public engine header):
+
+| Behavior | Test |
+| --- | --- |
+| The fallback's contract at two world scales: grant and window, a new window at once, no grant below the threshold, without a push or for a mover not observed, early end, a shorter span, the push test against the detector's reason, invalid input | Kinetra `kinetra_right_of_way_tests` (6 cases) |
+| The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) lasts over 1,000 ticks without the fallback and under 200 with it, mover 7 gets the right of way against mover 8, no contact, and every right of way lasts at most its window | `kinetra_i4sim:right of way ends the recorded stall of a mover pushed from its goal` |
+| The holder is marked in the inspector, and turning the policy off ends it with an event | `kinetra_i4sim:a mover with the right of way is marked, and turning the policy off ends it` |
+| The scenario key and the TRAFFIC row | the scenario case and two controller cases, extended |
+| Off by default changes nothing | the golden and pressure suites |
+| The measured effect holds | the harness and the 50,000-tick benchmark with MAKE WAY, with and without `--right-of-way` |
 
 ## Verification
 
@@ -220,6 +235,20 @@ Step 3, with Kinetra `24fb31d` (`feat/stall-detector`):
   - Reciprocal: 412 `pushed_back` of 631, the count the classifying replay found, with 166 `unknown`, 42 `opposing_mover`, 6 `stationary_blocker` and 5 `oscillating`.
   - Improved: 322 `pushed_back` of 763.
 
+Step 4, with Kinetra `406a534` (`feat/right-of-way`):
+
+- Kinetra: 333 of 333 tests pass, and the consumer runs.
+- Lab: 175 of 175 i4sim cases pass, the golden and pressure lines unchanged.
+
+With MAKE WAY on, RIGHT OF WAY off → on. The integrated version gives the prototype's numbers for the 480-tick window exactly:
+
+| Run | Products | Contacts | Waiting ticks | Stuck movers | Runs stuck at end | Rights of way granted |
+| --- | --- | --- | --- | --- | --- | --- |
+| Harness, Reciprocal | 110 → 114 | 0 → 0 | 17,449 → 13,587 | 1 → 2 | 0 → 2 | 85 |
+| Harness, Improved | 103 → 105 | 167 → 196 | 3,833 → 3,662 | 3 → 1 | 1 → 1 | 103 |
+| 50,000 ticks, Reciprocal | 344 → 351 | 0 → 0 | 104,020 → 75,481 | 23 → 15 | 0 → 0 | 511 |
+| 50,000 ticks, Improved | 348 → 356 | 836 → 644 | 7,638 → 10,541 | 6 → 3 | 1 → 0 | 466 |
+
 ## Review
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
@@ -258,6 +287,31 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 **Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
 
 **Follow-up.** Steps 2 to 5 (this document); Demo and Dotio adoption of the remedies becomes a roadmap item.
+
+Step 4. Title: `feat(i4sim): give a pushed-back mover the right of way`. Kinetra's: `feat(simulation): add RightOfWay, a fallback for pushed-back movers`.
+
+**Summary.** Step 4 of 5. The temporary motion fallback the user chose is opt-in as RIGHT OF WAY. A mover stalled because a neighbor drives it back from its goal gets the right of way for 480 ticks: it keeps steering at its goal, and the others stop counting on it to make room. The mechanism is Kinetra's new `RightOfWay`.
+
+**Changes.**
+- Kinetra:
+  - `right_of_way.h` and `.cpp`, with six contract cases.
+  - `pushing_neighbor()` and `validate()` move out of the detector, so both use one push test.
+  - The consumer check, the navigation contract, the module, test and main READMEs, and the testing table are updated.
+- Lab:
+  - `MotionSettings::right_of_way` and `Coordination::right_of_way`.
+  - The events `right_of_way_granted` and `right_of_way_ended`.
+  - The TRAFFIC row, the scenario key, the benchmark flag, and the inspector value.
+  - Two simulation cases; the scenario and menu cases are extended.
+  - The README, blueprint, tests and architecture pages.
+
+**Verification.** Kinetra 333 of 333, Lab i4sim 175 of 175, golden and pressure unchanged. Over 50,000 ticks with MAKE WAY:
+
+- Reciprocal: 344 → 351 products, waiting −27%, no contact.
+- Improved: 348 → 356 products, contacts 836 → 644.
+
+**Dependencies and merge order.** Kinetra's step 4 sits on Kinetra's step 3; Lab's step 4 sits on Lab's step 3. Kinetra merges first.
+
+**Follow-up.** Step 5.
 
 Step 3. Title: `feat(i4sim): observe stalls with Kinetra's StallDetector`. Kinetra's: `feat(simulation): add StallDetector for episodes without progress`.
 
