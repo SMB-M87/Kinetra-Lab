@@ -1,6 +1,6 @@
 # Default debug layers
 
-Status: accepted · Branch: `ccr-7f91cba1-leqelc` · Related: [Demo](../../labs/demo/README.md#controls), [i4sim](../../labs/i4sim/README.md), [media guide](../media/README.md#which-captures-a-change-makes-stale)
+Status: implemented · Branch: `ccr-7f91cba1-leqelc` · Related: [Demo](../../labs/demo/README.md#controls), [i4sim](../../labs/i4sim/README.md), [media guide](../media/README.md#which-captures-a-change-makes-stale)
 
 Demo and i4sim open every scenario and blueprint in Debug Mode with (almost) every debug layer on, so a first look is cluttered. This change narrows what a session starts with: VECTORS and PATHS in Demo; every layer with all its parts except HEATMAP and CONTACT SHAPES in i4sim. Every layer can still be turned on in the debug menu.
 
@@ -74,15 +74,63 @@ Non-goals:
 
 ## Review
 
-To be filled after the review.
+Self-review of `git diff main...HEAD`:
+
+| Finding | Resolution |
+| --- | --- |
+| The rewritten comment above `enum class Layer` ran past 100 columns | Rewrapped; `clang-format --dry-run --Werror` passes |
+| The launcher's graphics case was still named *demo and i4sim start with every visual debug layer on* | Renamed to *demo and i4sim start with their default debug layers on*; only a dated design document names the old one |
+| The tour clicked STEERING PROBES, VECTORS and COLLISION SHAPES to turn them off; with the new defaults that turned two of them on | The tour turns STEERING PROBES and COLLISION SHAPES on for a look and then off with VECTORS, so its later chapters see the same layers as before |
+| A refresh changed `demo-clip.gif`, `i4sim.png` and `i4sim-clip.gif` too, by a few pixels (10 in `i4sim.png`) | Debug Mode is off in those, so the change does not alter them; reverted, as the media guide asks |
+| Kinetra's `ui-debug-menu`, `ui-inspector` and `ui-debug-layers` GIFs show Demo's old defaults | Left alone: Kinetra's media guide lets a Demo-only change wait for the next Kinetra change that makes them stale ([Open points](#open-points)) |
+
+`check_copies.py` with the terms *every debug layer*, *all visual layers*, *every layer on*, *start on* and *starts selected*: the remaining hits are Dotio's, which keeps every layer, the new i4sim sentence, and i4sim's note on the menu's height with every layer on, which still holds.
 
 ## Verification
 
-To be filled after verification.
+Full level: locally the targeted builds and tests of every changed area, then the pull request's CI.
+
+| Command | Result |
+| --- | --- |
+| `cmake --build --preset dev --target kinetra_demo_tests kinetra_i4sim_controller_tests`; `ctest --preset dev -R '^kinetra_demo:\|^kinetra_i4sim_controller'` | 81/81 passed, the new i4sim case included |
+| `ctest --preset release -R '^kinetra_i4sim\|^kinetra_demo(:\|_terrain\|_crowd\|_passing)\|^kinetra_capture' -LE soak`, after building the targets of those areas and `kinetra_i4sim_motion_benchmark` | 277/277 passed |
+| `ctest --preset graphics -L graphics -R '_graphics\|kinetra_graphics\|kinetra_smoke'` (offscreen SDL, software Mesa) | 25/25 passed |
+| `ctest --preset graphics -R 'kinetra_runtime\|i4sim_presentation\|demo_presentation\|^kinetra_capture'` | 35/35 passed, `kinetra_capture_smoke` included |
+| `tools/capture/capture_media.sh build-graphics` with the Demo and i4sim scenes | Every refreshed file looked at; the debug captures show the new defaults |
+| `python3 external/Kinetra/tools/check_docs.py` | All links resolve |
+| `clang-format --dry-run --Werror` on the changed C++ files | Clean |
+| Build warnings in the `graphics` build | None |
 
 ## Pull request
 
-To be filled at hand-over.
+Title: `feat(demo,i4sim): start sessions with fewer debug layers`
+
+```markdown
+## Summary
+Demo opens every scenario with only the VECTORS and PATHS debug layers on. i4sim starts with GRID, PATHS, FORCES, BORDERS and DETECTION and all their parts on, and HEATMAP and CONTACT SHAPES off. Every layer can still be turned on in the debug menu.
+
+## Changes
+- `DebugLayers` (Demo) and `ViewLayers()` (i4sim) start with the new defaults.
+- Tests: Demo's layer rows, a new i4sim case for the start state, the i4sim key and menu cases, and the launcher's graphics check of both menus.
+- Capture tool: comments, and the tour keeps its story with the new defaults.
+- Docs: README, Demo and i4sim READMEs, launcher and overlays page, capture README.
+- Media: the Demo and i4sim debug screenshots, clips and the five showcase clips, refreshed.
+
+## Design
+[docs/design/2026-11-27-default-debug-layers.md](docs/design/2026-11-27-default-debug-layers.md)
+
+## Verification
+Targeted suites of Demo, i4sim and the capture tool (277/277), the graphics suites and smoke tests (25/25), the capture smoke test, the docs check and clang-format pass locally. CI is the Full level.
+
+## Review notes
+Kinetra's shared-UI GIFs still show Demo's old defaults; its media guide lets them follow with the next Kinetra change that makes them stale.
+
+## Dependencies and merge order
+None: no Kinetra change, and the pointer is unchanged.
+
+## Follow-up
+None.
+```
 
 ## Open points
 
