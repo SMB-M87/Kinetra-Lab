@@ -150,7 +150,7 @@ TEST_CASE("the debug toolbar button shows beside settings only in debug mode") {
     CHECK_MESSAGE(!button(105.5f), "DEBUG button shows outside debug mode");
 }
 
-TEST_CASE("demo and i4sim start with every visual debug layer on") {
+TEST_CASE("demo and i4sim start with their default debug layers on") {
     // Tall enough for i4sim's LAYERS section with every part listed (25 menu rows).
     Runtime runtime("Default debug views", 640, 800);
     runtime.read_back(true);
@@ -174,13 +174,13 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
         session->advance(0, away, runtime.camera);
         session->render(runtime);
         if (variant == Variant::demo) {
-            // LAYERS heading on row 1, then VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES
-            // and ACTIVE AGENTS, which start on, and HOME RANGE, which starts off.
-            for (std::size_t row = 2; row <= 6; ++row) {
+            // LAYERS heading on row 1, then VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES,
+            // ACTIVE AGENTS and HOME RANGE, of which only VECTORS and PATHS start on.
+            for (std::size_t row = 2; row <= 7; ++row) {
                 CAPTURE(row);
-                CHECK_MESSAGE(checked(runtime, row, 1), "visual debug layer did not start enabled");
+                CHECK_MESSAGE(checked(runtime, row, 1) == (row == 2 || row == 4),
+                              "a debug layer did not start as the Demo's defaults say");
             }
-            CHECK_MESSAGE(!checked(runtime, 7, 1), "HOME RANGE started enabled");
             // Below the sections: MOTION, AGENTS, ZOOM, then GHOST CAMERA on row 11.
             CHECK_MESSAGE(!checked(runtime, 11, 0), "Demo started with the ghost camera");
             const auto statistics = pixel(runtime, {10.5f, runtime.camera.viewport.y - 19.5f});
@@ -188,11 +188,12 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
                           "Demo statistics did not start enabled");
         } else {
             // LAYERS heading on row 1, then the seven layers (depth 1) with their parts (depth 2).
+            // Every one starts on but HEATMAP on row 3 and CONTACT SHAPES on row 19.
             for (std::size_t row = 2; row <= 19; ++row) {
                 const bool part = (row >= 5 && row <= 7) || (row >= 9 && row <= 14) || row == 16 || row == 17;
                 CAPTURE(row);
-                CHECK_MESSAGE(checked(runtime, row, part ? 2 : 1),
-                              "visual debug layer or part did not start enabled");
+                CHECK_MESSAGE(checked(runtime, row, part ? 2 : 1) == (row != 3 && row != 19),
+                              "a debug layer or part did not start as i4sim's defaults say");
             }
         }
     }

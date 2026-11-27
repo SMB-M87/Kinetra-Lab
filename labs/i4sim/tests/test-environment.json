@@ -1,5 +1,5 @@
 {
-  "name": "MAS-demonstrator",
+  "name": "test-environment",
   "tickCap": 3600000,
   "dimension": {
     "X": 2160,

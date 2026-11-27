@@ -20,7 +20,9 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Stall detection and remedies in i4sim** · i4sim, with Kinetra · added 2026-11-21
+  The departure check, a right-of-way fallback for pushed-back movers, i4sim on Kinetra's `PassingCoordinator`, and stall detection and MAKE WAY in the engine, in a stack of five steps; with Kinetra's *Stall detection and remedies in the engine*.
+  Where: [design](design/2026-11-27-stall-remedies-in-the-engine.md), branches `feat/i4sim-departure-check` (step 1), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3) and `feat/right-of-way` (step 4).
 
 ## Next
 
@@ -28,9 +30,6 @@ Nothing agreed next.
 
 ## Later
 
-- **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
-  [Stall detection](design/2026-11-26-i4sim-stall-detection.md) supplies the diagnosis, and [MAKE WAY](design/2026-11-27-i4sim-make-way.md) lets one parked neighbor clear the route when a checked refuge is available. The remedy is measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness).
-  Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Step 3 is a temporary motion fallback. The user chooses its motion type and return rule from the detection data. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [MAKE WAY follow-up](design/2026-11-27-i4sim-make-way.md#open-points).
 - **Golden tests on Windows** · tests, with Kinetra · added 2026-11-22
   Four Demo crowd characterization cases and i4sim's RVO case still differ on Windows after Kinetra's `atan2` and `asin`, so the Windows presets exclude them; Dotio's fingerprint and the rest hold there. Another function of Windows' C runtime rounds differently, among `sinf`, `cosf`, `expf`, `powf` and `hypot`. Routing it through Kinetra as well would also move the recorded lines on Linux, because glibc's `sinf` and `cosf` are not correctly rounded either, so the lines would be recorded again once.
   Next step: find the function by trying each on Windows CI with a correctly rounded replacement, then the user decides whether to re-record. Where: [Windows tests](windows.md#tests), [Linux beyond Arch, open points](design/2026-11-22-linux-beyond-arch.md#open-points).
@@ -72,13 +71,17 @@ Nothing agreed next.
   Three small gaps the agent review left as optional in the cloud setup scripts, two in Kinetra's `tools/cloud_setup.sh` and one in Lab's: a third-party apt source whose update exits 100 still stops the install, `dpkg --configure -a`'s failure is reported as an apt failure, and Lab's message for an old Kinetra commit points to a page that does not name the clang-format version. Like *Ready-to-build cloud sessions*, one item here covers both scripts.
   Where: [Ready-to-build cloud sessions, open points](design/2026-11-23-ready-to-build-cloud-sessions.md#open-points).
 
+- **Showcase drawing and tighter formations in Demo** · demo · added 2026-11-27
+  Demo's showcase scripts are not drawn: no debug layer shows a shuttle's stops, a lure or the formation slots. Fleet's formations are loose, because each agent is sent to its slot only every quarter second and slows down within a unit of it; steering by the slot's velocity would hold them tighter.
+  Where: [Demo showcases, open points](design/2026-11-27-demo-showcases.md#open-points), [Demo open points](../labs/demo/README.md#open-points).
+
 ## Ideas
 
 Wishes of the user, not yet agreed or shaped. Each needs a design session (`grilling`) before it moves up.
 
 - **Motion lab** · new application · added 2026-11-21
   For the future, no priority (the user's words): a fourth lab that shows motion and looks polished, for example crowd control. The agent's proposal: classic scenarios (a bottleneck or doorway evacuation, counter-flow in a corridor, crossing flows, agents that swap places across a circle), the steering models side by side in the same scenario, heat maps of density, speed and stalls, trails, and live measurements (throughput, contacts, time to goal). It would also show how shared passing targets and arrival intent feed each of Kinetra’s four steering solvers.
-  Uses Kinetra's `PassingCoordinator` ([shared passing](design/2026-11-27-shared-passing-mechanism.md)) and the [agent inspector](design/2026-11-22-agent-inspector-overlay.md).
+  Uses Kinetra's `PassingCoordinator` ([shared passing](design/2026-11-27-shared-passing-mechanism.md)) and the [agent inspector](design/2026-11-22-agent-inspector-overlay.md). Since 2026-11-27 Demo holds the classic scenarios as showcases that repeat on their own: Doorway, Corridor, Crossing, Circle and Bottleneck, plus Chaos, Fleet and Swarm ([Demo showcases](design/2026-11-27-demo-showcases.md)); what remains for a lab of its own is the side-by-side comparison, the heat maps, trails and live measurements.
 - **Kinetra-Lab on Android** · launcher, release, with Kinetra · added 2026-11-21
   Run the launcher and the applications on an Android phone or tablet. Lab's part: touch-friendly menus and overlays, the blueprints of `i4sim-blueprints/` packaged as assets, and an APK build next to the Windows zip.
   Depends on: Kinetra's *Android runtime* idea (an OpenGL ES path, touch input, an NDK build).

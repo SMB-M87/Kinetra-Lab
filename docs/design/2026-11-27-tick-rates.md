@@ -31,7 +31,7 @@ Every lab gets a UPS row (ticks per second) and an FPS row in its debug menu, wh
 
   | Blueprint | Movers | Ticks per second |
   | --- | --- | --- |
-  | `MAS-demonstrator` | 11 | 185,000 |
+  | `test-environment` | 11 | 185,000 |
   | `1680x960+` | | 206,000 |
   | `3840x2400` | 25 | 72,000 |
   | `8640x4800` | 106 | 9,500 |
