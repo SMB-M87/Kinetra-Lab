@@ -28,7 +28,7 @@ flowchart LR
 
 ## Contents and use
 
-Five JSON files are copied unchanged from the C# reference: `1680x960+`, `1680x960-`, `3840x2400`, `4320x2400` and `8640x4800`. The reference's `MAS-demonstrator` is not in the catalog; the tests keep it, unchanged, as a [fixture](../tests/README.md#suites) in `labs/i4sim/tests/`. The reference's `H` layout became the [h-crossing](#showcase-scenes) showcase scene, without its stations, and its seven city aliases of these layouts are not bundled. CMake copies these resources to `i4sim-blueprints/` beside the application and launcher executables. Keep that directory with a relocated executable. Pass `--blueprints DIR` for a custom catalog or `--blueprint FILE` for a direct load.
+Five JSON files are copied unchanged from the C# reference: `1680x960+`, `1680x960-`, `3840x2400`, `4320x2400` and `8640x4800`. The reference's `MAS-demonstrator` is not in the catalog; the tests keep it as the [fixture](../tests/README.md#suites) `test-environment` in `labs/i4sim/tests/`, unchanged apart from its file name and its `name`. The reference's `H` layout became the [h-crossing](#showcase-scenes) showcase scene, without its stations, and its seven city aliases of these layouts are not bundled. CMake copies these resources to `i4sim-blueprints/` beside the application and launcher executables. Keep that directory with a relocated executable. Pass `--blueprints DIR` for a custom catalog or `--blueprint FILE` for a direct load.
 
 The five originals are the top-level files; discovery does not descend into subdirectories, so the catalog test finds exactly five.
 

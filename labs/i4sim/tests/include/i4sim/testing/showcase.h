@@ -13,8 +13,9 @@ namespace i4sim::test {
 inline std::filesystem::path blueprint_directory() {
     return KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR;
 }
-/// Path of `labs/i4sim/tests/<name>.json`, a blueprint kept only for tests, such as the
-/// original `MAS-demonstrator`. The test-support target sets KINETRA_I4SIM_TEST_FIXTURE_DIR.
+/// Path of `labs/i4sim/tests/<name>.json`, a blueprint kept only for tests, such as
+/// `test-environment`, the reference's MAS demonstrator. The test-support target sets
+/// KINETRA_I4SIM_TEST_FIXTURE_DIR.
 inline std::filesystem::path fixture_blueprint(std::string_view name) {
     return std::filesystem::path(KINETRA_I4SIM_TEST_FIXTURE_DIR) / (std::string(name) + ".json");
 }

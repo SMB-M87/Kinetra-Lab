@@ -94,7 +94,7 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 | Section | Rows |
 | --- | --- |
 | SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second), WORKLOAD |
-| LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. A color swatch beside a row is the color it is drawn in |
+| LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. ROUTES, DETECTION, the target arrows and every FORCES part go under the movers, with the start of each route, arrow and line over its own mover. A color swatch beside a row is the color it is drawn in |
 | MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
 | TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY, DEPARTURE CHECK |
 
@@ -200,7 +200,7 @@ Sources and private headers, in [src/](src/) and the `detail/` folders:
 | [simulation.cpp](src/simulation/simulation.cpp), [simulation_core.cpp](src/simulation/simulation_core.cpp) | The facade, and the private core that owns the components and runs the tick |
 | [floor_plan.cpp](src/simulation/floor_plan.cpp), [routing.cpp](src/simulation/routing.cpp), [goals.cpp](src/simulation/goals.cpp), [traffic.cpp](src/simulation/traffic.cpp), [predictive_passing.cpp](src/simulation/predictive_passing.cpp), [production.cpp](src/simulation/production.cpp), [motion_step.cpp](src/simulation/motion_step.cpp), [shuttle.cpp](src/simulation/shuttle.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
 | [fleet.h](include/i4sim/simulation/detail/fleet.h), [event_log.h](include/i4sim/simulation/detail/event_log.h), [geometry.cpp](src/simulation/geometry.cpp), [simulation_constants.h](include/i4sim/simulation/detail/simulation_constants.h) | Shared mover data, the event log, geometry helpers and the named tuning values |
-| [stall_detector.cpp](src/simulation/stall_detector.cpp) | Observes route progress and records stall episodes after the tick |
+| [stall_detector.cpp](src/simulation/stall_detector.cpp) | Feeds Kinetra's `StallDetector` the movers' states and route progress after the tick and records its episodes |
 | [make_way.cpp](src/simulation/make_way.cpp) | Optional parking relief for active stall episodes |
 | [flow_metrics.cpp](src/simulation/flow_metrics.cpp) | `FlowMetrics` |
 | [controller.cpp](src/controller.cpp) | `FactoryController` |
@@ -361,7 +361,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 
 - **Determinism.** The same blueprint, seed, motion settings and commands give the same run tick for tick. Randomness comes only from the seeded workload generator. The [golden and pressure suites](tests/README.md#golden-and-pressure-lines) pin this with fingerprints of every position after every tick, so they need exact floating-point results (no fast-math, no FMA contraction).
 - **Units.** Millimeters, ticks, millimeters per tick. The frame time only selects how many ticks run; it never scales a physical value.
-- **Observation.** The detector exposes its onset diagnosis through `stall_details`. MAKE WAY uses the active episode and checks present geometry before intervening. The event log records `stall_started`, `stall_ended` and make-way events when enabled. Log recording, `FlowMetrics` and rendering are independent of simulation decisions.
+- **Observation.** Kinetra's [stall detector](../../external/Kinetra/docs/engine/navigation.md#stall-detection) observes the movers after each tick; i4sim tells it which movers follow their own route and how long each went without route progress. Its onset diagnosis (`stationary_blocker`, `opposing_mover`, `pushed_back`, `oscillating` or `unknown`) is exposed through `stall_details`. MAKE WAY uses the active episode and checks present geometry before intervening. The event log records `stall_started`, `stall_ended` and make-way events when enabled. Log recording, `FlowMetrics` and rendering are independent of simulation decisions.
 - **Copies are deep.** Copying a `Simulation` copies its whole state, including the event log. Components store no references to each other, so a copy cannot point into the original.
 - **Only goals move goals.** A mover's destination changes only through the `Goals` view, which also cancels the corridor recovery and passing plan that depended on the old goal.
 - **Controller preconditions.** Every `FactoryController` call that reads or commands the simulation requires `loaded()`. `simulation()` returns a reference that a load, a restart or a close invalidates; the drawing code takes it anew each frame.
@@ -380,7 +380,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
 | Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases. When a test sets up a small scene that shows the policy at work, also turn that scene into a [showcase scene](blueprints/README.md#showcase-scenes): its file in `blueprints/showcase/`, its setup in the showcase cases of `simulation_tests.cpp`, and its clip in the capture tool, the root README and the [media guide](../../docs/media/README.md) |
-| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the five originals in the catalog and the `MAS-demonstrator` test fixture stay unchanged | The loader cases in `simulation_tests.cpp` |
+| Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the five originals in the catalog and the `test-environment` test fixture stay unchanged | The loader cases in `simulation_tests.cpp` |
 | Add a tuning value | `simulation_constants.h` when components share it, otherwise a named constant where it is used | |
 
 Pitfalls:
@@ -413,7 +413,7 @@ Not covered: desktop feel and real-time performance, which software rendering ca
 
 ## Provenance and differences
 
-Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. Five of its fourteen JSON blueprints are bundled unchanged, and a sixth, `MAS-demonstrator`, is kept unchanged as a [test fixture](tests/README.md#suites); `H` became the h-crossing showcase scene (same floor and movers without its four stations, which the scene never used, with a scenario, a longer tick cap and a descriptive name), and the seven city aliases, each identical to one of the others apart from its name, were removed. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
+Reference: [SMB-M87/i4sim](https://github.com/SMB-M87/i4sim), local source revision `47230111b69c535d59fda4fe8af90fb7aaa80787`. Five of its fourteen JSON blueprints are bundled unchanged, and a sixth, `MAS-demonstrator`, is kept as the [test fixture](tests/README.md#suites) `test-environment`, unchanged apart from its file name and its `name`; `H` became the h-crossing showcase scene (same floor and movers without its four stations, which the scene never used, with a scenario, a longer tick cap and a descriptive name), and the seven city aliases, each identical to one of the others apart from its name, were removed. MIT attribution is preserved in [LICENSE](LICENSE); translated engine algorithms carry the [engine license](../../external/Kinetra/LICENSE).
 
 | Reference | This port |
 | --- | --- |
