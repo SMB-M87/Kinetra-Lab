@@ -67,8 +67,19 @@ Non-goals: the other hotspots of the table, which stay on the roadmap item; a di
 
 ## Verification
 
+On 2026-11-27:
+
+- `ctest --preset dev -R '^kinetra_i4sim'`: 167 of 167, golden lines unchanged.
+- `release` preset, `kinetra_i4sim_motion_benchmark --ticks 50000` and with `--predictive-passing`, the build before and after, three runs each, interleaved: medians 9.8 s to 8.6 s (−12%) and 18.4 s to 17.0 s (−8%); every column but `elapsed_ms` and `ticks_per_second` equal in all six pairs. `kinetra_i4sim --blueprint 8640x4800.json --ticks 200000 --seed 42`: about 9,800 to 11,450 ticks per second.
+- The default million-tick set after: `8640x4800` in 89 s and 91 s, about 11,100 ticks per second.
+- `clang-format`, `check_docs.py`.
+
 ## Review
 
 ## Pull request
 
+**refactor(i4sim): reuse the surroundings lists and index the borders**, `refactor/i4sim-surroundings` → `feat/tick-rates` (Kinetra-Lab #158), hotspot 8 on the way to a million ticks per second; merges after the tick-rates stack.
+
 ## Open points
+
+- The profile's next candidates are on the roadmap item. One of them is a choice for the user: under every profile but Original, `priority_steer`'s predictive force is only shown (FORCES layer, inspector), so skipping it when nothing shows it would save most of `priority_steer`.
