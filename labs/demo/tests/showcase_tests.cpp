@@ -18,6 +18,7 @@
 #include <vector>
 
 namespace {
+using demo::Agent;
 using demo::Scenario;
 using demo::Scene;
 using demo::Showcase;
@@ -233,6 +234,55 @@ TEST_CASE("following agents keep near their slots, and a commanded one is left a
     for (int t = 0; t < 30 && agent.goal() == Vec2{-18, 10}; ++t)
         scene.update(tick, {});
     CHECK_FALSE(agent.goal() == Vec2{-18, 10});
+}
+
+TEST_CASE("a showcase command ends the passing plan agreed for the old goal") {
+    // Two lures run back and forth along one line, half a lap apart. Each agent starts at
+    // one end and its slot lies ten units beyond its lure, past the other agent, so the two
+    // meet head-on on commanded travel and agree on lanes; every quarter second both get a
+    // new goal.
+    const std::vector<Vec2> line{{-12, 0}, {12, 0}};
+    auto showcase = Showcase::follow({{line, 2, 8}, {line, 2, 32}}, {{0, {10, 0}}, {1, {-10, 0}}}, false);
+    auto scene = arena({{-15, 0}, {15, 0}});
+    scene.set_passing(true);
+    scene.set_showcase(std::move(showcase));
+    std::vector<Vec2> goals{scene.agents()[0].goal(), scene.agents()[1].goal()};
+    int formed = 0, stale = 0;
+    for (int t = 0; t < 120 * 12; ++t) {
+        scene.update(tick, {});
+        const bool commanded =
+            !(scene.agents()[0].goal() == goals[0]) || !(scene.agents()[1].goal() == goals[1]);
+        goals = {scene.agents()[0].goal(), scene.agents()[1].goal()};
+        const auto events = scene.passing_events();
+        const bool formed_now = std::ranges::any_of(events, [](const kinetra::PassingEvent &event) {
+            return event.kind == kinetra::PassingEventKind::formed;
+        });
+        formed += formed_now;
+        // A plan that survives a new goal must have been agreed after it, in this tick.
+        stale += commanded && !scene.passing_plans().empty() && !formed_now;
+    }
+    CHECK(formed > 0);
+    CHECK(stale == 0);
+}
+
+TEST_CASE("a scene in Terrain refuses a showcase, and a dormant agent waits for its leg") {
+    Scene terrain(1, 7);
+    CHECK_THROWS_AS(terrain.set_showcase(Showcase::roam(1, {{-1, -1}, {1, 1}}, 1, 0)), std::invalid_argument);
+
+    auto showcase = Showcase::shuttle({{{-10, 0}, {10, 0}}}, Turn::together, 0);
+    std::vector<Agent> agents{Agent(0, {-10, 0})};
+    // The agent never saw the view, so it is dormant.
+    agents.front().hold_on_arrival();
+    CHECK(showcase.update(tick, agents).empty());
+    CHECK(showcase.stop(0) == Vec2{-10, 0});
+    Body body = mover({-10, 0});
+    agents.front().update_visibility({{-20, -20}, {20, 20}}, body);
+    REQUIRE(agents.front().active());
+    const auto commanded = showcase.update(tick, agents);
+    REQUIRE(commanded.size() == 1);
+    CHECK(showcase.stop(0) == Vec2{10, 0});
+    CHECK(agents.front().goal() == Vec2{10, 0});
+    CHECK_THROWS_AS(showcase.update(-tick, agents), std::invalid_argument);
 }
 
 TEST_CASE("showcase scripts reject what they cannot run") {

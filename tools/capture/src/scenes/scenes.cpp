@@ -48,12 +48,12 @@ constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_heig
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
 /// Lengths of the Demo scenario clips from their start: Gravity until its shapes rest (8 s),
-/// Maze until the player has walked the route and stands at its goal (26 s). A scenario whose
+/// Maze until the player has walked the route and stands at its goal (32 s). A scenario whose
 /// groups turn together lasts its first leg and the pause, until the groups turn back, so
 /// the GIF loops as the scenario repeats: Doorway 8 s, Corridor 13.6 s, Crossing 11 s, Circle
 /// 9.6 s, Bottleneck 13.6 s. Chaos, Fleet and Swarm run 12 s: Fleet's formations meet once
 /// and Swarm's lure crosses its pillar.
-constexpr int demo_gravity_frames = 120, demo_maze_frames = 390, demo_doorway_frames = 120,
+constexpr int demo_gravity_frames = 120, demo_maze_frames = 480, demo_doorway_frames = 120,
               demo_corridor_frames = 204, demo_crossing_frames = 165, demo_circle_frames = 144,
               demo_bottleneck_frames = 204, demo_free_frames = 180;
 /// Length of the Dotio debug clip and the i4sim clips: twelve seconds. Long enough for a

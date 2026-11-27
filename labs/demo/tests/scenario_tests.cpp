@@ -92,8 +92,9 @@ TEST_CASE("Maze keeps its walls and route through resize and Ghost movement") {
     CHECK(scene.preview().chunks().empty());
     CHECK(scene.terrain().chunks().empty());
 
-    // The route winds through the labyrinth: about 75 units, 23 seconds.
-    for (int frame = 0; frame < 120 * 30 && scene.player_goal(); ++frame)
+    // The route winds through the labyrinth: about 75 units, 23 seconds alone, and the
+    // shuttling agents in its corridors slow the player down.
+    for (int frame = 0; frame < 120 * 45 && scene.player_goal(); ++frame)
         scene.update(static_cast<float>(tick), {});
     CHECK(kinetra::length(scene.world().body(scene.player()).position - goal) < 1);
 }

@@ -77,10 +77,13 @@ class Showcase {
     /// its lure. Throws std::out_of_range for an index beyond the slots.
     kinetra::Vec2 slot_target(std::size_t index) const;
 
-    /// Advances the script by `dt` seconds and commands the agents whose leg begins. Throws
-    /// std::invalid_argument, before anything changes, when `agents` holds another number of
-    /// agents than agent_count().
-    void update(float dt, std::span<Agent> agents);
+    /// Advances the script by `dt` seconds and commands the awake agents whose leg begins;
+    /// a dormant agent waits until it wakes. Returns the indices of the agents it commanded,
+    /// valid until the next update(), so the caller can end what their old goal started (a
+    /// passing plan). Throws std::invalid_argument, before anything changes, for a negative
+    /// or non-finite `dt`, or when `agents` holds another number of agents than
+    /// agent_count().
+    std::span<const std::size_t> update(float dt, std::span<Agent> agents);
     /// Leaves agent `index` to a command of the user until it holds at that goal; then the
     /// script takes it back. Throws std::out_of_range for an index beyond agent_count().
     void release(std::size_t index);
@@ -112,18 +115,21 @@ class Showcase {
     /// Roam: the area and the random sequence.
     kinetra::Aabb area_{};
     std::mt19937 random_;
-    /// Follow: lures, slots, whether slots rotate, seconds the lures have travelled and
-    /// seconds until the next command.
+    /// Follow: lures, slots, whether slots rotate, how far along its loop each lure is (kept
+    /// within one lap, so a long run keeps its precision) and seconds until the next command.
     std::vector<Lure> lures_;
     std::vector<Slot> slots_;
     bool rotate_{};
-    float elapsed_{}, until_command_{};
+    std::vector<float> travelled_;
+    float until_command_{};
+    /// The agents commanded by the last update().
+    std::vector<std::size_t> commanded_;
 
     /// A seeded random value in [0, 1).
     float unit() { return float(random_() >> 8) / 16777216.f; }
     /// Position and unit direction of `lure` after `distance` units along its loop.
     static std::pair<kinetra::Vec2, kinetra::Vec2> along(const Lure &lure, float distance);
-    /// Sends agent `index` to its next stop or point.
+    /// Sends agent `index` to its next stop or point, unless it is dormant.
     void send(std::size_t index, Agent &agent);
 };
 

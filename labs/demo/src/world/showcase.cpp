@@ -67,6 +67,8 @@ Showcase Showcase::follow(std::vector<Lure> lures, std::vector<Slot> slots, bool
     Showcase showcase;
     showcase.kind_ = Kind::follow;
     showcase.agents_.assign(slots.size(), State{});
+    for (const auto &lure : lures)
+        showcase.travelled_.push_back(std::fmod(lure.start, loop_length(lure)));
     showcase.lures_ = std::move(lures);
     showcase.slots_ = std::move(slots);
     showcase.rotate_ = rotate;
@@ -74,8 +76,7 @@ Showcase Showcase::follow(std::vector<Lure> lures, std::vector<Slot> slots, bool
 }
 
 Vec2 Showcase::lure_position(std::size_t index) const {
-    const auto &lure = lures_.at(index);
-    return along(lure, lure.start + elapsed_ * lure.speed).first;
+    return along(lures_.at(index), travelled_.at(index)).first;
 }
 
 std::optional<Vec2> Showcase::stop(std::size_t index) const {
@@ -104,8 +105,7 @@ std::pair<Vec2, Vec2> Showcase::along(const Lure &lure, float distance) {
 Vec2 Showcase::slot_target(std::size_t index) const {
     const Slot &slot = slots_.at(index);
     const Lure &lure = lures_[slot.lure];
-    const float distance = lure.start + elapsed_ * lure.speed;
-    const auto [position, direction] = along(lure, distance + follow_lead * lure.speed);
+    const auto [position, direction] = along(lure, travelled_[slot.lure] + follow_lead * lure.speed);
     const Vec2 offset = rotate_ ? Vec2{slot.offset.x * direction.x - slot.offset.y * direction.y,
                                        slot.offset.x * direction.y + slot.offset.y * direction.x}
                                 : slot.offset;
@@ -113,6 +113,10 @@ Vec2 Showcase::slot_target(std::size_t index) const {
 }
 
 void Showcase::send(std::size_t index, Agent &agent) {
+    // A dormant agent ignores commands; its leg begins once it is awake again.
+    if (!agent.active())
+        return;
+    commanded_.push_back(index);
     State &state = agents_[index];
     state.held = 0;
     switch (kind_) {
@@ -130,9 +134,12 @@ void Showcase::send(std::size_t index, Agent &agent) {
     }
 }
 
-void Showcase::update(float dt, std::span<Agent> agents) {
+std::span<const std::size_t> Showcase::update(float dt, std::span<Agent> agents) {
+    if (!std::isfinite(dt) || dt < 0)
+        throw std::invalid_argument("A showcase advances by a finite time that is not negative");
     if (agents.size() != agents_.size())
         throw std::invalid_argument("A showcase needs exactly the agents it was made for");
+    commanded_.clear();
     for (std::size_t i = 0; i < agents.size(); ++i) {
         State &state = agents_[i];
         if (agents[i].holding()) {
@@ -162,7 +169,8 @@ void Showcase::update(float dt, std::span<Agent> agents) {
                 send(i, agents[i]);
         break;
     case Kind::follow:
-        elapsed_ += dt;
+        for (std::size_t i = 0; i < lures_.size(); ++i)
+            travelled_[i] = std::fmod(travelled_[i] + lures_[i].speed * dt, loop_length(lures_[i]));
         until_command_ -= dt;
         if (until_command_ <= 0) {
             for (std::size_t i = 0; i < agents.size(); ++i)
@@ -172,6 +180,7 @@ void Showcase::update(float dt, std::span<Agent> agents) {
         }
         break;
     }
+    return commanded_;
 }
 
 void Showcase::release(std::size_t index) {

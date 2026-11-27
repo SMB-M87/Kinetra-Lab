@@ -353,13 +353,21 @@ void Scene::command_agent(std::size_t index, Vec2 destination) {
 }
 
 void Scene::set_showcase(Showcase showcase) {
+    if (scenario_ == Scenario::terrain)
+        throw std::invalid_argument("Terrain's streaming changes its agents, so it cannot run a showcase");
     if (showcase.agent_count() != agents_.size())
         throw std::invalid_argument("A showcase needs exactly one entry per agent of the scene");
     showcase_ = std::move(showcase);
     for (auto &agent : agents_)
         agent.hold_on_arrival();
     // Start the first legs now, so the goals show before the first tick.
-    showcase_->update(0, agents_);
+    advance_showcase(0);
+}
+
+void Scene::advance_showcase(float dt) {
+    // A new goal ends the passing plan agreed for the old one, as a user's command does.
+    for (const auto index : showcase_->update(dt, agents_))
+        replan_after(passing_coordinator_.cancel(agents_[index].body_id()));
 }
 
 void Scene::place_agents(std::span<const std::size_t> bodies, std::uint32_t seed) {
@@ -428,7 +436,7 @@ void Scene::update(float dt, const PlayerControl &control) {
     avoidance_limited_ = 0;
     passing_events_.clear();
     if (showcase_)
-        showcase_->update(dt, agents_);
+        advance_showcase(dt);
     Tick tick = prepare_tick();
     // Sleeping agents participate as static collision obstacles. Restore complete
     // state after physics so gravity, impulses and timers cannot advance them.
@@ -570,9 +578,10 @@ std::vector<std::pair<std::size_t, Body>> Scene::steer_agents(float dt, Tick &ti
         auto &body = world_.body(agent.body_id());
         // A route keeps its own clearance from terrain; an agent without one relies on
         // local avoidance to stay clear of it.
-        body.acceleration =
-            local_acceleration(agent.body_id(), targets[i],
-                               agent.steers_without_route() ? AvoidTerrain::yes : AvoidTerrain::no, dt, tick);
+        body.acceleration = local_acceleration(
+            agent.body_id(), targets[i],
+            // A holding agent also has no route back if a neighbor pushes it.
+            agent.steers_without_route() || agent.holding() ? AvoidTerrain::yes : AvoidTerrain::no, dt, tick);
         body.angular_velocity = 0;
         if (length(body.velocity) > 0.1f)
             body.angular_velocity = heading_turn_rate(body);

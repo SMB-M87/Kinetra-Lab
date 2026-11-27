@@ -129,7 +129,8 @@ class Scene {
     /// Lets `showcase` move the agents from the next tick on, for tests and tools after
     /// place_agents(); every agent then holds on arrival, and the first legs start at once.
     /// place_agents() removes the showcase. Throws std::invalid_argument, before changing
-    /// anything, when the showcase expects another number of agents.
+    /// anything, in Terrain, whose streaming adds and removes agents, and when the showcase
+    /// expects another number of agents.
     void set_showcase(Showcase showcase);
 
     /// Update the camera view in every scenario. Terrain retains player-centered terrain
@@ -251,6 +252,9 @@ class Scene {
     void coordinate_passing(float dt, const Tick &tick, std::vector<kinetra::Vec2> &targets);
     /// Plans the routes of the agents in `events`' ended plans again, from where they are.
     void replan_after(std::span<const kinetra::PassingEvent> events);
+    /// Advances the showcase by `dt` seconds and ends the passing plans of the agents it
+    /// commanded.
+    void advance_showcase(float dt);
     /// Ends every passing plan and replans its participants' routes; called before body ids
     /// change.
     void end_passing();
