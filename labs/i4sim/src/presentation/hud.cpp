@@ -77,8 +77,9 @@ void draw_hud(Runtime &runtime, const Simulation &simulation, const HudContent &
         hud::draw_line(runtime, totals_text(simulation), 2, hud::statistics_color);
         hud::draw_line(runtime, motion_text(simulation), 1, hud::statistics_color);
     }
+    // The message's line comes from hud_lines(), so its test covers where the message is drawn.
     const auto lines =
-        hud_lines(hud::draw_error(runtime, content.message, statistics_lines + 1, max_message_lines));
+        hud_lines(hud::draw_error(runtime, content.message, hud_lines(0).message, max_message_lines));
     if (content.selected_producer)
         draw_producer_inspection(runtime, simulation, *content.selected_producer, lines.inspection);
     if (!content.description.empty())

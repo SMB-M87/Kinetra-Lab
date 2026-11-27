@@ -139,7 +139,10 @@ TEST_CASE("the HUD message sits directly above the statistics and pushes the tex
 }
 
 TEST_CASE("a load error shows in a panel over the blueprint menu that its X closes") {
-    const auto directory = std::filesystem::temp_directory_path() / "i4sim-error-panel-test";
+    // A folder of its own per run, as the catalog-recovery case below makes.
+    const auto directory = std::filesystem::temp_directory_path() /
+                           ("i4sim-error-panel-test-" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     std::filesystem::create_directories(directory);
     const auto broken = directory / "broken.json";
     std::ofstream(broken) << "{ \"name\": ";
@@ -150,16 +153,20 @@ TEST_CASE("a load error shows in a panel over the blueprint menu that its X clos
     const std::string prefix = "Loadscreen | ";
     REQUIRE(session->status().starts_with(prefix));
     const auto message = session->status().substr(prefix.size());
-    CHECK_FALSE(error_panel::lines(message, camera.viewport).empty());
+    // The blueprint menu: a SHOWCASE row, then one row per blueprint, without previews.
+    const auto rows = i4sim::discover_blueprints(i4sim::default_blueprint_directory()).size() + 1;
+    const auto footer = MenuLayout(camera.viewport, rows).footer_bounds();
+    CHECK_FALSE(error_panel::lines(message, camera.viewport, footer).empty());
 
-    const auto panel = error_panel::bounds(message, camera.viewport);
+    const auto panel = error_panel::bounds(message, camera.viewport, footer);
+    CHECK_MESSAGE(panel.max.y <= footer.min.y, "a load error leaves LAUNCHER and EXIT free");
     Input on_panel;
     on_panel.clicked = true;
     on_panel.mouse = {(panel.min.x + panel.max.x) / 2, (panel.min.y + panel.max.y) / 2};
     session->advance(0, on_panel, camera);
     CHECK_MESSAGE(session->status() == prefix + message, "a click on the text keeps the message");
 
-    const auto close = error_panel::close_bounds(message, camera.viewport);
+    const auto close = error_panel::close_bounds(message, camera.viewport, footer);
     Input on_close;
     on_close.clicked = true;
     on_close.mouse = (close.min + close.max) / 2;

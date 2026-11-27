@@ -43,7 +43,7 @@ flowchart TD
     Presentation --> Runtime[Kinetra Runtime]
 ```
 
-Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The controller reads the engine's right-button input state, and the blueprint screen draws its list with the optional heading and status text of `LaunchMenu`.
+Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The controller reads the engine's right-button input state, and the blueprint screen draws its list with `LaunchMenu`'s optional heading, and its message in `LaunchMenu`'s error panel.
 
 ## Simulation structure
 
