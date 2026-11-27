@@ -78,9 +78,11 @@ class Showcase {
     kinetra::Vec2 slot_target(std::size_t index) const;
 
     /// Advances the script by `dt` seconds and commands the awake agents whose leg begins.
-    /// A dormant agent waits until it wakes; in a shared turn the group does not wait for
-    /// it, so it falls one stop out of step (the authored scenes keep every agent awake).
-    /// An agent released to a user's command misses the shared turns until it holds.
+    /// A dormant agent waits until it wakes. In a shared turn the group does not wait for a
+    /// dormant agent that holds, and the agent joins the first turn after it wakes, at the
+    /// group's stop; one that fell asleep during its leg holds the group until it wakes (the
+    /// authored scenes keep every agent awake). An agent released to a user's command misses
+    /// the shared turns until it holds, then joins the next one at the group's stop.
     /// Returns the indices of the agents it commanded, valid until the next update(), so
     /// the caller can end what their old goal started (a passing plan). Throws
     /// std::invalid_argument, before anything changes, for a negative or non-finite `dt`,
@@ -114,6 +116,8 @@ class Showcase {
     std::vector<State> agents_;
     /// Together: seconds every agent has held at once.
     float group_held_{};
+    /// Together: the shared turns so far; a turn sends its agents to this stop of their lists.
+    std::size_t turns_{};
     /// Roam: the area and the random sequence.
     kinetra::Aabb area_{};
     std::mt19937 random_;

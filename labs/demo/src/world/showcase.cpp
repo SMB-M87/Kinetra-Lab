@@ -121,7 +121,10 @@ void Showcase::send(std::size_t index, Agent &agent) {
     state.held = 0;
     switch (kind_) {
     case Kind::shuttle:
-        state.stop = (state.stop + 1) % state.stops.size();
+        // Together, every agent of a turn heads for the group's stop, so one that missed a
+        // turn rejoins in step with its group; alone, each goes on to its own next stop.
+        state.stop =
+            turn_ == Turn::together ? turns_ % state.stops.size() : (state.stop + 1) % state.stops.size();
         agent.retarget(state.stops[state.stop]);
         break;
     case Kind::roam:
@@ -154,17 +157,20 @@ std::span<const std::size_t> Showcase::update(float dt, std::span<Agent> agents)
     case Kind::shuttle:
         if (turn_ == Turn::together) {
             // An agent a user sent away misses the turn: the group waits only for the agents
-            // the script owns, and turns only when it owns one, so CLICK SETS GOAL, which
-            // releases them all, holds the script until they are back.
-            bool owned = false, all_held = true;
+            // the script owns, and turns only when it owns one. After CLICK SETS GOAL, which
+            // releases them all, the first agents back turn; the others join a later turn.
+            // A turn needs an awake agent to send, so the count of turns stays the group's.
+            bool owned = false, awake = false, all_held = true;
             for (std::size_t i = 0; i < agents.size(); ++i)
                 if (!agents_[i].released) {
                     owned = true;
+                    awake = awake || agents[i].active();
                     all_held = all_held && agents[i].holding();
                 }
-            const bool turn = owned && all_held;
+            const bool turn = owned && awake && all_held;
             group_held_ = turn ? group_held_ + dt : 0;
             if (turn && group_held_ >= pause_) {
+                ++turns_;
                 for (std::size_t i = 0; i < agents.size(); ++i)
                     if (!agents_[i].released)
                         send(i, agents[i]);

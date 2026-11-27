@@ -195,16 +195,17 @@ TEST_CASE("a group that turns together turns without the agent a user sent away,
     CHECK(others_left < released_held);
     CHECK(agents[1].goal() == Vec2{-10, 0});
     CHECK(agents[2].goal() == Vec2{-18, -12});
-    // Back in the script, it joins the next turn and heads for one of its own stops.
+    // Back in the script, it joins the next turn and heads for the same end as its group.
     for (int t = 0; t < 120 * 20 && agents[2].goal() == Vec2{-18, -12}; ++t)
         scene.update(tick, {});
     const auto stop = scene.showcase()->stop(2);
     REQUIRE(stop);
     CHECK(agents[2].goal() == *stop);
-    CHECK((*stop == Vec2{-10, -4} || *stop == Vec2{10, -4}));
+    CHECK(stop->x == scene.showcase()->stop(0)->x);
+    CHECK(stop->x == scene.showcase()->stop(1)->x);
 }
 
-TEST_CASE("CLICK SETS GOAL keeps a shuttle from turning until its agents are back in the script") {
+TEST_CASE("after CLICK SETS GOAL a shuttle takes its agents back as they hold, and they turn in step") {
     auto scene = arena({{-10, 4}, {-10, -4}});
     scene.set_showcase(Showcase::shuttle({{{-10, 4}, {10, 4}}, {{-10, -4}, {10, -4}}}, Turn::together, 0.5f));
     const auto agents = scene.agents();
@@ -215,9 +216,13 @@ TEST_CASE("CLICK SETS GOAL keeps a shuttle from turning until its agents are bac
         for (const auto &agent : agents)
             CHECK((agent.holding() || agent.goal() == Vec2{0, -10}));
     }
-    for (int t = 0; t < 120 * 25 && agents[0].goal() == Vec2{0, -10}; ++t)
+    // Both back in the script, they head for the same end of their legs.
+    for (int t = 0; t < 120 * 40 && (agents[0].goal() == Vec2{0, -10} || agents[1].goal() == Vec2{0, -10});
+         ++t)
         scene.update(tick, {});
-    CHECK(agents[0].goal() == *scene.showcase()->stop(0));
+    REQUIRE(agents[0].goal() == *scene.showcase()->stop(0));
+    REQUIRE(agents[1].goal() == *scene.showcase()->stop(1));
+    CHECK(scene.showcase()->stop(0)->x == scene.showcase()->stop(1)->x);
 }
 
 TEST_CASE("an agent that turns alone keeps its rhythm while a user sends another away") {
