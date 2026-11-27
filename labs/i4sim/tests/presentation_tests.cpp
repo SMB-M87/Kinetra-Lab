@@ -1,10 +1,13 @@
 // Session tests for blueprint-screen messages, the mover inspector, and the rendered
-// controls and traffic overlays. CTest labels the suite `graphics`.
+// controls and traffic overlays, and a world-view test for routes drawn under the movers
+// they cross. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
+#include "i4sim/presentation/detail/world_view.h"
 #include "i4sim/presentation/session.h"
 #include "i4sim/testing/showcase.h"
 #include "kinetra_lab/inspector.h"
+#include "kinetra_lab/route.h"
 
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/debug_view.h>
@@ -17,6 +20,7 @@
 #include <glad/glad.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -24,6 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -610,4 +615,71 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     run_ticks(200);
     CHECK_MESSAGE(world_pixels() != before, "Restarting scene did not start again after its pause");
     CHECK_MESSAGE(session->status() == "Corridor retreat recovery | RUNNING", "A restart paused the scene");
+}
+
+TEST_CASE("a mover's route passes under the movers it crosses") {
+    Runtime runtime("i4sim routes under movers", 640, 480);
+    runtime.read_back(true);
+    i4sim::Simulation simulation(
+        i4sim::load_blueprint(i4sim::default_blueprint_directory() / "4320x2400.json"), 42);
+    simulation.run();
+    auto layers = i4sim::ViewLayers::none();
+    layers.toggle(i4sim::Layer::paths);
+    layers.toggle(i4sim::Layer::routes);
+    const auto shown = [&](const i4sim::Mover &mover) {
+        return lerp(mover.previous_position, mover.body.position, float(simulation.interpolation()));
+    };
+    const auto route_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The route color, {0.7, 0.4, 1}.
+        return std::abs(pixel[0] - 179) < 30 && std::abs(pixel[1] - 102) < 30 && pixel[2] > 225;
+    };
+    // Points (factory space) where a route crosses the middle of a mover listed before its own,
+    // which the old drawing order covered, clear of the crossed mover's own route start;
+    // searched after every 50 ticks until one turns up.
+    std::vector<Vec2> crossings;
+    const auto &movers = simulation.movers();
+    for (int batch = 0; batch < 200 && crossings.empty(); ++batch) {
+        for (int tick = 0; tick < 50; ++tick)
+            simulation.tick();
+        for (std::size_t index = 0; index < movers.size(); ++index) {
+            const auto &crossed = movers[index];
+            const auto center = shown(crossed);
+            const auto half = crossed.body.half_extents;
+            const auto own = kinetra_lab::route_start(center, crossed.route, std::min(half.x, half.y));
+            for (std::size_t later = index + 1; later < movers.size(); ++later) {
+                const auto &mover = movers[later];
+                Vec2 from = shown(mover);
+                for (const auto waypoint : mover.route) {
+                    const auto segment = waypoint - from;
+                    const float squared = dot(segment, segment);
+                    const auto point =
+                        from +
+                        segment *
+                            (squared > 0 ? std::clamp(dot(center - from, segment) / squared, 0.f, 1.f) : 0.f);
+                    float clearance = std::numeric_limits<float>::max();
+                    for (std::size_t i = 1; i < own.size(); ++i)
+                        clearance = std::min(clearance, distance_to_segment(point, own[i - 1], own[i]));
+                    if (std::abs(point.x - center.x) < 0.6f * half.x &&
+                        std::abs(point.y - center.y) < 0.6f * half.y &&
+                        clearance > 0.3f * std::min(half.x, half.y))
+                        crossings.push_back(point);
+                    from = waypoint;
+                }
+            }
+        }
+    }
+    REQUIRE_MESSAGE(!crossings.empty(), "No route crossed another mover");
+    // The smaller half extent of a mover spans 50 screen pixels.
+    runtime.camera.pixels_per_unit =
+        50 / std::min(movers.front().body.half_extents.x, movers.front().body.half_extents.y);
+    for (const auto point : crossings) {
+        CAPTURE(point.x);
+        CAPTURE(point.y);
+        runtime.camera.position = i4sim::flip_y(point);
+        runtime.begin(i4sim::world_background);
+        i4sim::draw_world(runtime, simulation, layers, std::nullopt);
+        runtime.end();
+        // The crossing point sits at the center of the view.
+        CHECK_MESSAGE(!route_color(runtime.frame().pixel(320, 240)), "A route covers a mover it crosses");
+    }
 }

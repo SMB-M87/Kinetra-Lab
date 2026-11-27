@@ -1,9 +1,11 @@
 #include "i4sim/presentation/detail/world_view.h"
+#include "kinetra_lab/route.h"
 
 #include <kinetra/runtime/bitmap_text.h>
 #include <kinetra/runtime/debug_view.h>
 
 #include <algorithm>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -117,13 +119,6 @@ void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size
     if (layers.shows(Layer::detection))
         draw_debug_circle(runtime, center, length(mover.body.half_extents) + motion.speed * motion.horizon,
                           detection_color);
-    if (layers.shows(Layer::routes)) {
-        Vec2 from = position;
-        for (auto target : mover.route) {
-            runtime.line(flip_y(from), flip_y(target), screen_pixels(runtime, 2), route_color);
-            from = target;
-        }
-    }
     if (const auto target = simulation.corridor_retreat_target(index);
         target && layers.shows(Layer::retreat_targets))
         draw_debug_vector(runtime, center, flip_y(*target - position), retreat_target_color);
@@ -157,13 +152,33 @@ Vec2 shown_position(const Mover &mover, float blend) {
     return lerp(mover.previous_position, mover.body.position, blend);
 }
 
+/// Lines through `points` (factory space) in the route color.
+void draw_route_points(Runtime &runtime, std::span<const Vec2> points) {
+    for (std::size_t i = 1; i < points.size(); ++i)
+        runtime.line(flip_y(points[i - 1]), flip_y(points[i]), screen_pixels(runtime, 2), route_color);
+}
+
 void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,
                  std::optional<std::size_t> selected, float blend) {
+    // Every route goes under the movers, so no route hides a mover; the start of a mover's
+    // own route is drawn over that mover alone, right after it, so the movers drawn later
+    // cover it again where they overlap.
+    const bool routes = layers.shows(Layer::routes);
+    if (routes)
+        for (const auto &mover : simulation.movers()) {
+            std::vector<Vec2> route{shown_position(mover, blend)};
+            route.insert(route.end(), mover.route.begin(), mover.route.end());
+            draw_route_points(runtime, route);
+        }
     for (std::size_t i = 0; i < simulation.movers().size(); ++i) {
         const auto &mover = simulation.movers()[i];
         const Vec2 position = shown_position(mover, blend);
         runtime.box(flip_y(position), mover.body.half_extents, 0,
                     (mover.held || mover.contacting) ? mover_alert_color : mover_color);
+        if (routes)
+            draw_route_points(runtime, kinetra_lab::route_start(
+                                           position, mover.route,
+                                           std::min(mover.body.half_extents.x, mover.body.half_extents.y)));
         if (selected == i)
             runtime.circle(flip_y(position), screen_pixels(runtime, 6), selection_color);
         draw_mover_layers(runtime, simulation, i, position, layers);
