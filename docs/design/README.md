@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-27 | [RECOVERY detour past a corner](2026-11-27-i4sim-recovery-corner.md): mover 18 stuck 3 mm beside a cell; Kinetra's `constrain_borders` gives its face choice a time horizon | implemented |
 | 2026-11-27 | [Shared passing mechanism](2026-11-27-shared-passing-mechanism.md): Kinetra's `PassingCoordinator` runs head-on passing for Demo's agents and Dotio's enemies, off by default, with pressure scenarios per application | implemented |
 | 2026-11-26 | [i4sim stall detection](2026-11-26-i4sim-stall-detection.md) | implemented |
 | 2026-11-24 | [Ubuntu as the Linux CI reference](2026-11-24-ubuntu-ci.md) | implemented |
