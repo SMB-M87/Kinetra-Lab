@@ -105,11 +105,13 @@ void DebugPanel::add_agent_entries(std::vector<DebugEntry> &entries) {
         entries.push_back(kinetra::debug_number("WANDER JITTER", wander.jitter, tuning_step::wander_jitter));
     }
     entries.push_back(kinetra::debug_check("CLICK SETS GOAL", click_sets_goal_));
+    entries.push_back(kinetra::debug_check("PASSING", passing_));
 }
 
 void DebugPanel::reset_parameters() {
     application_.tuning() = Tuning{};
     reciprocal_ = true;
+    passing_ = false;
     time_scale_ = 1;
 }
 
@@ -150,6 +152,7 @@ void DebugPanel::apply(FrameCommands &commands, bool debug_mode, bool pointer_ca
     const bool gravity_allowed = debug_mode || scene.scenario() == Scenario::gravity;
     commands.toggle_gravity = (gravity_allowed && gravity_) != (scene.world().gravity.y != 0);
     commands.reciprocal_avoidance = reciprocal_;
+    commands.passing = passing_;
     commands.time_scale = time_scale_;
     // The ZOOM row's steps are taken even outside debug mode, so none is left over for the
     // frame that switches it on.

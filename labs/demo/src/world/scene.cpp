@@ -15,6 +15,27 @@ namespace {
 /// Largest number of circles that stand in for one terrain box in reciprocal avoidance.
 constexpr std::size_t max_box_circles = 6;
 
+/// Passing geometry in world units, for agents of 0.3 to 0.55 units: the gap kept between
+/// two passing agents and before a goal, how far past the midpoint the exits lie, and the
+/// extra room along the line a plan needs for both lane changes.
+constexpr float passing_gap = 0.15f, passing_exit_offset = 0.3f, passing_formation_room = 0.6f;
+/// Distance from a lane target, in world units, within which an agent has reached it.
+constexpr float passing_arrival_distance = 0.3f;
+/// Share of the top speed below which an agent at a lane target counts as standing there.
+/// Steering slows down within slow_radius, so an agent passes this well before it stops.
+constexpr float passing_stop_fraction = 0.25f;
+/// Ticks between two predicted positions of another mover in the lane guard.
+constexpr int passing_sample_ticks = 4;
+/// Seconds the lane ahead of a waiting agent stays clear before it drives on; the longest
+/// wait and the longest stretch without progress; and the pause before a pair whose plan
+/// failed may plan again.
+constexpr float passing_resume_seconds = 0.33f, passing_timeout_seconds = 4, passing_retry_seconds = 1;
+
+/// Whole ticks of `dt` seconds in `seconds`, at least one.
+std::uint64_t ticks_in(float seconds, float dt) {
+    return std::max<std::uint64_t>(1, static_cast<std::uint64_t>(std::lround(seconds / dt)));
+}
+
 /// Appends to `circles` the circles that cover terrain body `obstacle`, for reciprocal
 /// avoidance, which knows moving circles but no rotated boxes. A circle stands for itself.
 /// A box becomes a row of equal circles along its long side: as many as the short side fits
@@ -128,6 +149,7 @@ void Scene::arrange(std::vector<Body> movers, std::size_t player, std::vector<Bo
     // Navigation validates before it replaces its snapshot, so a rejected area leaves the
     // scene as it was.
     navigation_.rebuild(navigation_area, obstacles);
+    end_passing();
     world_.clear();
     for (const auto &body : movers)
         world_.add(body);
@@ -188,6 +210,7 @@ bool Scene::evict_distant(Aabb retained) {
         }
     if (!removed)
         return false;
+    end_passing();
     // Compact movers and remap every handle atomically before rebuilding terrain.
     std::vector<std::size_t> remap(moving_body_count_);
     std::vector<Body> retained_bodies;
@@ -306,6 +329,8 @@ bool Scene::select_or_target(Vec2 destination) {
     if (selected_agent_) {
         for (auto &agent : agents_)
             if (length(agent.home() - *selected_agent_) < 0.001f) {
+                if (agent.active())
+                    replan_after(passing_coordinator_.cancel(agent.body_id()));
                 agent.retarget(destination);
                 return true;
             }
@@ -315,8 +340,54 @@ bool Scene::select_or_target(Vec2 destination) {
 }
 
 void Scene::target_agents(Vec2 destination) {
-    for (auto &agent : agents_)
+    for (auto &agent : agents_) {
+        if (agent.active())
+            replan_after(passing_coordinator_.cancel(agent.body_id()));
         agent.retarget(destination);
+    }
+}
+
+void Scene::command_agent(std::size_t index, Vec2 destination) {
+    auto &agent = agents_.at(index);
+    if (agent.active())
+        replan_after(passing_coordinator_.cancel(agent.body_id()));
+    agent.retarget(destination);
+}
+
+void Scene::place_agents(std::span<const std::size_t> bodies, std::uint32_t seed) {
+    std::vector<bool> taken(moving_body_count_);
+    for (auto id : bodies) {
+        if (id >= moving_body_count_ || id == player_ || taken[id])
+            throw std::invalid_argument("Placed agents need distinct moving bodies other than the player");
+        taken[id] = true;
+    }
+    end_passing();
+    agents_.clear();
+    clear_selection();
+    for (auto id : bodies) {
+        const auto &body = world_.body(id);
+        auto &agent = agents_.emplace_back(id, body.position, seed);
+        agent.update_visibility(bounds(body), body);
+    }
+}
+
+void Scene::set_passing(bool passing) {
+    if (passing_ && !passing)
+        end_passing();
+    passing_ = passing;
+}
+
+void Scene::end_passing() {
+    replan_after(passing_coordinator_.clear());
+}
+
+void Scene::replan_after(std::span<const PassingEvent> events) {
+    for (const auto &event : events)
+        if (event.kind == PassingEventKind::ended)
+            for (auto id : event.movers)
+                for (auto &agent : agents_)
+                    if (agent.body_id() == id)
+                        agent.invalidate_route();
 }
 
 void Scene::follow(Camera2D &camera) const {
@@ -346,6 +417,7 @@ struct Scene::Tick {
 void Scene::update(float dt, const PlayerControl &control) {
     validate(tuning_);
     avoidance_limited_ = 0;
+    passing_events_.clear();
     Tick tick = prepare_tick();
     // Sleeping agents participate as static collision obstacles. Restore complete
     // state after physics so gravity, impulses and timers cannot advance them.
@@ -463,7 +535,11 @@ Vec2 Scene::local_acceleration(std::size_t id, Vec2 target, AvoidTerrain terrain
 
 std::vector<std::pair<std::size_t, Body>> Scene::steer_agents(float dt, Tick &tick) {
     std::vector<std::pair<std::size_t, Body>> sleeping;
-    for (auto &agent : agents_) {
+    // Navigation reads only the agent's own body and steering only the tick's snapshot, so
+    // all targets can be known before passing replaces some of them.
+    std::vector<Vec2> targets(agents_.size());
+    for (std::size_t i = 0; i < agents_.size(); ++i) {
+        auto &agent = agents_[i];
         auto &body = world_.body(agent.body_id());
         if (!agent.active()) {
             sleeping.emplace_back(agent.body_id(), body);
@@ -472,11 +548,19 @@ std::vector<std::pair<std::size_t, Body>> Scene::steer_agents(float dt, Tick &ti
             body.angular_velocity = 0;
             continue;
         }
-        const Vec2 target = agent.advance_navigation(dt, body, navigation_, tuning_);
+        targets[i] = agent.advance_navigation(dt, body, navigation_, tuning_);
+    }
+    if (passing_)
+        coordinate_passing(dt, tick, targets);
+    for (std::size_t i = 0; i < agents_.size(); ++i) {
+        const auto &agent = agents_[i];
+        if (!agent.active())
+            continue;
+        auto &body = world_.body(agent.body_id());
         // A route keeps its own clearance from terrain; an agent without one relies on
         // local avoidance to stay clear of it.
         body.acceleration =
-            local_acceleration(agent.body_id(), target,
+            local_acceleration(agent.body_id(), targets[i],
                                agent.steers_without_route() ? AvoidTerrain::yes : AvoidTerrain::no, dt, tick);
         body.angular_velocity = 0;
         if (length(body.velocity) > 0.1f)
@@ -537,5 +621,60 @@ bool Scene::spawn(Vec2 position, const Terrain::Chunks &chunks) {
                 return false;
     agents_.emplace_back(world_.add(b), position, terrain_.seed());
     return true;
+}
+void Scene::coordinate_passing(float dt, const Tick &tick, std::vector<Vec2> &targets) {
+    const MotionTuning &motion = tuning_.motion;
+    // The coordinator counts in ticks: speeds become world units per tick.
+    const float speed = motion.max_speed * dt;
+    const PassingCoordination settings{.margins = {passing_gap, passing_exit_offset, passing_formation_room},
+                                       .prediction = {speed, motion.max_acceleration * dt * dt,
+                                                      static_cast<int>(std::ceil(motion.horizon / dt)),
+                                                      passing_sample_ticks},
+                                       .clearance = {motion.clearance, motion.clearance},
+                                       .arrival_distance = passing_arrival_distance,
+                                       .stop_speed = speed * passing_stop_fraction,
+                                       .resume_steps = ticks_in(passing_resume_seconds, dt),
+                                       .timeout_steps = ticks_in(passing_timeout_seconds, dt),
+                                       .retry_steps = ticks_in(passing_retry_seconds, dt)};
+    // Every moving body takes part: the player and the props as movers that never join a
+    // plan, sleeping agents as stationary ones.
+    std::vector<PassingMover> movers(moving_body_count_);
+    for (std::size_t id = 0; id < moving_body_count_; ++id) {
+        auto &mover = movers[id];
+        mover.body = tick.snapshot[id];
+        mover.body.velocity = mover.body.velocity * dt;
+        mover.available = false;
+        mover.stationary = length(mover.body.velocity) < settings.stop_speed;
+    }
+    for (std::size_t i = 0; i < agents_.size(); ++i) {
+        const auto &agent = agents_[i];
+        auto &mover = movers[agent.body_id()];
+        mover.destination = agent.goal();
+        if (!agent.active()) {
+            mover.stationary = true;
+            continue;
+        }
+        // Only commanded travel passes: a wanderer's next leg is too short and too random
+        // for an agreement about lanes.
+        mover.stationary = false;
+        mover.available = !agent.wandering();
+        if (mover.available)
+            mover.heading = normalized(targets[i] - mover.body.position);
+    }
+    const auto lanes_clear = [this](std::size_t, Vec2 from, Vec2 to, Vec2 half_extents) {
+        Body sweep;
+        sweep.shape = Shape::box;
+        sweep.position = from;
+        sweep.half_extents = half_extents;
+        for (auto index : terrain_index_.query(swept_box_bounds(from, to, half_extents)))
+            if (sweep_translation(sweep, to, loaded_terrain_[index]))
+                return false;
+        return true;
+    };
+    passing_events_ = passing_coordinator_.step(movers, settings, lanes_clear);
+    replan_after(passing_events_);
+    for (std::size_t i = 0; i < agents_.size(); ++i)
+        if (const auto target = passing_coordinator_.target(agents_[i].body_id()))
+            targets[i] = target->point;
 }
 } // namespace demo

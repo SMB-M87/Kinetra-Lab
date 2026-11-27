@@ -6,6 +6,7 @@
 #include "demo/world/terrain.h"
 #include "demo/world/tuning.h"
 #include <kinetra/simulation/navigation.h>
+#include <kinetra/simulation/passing_coordinator.h>
 #include <kinetra/simulation/physics.h>
 #include <kinetra/simulation/spatial_grid.h>
 #include <kinetra/view/camera.h>
@@ -70,6 +71,14 @@ class Scene {
     bool reciprocal_avoidance() const { return reciprocal_avoidance_; }
     /// Awake agents whose avoidance could not meet every constraint in the last tick.
     std::size_t avoidance_limited() const { return avoidance_limited_; }
+    /// Whether agents on commanded travel pass each other head-on in agreed side lanes
+    /// (kinetra::PassingCoordinator). Off by default.
+    bool passing() const { return passing_; }
+    /// The active passing plans; mover indices are world body ids.
+    std::vector<kinetra::PassingPlanState> passing_plans() const { return passing_coordinator_.plans(); }
+    /// What happened to passing plans in the last tick, in order; mover indices are world
+    /// body ids of that tick.
+    std::span<const kinetra::PassingEvent> passing_events() const { return passing_events_; }
     /// Motion and wander values that update() reads on every tick; a debug menu may change
     /// them between ticks. update() throws for values that validate() rejects.
     Tuning &tuning() { return tuning_; }
@@ -80,6 +89,9 @@ class Scene {
     void set_following(bool following) { following_ = following; }
     /// Chooses reciprocal avoidance or legacy steering for the next ticks.
     void set_reciprocal_avoidance(bool reciprocal) { reciprocal_avoidance_ = reciprocal; }
+    /// Turns passing on or off for the next ticks. Turning it off ends every plan, and its
+    /// participants plan their routes again.
+    void set_passing(bool passing);
     /// Sets the world's gravity in world units per second squared; streaming keeps it.
     void set_gravity(kinetra::Vec2 gravity) { world_.gravity = gravity; }
     /// Forgets the selected agent.
@@ -102,6 +114,14 @@ class Scene {
     /// later stream() that loads terrain replaces the layout with streamed terrain.
     void arrange(std::vector<kinetra::Body> movers, std::size_t player, std::vector<kinetra::Body> obstacles,
                  kinetra::Aabb navigation_area);
+    /// Replaces the agents with new awake ones on the moving bodies `bodies`, each with its
+    /// home at its body's position and its random sequence from `seed`, for tests and tools
+    /// after arrange(). Throws std::invalid_argument, before changing anything, when an id is
+    /// not a moving body, is the player or repeats.
+    void place_agents(std::span<const std::size_t> bodies, std::uint32_t seed);
+    /// Commands agent `index` (an index into agents()) to `destination`, as a click with the
+    /// agent selected does. Throws std::out_of_range for an index beyond agents().
+    void command_agent(std::size_t index, kinetra::Vec2 destination);
 
     /// Update the camera view in every scenario. Terrain retains player-centered terrain
     /// and populates newly active chunks once. The population
@@ -165,6 +185,9 @@ class Scene {
     Tuning tuning_;
     bool reciprocal_avoidance_{true};
     std::size_t avoidance_limited_{};
+    bool passing_{};
+    kinetra::PassingCoordinator passing_coordinator_;
+    std::vector<kinetra::PassingEvent> passing_events_;
     std::vector<kinetra::Vec2> player_path_;
     std::optional<kinetra::Vec2> player_goal_;
     std::optional<kinetra::Vec2> selected_agent_;
@@ -210,6 +233,15 @@ class Scene {
     /// Sets the acceleration of every awake agent. Sleeping agents become fixed for the
     /// tick; returns their bodies as they were, to restore after physics.
     std::vector<std::pair<std::size_t, kinetra::Body>> steer_agents(float dt, Tick &tick);
+    /// One passing step over the tick's snapshot: replaces the steering target in `targets`
+    /// (one per agent) of every agent in a plan, and replans the routes of the agents whose
+    /// plan ended.
+    void coordinate_passing(float dt, const Tick &tick, std::vector<kinetra::Vec2> &targets);
+    /// Plans the routes of the agents in `events`' ended plans again, from where they are.
+    void replan_after(std::span<const kinetra::PassingEvent> events);
+    /// Ends every passing plan and replans its participants' routes; called before body ids
+    /// change.
+    void end_passing();
     /// Sets the player's acceleration and turn from `control`, or from its route.
     void steer_player(float dt, const PlayerControl &control, Tick &tick);
     /// Reject overlapping spawn candidates, including the reserved player/passive area.
