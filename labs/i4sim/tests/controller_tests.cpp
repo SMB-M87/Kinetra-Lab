@@ -24,8 +24,8 @@ using i4sim::RunState;
 using kinetra::DebugEntry;
 
 namespace {
-/// The original MAS demonstrator, kept as a test fixture outside the catalog.
-const auto factory = i4sim::test::fixture_blueprint("MAS-demonstrator");
+/// The test environment (the reference's MAS demonstrator), a test fixture outside the catalog.
+const auto factory = i4sim::test::fixture_blueprint("test-environment");
 /// An open floor of 2400 by 1600 mm with two movers at (500, 800) and (1900, 800).
 const auto open_floor = i4sim::test::showcase_blueprint("predictive-passing");
 const Layer top_layers[]{Layer::grid,    Layer::heatmap,   Layer::paths,         Layer::forces,
@@ -113,7 +113,7 @@ TEST_CASE("a blueprint loads paused at the session's update rate with a camera f
     REQUIRE(controller.load(factory));
     REQUIRE(controller.loaded());
     const auto &simulation = controller.simulation();
-    CHECK(simulation.blueprint().name == "MAS-demonstrator");
+    CHECK(simulation.blueprint().name == "test-environment");
     CHECK(simulation.state() == RunState::paused);
     CHECK(simulation.updates_per_second() == 400);
     CHECK(simulation.seed() == 42);
@@ -162,7 +162,7 @@ TEST_CASE("a failed load keeps the loaded blueprint and reports the path and the
     CHECK_MESSAGE(controller.message().empty(), "a successful load clears the message");
     CHECK_FALSE(controller.load(missing));
     REQUIRE(controller.loaded());
-    CHECK(controller.simulation().blueprint().name == "MAS-demonstrator");
+    CHECK(controller.simulation().blueprint().name == "test-environment");
     CHECK(controller.message().find("missing.json") != std::string::npos);
     REQUIRE(controller.begin_frame(60));
     CHECK_MESSAGE(!controller.message().empty(), "a reported error does not expire");
