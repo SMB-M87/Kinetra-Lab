@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-27 | [HUD error style](2026-11-27-hud-error-style.md): Kinetra's shared HUD style, an error in red above the statistics, and an error panel over the launch menu; i4sim uses both | implemented |
 | 2026-11-27 | [Demo showcases](2026-11-27-demo-showcases.md): Demo's authored scenarios repeat on their own; Doorway shuttles, Maze becomes a labyrinth with agents, and seven new scenarios show corridors, crossings, a circle, a bottleneck, chaos, fleets and a swarm | implemented |
 | 2026-11-27 | [i4sim start state](2026-11-27-i4sim-start-state.md): showcase scenes start running; a blueprint that starts paused shows a RUN button until it first runs | implemented |
 | 2026-11-27 | [Default debug layers](2026-11-27-default-debug-layers.md): Demo starts with VECTORS and PATHS, i4sim with every layer but HEATMAP and CONTACT SHAPES | implemented |

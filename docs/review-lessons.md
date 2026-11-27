@@ -46,6 +46,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **When a new panel takes the pointer over an existing screen, list the controls it covers at the window sizes the applications open with (the default 1280 × 800, and 1280 × 720) in the design document's decision** · added 2026-11-27 · source: [#152](https://github.com/SMB-M87/Kinetra-Lab/pull/152)
+  At 1280 × 720 a one-line error panel covered the blueprint menu's LAUNCHER and EXIT, which the decision did not mention, so a four-second message blocked them.
 - **When a commit adds or removes test cases, update the case count and the description in the module README's test table in the same commit** · added 2026-11-27 · source: [#151](https://github.com/SMB-M87/Kinetra-Lab/pull/151)
   1542c94 added two showcase cases, and Demo's README still counted 8 and described neither.
 - **When a pull request applies one rule in several applications, give each application its own test for each goal, not one application per goal** · added 2026-11-27 · source: [#145](https://github.com/SMB-M87/Kinetra-Lab/pull/145)

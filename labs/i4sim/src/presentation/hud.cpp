@@ -1,10 +1,12 @@
 #include "i4sim/presentation/detail/hud.h"
 
 #include <kinetra/runtime/bitmap_text.h>
+#include <kinetra/runtime/hud_text.h>
 #include <kinetra/runtime/overlay_style.h>
 
 #include <array>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -12,15 +14,15 @@ namespace i4sim {
 namespace {
 using namespace kinetra;
 
-constexpr Color hud_color{1, 1, 0};
-constexpr float hud_scale = 1.5f;
-/// Height of one HUD line in screen pixels, at hud_scale.
-constexpr float line_height = 20;
-
-/// Draws `text` on HUD line `line`, counted from the bottom of the viewport (1 is lowest).
-void draw_line(Runtime &runtime, std::string_view text, int line, Color color = hud_color) {
-    draw_text(runtime, text, {10, runtime.camera.viewport.y - float(line) * line_height}, hud_scale, color);
-}
+/// The scene description stands out from the statistics without reading as an error.
+constexpr Color description_color{0.75f, 0.85f, 1};
+/// HUD lines the statistics keep, shown or not, so the message does not jump when they toggle.
+constexpr int statistics_lines = 2;
+/// An i4sim message is a sentence, or a path with its parse error, which four lines hold at
+/// a common window width. A longer one is cut; its full text is on stderr and in the status.
+constexpr int max_message_lines = 4;
+/// Empty HUD line between the inspection and the description, as before the message moved here.
+constexpr int description_gap = 2;
 
 /// Run totals, with the counters of the coordination features that are on.
 std::string totals_text(const Simulation &simulation) {
@@ -54,28 +56,38 @@ std::string motion_text(const Simulation &simulation) {
     return text.str();
 }
 
-void draw_producer_inspection(Runtime &runtime, const Simulation &simulation, std::size_t index) {
+void draw_producer_inspection(Runtime &runtime, const Simulation &simulation, std::size_t index, int line) {
     const auto &producer = simulation.producers().at(index);
-    draw_line(runtime,
-              producer.definition.id + " | QUEUE " + std::to_string(producer.queue.size()) + " | REMAINING " +
-                  std::to_string(producer.remaining) + " | TASKS " + std::to_string(producer.interactions) +
-                  (producer.blocked ? " | BLOCKED" : ""),
-              3);
+    hud::draw_line(runtime,
+                   producer.definition.id + " | QUEUE " + std::to_string(producer.queue.size()) +
+                       " | REMAINING " + std::to_string(producer.remaining) + " | TASKS " +
+                       std::to_string(producer.interactions) + (producer.blocked ? " | BLOCKED" : ""),
+                   line, hud::statistics_color);
 }
 } // namespace
 
+HudLines hud_lines(int message_lines) {
+    if (message_lines < 0)
+        throw std::invalid_argument("A message cannot have a negative number of lines");
+    HudLines lines;
+    lines.message = statistics_lines + 1;
+    lines.inspection = lines.message + message_lines;
+    lines.description = lines.inspection + description_gap;
+    return lines;
+}
+
 void draw_hud(Runtime &runtime, const Simulation &simulation, const HudContent &content) {
     if (content.statistics) {
-        draw_line(runtime, totals_text(simulation), 2);
-        draw_line(runtime, motion_text(simulation), 1);
+        hud::draw_line(runtime, totals_text(simulation), 2, hud::statistics_color);
+        hud::draw_line(runtime, motion_text(simulation), 1, hud::statistics_color);
     }
+    // The message's line comes from hud_lines(), so its test covers where the message is drawn.
+    const auto lines =
+        hud_lines(hud::draw_error(runtime, content.message, hud_lines(0).message, max_message_lines));
     if (content.selected_producer)
-        draw_producer_inspection(runtime, simulation, *content.selected_producer);
+        draw_producer_inspection(runtime, simulation, *content.selected_producer, lines.inspection);
     if (!content.description.empty())
-        draw_line(runtime, content.description, 5, {0.75f, 0.85f, 1});
-    // Below the SETTINGS and DEBUG toolbar, smaller than the HUD lines.
-    if (!content.message.empty())
-        draw_text(runtime, content.message, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
+        hud::draw_line(runtime, content.description, lines.description, description_color);
 }
 
 void draw_start_button(Runtime &runtime, Aabb box, bool lit) {

@@ -54,7 +54,7 @@ Each session owns a `kinetra::SettingsOverlay` built by `kinetra_lab::settings_r
 
 | Row | Effect |
 | --- | --- |
-| STATISTICS | The application's statistics line |
+| STATISTICS | The application's statistics lines, in the yellow of Kinetra's [HUD style](../external/Kinetra/docs/engine/launcher-overlays.md#hud-text-and-errors); Demo and i4sim also use its scale and lines, while Dotio keeps its own window-fitted scale and right alignment. An error message uses the same style in red, directly above them; i4sim is the only application that shows one so far |
 | DEBUG MODE | The debug layers, the DEBUG toolbar button and the debug zoom range. Shift+Ctrl switches it on as well |
 | FRAME TIMES | Off by default. Draws Kinetra's frame-time graph in the top-right corner: the time between the last 240 presented frames and what paces them, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)) |
 | FRAME LIMIT | On by default. Where the platform has no VSync (WSLg), the runtime paces frames at the display's refresh rate; off shows the unpaced loop for comparison. Without effect where VSync works. The choice belongs to the window (`kinetra_lab::FrameLimitSwitch`), so it carries over to the next application started from the launcher |
