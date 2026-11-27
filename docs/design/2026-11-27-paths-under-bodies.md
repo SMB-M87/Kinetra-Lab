@@ -99,10 +99,11 @@ Findings of the review of `git diff main...HEAD`, and how they were resolved, ar
 ## Verification
 
 - `python3 external/Kinetra/tools/check_copies.py` and `python3 external/Kinetra/tools/check_docs.py`.
+- After the fixture rename: `cmake --build --preset release` of the i4sim targets in the [table](../../AGENTS.md#verification-in-lab) and `ctest --preset release -R '^kinetra_i4sim'`: 165 of 165 passed; the i4sim graphics suite 8 of 8.
 - `cmake --build --preset dev --target kinetra_lab_tests kinetra_dotio_tests kinetra_demo kinetra_dotio kinetra_i4sim`, `ctest --preset dev -R '^kinetra_dotio:|^kinetra_lab:'`: 66 of 66 passed, no warnings.
 - `cmake --build --preset graphics --target kinetra_demo_presentation_tests kinetra_dotio_presentation_tests kinetra_i4sim_presentation_tests kinetra kinetra_demo kinetra_dotio kinetra_i4sim kinetra_capture`, `ctest --preset graphics -L graphics` with `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1`: 23 of 23 passed.
 - Each new graphics test run against the old renderer of its application: it fails.
-- `tools/capture/capture_media.sh build-graphics` for the captures of the Demo, Dotio and i4sim rows. Committed are those that changed by more than a colour step in some pixel, each looked at before and after: `demo-debug-clip`, `demo-doorway-clip`, `demo-gravity-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug`, `i4sim-debug-clip`. `demo-clip`, `i4sim-clip` and `i4sim.png` differed only in encoding and were not committed; the others came out identical.
+- `tools/capture/capture_media.sh build-graphics` for the captures of the Demo, Dotio and i4sim rows. Committed are those that changed by more than a colour step in some pixel, each looked at before and after: `demo-debug-clip`, `demo-doorway-clip`, `demo-gravity-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug`, `i4sim-debug-clip`. `demo-clip`, `i4sim-clip` and `i4sim.png` differed only in encoding and were not committed; the others came out identical. After the route width changed, the same scenes were rendered again: `demo-debug-clip`, `demo-doorway-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug` and `i4sim-debug-clip` changed and were looked at; the rest again differed only in encoding or not at all.
 - The pull request's CI is the Full level.
 
 ## Pull request
