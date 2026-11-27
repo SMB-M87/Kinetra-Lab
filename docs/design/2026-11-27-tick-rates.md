@@ -84,7 +84,26 @@ Smaller choices, proposed and not contested: the per-frame budget is one frame i
 - `motion_benchmark.cpp`: `ticks` defaults to 1,000,000 and accepts 1..100,000,000. The CSV gains `ticks_per_second`, the ticks run divided by the simulation's wall-clock time; `elapsed_ms` stays, so older CSVs compare column by column. Ticks run is counted, because a simulation that stops running ends the loop early.
 - `kinetra_i4sim --ticks N` adds the rate to its summary: `i4sim: N ticks, M completed products, R ticks/s`. The rate covers the tick loop only, not loading or `--output`. The CTest case that matches the summary (`labs/shared/tests/inspector_trace.cmake`) still matches.
 
-### Steps 2 to 5
+### Step 2: the hotspot of a long run
+
+Profiled on 2026-11-27 with `perf` on a frame-pointer build ([how](../performance.md#how-to-measure)), `kinetra_i4sim --blueprint 8640x4800.json --ticks 300000 --seed 42`, 19,400 samples:
+
+| Where | Self | With what it calls |
+| --- | --- | --- |
+| `kinetra::priority_steer` | 21% | 31% |
+| `kinetra::validate` | 11% | 11%: 3.8% from `steer`, 3.6% from `collide()` in `priority_steer`, 3.0% from `priority_steer` itself |
+| `MotionStep::surroundings` and `SpatialGrid::query` | 15% | 21% |
+| `MotionStep::resolve_contacts` | 10% | 11% |
+| `kinetra::steer` | 8% | 12% |
+
+`priority_steer` is the largest. Per neighbor it validated the body, then called `collide()`, which validated both bodies again and rotated their axes, and then searched, for each of the mover's (horizon + 1) steps, the interval of the neighbor's steps that can overlap. Most neighbors touch nothing and meet at no step. Two changes in Kinetra's `priority_steering.cpp`, both with the same results:
+
+- **Contact.** For two axis-aligned boxes, `collide()` computes each axis's overlap as `ha + hb - |d|` and reports penetration only when both are positive. `priority_steer` now computes the same two expressions first and calls `collide()` only when both are positive.
+- **Steps.** Before the loop over the mover's steps, a bound per axis keeps only the steps where the mover's predicted position lies within the neighbor's whole predicted path, widened by the extent, the largest slack of `narrow()`, one step of the neighbor and the rounding of the mover's float position. Every step outside it is one the loop skipped, so the first pair found is the same.
+
+The decisions allowed results that shift slightly; these keep them exact, so the golden lines stay as they are.
+
+### Steps 3 to 5
 
 Written in detail when each step starts; the decisions above fix their shape.
 
@@ -93,7 +112,7 @@ Written in detail when each step starts; the decisions above fix their shape.
 | # | Repository | Branch | Pull request | Content |
 | --- | --- | --- | --- | --- |
 | 1 | Kinetra-Lab | `ccr-74d1b15a-ig41um` | | Benchmark and `--ticks` report ticks per second; a million ticks by default |
-| 2 | Kinetra-Lab or Kinetra | | | Profile a long run and optimize the largest hotspot |
+| 2 | Kinetra, then Kinetra-Lab | Kinetra `refactor/priority-steer-pairs`; Kinetra-Lab `feat/i4sim-long-run-hotspot` | | Profile a long run and optimize the largest hotspot, `priority_steer`; Lab records the pointer and the measurement |
 | 3 | Kinetra | | | Digit input in `Input`, typed number rows in the debug menu |
 | 4 | Kinetra | | | Budgeted fixed clock, FPS limit in `Runtime`, UPS and FPS rows |
 | 5 | Kinetra-Lab | | | Every lab uses them; SPEED becomes UPS; limits 1 to 1,000,000 |
@@ -102,13 +121,18 @@ Written in detail when each step starts; the decisions above fix their shape.
 
 Step 1: `labs/i4sim/tests/motion_benchmark.cpp`, `labs/i4sim/src/main.cpp`, `labs/i4sim/README.md`, `labs/i4sim/tests/README.md`, `docs/performance.md`.
 
+Step 2: Kinetra `src/simulation/priority_steering.cpp`, `tests/weighted_navigation_tests.cpp`, `tests/README.md`; Lab `external/Kinetra`, `docs/performance.md`.
+
 ## Test plan
 
 | Behavior | Test | Level |
 | --- | --- | --- |
 | Step 1: the benchmark accepts `--ticks` up to 100,000,000 and rejects 0 and more | Run by hand with `--ticks 0`, `--ticks 100000001` (rejected) and `--ticks 100000000 --blueprint <MAS> --seed 42` stopped after its header; the CTest benchmark cases still pass | Targeted |
 | Step 1: the CSV has `ticks_per_second`, and its other columns are unchanged | Run with `--ticks 50000` on the default set and compare with a run of the previous build | Targeted |
-| Step 1: `--ticks` reports the rate | `kinetra_lab:inspector_trace` cases (they match the summary), and a run by hand | Targeted |
+| Step 1: `--ticks` reports the rate | `kinetra_i4sim_inspector_trace` (it matches the summary), and a run by hand | Targeted |
+| Step 2: the predictive term is unchanged | Kinetra's existing comparison with a reference that tests every pair of steps, at six scales; a new constructed case, *keeps a mover step that only rounding puts inside the extent*, which fails without the bound's slack | Full (engine) |
+| Step 2: the collision term is unchanged | New Kinetra case: the term equals one built from `collide()` for every neighbor, in random scenes with many boxes exactly edge to edge | Full (engine) |
+| Step 2: whole runs are unchanged | i4sim's golden, pressure and simulation tests; Demo's characterization tests; the benchmark's CSV columns before and after | Targeted, then Full in CI |
 
 ## Verification
 
@@ -118,6 +142,12 @@ Step 1, on 2026-11-27:
 - `release` preset: `kinetra_i4sim_motion_benchmark --ticks 0`, `--ticks 100000001` and `--ticks 1x` print *Ticks must be in 1..100000000*; `--ticks 100000000` runs. The default set at `--ticks 50000` gives the same first thirteen columns as the build before the change; only `ticks_per_second` is new.
 - `kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --ticks 1000000 --seed 42` prints `i4sim: 1000000 ticks, 1034 completed products, 77502 ticks/s`, in 12.9 s.
 - `clang-format --dry-run --Werror` on both changed sources; `check_docs.py`; `check_copies.py` with `50000`, `1000000`, `elapsed_ms` and `completed products` (every remaining hit names a recorded 50,000-tick run or is unrelated).
+
+Step 2, on 2026-11-27:
+
+- Kinetra `cmake --preset dev`, `cmake --build --preset dev`, `ctest --preset dev`: 313 of 313 passed. The new constructed case fails with the bound's slack removed (checked, then restored).
+- Lab `ctest --preset dev -R '^kinetra_i4sim|^kinetra_demo(:|_passing|_crowd_characterization)'`: 210 of 210 passed, golden lines unchanged.
+- `release` preset, `kinetra_i4sim_motion_benchmark --ticks 50000` and with `--predictive-passing`, before and after, three runs each, interleaved: medians 12.2 s to 10.0 s and 20.1 s to 17.1 s; the CSV columns other than `elapsed_ms` and `ticks_per_second` equal in every run. The default million-tick set after: the same results as before, `8640x4800` in 102 s instead of 148 s and 138 s.
 
 ## Review
 
