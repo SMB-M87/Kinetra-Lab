@@ -1,6 +1,6 @@
 # i4sim
 
-A local C++20 factory simulation, ported from the C# Industry 4.0 reference. Movers carry products between producers on a grid floor, and optional traffic policies keep them from blocking each other. It runs as a graphical session, from the bundled launcher or on its own, and as a batch program without a window. People use it to watch and compare motion and traffic policies; the [roadmap](../../docs/roadmap.md) builds on those results for stall remedies and the passing rollout to Demo and Dotio.
+A local C++20 factory simulation, ported from the C# Industry 4.0 reference. Movers carry products between producers on a grid floor, and optional traffic policies keep them from blocking each other. It runs as a graphical session, from the bundled launcher or on its own, and as a batch program without a window. People use it to watch and compare motion and traffic policies; the [roadmap](../../docs/roadmap.md) builds on those results for stall remedies; Demo and Dotio pass with Kinetra's `PassingCoordinator`.
 
 ## Table of contents
 
