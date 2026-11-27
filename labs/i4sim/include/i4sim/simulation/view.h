@@ -19,9 +19,10 @@ constexpr kinetra::Vec2 flip_y(kinetra::Vec2 point) {
     return {point.x, -point.y};
 }
 
-/// A debug layer of the world view. Every layer starts selected; layers are drawn only in
-/// debug mode. PATHS, FORCES and BORDERS consist of parts, which are layers of their own:
-/// a part is drawn only while it and its layer are selected (parent_layer).
+/// A debug layer of the world view. Every layer but HEATMAP and CONTACT SHAPES starts
+/// selected (ViewLayers()); layers are drawn only in debug mode. PATHS, FORCES and BORDERS
+/// consist of parts, which are layers of their own: a part is drawn only while it and its
+/// layer are selected (parent_layer).
 enum class Layer : std::uint8_t {
     /// Cell outlines of the route grid.
     grid,
@@ -88,8 +89,13 @@ constexpr Layer parent_layer(Layer layer) {
 /// Which debug layers are selected: a set of Layer values.
 class ViewLayers {
   public:
-    /// Every layer selected: what a session starts with.
-    ViewLayers() { selected_.set(); }
+    /// What a session starts with: every layer and part selected except HEATMAP and CONTACT
+    /// SHAPES, whose tint and outlines cover the routes and forces a first look is about.
+    ViewLayers() {
+        selected_.set();
+        selected_.reset(index(Layer::heatmap));
+        selected_.reset(index(Layer::contact_shapes));
+    }
     /// No layer selected: what the world view draws outside debug mode.
     static ViewLayers none() {
         ViewLayers layers;
