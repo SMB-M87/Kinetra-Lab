@@ -10,6 +10,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace capture {
 namespace {
@@ -397,8 +398,17 @@ void Tour::click_menu_page_row(std::size_t row, std::size_t rows) {
     click_at(menu_layout(rows).row_center(row));
 }
 
-void Tour::click_menu_page_exit(std::size_t rows) {
-    click_at(menu_layout(rows).footer_center());
+void Tour::click_menu_footer(kinetra::FooterButton button, std::size_t rows) {
+    // i4sim's blueprint screen is a menu with LAUNCHER on every page; a menu with as many
+    // rows puts its footer where i4sim's is.
+    const auto x = in_menu()
+                       ? menu_.footer_x(button)
+                       : kinetra::LaunchMenu(std::vector<kinetra::LaunchChoice>(rows, {"ROW", "", {}, 0}), "",
+                                             kinetra::LauncherButton::every_page)
+                             .footer_x(button);
+    if (!x)
+        throw std::runtime_error("The menu page shows no such footer button");
+    click_at(menu_layout(rows).footer_center(*x));
 }
 
 void Tour::toggle_debug_menu() {

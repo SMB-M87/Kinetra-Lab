@@ -128,8 +128,10 @@ class Tour {
     /// Clicks row `row` of a kinetra::LaunchMenu page that lists `rows` rows: the launcher's
     /// own menu, its configuration page, or i4sim's blueprint screen.
     void click_menu_page_row(std::size_t row, std::size_t rows);
-    /// Clicks EXIT below a menu page that lists `rows` rows.
-    void click_menu_page_exit(std::size_t rows);
+    /// Clicks `button` below a menu page that lists `rows` rows: the launcher's own page, or,
+    /// while i4sim runs, its blueprint screen, whose LAUNCHER shows on every page. Throws
+    /// std::runtime_error when the page does not show the button.
+    void click_menu_footer(kinetra::FooterButton button, std::size_t rows);
 
     // The debug menu of the running session.
 
@@ -149,7 +151,8 @@ class Tour {
     /// Clicks `row` of the open settings panel.
     void click_setting(SettingsRow row);
     /// Clicks the action button of the open panel whose center is at panel x `x`:
-    /// SettingsOverlay::launcher_x, resume_x or exit_x. The panel is closed afterwards.
+    /// SettingsOverlay::leave_x (SCENARIOS, DIFFICULTY or BLUEPRINTS), resume_x or exit_x. The
+    /// panel is closed afterwards.
     void click_settings_action(float x);
 
   private:
