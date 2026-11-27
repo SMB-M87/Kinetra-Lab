@@ -257,11 +257,13 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
     else if (goals.tick >= trip.deadline)
         finish(MakeWayEnd::timed_out);
     const bool route_hits_traffic = m.moving() && !traffic_clear(goals, m, m.route);
-    if (route_hits_traffic)
+    if (route_hits_traffic) {
         finish(MakeWayEnd::obstructed);
+        trip.traffic_invalidated = true;
+    }
     // A failed or cancelled request cannot reserve the parking space forever.
     // The return planner still checks the beneficiary's current footprint.
-    const bool can_return = !protects_beneficiary || cancelled || route_hits_traffic ||
+    const bool can_return = !protects_beneficiary || cancelled || trip.traffic_invalidated ||
                             goals.tick >= trip.deadline || trip.outcome == MakeWayEnd::cancelled;
     const auto return_home = [&] {
         if (auto home = checked_route(goals, index, m.parking); !home.empty()) {
@@ -271,10 +273,12 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
         }
         return false;
     };
+    // A brake target can overlap the region that invalidated the route. Retry
+    // while braking so that temporary obstructions cannot strand the mover.
+    if ((trip.phase == Phase::waiting || (m.moving() && trip.phase == Phase::outbound)) && trip.outcome &&
+        can_return && return_home())
+        return;
     if (m.moving()) {
-        if (trip.phase == Phase::outbound && trip.outcome && can_return && return_home())
-            return;
-
         // A newly stationary body may occupy the checked trip. Brake via the
         // current position, then wait until a checked return is available.
         const bool obstructed =
@@ -295,10 +299,7 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
             if (auto route = checked_route(goals, trip.beneficiary, trip.goal); !route.empty())
                 install_route(goals, trip.beneficiary, std::move(route), beneficiary.goal);
         trip.phase = Phase::waiting;
-        return;
     }
-    if (trip.outcome && can_return)
-        return_home();
 }
 
 void MakeWay::try_make_way(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,

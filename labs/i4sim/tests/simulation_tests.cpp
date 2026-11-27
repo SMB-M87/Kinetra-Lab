@@ -2813,6 +2813,80 @@ TEST_CASE("make way can withdraw from a traffic zone enabled around the mover") 
     CHECK_FALSE(traffic.exit_reservation(floor.junction_count()));
 }
 
+TEST_CASE("a braking make way trip retries its checked return when an obstruction clears") {
+    auto layout = corridor_fixture();
+    layout.movers.push_back({"return obstruction", Model::APM4220, {1843.5f, 943.5f}});
+    Simulation scenario(layout);
+    REQUIRE(scenario.move_to(0, {1900, 700}));
+    const detail::FloorPlan floor(layout);
+    REQUIRE(floor.corridor_count() == 1);
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    auto &beneficiary = fleet.movers[0];
+    auto &yielding = fleet.movers[1];
+    auto &obstruction = fleet.movers[2];
+    beneficiary.body.position = {330, 700};
+    beneficiary.route = {beneficiary.destination};
+    yielding.parking = yielding.body.position = {460, 700};
+    fleet.progress.resize(fleet.movers.size());
+    fleet.max_half = yielding.body.half_extents;
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::StallDetector stalls(fleet.movers.size());
+    detail::Shuttle shuttle;
+    detail::MakeWay make_way;
+    detail::EventLog log;
+    log.record(true);
+    auto settings = scenario.motion_settings();
+    settings.make_way = true;
+    settings.path_planning = false;
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 120};
+
+    for (unsigned tick = 1; tick <= 120; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        stalls.observe(fleet, settings, tick, log);
+    }
+    REQUIRE(stalls.details(0));
+    make_way.update(goals, {}, shuttle, stalls);
+    REQUIRE(yielding.goal == GoalKind::making_way);
+    REQUIRE(yielding.destination != yielding.parking);
+
+    // The outbound leg now heads deeper into the corridor, and a third mover
+    // occupies the only withdrawal route to the parking reservation.
+    yielding.body.position = {800, 700};
+    yielding.destination = {1000, 700};
+    yielding.route = {yielding.destination};
+    obstruction.body.position = {625, 700};
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    REQUIRE_FALSE(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+    ++goals.tick;
+    make_way.update(goals, {}, shuttle, stalls);
+    REQUIRE(yielding.destination == yielding.body.position);
+    REQUIRE(yielding.moving());
+    CHECK(std::any_of(log.events().begin(), log.events().end(),
+                      [](const auto &event) { return event.make_way_end == MakeWayEnd::obstructed; }));
+
+    SUBCASE("the enabled corridor keeps the brake target inside a zone") {
+        CHECK_FALSE(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+        detail::Production production(layout, 42);
+        detail::MotionStep motion;
+        motion.run(goals, production);
+        REQUIRE(yielding.moving());
+    }
+    SUBCASE("disabling the corridor leaves the outbound claim released") {
+        settings.corridor_traffic = false;
+        traffic.configure(floor, settings);
+        CHECK(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+    }
+
+    obstruction.body.position = {450, 1000};
+    ++goals.tick;
+    make_way.update(goals, {}, shuttle, stalls);
+    CHECK(yielding.destination == yielding.parking);
+    CHECK(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+}
+
 TEST_CASE("a newly admitted exit can invalidate a make way leg outside the junction") {
     Simulation scenario(opposing_fixture());
     REQUIRE(scenario.move_to(0, {1100, 700}));

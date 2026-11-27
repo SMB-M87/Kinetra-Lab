@@ -31,6 +31,7 @@ class MakeWay {
         std::uint64_t deadline;
         Phase phase{Phase::outbound};
         std::optional<MakeWayEnd> outcome{};
+        bool traffic_invalidated{};
     };
     /// Indexed by the yielding mover. A vacant entry allows it to be considered again.
     std::vector<std::optional<Trip>> trips_;
