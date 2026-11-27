@@ -97,6 +97,7 @@ Agent review, round 1 (on `31ae128`, conclusion *Fix first*):
 | Nits: the controller suite's case count (44 → 45) in `labs/i4sim/tests/README.md`; the message of the key-two check | Both carried out | `4080f6e` |
 | Lessons proposed: re-read toggle clicks after a default flips; merge `main` before review when it changed the same captures | Added to `docs/review-lessons.md` | `6e1d502` |
 | For the user: the review session reported running below the `high` effort its Levels table asks for | Passed on to the user; it was started with effort `high` | |
+| (Found while merging `main` again) #153 added a Demo launcher preview recorded in Debug Mode as the session starts, so it showed the old probes | Merged `main`; `demo-preview`, the launcher's still `launcher/previews/demo.rgba` and `launcher.png` refreshed; the media guide and a capture comment now say routes and velocity vectors | `8f64ae9`, `14411bf` |
 
 ## Verification
 
@@ -121,6 +122,7 @@ After merging `main` (round 1):
 | `ctest --preset graphics -L graphics`; `ctest --preset graphics -R '^kinetra_capture'` | 33/33 and 35/35 passed |
 | `tools/capture/capture_media.sh build-graphics` with the Demo and i4sim debug scenes, the Demo scenario clips and all six showcase clips | Every changed file looked at: the new menu and the new defaults |
 | `ctest --preset release -R '^kinetra_i4sim_controller\|^kinetra_capture:'` after the review fixes | 79/79 passed |
+| `tools/capture/capture_media.sh build-graphics demo-preview launcher` after merging #153; `ctest --preset graphics -R '^kinetra_graphics\|^kinetra_menu:\|^kinetra_capture\|kinetra_smoke:launcher'` | Preview and launcher looked at: routes and vectors, no probes; 61/61 passed |
 | `tools/capture/capture_tour.sh build-graphics <scratchpad>/tour.mp4` (the thumbnail next to it, not in `docs/media`) | The tour plays to its end, 19138 frames, 318 s. Frames looked at: Demo's LAYERS chapter shows the five layers on for a look, HOME RANGE then shows on PATHS and ACTIVE AGENTS, and i4sim's LAYERS chapter keeps HEATMAP off while it toggles DETECTION and FORCES |
 
 ## Pull request
@@ -136,7 +138,7 @@ Demo opens every scenario with only the VECTORS and PATHS debug layers on. i4sim
 - Tests: Demo's layer rows, a new i4sim case for the start state, the i4sim key and menu cases, and the launcher's graphics check of both menus.
 - Capture tool: comments, and the tour's Demo and i4sim chapters keep their story with the new defaults.
 - Docs: README, Demo and i4sim READMEs, launcher and overlays page, capture README.
-- Media: the Demo and i4sim debug screenshots and clips and the six showcase clips, refreshed on the head merged with `main`.
+- Media: the Demo and i4sim debug screenshots and clips, the six showcase clips and the Demo launcher preview with the launcher's still, refreshed on the head merged with `main`.
 
 ## Design
 [docs/design/2026-11-27-default-debug-layers.md](docs/design/2026-11-27-default-debug-layers.md)
