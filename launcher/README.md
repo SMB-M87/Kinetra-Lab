@@ -39,8 +39,9 @@ stateDiagram-v2
     Configuration --> Menu: cancel
     Menu --> Running: I4SIM
     Configuration --> Running: confirm
-    Running --> Menu: Settings LAUNCHER, or Escape/M on the i4sim blueprint screen
-    Running --> Configuration: SCENARIOS or DIFFICULTY in the debug menu
+    Running --> Menu: LAUNCHER, Escape or M on the i4sim blueprint screen
+    Running --> Configuration: SCENARIOS or DIFFICULTY in the settings panel
+    Configuration --> Menu: LAUNCHER or M
     Running --> [*]: Settings EXIT or window closed
     Menu --> [*]: EXIT or window closed
 ```
@@ -51,7 +52,7 @@ stateDiagram-v2
 2. `launcher::applications(options)` builds the registrations. Each factory resets the camera and creates a fresh session from the options.
 3. `kinetra::run_launcher` shows the menu, or starts `--variant` directly, and hosts one session at a time with `launcher::bindings` (no menu key, no Escape shutdown).
 
-Moving the pointer or using the arrow keys on the application list updates the preview with a capture and a short description of the highlighted lab ([screenshot](../docs/media/launcher.png)). Demo scenarios and Dotio difficulties appear on their own pages after confirmation. The last row of Demo's and Dotio's debug menu, SCENARIOS or DIFFICULTY, returns to that page with the running choice selected (`kinetra::SessionRequest::configurations`).
+Moving the pointer or using the arrow keys on the application list updates the preview with a capture and a short description of the highlighted lab ([screenshot](../docs/media/launcher.png)). Demo scenarios and Dotio difficulties appear on their own pages after confirmation. The first button of Demo's and Dotio's settings panel, SCENARIOS or DIFFICULTY in place of LAUNCHER, returns to that page with the running choice selected (`kinetra::SessionRequest::configurations`); the page's LAUNCHER button, or M, returns to the application list.
 
 Selecting an application always creates a new session, so returning to the menu discards the old run. A factory that throws reports the error and ends the program.
 
@@ -79,7 +80,7 @@ To refresh a preview, pass the lab's main screenshot, `launcher` and `ui-launche
 | CTest | Covers | Needs |
 | --- | --- | --- |
 | `kinetra_menu` | Registration order and previews, Demo scenarios, Dotio difficulties, defaults, and configuration picking at resized viewports | Runtime build, no window |
-| `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), FRAME LIMIT, LAUNCHER and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
+| `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), FRAME LIMIT, the settings panel's SCENARIOS, DIFFICULTY and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 | `kinetra_smoke:launcher*` | `kinetra` starts in the menu and with each `--variant`, draws 120 frames and exits with 0 | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 
 ```sh
