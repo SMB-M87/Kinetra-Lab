@@ -50,7 +50,7 @@ cmake --build build -j2
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --run --ups 200
 ```
 
-The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. The first row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload, mover goals and how the scene repeats, so pressing Space plays the scene. The scenes repeat: their movers drive back and forth between start and goal and turn together after a two-second pause, or, for corridor recovery, the scene starts again from its blueprint after the same pause.
+The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. LAUNCHER and EXIT below the list, on both pages, return to the launcher and end the program. The first row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload, mover goals and how the scene repeats, so pressing Space plays the scene. The scenes repeat: their movers drive back and forth between start and goal and turn together after a two-second pause, or, for corridor recovery, the scene starts again from its blueprint after the same pause.
 
 CMake copies the catalog to `i4sim-blueprints/` beside the executables, and the session finds it through the executable's location, whatever the working directory is. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog; `--blueprint FILE` loads one file directly. A file that fails to load reports its name and the cause, and the blueprint screen stays open. A missing or empty catalog shows the directory on screen and on standard error; restore the directory and press Enter to read it again.
 
@@ -72,11 +72,11 @@ The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=O
 
 ## Controls
 
-Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. LAUNCHER and EXIT are in that panel. Debug Mode, the statistics and every debug layer start on. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
+Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. BLUEPRINTS and EXIT are in that panel: BLUEPRINTS closes the blueprint and returns to the blueprint screen, in Debug Mode or not. Debug Mode, the statistics and every debug layer start on. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
 
 | Input | Action |
 | --- | --- |
-| Escape / M on the blueprint screen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page they return to the blueprint list |
+| LAUNCHER, Escape / M on the blueprint screen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page Escape and M return to the blueprint list, and LAUNCHER still leaves |
 | Space / P | Pause or resume |
 | R | Restart the blueprint with the same seed, paused, and keep the current tick rate and motion settings. A showcase scene also gets its goals, workload and repeat setting again, so a changed setting can be compared with the original run |
 | G | Toggle the automatic workload |
@@ -89,7 +89,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | Shift + left click | Send the selected mover there as a manual goal |
 | Inspector X | Close the inspector and clear the mover selection |
 
-The debug menu has four sections. A click on a heading opens its rows below it and closes the open section; a second click closes it. SIMULATION is open at the start. On/off settings are check boxes, a number shows its value with `[-]` and `[+]` buttons, and PROFILE and PLANNER open a list of choices below them that closes on a choice. Below a rule follow ZOOM, with buttons of one zoom step each, FRAME SCENE and BLUEPRINTS (back to the blueprint screen).
+The debug menu has four sections. A click on a heading opens its rows below it and closes the open section; a second click closes it. SIMULATION is open at the start. On/off settings are check boxes, a number shows its value with `[-]` and `[+]` buttons, and PROFILE and PLANNER open a list of choices below them that closes on a choice. Below a rule follow ZOOM, with buttons of one zoom step each, and FRAME SCENE.
 
 | Section | Rows |
 | --- | --- |
@@ -228,6 +228,7 @@ sequenceDiagram
     Note over C: closes the blueprint after BLUEPRINTS,<br/>ages the message
     S->>P: settings.update(input)
     S->>C: suspend(panel open)
+    S->>C: close_later() after BLUEPRINTS, which the session clears in the panel
     Note over S: an open panel ends the frame here
     S->>C: menu()
     S->>P: update_debug(rows)
@@ -244,7 +245,7 @@ sequenceDiagram
 
 - **Why the controller is separate.** Which key does what, when a click selects, how long a message stays and how the camera fits are rules, and rules need tests. In the controller they are tested from plain `kinetra::Input` values, without a window ([controller tests](tests/controller_tests.cpp)).
 - **Menu entries.** The controller describes each debug-menu row as a `kinetra::DebugEntry`: a label, a kind (button, check box, list choice or heading), a nesting depth, and optionally an action, a state, a value text, `[-]` / `[+]` functions and a swatch. A `kinetra::DebugFolds` keeps which section and which list are open, and a `kinetra_lab::ZoomControl` collects the steps of the ZOOM row for the next camera update. The engine's menu draws marks, indentation and values, so the session passes the entries on unchanged. The colors stay with the drawing code: the session hands `layer_color` to `menu()`, which asks it for the swatch of every layer row. Every action changes the state where it lives, so no flag has to be mirrored between the menu and the simulation.
-- **Deferred close.** BLUEPRINTS only sets a request. The frame that clicked it still finishes with its simulation; the next `begin_frame` closes it.
+- **Deferred close.** BLUEPRINTS, the settings panel's first button, asks for `SessionRequest::configurations`. i4sim's configuration page is its own blueprint screen, so the session serves the request instead of its host: it calls `close_later()` and clears the panel's request, which would otherwise close the next blueprint too. The frame that clicked it still finishes with its simulation; the next `begin_frame` closes it.
 - **Drawing between ticks.** Movers are drawn between their last two ticks (`Mover::previous_position`, `Simulation::interpolation()`), so motion stays even at 60 frames and 200 ticks per second ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
 ### A tick of the simulation
@@ -348,13 +349,13 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 
 ### Make way
 
-**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. If a new zone or exit reservation encloses the mover, it may withdraw outward while it continues to count as an occupant. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
+**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. The [make-way showcase scene](blueprints/README.md#showcase-scenes) shows it on a one-cell lane with a side bay. If a new zone or exit reservation encloses the mover, it may withdraw outward while it continues to count as an occupant. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
 
 ### Departure check
 
 *Problem:* a mover that carries a product waits for its turn at its holding place, often its own parking place in a row of parked movers. When its product heads the producer queue it used to leave along the plain grid route, which can run through a parked neighbor's footprint: it squeezes past under Improved or stalls under Reciprocal.
 
-**DEBUG → TRAFFIC → DEPARTURE CHECK** is off by default. With it, that departure uses the same check as a newly allocated mover: the route is refined around stationary footprints (`plan_route` with `require_departure`). When no such route exists, the mover stays at its holding place with its product and tries again every tick, so the producer waits. After 1,200 ticks (`departure_wait_ticks`, longer than any wait measured on the bundled floors) it departs as without the check, so a mover sealed in for good still moves and its stall can be observed and handed to MAKE WAY. A departure from a processing place to the next producer is not held back: a mover waiting there would block the producer. [Design and measurements](../../docs/design/2026-11-27-stall-remedies-in-the-engine.md)
+**DEBUG → TRAFFIC → DEPARTURE CHECK** is off by default. With it, that departure uses the same check as a newly allocated mover: the route is refined around stationary footprints (`plan_route` with `require_departure`). When no such route exists, the mover stays at its holding place with its product and tries again every tick, so the producer waits. This holds for a mover standing at its holding place, whether its product queued there or was rescheduled while it waited (after a blocked producer, for example); a mover still driving to its holding place turns toward the producer as before. After 1,200 ticks (`departure_wait_ticks`, longer than any wait measured on the bundled floors) it departs as without the check, so a mover sealed in for good still moves and its stall can be observed and handed to MAKE WAY. A departure from a processing place to the next producer is not held back: a mover waiting there would block the producer. [Design and measurements](../../docs/design/2026-11-27-stall-remedies-in-the-engine.md)
 
 ## Invariants and contracts
 
@@ -378,7 +379,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 | Change what the HUD shows | `hud.cpp` | The graphics suite compares the statistics lines |
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
-| Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases, a showcase scene when it is worth showing |
+| Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases. When a test sets up a small scene that shows the policy at work, also turn that scene into a [showcase scene](blueprints/README.md#showcase-scenes): its file in `blueprints/showcase/`, its setup in the showcase cases of `simulation_tests.cpp`, and its clip in the capture tool, the root README and the [media guide](../../docs/media/README.md) |
 | Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the five originals in the catalog and the `MAS-demonstrator` test fixture stay unchanged | The loader cases in `simulation_tests.cpp` |
 | Add a tuning value | `simulation_constants.h` when components share it, otherwise a named constant where it is used | |
 
@@ -428,7 +429,7 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 
 ## Open points
 
-- With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge until a section or layer is closed.
+- With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE falls below the edge until a section or layer is closed.
 - The main graphics case clicks debug-menu rows by number. The numbers in `menu_row` follow the menu's layout by hand.
 - A parked mover can seal an exit when MAKE WAY is off or one eligible blocker cannot open a checked route. DEPARTURE CHECK keeps a queued mover from leaving into such a seal, for at most 1,200 ticks. [MAKE WAY and the departure replay](../../docs/design/2026-11-27-i4sim-make-way.md), [departure check](../../docs/design/2026-11-27-stall-remedies-in-the-engine.md)
 - Predictive passing stays off by default. Under Improved its benchmark results stay mixed because of Improved's own contact episodes; under Reciprocal it raises throughput without contact ([phase 7](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result)). Demo, Dotio and i4sim run passing on [Kinetra's `PassingCoordinator`](../../external/Kinetra/docs/engine/navigation.md#predictive-passing); i4sim maps its factory states onto it and keeps its traffic controls and event log ([ADR 0018](../../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md)).

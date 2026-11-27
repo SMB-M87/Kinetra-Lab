@@ -59,6 +59,9 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 | Departure check | *Gate*, opt-in as DEPARTURE CHECK: the refined route when one exists, otherwise wait at the holding place | Over 50,000 ticks: products +1 to 4% in every configuration; Reciprocal waiting 152,001 → 92,401 (MAKE WAY off) and 104,020 → 79,381 (on); Improved contacts 836 → 233 with MAKE WAY. *Refine* alone raised Reciprocal waiting with MAKE WAY on |
 | Wait limit of the gate | 1,200 ticks (`10 × stall_ticks`), then depart as without the check | Agent's choice. Without a limit a mover sealed in for good never moves, so no stall starts and MAKE WAY never acts. The longest measured wait was 672 ticks, so the limit changes no measured run |
 | Gate on a processing-place departure | No | A mover held at a processing place blocks its producer |
+| Gate on a mover still driving to its holding place | No: only a mover that stands there is held back; review round 1 of #146 | Held back in the aisle, it would drive on into its parking row and could seal itself in, and its wait would count its drive |
+| Gate on a product rescheduled away from a processing place | Yes, through the same `approach()`; review round 1 of #146 | A product that heads an empty queue the moment it is rescheduled, after a blocked producer for example, leaves its parking row as a queued one does |
+| Showcase scene for the sealed departure | No | The scene needs a hold during allocation and timed goals after the product queues, which the scenario format cannot express; making it expressible would change a data contract for one clip |
 | Fallback motion | *Right of way* (RIGHT OF WAY), opt-in, Reciprocal and Improved: the pushed mover keeps steering at its goal and the others treat it as not cooperating, so the pusher avoids alone | Prototype over 50,000 ticks, Reciprocal: products 344 → 346, waiting −12%, stuck movers 23 → 16, no contact. *Stand still* failed: Reciprocal 38 contacts and fewer products, Improved waiting ×25 |
 | Return rule | A fixed window of 480 ticks (`4 × stall_ticks`), shorter when the mover arrives, changes goal, is held or comes under traffic control | 50,000 ticks: Reciprocal 344 → 351 products, waiting −27%, stuck 23 → 15; Improved 348 → 356, contacts 836 → 644, stuck 6 → 3. Returning on progress was worse than no fallback. In the harness the 480 window has two Reciprocal runs with a stuck mover at the end (base: none) |
 | i4sim on `PassingCoordinator` | Yes; the lines with PASSING on are recorded again once the harness shows an equal flow | One lifecycle in three applications; the three differences above are not worth engine options |
@@ -83,6 +86,8 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 - When none exists, the mover stays at its holding place with its product and tries again in the next tick. `Production::departure_waits_` keeps the tick at which the wait began, per product.
 - After `departure_wait_ticks` (1,200) without a route, it departs as without the setting.
 - Turning the setting off releases a waiting mover in the next tick and drops its wait. A hold or a make-way trip drops it too, so the wait starts again when the mover is back.
+- Only a mover standing at its holding place is held back; one still driving there turns toward the producer as before.
+- `schedule()` leaves the departure of a product rescheduled away from a processing place to `approach()`, so it passes the same check; a mover finishing at a processing place leaves at once.
 
 A departure from a processing place to the next producer is unchanged.
 
@@ -137,6 +142,7 @@ Step 1, Targeted level (Lab logic), with the full i4sim suites:
 | A mover sealed in for good departs exactly `departure_wait_ticks` after its product headed the queue | `…departure check lets a mover sealed in for good depart after the wait limit` |
 | Turning the setting off releases a waiting mover in the next tick | `…turning departure check off releases a waiting mover` |
 | A hold (or a make-way trip) during the wait starts the wait again, so the limit never lets the mover leave unchecked at once | `…a hold during a departure wait starts the wait again` (fails without the restart) |
+| A product rescheduled after a blocked producer, heading the empty queue at once, is held back too | `…departure check also holds back a product rescheduled after a blocked producer` (fails without the fix) |
 | The recorded `1680x960+` departure (seed 42, Improved) makes contacts without the check and none with it | `…departure check routes a queued Improved departure around its parked neighbors` |
 | The scenario key and the TRAFFIC row | the scenario case and two `kinetra_i4sim_controller` cases, extended |
 | Off by default changes nothing | `kinetra_i4sim_golden_tests`, `kinetra_i4sim_pressure_tests` unchanged |
@@ -164,30 +170,27 @@ Step 3, Full level (a new public engine header):
 
 ## Verification
 
-Step 1, on Lab `main` `39cb628` with Kinetra `e3ad07c`, Release with Lab and Kinetra warnings on:
+Step 1, after review round 1 and the merge of `main` (Kinetra `da98dfa`), Release with Lab and Kinetra warnings on:
 
 ```sh
 cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON
 cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests \
   kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark -j 4
-ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 171 of 171 passed
+ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 172 of 172 passed
 ```
 
-The branch reproduces the measured gate exactly. On the harness with `--make-way --departure-check`:
+The first version of the branch reproduced the measured gate exactly: on the harness with `--make-way --departure-check`, Reciprocal had 111 products, 0 contacts and 19,812 waiting ticks; Improved 104 products, 5 contacts and 2,786 waiting ticks. A mover held by the gate stands idle, so `FlowMetrics` does not count it as waiting. Gated ticks summed to at most 2,016 in a harness profile and 143 over the 50,000-tick benchmark, so the reductions in waiting are not an artifact of that.
 
-- Reciprocal: 111 products, 0 contacts, 19,812 waiting ticks.
-- Improved: 104 products, 5 contacts, 2,786 waiting ticks.
+Review round 1 narrowed the gate to a standing mover and added the rescheduling path. Measured again with the branch, *base → departure check*, as products / waiting ticks / contacts / runs with a stuck mover at the end:
 
-A mover held by the gate stands idle, so `FlowMetrics` does not count it as waiting. Gated ticks summed to at most 2,016 in a harness profile and 143 over the 50,000-tick benchmark, so the reductions in waiting are not an artifact of that.
-
-The 50,000-tick rows come from the measuring copy of the code. The branch matches it on every harness run, and no run reaches the wait limit:
-
-| 50,000 ticks, products / waiting / contacts / runs stuck at end | Base | Departure check |
+| Run | MAKE WAY off | MAKE WAY on |
 | --- | --- | --- |
-| Reciprocal, MAKE WAY off | 334 / 152,001 / 0 / 3 | 346 / 92,401 / 0 / 3 |
-| Reciprocal, MAKE WAY on | 344 / 104,020 / 0 / 0 | 351 / 79,381 / 0 / 1 |
-| Improved, MAKE WAY off | 343 / 8,022 / 1,386 / 1 | 356 / 8,331 / 1,430 / 2 |
-| Improved, MAKE WAY on | 348 / 7,638 / 836 / 1 | 352 / 8,109 / 233 / 0 |
+| 50,000 ticks, Reciprocal | 334 / 152,001 / 0 / 3 → 347 / 84,776 / 0 / 3 | 344 / 104,020 / 0 / 0 → 349 / 62,636 / 0 / 1 |
+| 50,000 ticks, Improved | 343 / 8,022 / 1,386 / 1 → 350 / 7,817 / 671 / 0 | 348 / 7,638 / 836 / 1 → 352 / 6,765 / 397 / 0 |
+| Harness, Reciprocal | 110 / 20,383 / 0 / 2 → 113 / 20,874 / 0 / 0 | 110 / 17,449 / 0 / 0 → 113 / 20,874 / 0 / 0 |
+| Harness, Improved | 103 / 3,487 / 170 / 0 → 104 / 2,426 / 5 / 0 | 103 / 3,833 / 167 / 1 → 104 / 2,700 / 4 / 1 |
+
+Over 50,000 ticks products rise in every configuration (by 1 to 4%), Reciprocal waiting falls by 40 to 44%, and Improved's contacts halve. In the shorter harness Reciprocal waits a little more than its base with MAKE WAY (17,449 → 20,874), while its runs with a stuck mover at the end fall from 2 to 0 without MAKE WAY.
 
 Step 2, on step 1's branch with Kinetra `e81fab3` (`refactor/i4sim-passing-coordinator`, ADR only), the same Release build: 171 of 171 i4sim cases pass.
 
@@ -222,6 +225,15 @@ Step 3, with Kinetra `24fb31d` (`feat/stall-detector`):
 
 ## Review
 
+**Step 1, agent review round 1** ([#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146), *Fix first*):
+
+- *Blocking:* the branch conflicted with `main` (#143, #147). `main` is merged in (`28a8f29`), with both index rows kept and the TRAFFIC rows of #147's menu.
+- *Should fix:* `schedule()` let a rescheduled product that heads an empty queue leave unchecked. It now leaves that departure to `approach()`, and a case pins it.
+- *Should fix:* the showcase rule of #143. Not taken: the scene needs a hold and timed goals that the scenario format cannot express (*Decisions*).
+- *Question:* was a mover still driving to its holding place meant to be held back? No: only a standing mover is now.
+- Of the nits, the make-way trip is the same early return as the hold, which a case pins. A retry interval for the gated planning would bound a cost the measurements show is small (at most 2,016 gated ticks per harness profile). The roadmap's *Where* follows each merge.
+- The proposed lesson is added to `docs/review-lessons.md`.
+
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
 
 **Step 2, the author's review** (`/code-review` at medium). It found two issues in the change:
@@ -248,12 +260,12 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 **Changes.**
 - `MotionSettings::departure_check`, with `Production::departure_route` and its wait limit.
 - The TRAFFIC row, the scenario key `departureCheck` and the benchmark flag `--departure-check`.
-- Six simulation cases; the scenario and menu cases are extended.
+- Seven simulation cases; the scenario and menu cases are extended.
 - README, blueprint, tests and architecture pages.
 
 **Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md), which records the user's decisions for the whole stack.
 
-**Verification.** Every i4sim suite passes (171 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises products by 1 to 4% in every configuration, cuts Reciprocal waiting by 24 to 39%, and cuts Improved contacts from 836 to 233 with MAKE WAY.
+**Verification.** Every i4sim suite passes (172 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises products by 1 to 4% in every configuration, cuts Reciprocal waiting by 40 to 44%, and cuts Improved contacts from 836 to 397 with MAKE WAY.
 
 **Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
 
