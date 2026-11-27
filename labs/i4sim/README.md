@@ -347,7 +347,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 
 ### Make way
 
-**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. If a new zone or exit reservation encloses the mover, it may withdraw outward while it continues to count as an occupant. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
+**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. The [make-way showcase scene](blueprints/README.md#showcase-scenes) shows it on a one-cell lane with a side bay. If a new zone or exit reservation encloses the mover, it may withdraw outward while it continues to count as an occupant. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
 
 ## Invariants and contracts
 
@@ -371,7 +371,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 | Change what the HUD shows | `hud.cpp` | The graphics suite compares the statistics lines |
 | Change simulation behavior | The component that owns it ([simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure)) | The golden and pressure lines change: print them with `KINETRA_PRINT_GOLDEN=1`, update them, and explain the change in the commit |
 | Restructure without changing behavior | Anything | The golden and pressure lines must stay identical after every commit |
-| Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases, a showcase scene when it is worth showing |
+| Add a motion setting or policy | `MotionSettings`, its component, `configure_motion`, a menu entry, the scenario reader in `scenario.cpp` and the [format table](blueprints/README.md#scenario-section-format) | Simulation cases. When a test sets up a small scene that shows the policy at work, also turn that scene into a [showcase scene](blueprints/README.md#showcase-scenes): its file in `blueprints/showcase/`, its setup in the showcase cases of `simulation_tests.cpp`, and its clip in the capture tool, the root README and the [media guide](../../docs/media/README.md) |
 | Add a blueprint or scenario field | `blueprint.cpp` or `scenario.cpp`, and the [blueprint guide](blueprints/README.md). A blueprint field is a contract change; the five originals in the catalog and the `MAS-demonstrator` test fixture stay unchanged | The loader cases in `simulation_tests.cpp` |
 | Add a tuning value | `simulation_constants.h` when components share it, otherwise a named constant where it is used | |
 

@@ -47,6 +47,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **Recheck how an existing coordinator restores a new temporary route** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Passing could restore an ordinary route for a mover with a checked parking detour. Waypoint pruning could also skip a checked corner. The remedy now rechecks shortcuts and current reservations before steering.
 
+- **Turn a test scene that shows a new i4sim policy at work into a showcase scene in the same pull request** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
+  #140's parked-blocker fixture showed MAKE WAY in its design capture, but the scene reached the SHOWCASE page and the README only in a follow-up, at the user's request. Add the scene file, its hand-built setup and its clip with the policy ([i4sim's how-to table](../labs/i4sim/README.md#changing-this-module)).
+
 - **Test a temporary departure while its product is still in a producer queue** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Checking only the product's optional producer can miss a lost reservation. Verify the actual queue, including order, and exercise the product reaching the front while the mover is away.
 
