@@ -84,7 +84,7 @@ sequenceDiagram
 
 - Kinetra: `include/kinetra/simulation/passing_coordinator.h`, `src/simulation/passing_coordinator.cpp`, `tests/passing_coordinator_tests.cpp` (suite `kinetra_passing_coordinator`), the consumer, `CMakeLists.txt`, ADR 0017 and the 0016 status, the navigation contract, the simulation and tests READMEs, the testing table, the README, the roadmap, `docs/review-lessons.md`, `docs/decisions/README.md`.
 - Lab step 1: `labs/demo` (`world/scene`, `debug_panel`, `input/commands.h`, `application.cpp`, `tests/passing_tests.cpp` as `kinetra_demo_passing_tests`, `tests/debug_panel_tests.cpp`, README), `AGENTS.md` (the Demo row of the verification table), this document, the design index, the roadmap, the pointer.
-- Lab step 2: `labs/dotio` (`world`, `entities/enemy`, `application.h`, `tests/passing_tests.cpp` in the `kinetra_dotio` suite, `tests/dotio_tests.cpp`, README), the roadmap (the item is removed), the i4sim README; Kinetra#68 gained `PassingMover::present` and its test.
+- Lab step 2: `labs/dotio` (`world`, `entities/enemy`, `application.h`, `tests/passing_tests.cpp` in the `kinetra_dotio` suite, `tests/dotio_tests.cpp`, README), the roadmap (the item is removed), the i4sim README; Kinetra#68 gained `PassingMoverState::absent` and its test.
 
 ## Test plan
 
@@ -113,7 +113,7 @@ sequenceDiagram
 | Dotio: PASSING runs at the menu's slowest and fastest MOVE SPEED and route forces | `kinetra_dotio:PASSING runs at the debug menu's extreme movement tuning` | Targeted |
 | Dotio: PASSING row starts off, turns passing on, is reset | `kinetra_dotio:the enemies and spawning sections…` | Targeted |
 | Dotio with PASSING off computes what it did before | the unchanged `kinetra_dotio:a seeded game reproduces its recorded fingerprint` | Targeted |
-| An empty pool slot is no obstacle and ends its plan | `kinetra_passing_coordinator:a mover that is not present…` (fails without the change) | Targeted |
+| An absent pool slot is no obstacle and ends its plan | `kinetra_passing_coordinator:an absent mover is no obstacle and ends its plan` (fails without the change) | Targeted |
 | The whole branch | pull request CI (format, docs, `headless`, `ci`, Windows) | Full |
 
 ## Review
@@ -128,9 +128,13 @@ Round 1 ([#138](https://github.com/SMB-M87/Kinetra-Lab/pull/138#pullrequestrevie
 
 The lesson the review proposed (size a grid's cells from its widest query) is on Kinetra's review lessons page.
 
-- No debug layer draws the plans, waits or braking points.
-- A waiting participant's hold point, from `PassingLaneGuard::braking_target()`, lies speed²/acceleration along its velocity, twice the stopping distance, so it can lie past the entry on ground no world check approved; i4sim does the same.
-- In Demo's doorway and column most plans end as obstructed, because the other agents of a stream soon stand or drive in the lanes; the agents then pass by avoidance. A rule that lets a plan include a follower, or reserves the lane for a stream, would be a further step.
+Round 1 on Kinetra#68 itself ([review](https://github.com/SMB-M87/Kinetra/pull/68#pullrequestreview-6085214502), Fix first, from a session started in Kinetra because the first reviewer could not attach it) found, at 9ba5b6a:
+
+- **Blocking: the priority between plans was untested.** A case lets a participant of one plan stray into the lane of the other: the younger plan waits for the older one, and the older ignores the younger. It fails with `yields_to`'s comparison flipped.
+- **Blocking: three related flags.** `PassingMoverState` (free, busy, standing, absent) replaces `available`, `stationary` and `present`, as the engineering rules ask; a participant that turns standing now ends its plan at once, as in i4sim, instead of after the progress timeout.
+- **Should fix: guard and lane queries could still exceed the grid** and throw after plans had ended. A query wider than the grid answers cheaply scans the footprints, so nothing after validation throws.
+- **Should fix: retry delays outlived their mover.** `clear()` drops them all, an absent mover and `cancel()` drop theirs.
+- Nits done: headings must be of length one or zero; the header documents the empty world check, the plan state fields and that the whole body must pass `validate()`; the cell fraction and the grid limits are named constants. The braking point that can lie past the entry is an open point below. The review's two lessons are on Kinetra's page.
 
 Round 1 of step 2 ([#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139#pullrequestreview-6084787108), Fix first) found:
 
@@ -191,7 +195,7 @@ Step 2, title: `feat(dotio): pass head-on through Kinetra's passing coordinator`
 
 **Summary.** Step 2 of 2, merge after step 1. Dotio's enemies that follow a route pass each other head-on in agreed side lanes when PASSING is on; pressure scenarios prove it for path wanderers and for a recovering enemy against a pursuer. Closes the roadmap item *Shared passing mechanism*.
 
-**Changes.** `World::coordinate_passing` runs before the enemies move, one mover per pool slot (empty slots not present) plus the player; `Enemy::passing_target` and `steer_passing` replace a participant's state movement. PASSING ends ENEMIES, off by default and reset by RESET PARAMETERS. `tests/passing_tests.cpp` joins the `kinetra_dotio` suite. The roadmap item is removed; the Motion lab idea no longer depends on it.
+**Changes.** `World::coordinate_passing` runs before the enemies move, one mover per pool slot (empty slots absent) plus the player; `Enemy::passing_target` and `steer_passing` replace a participant's state movement. PASSING ends ENEMIES, off by default and reset by RESET PARAMETERS. `tests/passing_tests.cpp` joins the `kinetra_dotio` suite. The roadmap item is removed; the Motion lab idea no longer depends on it.
 
 **Design.** This document.
 
