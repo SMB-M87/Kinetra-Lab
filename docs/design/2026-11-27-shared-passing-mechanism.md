@@ -29,7 +29,7 @@ The roadmap item *Shared passing mechanism* asks to give Demo crowds and Dotio e
 
 Goals:
 
-- Kinetra offers a headless, deterministic `PassingCoordinator` with explicit tuning in the caller's units and steps, for movers of any shape; engine tests prove its lifecycle at two world scales and away from the origin.
+- Kinetra offers a headless, deterministic `PassingCoordinator` with explicit tuning in the caller's units and steps, for movers of any shape through their bounds; engine tests prove every lifecycle case at two world scales, the second away from the origin, and for box, circle, polygon and rotated-box footprints, and it runs at any tuning a Demo or Dotio menu allows.
 - Demo's agents on commanded travel pass each other with it when PASSING is on, under both avoidance models; four Demo pressure scenarios hold.
 - Dotio's enemies that follow a route pass each other with it when PASSING is on; Dotio pressure scenarios hold (step 2).
 - With PASSING off, the default, every recorded line stays as it is: Demo's crowd characterization, Dotio's fingerprint and i4sim's golden and pressure lines.
@@ -95,9 +95,12 @@ sequenceDiagram
 | The world check chooses between candidate sides; targets follow the entry | `…the world check decides between candidate sides` | Targeted |
 | A stationary mover on a lane ends the plan as obstructed; the retry delay holds | `…a mover standing on a lane…` | Targeted |
 | A crossing mover with priority makes a participant wait and resume | `…a participant waits for crossing traffic…` | Targeted |
-| Unavailability, the progress timeout, parallel plans, cancel and clear, a circle footprint, invalid input | the other `kinetra_passing_coordinator` cases | Targeted |
+| Unavailability, the progress timeout, a wait that outlasts the timeout, parallel plans, cancel and clear, circle, polygon and rotated-box footprints, each at both scales; invalid input | the other `kinetra_passing_coordinator` cases | Targeted |
+| Slow braking next to a high speed keeps every query within the grid's cell limit (threw before the fix) | `kinetra_passing_coordinator:slow braking next to a high speed…` | Targeted |
 | An external consumer links and runs the coordinator | `tests/consumer` | Full (CI) |
 | Demo: head-on pair, one against a column, a body stopping on a lane exit, two streams through the doorway, under both avoidance models: the situation occurs, every agent arrives, no overlap above 0.01 units | `kinetra_demo_passing` | Targeted |
+| Demo: PASSING runs at the menu's extreme tuning (MAX SPEED 16, ACCELERATION 1, each HORIZON) without throwing (threw on ffa1c19) | `kinetra_demo_passing:PASSING runs at the debug menu's extreme tuning` | Targeted |
+| Demo: a new goal, PASSING off and `place_agents` end the plans; agents still arrive | `kinetra_demo_passing:a new goal, PASSING off and renumbered bodies end the plans` | Targeted |
 | Demo: PASSING row starts off, reaches the scene, is reset | `kinetra_demo:PASSING starts off…` | Targeted |
 | Demo with PASSING off computes what it did before | the unchanged `kinetra_demo_crowd_characterization` lines and the `kinetra_demo_crowd` soak cases | Targeted, Full (CI) |
 | Dotio scenarios and fingerprint (step 2) | `kinetra_dotio` | Targeted |
@@ -105,7 +108,15 @@ sequenceDiagram
 
 ## Review
 
-Not yet reviewed.
+Round 1 ([#138](https://github.com/SMB-M87/Kinetra-Lab/pull/138#pullrequestreview-6084780809), Fix first) found:
+
+- **Blocking: the coordinator threw at tuning the Demo menu allows.** Its grid cell followed the prediction horizon, while the formation query grows with `speed / acceleration`; MAX SPEED 16 with ACCELERATION 1 made a query exceed `SpatialGrid`'s cell limit. Kinetra 9ba5b6a sizes the cell from the formation range (`formation_reach`, shared with `form`), with a Kinetra case and a Demo case at the menu's extremes; both threw before the fix.
+- **Blocking: the Kinetra goal was proven more narrowly than worded.** Every lifecycle case now loops over both frames, a wait that outlasts the timeout has a case, and polygon and rotated-box footprints join the circle; both new behavior cases fail with their code removed.
+- **Should fix: no Demo test covered the paths that end plans.** A new case cancels a plan with `command_agent`, turns PASSING off and renumbers with `place_agents`.
+- **Should fix (Kinetra#68): ADR 0017 did not name `present`.** It does now.
+- Nit: the reorder of `steer_agents` shared a commit with the feature; published history stays, and later changes keep refactors apart.
+
+The lesson the review proposed (size a grid's cells from its widest query) is on Kinetra's review lessons page.
 
 ## Verification
 
@@ -113,18 +124,18 @@ Step 1, Kinetra branch `feat/passing-coordinator` in the `dev` preset:
 
 ```sh
 cmake --preset dev && cmake --build --preset dev -j 8
-ctest --preset dev -LE graphics -j 8    # 306 of 306 passed, kinetra_passing_coordinator's 11 among them
+ctest --preset dev -LE graphics -j 8    # 309 of 309 passed at 9ba5b6a, kinetra_passing_coordinator's 14 among them
 cmake -S tests/consumer -B /tmp/consumer -G Ninja -DKINETRA_SOURCE="$PWD" && cmake --build /tmp/consumer && /tmp/consumer/consumer   # exit 0
 ```
 
 Step 1, Lab with the pointer on that branch, `dev` preset:
 
 ```sh
-cmake --build --preset dev --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests kinetra_demo_passing_tests
-ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing)' -LE soak -j 8   # 75 of 75 passed
+cmake --build --preset dev --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests kinetra_demo_passing_tests kinetra_demo
+ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing|_inspector)' -LE soak -j 8   # 80 of 80 passed at 9ba5b6a, the inspector traces included
 ```
 
-The crowd characterization lines are unchanged, so PASSING off computes what it did before. The four Demo pressure cases report, for reciprocal and legacy: the head-on pair one plan completed each; the column one plan completed (reciprocal) and two obstructed (legacy); the stopped body one obstructed each; the doorway five and four plans, almost all obstructed. No case had a tick with an overlap above 0.01 units, and every agent arrived. The soak cases and the Full level run in CI.
+The crowd characterization lines are unchanged, so PASSING off computes what it did before. The four Demo pressure cases report, for reciprocal and legacy: the head-on pair one plan completed each; the column one plan completed (reciprocal) and two obstructed (legacy); the stopped body one obstructed each; the doorway five and four plans, almost all obstructed. No case had a tick with an overlap above 0.01 units, and every agent arrived. The extreme-tuning case threw `Spatial bounds exceed grid limits` with the pointer at ffa1c19 and passes at 9ba5b6a. The soak cases and the Full level run in CI.
 
 ## Pull request
 
@@ -138,7 +149,7 @@ Step 1, title: `feat(demo): pass head-on through Kinetra's passing coordinator`
 
 **Design.** This document; [ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md).
 
-**Verification.** See [Verification](#verification): 75 of 75 Demo cases in `dev`, characterization lines unchanged; CI is the Full level.
+**Verification.** See [Verification](#verification): 80 of 80 Demo cases in `dev`, characterization lines unchanged; CI is the Full level.
 
 **Review notes.** Check that the reordered `steer_agents` reads nothing another agent's steering wrote, the tick unit conversion in `coordinate_passing`, and the cancellation on every path that changes a goal.
 
