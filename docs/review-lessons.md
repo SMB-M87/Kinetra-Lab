@@ -78,6 +78,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Media and tools
 
+- **When a change moves an action out of a menu, run every script that clicked it to its end, the tour included** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
+  The tour opened i4sim's debug menu to click BLUEPRINTS and relied on it staying open for the next floor's MOTION rows. With BLUEPRINTS in the settings panel the menu stayed closed and the tour stopped there; CI runs only the clips, not the tour, so only a full local run showed it.
+
 - **Rebuild after changing an embedded image before capturing scenes that display it** · added 2026-11-24 · source: [#110](https://github.com/SMB-M87/Kinetra-Lab/pull/110)
   A combined capture can otherwise publish a fresh lab screenshot beside a launcher image rendered with the old still. Verify the combined command with a deliberately stale embedded image.
 
