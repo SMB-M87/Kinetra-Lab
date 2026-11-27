@@ -104,6 +104,8 @@ flowchart LR
 - The tour's `click_menu_footer` computed a point whatever ran; it now throws unless the launcher menu or i4sim's blueprint screen shows.
 - This document's status: `implemented`.
 
+The full tour run, which CI does not run, then found one more: it had opened i4sim's debug menu to click BLUEPRINTS and used the still open menu for the next floor's MOTION rows. With BLUEPRINTS in the settings panel the menu stayed closed and the tour stopped; it now opens the menu once the floor has loaded. The lesson is in [review lessons](../review-lessons.md#media-and-tools).
+
 The copies check (`check_copies.py` with the old wordings `launcher_x`, `settings LAUNCHER`, `LAUNCHER gives`, `debug menu's SCENARIOS` and `DIFFICULTY`, `BLUEPRINTS entry`, `scenarios_requested`, `difficulty_requested`, `LAUNCHER / RESUME / EXIT`, `Launcher / Exit`, `LAUNCHER and EXIT`, `click_menu_page_exit`, `SCENARIOS row`, `last row`, `Escape or M`, `SessionRequest::menu` and others) found the launcher README's test table and its *last row* sentence, a duplicate row in [launcher and overlays](../launcher-overlays.md) and the i4sim test README; all changed. The hits left are this change's own new text, the dated design index and ADR 0013's context, which describes the panel as it was.
 
 ## Verification
@@ -118,7 +120,8 @@ Lab:
 - `cmake --build --preset dev`: no errors and no new warnings. `ctest --preset dev -LE soak -R '^kinetra_(demo:|dotio:|i4sim_controller|lab:|menu:|capture)'`: 183 of 183 passed.
 - `cmake --build --preset graphics` and `ctest --preset graphics -L graphics`: 33 of 33 passed, among them the new `kinetra_i4sim_graphics` cases, the settings-panel case of `kinetra_graphics`, every `kinetra_smoke` run and `kinetra_capture_smoke`, which renders `ui-launcher` through the new path.
 - The label check of the `kinetra_graphics` case fails when Demo's button is labeled LAUNCHER, so it tells the labels apart.
-- `kinetra_capture --tour /dev/null`, which plays the whole tour with the changed script: still running when this was pushed; the result follows in a later commit. CI does not run the tour.
+- `kinetra_capture --tour /dev/null`, which plays the whole tour with the changed script, and which CI does not run: the first run stopped in i4sim with "The debug menu has no row 'PROFILE'" (see *Review*); after the fix it plays to its end, 19117 frames, 318 s.
+- After merging `main` (the make-way showcase scene): `ctest --preset dev -LE soak -R '^kinetra_(demo:|dotio:|i4sim_controller|lab:|menu:|capture)'` 183 of 183 and `ctest --preset graphics -L graphics` 33 of 33 again. The pull request's CI (`changes`, `linux`, `windows`, `checks`) passed on the merge.
 - `tools/capture/capture_media.sh` for the stale rows of both media tables. Changed and committed: `demo-debug`, `dotio-debug`, `i4sim-debug`, `demo-debug-clip`, `i4sim-debug-clip` (the debug menu's last row), `dotio-settings` (DIFFICULTY), `launcher-demo-scenarios`, `launcher-difficulty` (LAUNCHER beside EXIT), and Kinetra's `ui-launcher`, `ui-settings` and `ui-inspector`. `dotio-debug-clip` rendered identical. Every refreshed file was looked at.
 - `python3 external/Kinetra/tools/check_docs.py`: all links resolve.
 - Not run locally: the `ci`, `headless` and `windows` presets; the pull requests' CI covers them. Full level only when CI is green.
