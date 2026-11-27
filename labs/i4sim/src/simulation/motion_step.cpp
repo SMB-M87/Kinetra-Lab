@@ -43,7 +43,7 @@ void MotionStep::run(Goals &goals, Production &production) {
     Traffic::begin_tick(fleet);
     if (motion.corridor_traffic)
         goals.traffic.recover_corridors(goals.floor, fleet, goals.tick, index);
-    goals.passing.coordinate(goals.floor, fleet, motion, goals.tick, index, goals.log);
+    goals.passing.coordinate(goals.floor, fleet, motion, goals.tick, goals.log);
     goals.traffic.admit(goals.floor, fleet, motion, index, boxes);
     for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
         auto &m = fleet.movers[i];

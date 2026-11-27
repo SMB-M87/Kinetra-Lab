@@ -3,12 +3,11 @@
 #include "i4sim/simulation/detail/routing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 
-#include <kinetra/simulation/passing.h>
+#include <kinetra/simulation/physics.h>
 
-#include <algorithm>
+#include <array>
 #include <cmath>
-#include <limits>
-#include <utility>
+#include <vector>
 
 namespace i4sim::detail {
 using namespace kinetra;
@@ -20,8 +19,6 @@ constexpr float passing_gap_mm = 8;
 constexpr float exit_offset_mm = 16;
 /// Extra longitudinal room in millimeters a plan needs, so both lane changes fit.
 constexpr float formation_room_mm = 32;
-/// Share of the maximum speed per tick that counts as progress toward the targets.
-constexpr float progress_speed_fraction = 0.05f;
 /// Ticks the lane ahead of a waiting participant must stay clear before it drives on, so
 /// a mover passing close by does not make it start and stop in turn.
 constexpr std::uint64_t passing_resume_ticks = 20;
@@ -29,10 +26,78 @@ constexpr std::uint64_t passing_resume_ticks = 20;
 /// default 2 mm/tick a mover moves 8 mm, far less than any footprint.
 constexpr int prediction_step_ticks = 4;
 
-PassingApproach passing_approach(const Mover &mover) {
-    return {mover.body.position, mover.body.half_extents,
-            mover.route.empty() ? Vec2{} : normalized(mover.route.front() - mover.body.position),
-            mover.destination};
+/// The factory's tuning of the coordinator, in millimeters and ticks.
+PassingCoordination coordination(const MotionSettings &motion) {
+    return {.margins = {passing_gap_mm, exit_offset_mm, formation_room_mm},
+            .prediction = {motion.speed, motion.force, int(std::ceil(motion.horizon)), prediction_step_ticks},
+            .clearance = clearance,
+            .arrival_distance = arrival_distance_mm,
+            .stop_speed = stop_speed,
+            .resume_steps = passing_resume_ticks,
+            .timeout_steps = passing_timeout_ticks,
+            .retry_steps = passing_retry_ticks};
+}
+
+/// What a mover is to the coordinator. A parked, idle, unreachable or held mover stands; a
+/// mover under traffic control, retreating in a corridor or on a make-way trip follows
+/// another control and joins no plan.
+PassingMoverState state(const Fleet &fleet, std::size_t id) {
+    const auto &m = fleet.movers[id];
+    if (!m.moving() || m.held)
+        return PassingMoverState::standing;
+    if (fleet.controls[id] || m.coordination.corridor_retreating || m.goal == GoalKind::making_way)
+        return PassingMoverState::busy;
+    return PassingMoverState::free;
+}
+
+/// The factory's reason for a plan whose participant stopped being free, in the order the
+/// event log documents: for each participant in turn, stopped, held, then traffic control.
+PassingEnd unavailable_reason(const Fleet &fleet, const std::array<std::size_t, 2> &movers) {
+    for (const auto id : movers) {
+        const auto &m = fleet.movers[id];
+        if (!m.moving())
+            return PassingEnd::participant_stopped;
+        if (m.held)
+            return PassingEnd::participant_held;
+        if (fleet.controls[id] || m.coordination.corridor_retreating)
+            return PassingEnd::traffic_control;
+        // A make-way trip starts with a new goal, which cancels the plan first; a goal kind
+        // set without one still reads as a goal change, though the coordinator counts it as
+        // unavailable and both movers then wait passing_retry_ticks.
+        if (m.goal == GoalKind::making_way)
+            return PassingEnd::goal_changed;
+    }
+    return PassingEnd::participant_stopped;
+}
+
+PassingEnd factory_end(PassingOutcome outcome, PassingEnd cancelled, const Fleet &fleet,
+                       const std::array<std::size_t, 2> &movers) {
+    switch (outcome) {
+    case PassingOutcome::completed:
+        return PassingEnd::completed;
+    case PassingOutcome::unavailable:
+        return unavailable_reason(fleet, movers);
+    case PassingOutcome::obstructed:
+        return PassingEnd::obstructed;
+    case PassingOutcome::no_progress:
+        return PassingEnd::no_progress;
+    case PassingOutcome::cancelled:
+        return cancelled;
+    }
+    return cancelled;
+}
+
+/// Plans the route of a former participant again and resets its progress and control.
+void restore_route(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion, std::size_t id) {
+    auto &m = fleet.movers[id];
+    m.coordination.passing = false;
+    m.route = plan_route(floor, fleet, motion, id, m.destination);
+    m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
+    auto &tracking = fleet.progress[id];
+    tracking.no_progress = tracking.replan = 0;
+    tracking.best_remaining = route_remaining(m.body.position, m.route);
+    if (id < fleet.controls.size())
+        fleet.controls[id].reset();
 }
 } // namespace
 
@@ -41,316 +106,110 @@ bool PredictivePassing::enabled(const MotionSettings &motion) {
 }
 
 std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {
-    if (const auto plan = details(mover))
-        return plan->target;
+    if (const auto planned = coordinator_.target(mover))
+        return planned->point;
     return std::nullopt;
 }
 
 std::optional<Simulation::PassingDetails> PredictivePassing::details(std::size_t mover) const {
-    for (const auto &plan : plans_)
+    // The inspector asks for every mover in every frame; only a participant needs the plans.
+    if (!coordinator_.target(mover))
+        return std::nullopt;
+    for (const auto &plan : coordinator_.plans())
         for (std::size_t side = 0; side < 2; ++side)
             if (plan.movers[side] == mover)
-                return Simulation::PassingDetails{
-                    plan.id, plan.movers[1 - side], plan.crossing, plan.waiting[side],
-                    plan.waiting[side] ? plan.hold[side]
-                                       : (plan.crossing ? plan.exit[side] : plan.entry[side])};
+                return Simulation::PassingDetails{plan.id, plan.movers[1 - side], plan.crossing,
+                                                  plan.waiting[side], coordinator_.target(mover)->point};
     return std::nullopt;
 }
 
-void PredictivePassing::restore_routes(std::array<std::size_t, 2> ids, const FloorPlan &floor, Fleet &fleet,
-                                       const MotionSettings &motion, std::uint64_t tick, bool retry_later) {
-    for (auto id : ids) {
-        auto &m = fleet.movers[id];
-        m.coordination.passing = false;
-        m.route = plan_route(floor, fleet, motion, id, m.destination);
-        m.lifecycle = m.route.empty() ? MoverLifecycle::unreachable : MoverLifecycle::moving;
-        auto &tracking = fleet.progress[id];
-        tracking.no_progress = tracking.replan = 0;
-        tracking.best_remaining = route_remaining(m.body.position, m.route);
-        if (id < fleet.controls.size())
-            fleet.controls[id].reset();
-        // After a failed plan the movers wait before they try again, so they do not thrash.
-        // After a completed one they may pass the next oncoming mover at once: waiting only
-        // lets it come too close for a plan.
-        if (id < retry_.size())
-            retry_[id] = retry_later ? tick + passing_retry_ticks : tick;
+void PredictivePassing::apply(std::span<const PassingEvent> events, PassingEnd cancelled,
+                              const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
+                              std::uint64_t tick, EventLog &log) {
+    for (const auto &event : events) {
+        if (log.recording()) {
+            SimulationEvent entry{.tick = tick, .plan = event.plan, .movers = event.movers};
+            switch (event.kind) {
+            case PassingEventKind::formed:
+                entry.kind = EventKind::passing_formed;
+                entry.entry = {event.lanes[0].entry, event.lanes[1].entry};
+                entry.exit = {event.lanes[0].exit, event.lanes[1].exit};
+                break;
+            case PassingEventKind::crossing:
+                entry.kind = EventKind::passing_crossing;
+                break;
+            case PassingEventKind::ended:
+                entry.kind = EventKind::passing_ended;
+                entry.end = factory_end(*event.outcome, cancelled, fleet, event.movers);
+                break;
+            }
+            log.add(entry);
+        }
+        if (event.kind == PassingEventKind::ended)
+            for (const auto id : event.movers)
+                restore_route(floor, fleet, motion, id);
     }
-}
-
-void PredictivePassing::record(EventKind kind, const Plan &plan, std::uint64_t tick, EventLog &log,
-                               std::optional<PassingEnd> end) {
-    if (!log.recording())
-        return;
-    SimulationEvent event{.tick = tick, .kind = kind, .plan = plan.id, .movers = plan.movers};
-    if (kind == EventKind::passing_formed) {
-        event.entry = plan.entry;
-        event.exit = plan.exit;
-    }
-    event.end = end;
-    log.add(event);
-}
-
-void PredictivePassing::end(std::size_t index, PassingEnd reason, const FloorPlan &floor, Fleet &fleet,
-                            const MotionSettings &motion, std::uint64_t tick, EventLog &log) {
-    record(EventKind::passing_ended, plans_[index], tick, log, reason);
-    const auto ids = plans_[index].movers;
-    plans_.erase(plans_.begin() + std::ptrdiff_t(index));
-    restore_routes(ids, floor, fleet, motion, tick, reason != PassingEnd::completed);
 }
 
 void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
                                std::size_t mover, std::uint64_t tick, EventLog &log) {
-    for (std::size_t i = 0; i < plans_.size();) {
-        const auto ids = plans_[i].movers;
-        if (mover != ids[0] && mover != ids[1]) {
-            ++i;
-            continue;
-        }
-        end(i, PassingEnd::goal_changed, floor, fleet, motion, tick, log);
-    }
+    // The coordinator's cancel also ends a retry wait, for a new occupant of a slot; a factory
+    // mover keeps its index, so a new goal outside a plan must not cut the wait short.
+    if (!coordinator_.target(mover))
+        return;
+    apply(coordinator_.cancel(mover), PassingEnd::goal_changed, floor, fleet, motion, tick, log);
 }
 
 void PredictivePassing::disable(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
                                 std::uint64_t tick, EventLog &log) {
-    while (!plans_.empty())
-        end(0, PassingEnd::disabled, floor, fleet, motion, tick, log);
+    apply(coordinator_.clear(), PassingEnd::disabled, floor, fleet, motion, tick, log);
 }
 
 void PredictivePassing::coordinate(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
-                                   std::uint64_t tick, const SpatialGrid &index, EventLog &log) {
-    retry_.resize(fleet.movers.size());
-    advance_plans(floor, fleet, motion, tick, index, log);
-    if (!enabled(motion))
+                                   std::uint64_t tick, EventLog &log) {
+    if (!enabled(motion)) {
+        disable(floor, fleet, motion, tick, log);
         return;
-    form_plans(floor, fleet, motion, tick, index, log);
-    for (const auto &plan : plans_)
-        for (std::size_t side = 0; side < 2; ++side) {
-            const auto id = plan.movers[side];
-            fleet.movers[id].coordination.passing = true;
-            const auto target = plan.waiting[side] ? plan.hold[side]
-                                : plan.crossing    ? plan.exit[side]
-                                                   : plan.entry[side];
-            fleet.controls[id] = TrafficControl{passing_control, target, plan.waiting[side]};
-        }
-}
-
-void PredictivePassing::advance_plans(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
-                                      std::uint64_t tick, const SpatialGrid &index, EventLog &log) {
-    for (std::size_t i = 0; i < plans_.size();) {
-        auto &plan = plans_[i];
-        // The first reason found ends the plan; the event log reports it.
-        std::optional<PassingEnd> end_reason;
-        if (!enabled(motion))
-            end_reason = PassingEnd::disabled;
-        bool arrived = true;
-        for (std::size_t side = 0; side < 2; ++side) {
-            const auto id = plan.movers[side];
-            const auto &m = fleet.movers[id];
-            const auto target = plan.crossing ? plan.exit[side] : plan.entry[side];
-            arrived = arrived && distance(m.body.position, target) < arrival_distance_mm &&
-                      length(m.body.velocity) < stop_speed;
-            if (end_reason)
-                continue;
-            if (!m.moving())
-                end_reason = PassingEnd::participant_stopped;
-            else if (m.held)
-                end_reason = PassingEnd::participant_held;
-            else if (fleet.controls[id].has_value())
-                end_reason = PassingEnd::traffic_control;
-        }
-        if (!end_reason)
-            end_reason = guard(plan, fleet, motion, tick, index);
-        if (stalled(plan, fleet, motion, tick) && !end_reason)
-            end_reason = PassingEnd::no_progress;
-        if (!end_reason && arrived && plan.crossing)
-            end_reason = PassingEnd::completed;
-        if (end_reason) {
-            end(i, *end_reason, floor, fleet, motion, tick, log);
-            continue;
-        }
-        if (arrived) {
-            plan.crossing = true;
-            plan.best_remaining = std::numeric_limits<float>::infinity();
-            plan.progress_at = tick;
-            record(EventKind::passing_crossing, plan, tick, log);
-        }
-        ++i;
     }
-}
-
-bool PredictivePassing::stalled(Plan &plan, const Fleet &fleet, const MotionSettings &motion,
-                                std::uint64_t tick) {
-    float remaining = 0;
-    for (std::size_t side = 0; side < 2; ++side)
-        remaining += distance(fleet.movers[plan.movers[side]].body.position,
-                              plan.crossing ? plan.exit[side] : plan.entry[side]);
-    if (remaining + std::max(0.0001f, motion.speed * progress_speed_fraction) < plan.best_remaining) {
-        plan.best_remaining = remaining;
-        plan.progress_at = tick;
-    }
-    return tick - plan.progress_at >= passing_timeout_ticks;
-}
-
-bool PredictivePassing::yields_to(const Plan &plan, std::size_t other) const {
-    for (const auto &candidate : plans_)
-        if (candidate.movers[0] == other || candidate.movers[1] == other)
-            return candidate.id < plan.id;
-    return true;
-}
-
-std::optional<PassingEnd> PredictivePassing::guard(Plan &plan, const Fleet &fleet,
-                                                   const MotionSettings &motion, std::uint64_t tick,
-                                                   const SpatialGrid &index) const {
-    const int horizon = int(std::ceil(motion.horizon));
-    const PassingPrediction prediction{motion.speed, motion.force, horizon, prediction_step_ticks};
-    const auto phase = plan.crossing ? PassingPhase::traverse : PassingPhase::approach;
-    const float margin = length(fleet.max_half) + motion.speed * float(horizon);
-    std::optional<PassingEnd> result;
-    for (std::size_t side = 0; side < 2; ++side) {
-        const auto &m = fleet.movers[plan.movers[side]];
-        const PassingLaneGuard guard(m.body, {plan.entry[side], plan.exit[side]}, phase, clearance,
-                                     prediction);
-        bool intruded = false;
-        for (auto other : index.query(guard.query_bounds(margin))) {
-            if (other == plan.movers[0] || other == plan.movers[1])
-                continue;
-            const auto &neighbor = fleet.movers[other];
-            const bool stationary = !neighbor.moving() || neighbor.held;
-            // A stationary mover is an obstruction regardless of passing priority.
-            if (!stationary && !yields_to(plan, other))
-                continue;
-            const auto obstacle = guard.inspect(neighbor.body, stationary);
-            if (obstacle == PassingObstruction::blocking)
-                result = PassingEnd::obstructed;
-            if (obstacle == PassingObstruction::crossing)
-                intruded = true;
-        }
-        if (intruded) {
-            plan.intruded_at[side] = tick;
-            if (!plan.waiting[side]) {
-                plan.waiting[side] = true;
-                plan.waiting_since[side] = tick;
-                // Within the braking distance the lane ahead reserves, so the stop needs no more
-                // than the acceleration limit and the participant does not overshoot and back up.
-                plan.hold[side] = guard.braking_target();
-            }
-        } else if (plan.waiting[side] && tick - plan.intruded_at[side] >= passing_resume_ticks) {
-            plan.waiting[side] = false;
-        }
-        if (plan.waiting[side] && tick - plan.waiting_since[side] >= passing_timeout_ticks)
-            result = PassingEnd::obstructed;
-    }
-    return result;
-}
-
-void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
-                                   std::uint64_t tick, const SpatialGrid &index, EventLog &log) {
-    std::vector<bool> claimed(fleet.movers.size());
-    for (std::size_t i = 0; i < fleet.movers.size(); ++i)
-        claimed[i] = fleet.controls[i].has_value();
-    for (const auto &plan : plans_)
-        for (auto id : plan.movers)
-            claimed[id] = true;
-    // Look far enough ahead to fit two lane changes before the movers meet.
-    const float horizon =
-        std::max(motion.horizon, (4 * length(fleet.max_half) + formation_room_mm) / motion.speed +
-                                     2 * motion.speed / motion.force);
-    const float range = 2 * motion.speed * horizon + 2 * length(fleet.max_half);
-    std::vector<PassingApproach> approaches;
-    approaches.reserve(fleet.movers.size());
-    for (const auto &m : fleet.movers)
-        approaches.push_back(passing_approach(m));
-    auto eligible = [&](std::size_t id) {
+    std::vector<PassingMover> movers;
+    movers.reserve(fleet.movers.size());
+    for (std::size_t id = 0; id < fleet.movers.size(); ++id) {
         const auto &m = fleet.movers[id];
-        return !claimed[id] && m.goal != GoalKind::making_way && m.moving() && !m.held &&
-               !m.coordination.corridor_retreating && !m.route.empty() && retry_[id] <= tick;
-    };
-    for (std::size_t a = 0; a < fleet.movers.size(); ++a) {
-        if (!eligible(a))
-            continue;
-        const auto &first = fleet.movers[a];
-        // Oncoming movers whose closest approach, at full speed, would bring them into contact.
-        std::vector<std::pair<float, std::size_t>> candidates;
-        for (auto b : index.query(
-                 {first.body.position - Vec2{range, range}, first.body.position + Vec2{range, range}})) {
-            if (b <= a || !eligible(b))
-                continue;
-            if (const auto time = passing_conflict_time(approaches[a], approaches[b], motion.speed, horizon,
-                                                        passing_gap_mm))
-                candidates.push_back({*time, b});
-        }
-        std::sort(candidates.begin(), candidates.end());
-        for (const auto &candidate : candidates)
-            if (try_form(a, candidate.second, approaches, floor, fleet, tick, index, log)) {
-                claimed[a] = claimed[candidate.second] = true;
-                break;
-            }
+        // A participant's route is its original one, overridden by its plan, so it gives no
+        // heading: a mover whose plan ends in this step forms its next plan in the next step,
+        // from the route planned again when the plan ended.
+        const bool in_plan = coordinator_.target(id).has_value();
+        const Vec2 heading =
+            in_plan || m.route.empty() ? Vec2{} : normalized(m.route.front() - m.body.position);
+        movers.push_back({m.body, heading, m.destination, state(fleet, id)});
     }
-}
-
-bool PredictivePassing::try_form(std::size_t a, std::size_t b, const std::vector<PassingApproach> &approaches,
-                                 const FloorPlan &floor, const Fleet &fleet, std::uint64_t tick,
-                                 const SpatialGrid &index, EventLog &log) {
-    constexpr PassingMargins margins{passing_gap_mm, exit_offset_mm, formation_room_mm};
-    for (const auto &lanes : passing_lane_candidates(approaches[a], approaches[b], margins)) {
-        if (!lanes)
-            continue;
-        Plan plan;
-        plan.movers = {a, b};
-        plan.progress_at = tick;
-        plan.best_remaining = std::numeric_limits<float>::infinity();
-        for (std::size_t side = 0; side < 2; ++side) {
-            plan.entry[side] = (*lanes)[side].entry;
-            plan.exit[side] = (*lanes)[side].exit;
+    // Lanes keep to the floor and stay out of every traffic zone, whether or not its
+    // admission policy is on; the coordinator checks the other movers and plans itself.
+    const auto lanes_clear = [&](std::size_t, Vec2 from, Vec2 to, Vec2 half) {
+        if (!floor.grid().clear(from, to, half))
+            return false;
+        Body moving;
+        moving.shape = Shape::box;
+        moving.position = from;
+        moving.half_extents = half;
+        for (const auto &zone : floor.zones()) {
+            Body obstacle;
+            obstacle.shape = Shape::box;
+            obstacle.motion = Motion::fixed;
+            obstacle.position = zone.center;
+            obstacle.half_extents = zone.half_extents + clearance;
+            if (sweep_translation(moving, to, obstacle))
+                return false;
         }
-        if (!lanes_clear(plan, floor, fleet, index))
-            continue;
-        plan.id = next_plan_++;
-        record(EventKind::passing_formed, plan, tick, log);
-        plans_.push_back(std::move(plan));
         return true;
-    }
-    return false;
-}
-
-bool PredictivePassing::lanes_clear(Plan &plan, const FloorPlan &floor, const Fleet &fleet,
-                                    const SpatialGrid &index) const {
-    // Each participant's two legs must stay clear of walls, third movers, traffic zones and
-    // the space other plans reserved; the swept areas are recorded in `plan.space`.
-    bool clear = true;
-    for (std::size_t side = 0; side < 2 && clear; ++side) {
-        const auto id = plan.movers[side];
-        auto moving = fleet.movers[id].body;
-        moving.half_extents += clearance;
-        Vec2 from = moving.position;
-        for (auto to : {plan.entry[side], plan.exit[side]}) {
-            if (!floor.grid().clear(from, to, moving.half_extents)) {
-                clear = false;
-                break;
-            }
-            moving.position = from;
-            const auto area = swept_box_bounds(from, to, moving.half_extents);
-            for (auto other : index.query(area))
-                if (other != plan.movers[0] && other != plan.movers[1] &&
-                    sweep_translation(moving, to, fleet.movers[other].body))
-                    clear = false;
-            for (const auto &zone : floor.zones()) {
-                Body obstacle;
-                obstacle.shape = Shape::box;
-                obstacle.motion = Motion::fixed;
-                obstacle.position = zone.center;
-                obstacle.half_extents = zone.half_extents + clearance;
-                if (sweep_translation(moving, to, obstacle))
-                    clear = false;
-            }
-            for (const auto &other : plans_)
-                for (const auto &reserved : other.space)
-                    if (reserved.overlaps(area))
-                        clear = false;
-            plan.space.push_back(area);
-            from = to;
+    };
+    const auto events = coordinator_.step(movers, coordination(motion), lanes_clear);
+    apply(events, PassingEnd::goal_changed, floor, fleet, motion, tick, log);
+    for (const auto &plan : coordinator_.plans())
+        for (const auto id : plan.movers) {
+            fleet.movers[id].coordination.passing = true;
+            const auto target = *coordinator_.target(id);
+            fleet.controls[id] = TrafficControl{passing_control, target.point, target.waiting};
         }
-    }
-    return clear;
 }
 } // namespace i4sim::detail
