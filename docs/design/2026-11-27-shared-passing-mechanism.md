@@ -47,11 +47,11 @@ Non-goals:
 | Where the lifecycle lives | In Kinetra, as `PassingCoordinator`, with ADR 0017 amending ADR 0016; i4sim keeps its own | The user's choice of 2026-11-27, over a Lab helper or a copy per application: two applications need it and it holds no game rules |
 | Default | PASSING off, a debug-menu row in each application | The user's choice of 2026-11-27: recorded lines stay, and the pressure suites turn it on |
 | Cut | Kinetra pull request; Lab stack of two: Demo (with the design), then Dotio | The user's choice of 2026-11-27 |
-| Coordinator interface | One `step` per tick over every mover (body, route heading, destination, `available`, `stationary`, `present`), a world check per leg as a callback, events and targets out; `present` lets a pool of slots keep its indices | The caller keeps its world and its steering; the coordinator checks other movers and reserved space itself, as i4sim does |
+| Coordinator interface | One `step` per tick over every mover (body, route heading, destination and a `PassingMoverState`: free, busy, standing or absent), a world check per leg as a callback, events and targets out; `absent` lets a pool of slots keep its indices | The caller keeps its world and its steering; the coordinator checks other movers and reserved space itself, as i4sim does. One state instead of three flags, as the engineering rules ask (Kinetra#68 review) |
 | Footprint | The axis-aligned box around a body's bounds, centered on its position | The guard and the lanes need boxes; centering on the position keeps the target the caller steers the position to. Conservative for rotated and round bodies |
 | Priority | Fixed: a plan yields to movers in no plan and to older plans | i4sim's tested rule; another rule is an extension when a consumer needs it |
 | Pressure scenarios | Outcomes (situation occurs, every agent arrives, no overlap), no recorded fingerprint | Recorded lines differ on Windows (*Golden tests on Windows*); outcomes hold on every toolchain |
-| Demo participants | Awake agents on commanded travel; sleeping agents stationary; player and props never join and are stationary while slow | Wander legs are short and random; a standing player on a lane must block it |
+| Demo participants | Awake agents on commanded travel are free; wandering agents busy; sleeping agents standing; player and props never join and are standing while slow, busy otherwise | Wander legs are short and random; a standing player on a lane must block it |
 | Demo row | PASSING at the end of AGENTS | No committed capture shows the AGENTS rows, so no media goes stale; MOTION is in `demo-debug` and Kinetra's `ui-debug-menu` GIF |
 
 ## Design
@@ -78,11 +78,11 @@ sequenceDiagram
 
 **Demo (step 1).** `Scene::steer_agents` first advances every agent's navigation, then calls `coordinate_passing` when PASSING is on, then steers. `coordinate_passing` hands all moving bodies to the coordinator with velocities per tick and the tuning converted from world units and seconds, checks legs with a box sweep against the loaded terrain (`terrain_index_`, `sweep_translation`), replans the routes of the agents whose plans ended and replaces the targets of the participants. `select_or_target`, `target_agents` and `command_agent` cancel an agent's plan before its new goal; `arrange`, `place_agents`, eviction and turning PASSING off end every plan. `place_agents` and `command_agent` exist for tests and tools with exact geometry.
 
-**Dotio (step 2).** `World::update_enemies` calls `coordinate_passing` before the enemies move. Every pool slot is a mover, so indices stay stable: an empty slot is not present (`PassingMover::present`, added to Kinetra#68 for this), a frozen enemy is stationary, and an enemy that follows a route (pursue, recover, path wander) is available, with the heading to its next waypoint and its route's end as destination. The player is the mover after the last slot and never joins. Legs are checked with `WeightedGrid::clear` and the footprint; units are legacy pixels and updates, and the top speed is four times the largest route force times MOVE SPEED. A participant's `Enemy::passing_target` replaces its state's movement: `steer_passing` accelerates toward it with the state's force and slows down within reach, so it stops there. A plan that ends replans its enemies' routes to the same destination; streaming shifts, `reset` and `initialize` end all plans, and a slot whose `Enemy::generation()` changed since the last step, refilled after a kill, has its plan cancelled. PASSING is the last row of ENEMIES, off in a new world and reset by RESET PARAMETERS; no committed capture opens ENEMIES.
+**Dotio (step 2).** `World::update_enemies` calls `coordinate_passing` before the enemies move. Every pool slot is a mover, so indices stay stable: an empty slot is absent (`PassingMoverState::absent`, added to Kinetra#68 for this), a frozen enemy is standing, an attacking or kamikaze enemy busy, and an enemy that follows a route (pursue, recover, path wander) is free, with the heading to its next waypoint and its route's end as destination. The player is the mover after the last slot and never joins. Legs are checked with `WeightedGrid::clear` and the footprint; units are legacy pixels and updates, and the top speed is four times the largest route force times MOVE SPEED. A participant's `Enemy::passing_target` replaces its state's movement: `steer_passing` accelerates toward it with the state's force and slows down within reach, so it stops there. A plan that ends replans its enemies' routes to the same destination; streaming shifts, `reset` and `initialize` end all plans, and a slot whose `Enemy::generation()` changed since the last step, refilled after a kill, has its plan cancelled. PASSING is the last row of ENEMIES, off in a new world and reset by RESET PARAMETERS; no committed capture opens ENEMIES.
 
 ## Affected areas
 
-- Kinetra: `include/kinetra/simulation/passing_coordinator.h`, `src/simulation/passing_coordinator.cpp`, `tests/passing_coordinator_tests.cpp` (suite `kinetra_passing_coordinator`), the consumer, `CMakeLists.txt`, ADR 0017 and the 0016 status, the navigation contract, the simulation and tests READMEs, the testing table, the README, the roadmap.
+- Kinetra: `include/kinetra/simulation/passing_coordinator.h`, `src/simulation/passing_coordinator.cpp`, `tests/passing_coordinator_tests.cpp` (suite `kinetra_passing_coordinator`), the consumer, `CMakeLists.txt`, ADR 0017 and the 0016 status, the navigation contract, the simulation and tests READMEs, the testing table, the README, the roadmap, `docs/review-lessons.md`, `docs/decisions/README.md`.
 - Lab step 1: `labs/demo` (`world/scene`, `debug_panel`, `input/commands.h`, `application.cpp`, `tests/passing_tests.cpp` as `kinetra_demo_passing_tests`, `tests/debug_panel_tests.cpp`, README), `AGENTS.md` (the Demo row of the verification table), this document, the design index, the roadmap, the pointer.
 - Lab step 2: `labs/dotio` (`world`, `entities/enemy`, `application.h`, `tests/passing_tests.cpp` in the `kinetra_dotio` suite, `tests/dotio_tests.cpp`, README), the roadmap (the item is removed), the i4sim README; Kinetra#68 gained `PassingMover::present` and its test.
 
@@ -97,6 +97,10 @@ sequenceDiagram
 | A crossing mover with priority makes a participant wait and resume | `…a participant waits for crossing traffic…` | Targeted |
 | Unavailability, the progress timeout, a wait that outlasts the timeout, parallel plans, cancel and clear, circle, polygon and rotated-box footprints, each at both scales; invalid input | the other `kinetra_passing_coordinator` cases | Targeted |
 | Slow braking next to a high speed keeps every query within the grid's cell limit (threw before the fix) | `kinetra_passing_coordinator:slow braking next to a high speed…` | Targeted |
+| A plan waits for a straying participant of an older plan and ignores one of a younger plan (fails with the comparison flipped) | `…a plan waits for a participant of an older plan…` | Targeted |
+| A participant that turns busy or standing ends its plan at once | `…a participant that turns busy or standing…` | Targeted |
+| A participant far from its lanes and a long exit offset make no query throw (fails without the scan) | `…a participant far from its lanes…` | Targeted |
+| `clear()`, an absent mover and `cancel()` drop retry delays (each fails with its reset removed) | `…clear and an absent mover drop retry delays…` | Targeted |
 | An external consumer links and runs the coordinator | `tests/consumer` | Full (CI) |
 | Demo: head-on pair, one against a column, a body stopping on a lane exit, two streams through the doorway, under both avoidance models: the situation occurs, every agent arrives, no overlap above 0.01 units | `kinetra_demo_passing` | Targeted |
 | Demo: PASSING runs at the menu's extreme tuning (MAX SPEED 16, ACCELERATION 1, each HORIZON) without throwing (threw on ffa1c19) | `kinetra_demo_passing:PASSING runs at the debug menu's extreme tuning` | Targeted |
@@ -124,6 +128,10 @@ Round 1 ([#138](https://github.com/SMB-M87/Kinetra-Lab/pull/138#pullrequestrevie
 
 The lesson the review proposed (size a grid's cells from its widest query) is on Kinetra's review lessons page.
 
+- No debug layer draws the plans, waits or braking points.
+- A waiting participant's hold point, from `PassingLaneGuard::braking_target()`, lies speed²/acceleration along its velocity, twice the stopping distance, so it can lie past the entry on ground no world check approved; i4sim does the same.
+- In Demo's doorway and column most plans end as obstructed, because the other agents of a stream soon stand or drive in the lanes; the agents then pass by avoidance. A rule that lets a plan include a follower, or reserves the lane for a stream, would be a further step.
+
 Round 1 of step 2 ([#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139#pullrequestreview-6084787108), Fix first) found:
 
 - **Blocking: a slot refilled between two passing steps kept its plan.** A kill in `update_bolts` and a spawn in the next frame's `stream_enemies` never let a step see the slot empty, so the new enemy drove to the old lanes. `coordinate_passing` now cancels a slot's plan when its `Enemy::generation()` changed; a case refills a participant's slot and fails without the check. The lesson is on Lab's review lessons page.
@@ -136,7 +144,7 @@ Step 1, Kinetra branch `feat/passing-coordinator` in the `dev` preset:
 
 ```sh
 cmake --preset dev && cmake --build --preset dev -j 8
-ctest --preset dev -LE graphics -j 8    # 309 of 309 passed at 9ba5b6a, kinetra_passing_coordinator's 14 among them
+ctest --preset dev -LE graphics -j 8    # 312 of 312 passed at 545eb6b, kinetra_passing_coordinator's 17 among them
 cmake -S tests/consumer -B /tmp/consumer -G Ninja -DKINETRA_SOURCE="$PWD" && cmake --build /tmp/consumer && /tmp/consumer/consumer   # exit 0
 ```
 
@@ -144,7 +152,7 @@ Step 1, Lab with the pointer on that branch, `dev` preset:
 
 ```sh
 cmake --build --preset dev --target kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests kinetra_demo_passing_tests kinetra_demo
-ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing|_inspector)' -LE soak -j 8   # 80 of 80 passed at 9ba5b6a, the inspector traces included
+ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing|_inspector)' -LE soak -j 8   # 80 of 80 passed at 545eb6b, the inspector traces included
 ```
 
 The crowd characterization lines are unchanged, so PASSING off computes what it did before. The four Demo pressure cases report, for reciprocal and legacy: the head-on pair one plan completed each; the column one plan completed (reciprocal) and two obstructed (legacy); the stopped body one obstructed each; the doorway five and four plans, almost all obstructed. After `PassingMover::present` (Kinetra ffa1c19), Kinetra's suite ran again: 307 of 307, and the new case failed with the change removed. No case had a tick with an overlap above 0.01 units, and every agent arrived. The extreme-tuning case threw `Spatial bounds exceed grid limits` with the pointer at ffa1c19 and passes at 9ba5b6a. The soak cases and the Full level run in CI.
@@ -153,7 +161,7 @@ Step 2, Lab `feat/shared-passing-dotio` with the same pointer:
 
 ```sh
 cmake --build --preset dev --target kinetra_dotio_tests kinetra_dotio kinetra_dotio_behavior_benchmark kinetra_demo
-ctest --preset dev -R '^kinetra_dotio' -j 8        # 58 of 58 passed at 9ba5b6a, the inspector traces and the behavior smoke included
+ctest --preset dev -R '^kinetra_dotio' -j 8        # 58 of 58 passed at 545eb6b, the inspector traces and the behavior smoke included
 ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing)' -LE soak -j 8
 ```
 
@@ -198,5 +206,6 @@ Step 2, title: `feat(dotio): pass head-on through Kinetra's passing coordinator`
 ## Open points
 
 - No debug layer draws the plans, waits or braking points, in Demo or in Dotio.
+- A waiting participant's hold point, from `PassingLaneGuard::braking_target()`, lies speed²/acceleration along its velocity, twice the stopping distance, so it can lie past the entry on ground no world check approved; i4sim does the same.
 - In Demo's doorway and column most plans end as obstructed, because the other agents of a stream soon stand or drive in the lanes; the agents then pass by avoidance. Dotio's column shows the same. A rule that lets a plan include a follower, or reserves the lane for a stream, would be a further step.
 - Dotio's pursuers converge on the player and so find no lanes; passing serves recovering enemies against pursuers and path wanderers.

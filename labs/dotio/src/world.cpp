@@ -437,22 +437,22 @@ void World::coordinate_passing() {
     for (auto &enemy : enemies) {
         auto &mover = movers[slot++];
         if (!enemy.is_active) {
-            mover.present = false; // An empty slot keeps the default body, which is valid.
+            mover.state = kinetra::PassingMoverState::absent; // The default body is valid.
             continue;
         }
         mover.body = physics_body(enemy);
-        mover.available = false;
-        mover.stationary = enemy.frozen;
+        mover.state = enemy.frozen ? kinetra::PassingMoverState::standing : kinetra::PassingMoverState::busy;
         if (!enemy.frozen && !enemy.path.empty() && follows_route(enemy, enemy_tuning_.wander)) {
-            mover.available = true;
+            mover.state = kinetra::PassingMoverState::free;
             mover.heading = kinetra::normalized(enemy.path.next() - enemy.position);
             mover.destination = enemy.path.destination();
         }
     }
     auto &player = movers[slots];
     player.body = physics_body(player_);
-    player.available = false;
-    player.stationary = kinetra::length(player_.velocity) < coordination.stop_speed;
+    player.state = kinetra::length(player_.velocity) < coordination.stop_speed
+                       ? kinetra::PassingMoverState::standing
+                       : kinetra::PassingMoverState::busy;
     const auto stepped = passing_coordinator_.step(
         movers, coordination, [this](std::size_t, kinetra::Vec2 from, kinetra::Vec2 to, kinetra::Vec2 half) {
             return grid_.navigation().clear(from, to, half);

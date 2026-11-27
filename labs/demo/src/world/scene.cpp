@@ -637,28 +637,27 @@ void Scene::coordinate_passing(float dt, const Tick &tick, std::vector<Vec2> &ta
                                        .timeout_steps = ticks_in(passing_timeout_seconds, dt),
                                        .retry_steps = ticks_in(passing_retry_seconds, dt)};
     // Every moving body takes part: the player and the props as movers that never join a
-    // plan, sleeping agents as stationary ones.
+    // plan, standing while slow, and sleeping agents as standing ones.
     std::vector<PassingMover> movers(moving_body_count_);
     for (std::size_t id = 0; id < moving_body_count_; ++id) {
         auto &mover = movers[id];
         mover.body = tick.snapshot[id];
         mover.body.velocity = mover.body.velocity * dt;
-        mover.available = false;
-        mover.stationary = length(mover.body.velocity) < settings.stop_speed;
+        mover.state = length(mover.body.velocity) < settings.stop_speed ? PassingMoverState::standing
+                                                                        : PassingMoverState::busy;
     }
     for (std::size_t i = 0; i < agents_.size(); ++i) {
         const auto &agent = agents_[i];
         auto &mover = movers[agent.body_id()];
         mover.destination = agent.goal();
         if (!agent.active()) {
-            mover.stationary = true;
+            mover.state = PassingMoverState::standing;
             continue;
         }
         // Only commanded travel passes: a wanderer's next leg is too short and too random
         // for an agreement about lanes.
-        mover.stationary = false;
-        mover.available = !agent.wandering();
-        if (mover.available)
+        mover.state = agent.wandering() ? PassingMoverState::busy : PassingMoverState::free;
+        if (mover.state == PassingMoverState::free)
             mover.heading = normalized(targets[i] - mover.body.position);
     }
     const auto lanes_clear = [this](std::size_t, Vec2 from, Vec2 to, Vec2 half_extents) {
