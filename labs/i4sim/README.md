@@ -50,7 +50,7 @@ cmake --build build -j2
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --run --ups 200
 ```
 
-The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused. LAUNCHER and EXIT below the list, on both pages, return to the launcher and end the program. The first row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload, mover goals and how the scene repeats, so pressing Space plays the scene. The scenes repeat: their movers drive back and forth between start and goal and turn together after a two-second pause, or, for corridor recovery, the scene starts again from its blueprint after the same pause.
+The session opens on the **blueprint screen**, a paged list of the catalog. Choose a blueprint with the arrows and Enter, or with the mouse; it loads paused, with a RUN button at the top of the window until it runs for the first time: click it or press Space. LAUNCHER and EXIT below the list, on both pages, return to the launcher and end the program. The first row, SHOWCASE, opens a page with the [showcase scenes](blueprints/README.md#showcase-scenes): small blueprints whose `scenario` section sets the profile, the policies, the workload, mover goals and how the scene repeats, so a scene plays as soon as it loads. The scenes repeat: their movers drive back and forth between start and goal and turn together after a two-second pause, or, for corridor recovery, the scene starts again from its blueprint after the same pause.
 
 CMake copies the catalog to `i4sim-blueprints/` beside the executables, and the session finds it through the executable's location, whatever the working directory is. Move that directory together with the executable, or pass `--blueprints DIR` for another catalog; `--blueprint FILE` loads one file directly. A file that fails to load reports its name and the cause, and the blueprint screen stays open. A missing or empty catalog shows the directory on screen and on standard error; restore the directory and press Enter to read it again.
 
@@ -69,7 +69,7 @@ It prints the ticks it ran, the completed products and the ticks per second of t
 | `--ticks N` | Batch mode: run N ticks (up to 100,000,000) without a window, as fast as the processor allows, or fewer when the blueprint's tick cap comes first, and report the ticks per second. `--ups` does not apply. Needs `--blueprint` |
 | `--output DIR` | Batch mode: write `summary.json` with run totals and per-mover, per-producer and per-product counters. A graphical session writes no summary |
 | `--seed N` | Seed of the workload; 42 by default |
-| `--run`, `--ups N` | Graphical: start a loaded blueprint running, and its ticks per second (1 to 10000, default 200) |
+| `--run`, `--ups N` | Graphical: start every loaded blueprint running, not only showcase scenes, and its ticks per second (1 to 10000, default 200) |
 | `--frames N` | Graphical: stop after N frames, for smoke runs |
 
 ## Controls
@@ -79,8 +79,8 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | Input | Action |
 | --- | --- |
 | LAUNCHER, Escape / M on the blueprint screen | Leave i4sim: back to the bundled launcher, or exit the direct `kinetra_i4sim`. On the SHOWCASE page Escape and M return to the blueprint list, and LAUNCHER still leaves |
-| Space / P | Pause or resume |
-| R | Restart the blueprint with the same seed, paused, and keep the current tick rate and motion settings. A showcase scene also gets its goals, workload and repeat setting again, so a changed setting can be compared with the original run |
+| Space / P | Pause or resume; also starts a blueprint that shows the RUN button |
+| R | Restart the blueprint with the same seed and keep the current tick rate and motion settings. A blueprint restarts paused and shows the RUN button again; a showcase scene also gets its goals, workload and repeat setting again and restarts running, so a changed setting can be compared with the original run |
 | G | Toggle the automatic workload |
 | Q / E | Halve / double the ticks per second |
 | 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode); a layer's parts keep their own selection |

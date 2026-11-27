@@ -56,7 +56,7 @@ The two-mover scenes before make way are the setups the [presentation test](../t
 
 ### Scenario section format
 
-A blueprint may carry one optional `scenario` object. `load_blueprint` ignores it; `load_scenario` in [scenario.h](../include/i4sim/blueprint/scenario.h) reads it and `apply_scenario` configures a `Simulation` with it and leaves its pause state unchanged; a new simulation starts paused. Property names are case-insensitive like the rest of the blueprint, but unknown names anywhere inside the section are rejected, so a misspelled setting fails instead of being ignored.
+A blueprint may carry one optional `scenario` object. `load_blueprint` ignores it; `load_scenario` in [scenario.h](../include/i4sim/blueprint/scenario.h) reads it and `apply_scenario` configures a `Simulation` with it and leaves its pause state unchanged; a new simulation starts paused, and the graphical session runs a blueprint with a scenario as soon as it loads it. Property names are case-insensitive like the rest of the blueprint, but unknown names anywhere inside the section are rejected, so a misspelled setting fails instead of being ignored.
 
 ```json
 "scenario": {

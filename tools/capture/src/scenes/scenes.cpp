@@ -463,7 +463,8 @@ void i4sim_showcase(Stage &stage, std::string_view scene) {
     stage.start_i4sim(file.string());
     const int frames =
         showcase_cycle_steps(i4sim::default_blueprint_directory() / file) / Stage::steps_per_frame;
-    stage.press(Key::space);
+    // A scene loads running; this step is the one in which the measurement starts.
+    stage.step();
     stage.record(frames, no_input);
 }
 

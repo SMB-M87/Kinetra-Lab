@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-27 | [i4sim start state](2026-11-27-i4sim-start-state.md): showcase scenes start running; a blueprint that starts paused shows a RUN button until it first runs | implemented |
 | 2026-11-27 | [Default debug layers](2026-11-27-default-debug-layers.md): Demo starts with VECTORS and PATHS, i4sim with every layer but HEATMAP and CONTACT SHAPES | implemented |
 | 2026-11-27 | [Debug layers under bodies](2026-11-27-paths-under-bodies.md): the routes, probes, vectors, forces and detection ranges of Demo, Dotio and i4sim are drawn under the moving bodies, with the start of a body's own route or arrow over it; one route width; i4sim's `MAS-demonstrator` fixture renamed `test-environment` | implemented |
 | 2026-11-27 | [Tick rates](2026-11-27-tick-rates.md): typed UPS and FPS rows in every lab, up to a million ticks per second, a budgeted clock in Kinetra, and runs of a million ticks that report ticks per second | accepted |
