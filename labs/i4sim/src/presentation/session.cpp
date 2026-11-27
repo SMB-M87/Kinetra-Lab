@@ -47,6 +47,13 @@ class FactorySession final : public kinetra_lab::Session {
         // debug menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
         controller_.suspend(settings_.visible());
+        if (settings_.request() == SessionRequest::configurations) {
+            // BLUEPRINTS: i4sim's configuration page is its own blueprint screen, so the
+            // session serves the request instead of its host. The overlay outlives the
+            // blueprint, so the request is cleared for the next one.
+            controller_.close_later();
+            settings_.clear_request();
+        }
         // A hidden menu takes no click, so it needs no rows.
         const auto entries = menu_.visible ? controller_.menu(layer_color) : std::vector<DebugEntry>{};
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
@@ -95,7 +102,9 @@ class FactorySession final : public kinetra_lab::Session {
     SessionRequest request() const override {
         if (exit_ || settings_.request() == SessionRequest::exit)
             return SessionRequest::exit;
-        if (leave_ || settings_.request() == SessionRequest::menu)
+        // Only the blueprint screen asks for the menu: the settings panel's first button is
+        // BLUEPRINTS, whose request the session serves itself in advance().
+        if (leave_)
             return SessionRequest::menu;
         return SessionRequest::none;
     }
@@ -163,7 +172,8 @@ class FactorySession final : public kinetra_lab::Session {
             {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK", "SHIFT + RIGHT CLICK  INSPECT",
              "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
             {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),
-        &debug_};
+        &debug_,
+        {"BLUEPRINTS", SessionRequest::configurations}};
 };
 } // namespace
 

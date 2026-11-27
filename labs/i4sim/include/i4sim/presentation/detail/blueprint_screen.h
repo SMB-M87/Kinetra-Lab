@@ -12,7 +12,8 @@ namespace i4sim {
 /// What the blueprint screen asks its session to do after a frame of input.
 enum class ScreenAction {
     none,
-    /// Escape or M outside the SHOWCASE page: leave i4sim.
+    /// LAUNCHER was clicked, on either page, or Escape or M outside the SHOWCASE page: leave
+    /// i4sim for the launcher.
     leave,
     /// EXIT was clicked: end the program.
     exit,
@@ -32,7 +33,8 @@ struct ScreenEvent {
 
 /// The blueprint catalog as a paged menu: when its `showcase/` subdirectory holds scenes,
 /// a first row SHOWCASE whose second page lists them, then one row per JSON file in the
-/// catalog directory. Reuses kinetra::LaunchMenu for layout, paging and picking.
+/// catalog directory. Reuses kinetra::LaunchMenu for layout, paging and picking, with a
+/// LAUNCHER button on both pages (kinetra::LauncherButton::every_page) beside EXIT.
 ///
 /// A new screen has no catalog until refresh() succeeds. Without one it draws a load-error
 /// screen and waits for Enter.
