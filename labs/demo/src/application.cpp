@@ -117,8 +117,7 @@ Application::Pose Application::presented_pose(std::size_t id) const {
         return exact;
     // Anything but the last tick moved this body, or the id now names another body.
     const auto &after = after_tick_[id];
-    if (after.position.x != body.position.x || after.position.y != body.position.y ||
-        after.angle != body.angle)
+    if (after.position != body.position || after.angle != body.angle)
         return exact;
     const auto blend = float(clock_.interpolation());
     const auto &before = before_tick_[id];

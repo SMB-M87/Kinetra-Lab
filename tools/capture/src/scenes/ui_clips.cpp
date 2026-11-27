@@ -126,15 +126,20 @@ void ui_launcher(Stage &stage) {
         tour.click_menu_page_row(static_cast<std::size_t>(demo::Scenario::doorway),
                                  demo::scenario_labels().size());
         tour.wait(1.6);
-        // SCENARIOS in the debug menu returns to the configuration page, DOORWAY selected.
-        tour.toggle_debug_menu();
+        // SCENARIOS in the settings panel returns to the configuration page, DOORWAY
+        // selected, and the page's LAUNCHER returns to the list.
+        tour.open_settings(demo_sim_lines, demo_debug_lines);
         tour.pause(0.4, 0.6);
-        tour.click_row("SCENARIOS");
+        tour.click_settings_action(SettingsOverlay::leave_x);
         const auto &page = tour.menu();
         if (!tour.in_menu() || !page.configuring() ||
             page.row_name(page.selected()) != demo::scenario_label(demo::Scenario::doorway))
             throw std::runtime_error("SCENARIOS did not return to Demo's page with DOORWAY selected");
-        tour.wait(1.2);
+        tour.wait(1.0);
+        tour.click_menu_footer(kinetra::FooterButton::launcher, demo::scenario_labels().size());
+        if (!tour.in_menu() || page.configuring())
+            throw std::runtime_error("LAUNCHER did not return to the launcher's list");
+        tour.wait(1.0);
     });
 }
 
