@@ -20,7 +20,9 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Stall detection in i4sim** · i4sim · added 2026-11-21
+  Diagnose stalled movers, record episodes and compare passing on and off across more seeds. This is step 1 of *Stall detection and remedies in i4sim*.
+  Where: [i4sim stall detection](design/2026-11-26-i4sim-stall-detection.md), `feat/i4sim-stall-detection`.
 
 ## Next
 
@@ -29,9 +31,8 @@ Nothing agreed next.
 ## Later
 
 - **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
-  A mover recognizes that it is stalled and why (sealed in by parked neighbors, a standoff with another mover, sliding back and forth), and the simulation answers with optional remedies, off by default and measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness). Decided on 2026-11-22, as a stack: (1) detection and its events without behavior change, shown in the inspector, measured over more seeds and with passing on as well, so phase 7's 11-against-6 stuck movers turns out a trend or not; (2) MAKE WAY: parked neighbors on the stalled mover's route make way, also a mover that waits for a producer with a product, which keeps its product and its place in the queue and returns when the stalled mover has passed or after a fixed time; (3) a temporary motion fallback whose motion type and return rule the user chooses from the detection data. The documented standstill needs MAKE WAY: no motion type gets out while the neighbors stay parked.
-  Open question for the user, phase 7's third: should the departure check refuse a route that steering cannot follow past a parked neighbor? The detection step first explains why it accepted mover 25's route past parked mover 26 (`4320x2400`, seed 2026, tick 7730); the user decides with that cause in hand, before MAKE WAY is built.
-  Uses the [agent inspector](design/2026-11-22-agent-inspector-overlay.md). Where: [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy), [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
+  After [stall detection](design/2026-11-26-i4sim-stall-detection.md), add two optional remedies, off by default and measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness). In step 2, MAKE WAY asks parked neighbors to let a stalled mover pass. A neighbor waiting for a producer keeps its product and queue slot and returns once the way is clear or a fixed time passes. Step 3 adds a temporary motion fallback. The user chooses the motion type and return rule from the detection data.
+  Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy).
 - **RECOVERY detour past a corner** · i4sim · added 2026-11-21
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
