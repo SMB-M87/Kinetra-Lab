@@ -25,7 +25,7 @@ It is not a collision-free crowd simulation. Steering and navigation use conserv
 
 ## Scenarios
 
-Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launcher-demo-scenarios.png). The debug menu's SCENARIOS returns to it, with the running scenario selected, as the settings panel's LAUNCHER returns to the application list. In `kinetra_demo`, which has no launcher, both end the program.
+Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launcher-demo-scenarios.png). SCENARIOS in the settings panel returns to it, with the running scenario selected, in Debug Mode or not; the page's LAUNCHER button, or M, returns to the application list. In `kinetra_demo`, which has no launcher, SCENARIOS ends the program.
 
 | Scenario | What to try |
 | --- | --- |
@@ -51,7 +51,7 @@ Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launche
 | Shift+Ctrl | Open/close the upper-left debug menu; switches Debug Mode on when it was off |
 | DEBUG button (next to Settings) | Toggle the debug menu in Debug Mode |
 | Wheel / ZOOM row of the debug menu | Zoom in Debug Mode: 5–100 px/unit; leaving Debug Mode clamps to 17–100 |
-| Settings Launcher / Exit | Return to bundled launcher / exit the application |
+| Settings Scenarios / Exit | Return to the launcher's scenario page / exit the application |
 
 Settings shows the help lines of SIM CONTROLS and DEBUG CONTROLS only after a click on their heading, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. F/P/R/G/Tab/C have no gameplay shortcuts.
 
@@ -67,7 +67,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | LAYERS | VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES, ACTIVE AGENTS, HOME RANGE, each with the color it is drawn in. HOME RANGE draws a line from every awake agent to its home, and the range circle of the selected agent |
 | MOTION | AVOIDANCE (RECIPROCAL or LEGACY), MAX SPEED, ACCELERATION, RESPONSE, CLEARANCE; then HORIZON and PASSING BIAS for reciprocal avoidance, or LOOKAHEAD, SEPARATION and SEP WEIGHT for legacy steering |
 | AGENTS | WANDER (STEERING or ROUTE), HOME RANGE, then WANDER REACH and WANDER JITTER for steering wander, CLICK SETS GOAL and PASSING (off at the start) |
-| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, PASSING off, speed 1×), SCENARIOS (back to the launcher's scenario page, with the running scenario selected) |
+| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, PASSING off, speed 1×) |
 
 The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain, Maze and Doorway. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and UPS persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. PASSING lets agents on commanded travel pass each other head-on in agreed side lanes ([a tick](#a-tick)). LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED, or the UPS measured and asked for (`UPS 236/240`) when the UPS row is not at real time.
 
@@ -268,7 +268,7 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | [crowd_characterization_tests.cpp](tests/crowd_characterization_tests.cpp) | `kinetra_demo_crowd_characterization` (4) | Pins crowd behavior in both wander modes, so a refactor can prove that it preserves behavior. A dense idle crowd (240 agents, seed 123, 480 frames) and a player walking through newly streamed chunks with commanded agents (40 agents, seed 456, 1200 frames) check every frame for finite motion, an intact swept-event budget, a one-to-one agent-to-body mapping and at most 0.01 units of overlap between moving bodies. Each scenario and wander mode is one case and must reproduce a recorded summary line with a trajectory fingerprint; a mismatch shows the expected and actual line. `KINETRA_PRINT_GOLDEN=1` prints the current lines for a deliberate update |
 | [crowd_stability_tests.cpp](tests/crowd_stability_tests.cpp) | `kinetra_demo_crowd` (5) | 60 simulated seconds per case. 240 initial agents with seeds 123 and 456 and steering wander, and seed 123 with route wander; rejects swept-event starvation, nonfinite motion and the spinning tangent-contact freeze. Two more cases watch 48 agents around a standing player, one per wander mode: at least 80 % of those awake after a second are still awake after a minute (labels `unit` and `soak`, 180-second timeout per case) |
 | [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_demo_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
-| [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo` (32) | Pause/resume, UPS, tick limit and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands, PASSING among them |
+| [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo` (31) | Pause/resume, UPS, tick limit and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands, PASSING among them |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (2) | Inspector interactions, routes, and steering probes at different zoom levels (label `graphics`) |
 | [passing_tests.cpp](tests/passing_tests.cpp) | `kinetra_demo_passing` (6) | Passing with PASSING on. A new goal, PASSING off and `place_agents` end a plan; the menu's extreme tuning (MAX SPEED 16, ACCELERATION 1, every HORIZON) runs. Four pressure cases, each under reciprocal avoidance and legacy steering: a head-on pair in the open arena completes its plan, one agent against two in a column, the player stopping on a lane exit (the plan ends as obstructed) and two streams of three through the doorway. Each case checks that its situation occurs, then that every agent reaches its goal and no two moving bodies overlap by more than 0.01 units. They assert outcomes, not recorded lines, so they hold on every toolchain |
 | [scenario_tests.cpp](tests/scenario_tests.cpp) | `kinetra_demo` (3 scenario cases) | Gravity, maze routing and fixed layout lifetime, and commanded doorway traffic |

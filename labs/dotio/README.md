@@ -50,7 +50,7 @@ The logic (`kinetra_dotio_logic`) is headless and builds without the runtime. Th
 
 ## Launch and controls
 
-The bundled launcher asks for Easy, Medium or Hard, default Medium ([difficulty page](../../docs/media/launcher-difficulty.png)); the debug menu's DIFFICULTY returns to that page. M cancels difficulty selection. Direct `--variant dotio --difficulty hard` skips the menu. The independent `kinetra_dotio` executable accepts `--difficulty`, `--frames` and `--seed N`; it prints the seed it plays, and the same seed gives the same maze and the same enemy decisions for the same input. The bundled launcher prints a random world seed at start; `kinetra_dotio --seed` replays it. `--agents` in the bundled launcher affects Demo only.
+The bundled launcher asks for Easy, Medium or Hard, default Medium ([difficulty page](../../docs/media/launcher-difficulty.png)); DIFFICULTY in the settings panel returns to that page, with the running difficulty selected, in Debug Mode or not. M or the page's LAUNCHER button cancels difficulty selection; in `kinetra_dotio` DIFFICULTY ends the program. Direct `--variant dotio --difficulty hard` skips the menu. The independent `kinetra_dotio` executable accepts `--difficulty`, `--frames` and `--seed N`; it prints the seed it plays, and the same seed gives the same maze and the same enemy decisions for the same input. The bundled launcher prints a random world seed at start; `kinetra_dotio --seed` replays it. `--agents` in the bundled launcher affects Demo only.
 
 | Input | Behavior |
 | --- | --- |
@@ -65,7 +65,7 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium ([difficulty 
 | Shift+Ctrl | Open/close the upper-left debug menu; switches Debug Mode on when it was off |
 | DEBUG button (next to Settings) | Toggle the debug menu in Debug Mode |
 | Wheel / ZOOM row of the debug menu | Zoom in Debug Mode: 2.5–50 px/unit; leaving Debug Mode clamps to 25–50 |
-| Settings Launcher / Exit | Return to bundled launcher / exit the application |
+| Settings Difficulty / Exit | Return to the launcher's difficulty page / exit the application |
 
 Settings shows the help lines of SIM CONTROLS and DEBUG CONTROLS only after a click on their heading, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action.
 
@@ -85,7 +85,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | LAYERS | VECTORS, STEERING PROBES, PATHS with its parts WANDER, PURSUE, KAMIKAZE and RECOVERY while it is on, COLLISION SHAPES, ACTIVE AGENTS, AI STATES, HIDING HITS. A row drawn in one color shows that color; the PATHS parts show the color of their AI state. All start off |
 | ENEMIES | WANDER (STEERING or PATH), MOVE SPEED, FIRE INTERVAL, ARROW SPEED, PREDICTION, PURSUIT CYCLES, HITS, the force of each state: WANDER, ATTACK, PURSUE, RECOVER and KAMIKAZE FORCE, and PASSING ([passing](#passing); off at the start) |
 | SPAWNING | ACTIVE LIMIT, SPAWN RATE, CROWD LOAD, SPACING |
-| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the difficulty's preset, the default forces and wander mode, PASSING off, speed 1×), DIFFICULTY (back to the launcher's difficulty page, with the running difficulty selected; in `kinetra_dotio` it ends the program, as LAUNCHER does) |
+| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the difficulty's preset, the default forces and wander mode, PASSING off, speed 1×) |
 
 The ENEMIES and SPAWNING rows change the running world: its copy of the [difficulty preset](#difficulty) and its `EnemyTuning`. Movement, firing, pursuit and spawning follow at once; HITS applies to enemies that spawn afterwards. The rows stop at limits the world can run with (`tuning_step` in [application.h](include/dotio/application.h), within `dotio::validate`). A new session, and RESET PARAMETERS, start from the preset again; the player's death keeps the tuned values.
 
@@ -376,7 +376,7 @@ Both test programs are doctest suites: each `TEST_CASE` is one behavior, named a
 | Source | CTest suite (cases) | Coverage |
 | --- | --- | --- |
 | [passing_tests.cpp](tests/passing_tests.cpp) | `kinetra_dotio` (8) | PASSING runs at the menu's slowest and fastest MOVE SPEED and route forces; a slot refilled between two updates ends its plan; a recovering enemy against a pursuer completes its plan without touching. Passing under pressure with PASSING on, path wanderers on a grid of walls: a head-on pair in an open room completes its plan without touching, while without passing the same pair touches; one against a column; a frozen enemy on a lane exit (the plan ends as obstructed); a corridor one cell wide, where no plan fits. Each case checks that its situation occurs and that every enemy arrives. They assert outcomes, not recorded lines |
-| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (46) | Routes clear of walls, pursuers that reach the player along one route, no enemy standing still, shelters out of sight, determinism per seed and a recorded fingerprint, independent worlds, geometry, streaming and the planner in step with it, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom. Needs no window |
+| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (45) | Routes clear of walls, pursuers that reach the player along one route, no enemy standing still, shelters out of sight, determinism per seed and a recorded fingerprint, independent worlds, geometry, streaming and the planner in step with it, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, UPS, tick limit, single tick and zoom. Needs no window |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (5) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`. Needs an OpenGL context (label `graphics`) |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:dotio` (1) | `kinetra_dotio --difficulty medium --seed 42 --frames 120` starts, draws and exits with 0. Needs an OpenGL context (label `graphics`) |
 

@@ -202,10 +202,6 @@ class Application {
     bool paused{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
     bool statistics{}, active_agents{}, frame_times{};
-    /// Set by the debug menu's DIFFICULTY row. The session then asks its host for the
-    /// launcher's page of difficulties (kinetra::SessionRequest::configurations), which ends
-    /// the session, so it is never reset.
-    bool difficulty_requested{};
     /// Ticks per elapsed second, set by the debug menu's UPS row; real_time_ups is real time.
     std::uint64_t ups{real_time_ups};
     /// The most ticks the next advance() may run; a longer backlog is dropped. The session
@@ -221,9 +217,9 @@ class Application {
     kinetra::RateCounter frame_rate, update_rate, decision_rate;
     /// The rows of the debug menu in display order: the headings SIMULATION, LAYERS, ENEMIES
     /// and SPAWNING, each followed by its rows while it is open, then, below a rule, ZOOM,
-    /// GHOST CAMERA, RESET PARAMETERS and DIFFICULTY. At most one section is open; SIMULATION
-    /// is at the start. PATHS lists its four parts only while it is on. DIFFICULTY sets
-    /// difficulty_requested.
+    /// GHOST CAMERA and RESET PARAMETERS. At most one section is open; SIMULATION is at the
+    /// start. PATHS lists its four parts only while it is on. DIFFICULTY is the settings
+    /// panel's, not a row here.
     ///
     /// The tuning rows change the world's balance (dotio::World::settings) and its enemy
     /// tuning in place, within tuning_step; RESET PARAMETERS restores both and the UPS. The rows follow the
@@ -250,7 +246,6 @@ class Application {
                                world_->set_passing(false);
                                ups = real_time_ups;
                            }});
-        entries.push_back({.label = "DIFFICULTY", .action = [this] { difficulty_requested = true; }});
         return entries;
     }
     /// The PATHS layer and its parts: [0] the layer, [1] WANDER, [2] PURSUE, [3] KAMIKAZE,

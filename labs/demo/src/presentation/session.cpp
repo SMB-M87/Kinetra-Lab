@@ -30,7 +30,8 @@ class DemoSession final : public Session {
                                    {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL",
                                     "Q / E  ROTATE PLAYER", "SHIFT + LEFT / RIGHT  ROTATE"},
                                    {"GHOST CLICK  TELEPORT"}),
-        &debug_};
+        &debug_,
+        {"SCENARIOS", kinetra::SessionRequest::configurations}};
     kinetra_lab::ModalPause pause_;
     kinetra::RateCounter fps_, ups_;
     kinetra::TickBudget budget_;
@@ -75,8 +76,7 @@ class DemoSession final : public Session {
                        std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
         ups_.count(int(application_.ticks_run()));
         const auto after = application_.scene().selected_agent();
-        if (bool(before) != bool(after) ||
-            (before && after && (before->x != after->x || before->y != after->y)))
+        if (before != after)
             inspector_.reset();
         panel_.observe(camera);
     }
@@ -96,14 +96,9 @@ class DemoSession final : public Session {
                       .inspector = &inspector_,
                       .inspection = snapshot ? &*snapshot : nullptr});
     }
-    /// The settings panel's LAUNCHER and EXIT, or else the debug menu's SCENARIOS, which
-    /// asks for the launcher's page of scenarios.
-    kinetra::SessionRequest request() const override {
-        const auto requested = settings_.request();
-        if (requested == kinetra::SessionRequest::none && panel_.scenarios_requested())
-            return kinetra::SessionRequest::configurations;
-        return requested;
-    }
+    /// The settings panel's SCENARIOS, which asks for the launcher's page of scenarios, and
+    /// EXIT.
+    kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override {
         const auto scenario = application_.scene().scenario();
         return scenario == Scenario::terrain ? "Demo" : "Demo - " + std::string(scenario_label(scenario));

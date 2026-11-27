@@ -30,7 +30,8 @@ void BlueprintScreen::refresh() {
         showcase_files_ = discover_blueprints(showcase);
     if (files_.empty() && showcase_files_.empty())
         throw std::runtime_error("No JSON blueprints found in " + directory_.string());
-    menu_ = std::make_unique<LaunchMenu>(choices(), "I4SIM LOADSCREEN");
+    // LAUNCHER on every page leaves i4sim, so the launcher is one click away from both pages.
+    menu_ = std::make_unique<LaunchMenu>(choices(), "I4SIM LOADSCREEN", LauncherButton::every_page);
 }
 
 std::vector<LaunchChoice> BlueprintScreen::choices() const {
@@ -71,7 +72,9 @@ ScreenEvent BlueprintScreen::update(const Input &input, Vec2 viewport) {
             return {ScreenAction::load, showcase_files_.at(choice->configuration)};
         return {ScreenAction::load, files_.at(choice->application - (showcase ? 1 : 0))};
     }
-    return {menu_->exit_requested() ? ScreenAction::exit : ScreenAction::none, {}};
+    if (menu_->exit_requested())
+        return {ScreenAction::exit, {}};
+    return {menu_->launcher_requested() ? ScreenAction::leave : ScreenAction::none, {}};
 }
 
 void BlueprintScreen::draw(Runtime &runtime, std::string_view message) const {

@@ -19,7 +19,8 @@ class DotioSession final : public Session {
         kinetra_lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
                                    {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
                                    {"GHOST CLICK  TELEPORT", "SHIFT + RIGHT CLICK  INSPECT"}),
-        &application_.debug};
+        &application_.debug,
+        {"DIFFICULTY", kinetra::SessionRequest::configurations}};
     kinetra_lab::ModalPause pause_;
     /// The debug panel; the application supplies its rows.
     kinetra::DebugMenu menu_;
@@ -89,14 +90,9 @@ class DotioSession final : public Session {
         application_.frame_rate_setting.apply(runtime);
         dotio::render(runtime, application_, settings_, menu_, &inspector_);
     }
-    /// The settings panel's LAUNCHER and EXIT, or else the debug menu's DIFFICULTY, which
-    /// asks for the launcher's page of difficulties.
-    kinetra::SessionRequest request() const override {
-        const auto requested = settings_.request();
-        if (requested == kinetra::SessionRequest::none && application_.difficulty_requested)
-            return kinetra::SessionRequest::configurations;
-        return requested;
-    }
+    /// The settings panel's DIFFICULTY, which asks for the launcher's page of difficulties,
+    /// and EXIT.
+    kinetra::SessionRequest request() const override { return settings_.request(); }
     std::string title() override { return "Dotio"; }
     std::string status() override { return dotio::status_text(application_); }
     std::vector<kinetra_lab::DebugRow> debug_rows() override {

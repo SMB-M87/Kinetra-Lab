@@ -36,9 +36,6 @@ Nothing in progress.
 - **MAS stops producing in a long run** · i4sim · added 2026-11-27
   In the motion benchmark's first million-tick runs, `MAS-demonstrator` with seed 915839214 completes 29 products, against 202 with seed 42, and ends with a stuck mover: the run stalls early and stays stalled. 50,000 ticks did not show it.
   Next step: replay the run with `--events` and find the tick where production stops. Where: [tick rates, step 1](design/2026-11-27-tick-rates.md#verification).
-- **RECOVERY detour past a corner** · i4sim · added 2026-11-21
-  Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
-  Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
 - **Golden tests on Windows** · tests, with Kinetra · added 2026-11-22
   Four Demo crowd characterization cases and i4sim's RVO case still differ on Windows after Kinetra's `atan2` and `asin`, so the Windows presets exclude them; Dotio's fingerprint and the rest hold there. Another function of Windows' C runtime rounds differently, among `sinf`, `cosf`, `expf`, `powf` and `hypot`. Routing it through Kinetra as well would also move the recorded lines on Linux, because glibc's `sinf` and `cosf` are not correctly rounded either, so the lines would be recorded again once.
   Next step: find the function by trying each on Windows CI with a correctly rounded replacement, then the user decides whether to re-record. Where: [Windows tests](windows.md#tests), [Linux beyond Arch, open points](design/2026-11-22-linux-beyond-arch.md#open-points).
@@ -55,7 +52,7 @@ Nothing in progress.
   Route following passes waypoints by distance and does not skip those already in sight, so pursuers cut fewer corners than they could.
   Depends on: Kinetra's *Raster route target*. Where: [Dotio open points](../labs/dotio/README.md#open-points).
 - **Menu rows by label in tests and scripts** · i4sim, capture, tests · added 2026-11-21
-  The i4sim graphics suite and the clip and screenshot scripts click debug-menu rows by number, while the tour finds them by label (`kinetra_lab::Session::debug_rows()`). Labels remove numbers that are kept up to date by hand. Related: with LAYERS open the i4sim debug menu is 24 rows high, so in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge.
+  The i4sim graphics suite and the clip and screenshot scripts click debug-menu rows by number, while the tour finds them by label (`kinetra_lab::Session::debug_rows()`). Labels remove numbers that are kept up to date by hand. Related: with LAYERS open the i4sim debug menu is 24 rows high, so in a window lower than about 650 pixels FRAME SCENE falls below the edge.
   Where: [i4sim open points](../labs/i4sim/README.md#open-points), [capture tool open points](../tools/capture/README.md#open-points).
 - **One i4sim session frame helper** · i4sim, capture · added 2026-11-21
   The two i4sim measurements repeat the session's frame order by hand; a helper in the i4sim logic would serve both.
@@ -79,9 +76,6 @@ Nothing in progress.
 - **Cloud setup edge cases** · build, tools · added 2026-11-23
   Three small gaps the agent review left as optional in the cloud setup scripts, two in Kinetra's `tools/cloud_setup.sh` and one in Lab's: a third-party apt source whose update exits 100 still stops the install, `dpkg --configure -a`'s failure is reported as an apt failure, and Lab's message for an old Kinetra commit points to a page that does not name the clang-format version. Like *Ready-to-build cloud sessions*, one item here covers both scripts.
   Where: [Ready-to-build cloud sessions, open points](design/2026-11-23-ready-to-build-cloud-sessions.md#open-points).
-- **Vec2 equality in place of component comparisons** · i4sim, demo, capture, with Kinetra · added 2026-11-24
-  Since Kinetra#52, `kinetra::Vec2` has `==`, and Dotio uses it. i4sim's tests, Demo's inspector and the capture tool's tests still compare the components one by one (for example `labs/i4sim/tests/simulation_tests.cpp:1588`, `labs/demo/src/world/inspector.cpp:20`, `tools/capture/tests/capture_tests.cpp:667`); they can use `==`. Kinetra's item of the same name covers its own.
-  Where: [Dotio on `kinetra::Vec2`, open points](design/2026-11-24-dotio-on-kinetra-vec2.md#open-points).
 
 ## Ideas
 

@@ -113,7 +113,7 @@ bool FactoryController::load(const std::filesystem::path &path) {
         selected_producer_.reset();
         clear_message();
         fit_pending_ = true;
-        // A BLUEPRINTS request was for the blueprint this load replaced.
+        // A close_later() request was for the blueprint this load replaced.
         close_requested_ = false;
         return true;
     } catch (const std::exception &e) {
@@ -477,7 +477,6 @@ std::vector<kinetra::DebugEntry> FactoryController::menu(const LayerColors &colo
     }
     entries.push_back(zoom_.entry());
     entries.push_back({.label = "FRAME SCENE", .action = [this] { fit_pending_ = true; }});
-    entries.push_back({.label = "BLUEPRINTS", .action = [this] { close_requested_ = true; }});
     return entries;
 }
 } // namespace i4sim

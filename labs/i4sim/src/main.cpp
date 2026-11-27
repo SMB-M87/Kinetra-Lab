@@ -117,7 +117,8 @@ int main(int argc, char **argv) {
         kinetra::Runtime runtime("i4sim");
         runtime.camera.pixels_per_unit = i4sim::initial_zoom;
         auto session = i4sim::create_session(seed, directory, blueprint, running, ups);
-        // Without a launcher, LAUNCHER and the blueprint screen's Escape end the program.
+        // Without a launcher, the blueprint screen's LAUNCHER, Escape and M end the program; the
+        // settings panel's BLUEPRINTS stays in i4sim.
         kinetra::run_session(runtime, *session, frames);
 #else
         throw std::invalid_argument("Headless build requires --blueprint FILE --ticks N");

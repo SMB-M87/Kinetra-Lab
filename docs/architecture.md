@@ -75,9 +75,9 @@ sequenceDiagram
     end
 ```
 
-*Takeaway:* the launcher owns no loop of its own; a session leaves by returning a request from its settings overlay or its debug menu.
+*Takeaway:* the launcher owns no loop of its own; a session leaves by returning a request from its settings overlay, or from a screen of its own such as i4sim's blueprint screen.
 
-The bundled launcher calls `kinetra::run_launcher` with Lab's registrations and bindings ([launcher](../launcher/README.md)). `SessionHost` owns at most one session. Each session returns its `kinetra::SettingsOverlay`'s request (LAUNCHER gives `menu`, EXIT gives `exit`). Demo's SCENARIOS and Dotio's DIFFICULTY in the debug menu give `configurations`, which returns to the application's page of the launcher menu with the running choice selected, and i4sim's blueprint screen adds its own `menu` request on Escape or M.
+The bundled launcher calls `kinetra::run_launcher` with Lab's registrations and bindings ([launcher](../launcher/README.md)). `SessionHost` owns at most one session. Each session returns its `kinetra::SettingsOverlay`'s request: the panel's first button is the application's own choice of variant, Demo's SCENARIOS or Dotio's DIFFICULTY, which gives `configurations` and returns to the application's page of the launcher menu with the running choice selected; EXIT gives `exit`. That page's LAUNCHER button returns to the application list. i4sim's first button, BLUEPRINTS, also asks for `configurations`, which the session serves itself by returning to its blueprint screen; that screen gives its own `menu` request on LAUNCHER, Escape or M.
 
 Runtime outlives every session; sessions own application state. Applications choose timing, bindings, pause behavior and world residency. Debug overlay pointers and callbacks borrow application state and must remain valid during update and draw. The direct executables (`kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim`) use the core `run_session` loop.
 

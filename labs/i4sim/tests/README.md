@@ -27,7 +27,7 @@ flowchart TD
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
     Logic --> Controller["kinetra_i4sim_controller (44)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
-    Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (4)<br/>session input and rendering"]
+    Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (6)<br/>session input and rendering"]
     Logic --> Presentation
 ```
 
@@ -39,7 +39,7 @@ flowchart TD
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
 | `controller_tests.cpp` | `kinetra_i4sim_controller` (44) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
-| `presentation_tests.cpp` | `kinetra_i4sim_graphics` (4, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL |
+| `presentation_tests.cpp` | `kinetra_i4sim_graphics` (6, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
 Shared test code, in [include/i4sim/testing/](include/i4sim/testing/) and linked through the `kinetra_i4sim_testing` target: `recorder.h` (the per-tick fingerprint of the golden and pressure suites), `event_counts.h` (counts over the event log, among them contact episodes, also used by the benchmark) and `showcase.h` (paths of the blueprints in the source tree: `showcase_blueprint` in the catalog, which the target passes as `KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR`, and `fixture_blueprint` in this directory, passed as `KINETRA_I4SIM_TEST_FIXTURE_DIR`). The four `pressure-*.json` files are the fixtures of the pressure suite. `MAS-demonstrator.json` is the original MAS blueprint of the C# reference, unchanged; it left the catalog, but the controller, golden and simulation suites, the graphics suite and the benchmark still run it.
@@ -120,13 +120,13 @@ Each case then requires the outcome (no contact, every mover at its goal, no stu
 | Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor, but with Shift it only selects, as a left click does; Shift+left-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
 | Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, and the ZOOM row's buttons, both within the zoom limits |
 | Modal pause | An open panel pauses a running blueprint and restores it; a paused one stays paused |
-| Debug menu | The menu opens with SIMULATION open; a heading opens its section and closes the other; each section lists its rows in order; layers, WORKLOAD, RUNNING, RECOVERY and the traffic policies are check boxes on the real state; a layer lists its parts only while it is on, and a part draws only while its layer is on; PROFILE and PLANNER open a list that chooses and closes, and a list closes with its section; the number rows show their value and step it while running; RESET PARAMETERS restores the default speed, force and horizon; a rejected setting shows its reason; BLUEPRINTS closes the blueprint at the next frame |
+| Debug menu | The menu opens with SIMULATION open; a heading opens its section and closes the other; each section lists its rows in order; layers, WORKLOAD, RUNNING, RECOVERY and the traffic policies are check boxes on the real state; a layer lists its parts only while it is on, and a part draws only while its layer is on; PROFILE and PLANNER open a list that chooses and closes, and a list closes with its section; the number rows show their value and step it while running; RESET PARAMETERS restores the default speed, force and horizon; a rejected setting shows its reason; `close_later()`, which the settings panel's BLUEPRINTS calls, closes the blueprint at the next frame |
 
 Not covered: a scene that cannot be replayed after `R`, which needs a scenario that applies on load and fails later.
 
 ## Graphics suite
 
-`presentation_tests.cpp` checks that a rejected goal expires after returning to the blueprint screen and pins the graphical factory's signature at compile time. Its main OpenGL case selects a blueprint on the blueprint screen, pauses and resumes, checks the color swatches and the PATHS parts in the LAYERS section, edits motion settings through the debug menu's lists and `[-] [+]` buttons while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift+left-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
+`presentation_tests.cpp` checks that a rejected goal expires after returning to the blueprint screen, that the settings panel's BLUEPRINTS returns there with Debug Mode off and leaves the next blueprint loaded, and that LAUNCHER on both pages of the blueprint screen and EXIT make their requests, and pins the graphical factory's signature at compile time. Its main OpenGL case selects a blueprint on the blueprint screen, pauses and resumes, checks the color swatches and the PATHS parts in the LAYERS section, edits motion settings through the debug menu's lists and `[-] [+]` buttons while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher through BLUEPRINTS and the blueprint screen's LAUNCHER, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift+left-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
 
 Set `I4SIM_CAPTURE=<file.ppm>` to save the frame after the Motion checks. Software rendering verifies drawing and input contracts, not desktop feel or performance.
 
@@ -273,6 +273,15 @@ On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s wit
 - Reciprocal with passing on completes as many products as without, or more, in all six runs, without a contact, and waits less on `8640x4800`; with seed 42 more movers are stuck at some point (11 against 6).
 - Improved has no contact in a plan any more; on `8640x4800` it touches less than without passing (350 and 355 against 384 and 726). Its contacts elsewhere come in episodes of one pair beside a parked mover, which also occur without passing, so Improved stays mixed.
 - About half of the plans on `8640x4800` end without completing, mostly as `obstructed`: the guard gives up a maneuver that traffic around it no longer allows.
+
+**After Kinetra#69** (border face horizon), measured on 2026-11-27 with the same runs. With passing off, two rows of the table above change and every other row is equal tick for tick. The passing-on cells were measured again only for these two rows. Each cell shows passing **off / on**:
+
+| Profile | Blueprint | Seed | Completed | Contacts (episodes) | Waiting ticks | Stuck movers | Plans (cancelled) | Contacts in a plan |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Improved | 3840x2400 | 42 | 59 / 59 | 3 (2) / 3 (2) | 634 / 700 | 0 / 0 | 6 (1) | 0 |
+| Improved | 3840x2400 | 915839214 | 59 / 59 | 0 (0) / 4 (4) | 962 / 1056 | 1 (0) / 1 (0) | 6 (2) | 0 |
+
+With passing off, both rows match the 2026-11-19 baseline again. Why they move, and what changes with RECOVERY on, is in the [design document](../../../docs/design/2026-11-27-i4sim-recovery-corner.md#verification).
 
 **Parking traffic**, Reciprocal, the same 50000-tick runs, parking traffic **off / on**:
 
