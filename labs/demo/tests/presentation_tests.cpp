@@ -1,4 +1,5 @@
-// Graphics tests for the Demo inspector, routes and steering probes.
+// Graphics tests for the Demo inspector, routes and steering probes, and for routes drawn
+// under the bodies they cross.
 #include "demo/presentation/renderer.h"
 #include "demo/presentation/session.h"
 #include "demo/zoom.h"
@@ -9,7 +10,12 @@
 #include <glad/glad.h>
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <utility>
 
 using namespace kinetra;
 
@@ -95,4 +101,84 @@ TEST_CASE("routes and steering probes render at different camera zoom levels") {
         CHECK_MESSAGE((pixel[0] > 240 && pixel[1] >= 150 && pixel[1] <= 180),
                       "Steering probe disappeared at camera zoom");
     }
+}
+
+TEST_CASE("a route passes under the agents it crosses and starts over its own body") {
+    Runtime runtime("Demo routes under bodies", 1280, 800);
+    runtime.read_back(true);
+    runtime.camera.pixels_per_unit = 30;
+    // The doorway scenario places its own six agents, in two groups of three.
+    demo::Application application(0, 7, demo::Scenario::doorway);
+    application.advance(0, {}, runtime.camera);
+    const auto &scene = application.scene();
+    const auto &world = scene.world();
+    demo::FrameCommands paths;
+    paths.toggle_paths = true;
+    application.advance(0, paths, runtime.camera);
+    const auto player_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The player's route, {0.6, 1, 0.3}.
+        return std::abs(pixel[0] - 153) < 30 && pixel[1] > 225 && std::abs(pixel[2] - 77) < 30;
+    };
+    const auto screen = [&](Vec2 point) {
+        const auto at = runtime.camera.world_to_screen(point);
+        return std::pair{int(std::lround(at.x)), int(std::lround(at.y))};
+    };
+    // Walk the player to a point just beyond each agent in turn until its route crosses the
+    // middle of one, away from that agent's own route start and heading line.
+    std::optional<Vec2> crossing;
+    const auto player = application.presented_pose(scene.player()).position;
+    for (const auto &target_agent : scene.agents()) {
+        const auto beyond = application.presented_pose(target_agent.body_id()).position;
+        // The scenario places the camera; click through the camera it left.
+        application.advance(0, {}, runtime.camera);
+        demo::FrameCommands walk;
+        walk.pointer =
+            demo::PointerCommand{demo::PointerAction::walk,
+                                 runtime.camera.world_to_screen(beyond + normalized(beyond - player) * 2.f)};
+        application.advance(0, walk, runtime.camera);
+        if (application.last_action() != demo::ActionResult::walking)
+            continue;
+        Vec2 from = player;
+        for (const auto waypoint : scene.player_path()) {
+            for (const auto &agent : scene.agents()) {
+                const auto &body = world.body(agent.body_id());
+                const auto pose = application.presented_pose(agent.body_id());
+                const auto segment = waypoint - from;
+                const float t =
+                    std::clamp(dot(pose.position - from, segment) / dot(segment, segment), 0.f, 1.f);
+                // A point of the route inside the agent but off its center, where the agent's
+                // heading line and own route start begin.
+                auto point = from + segment * t;
+                if (length(point - pose.position) < 0.25f * body.radius)
+                    point = point + normalized(segment) * (0.4f * body.radius);
+                const auto away = [&](Vec2 direction) {
+                    return length(direction) == 0 ||
+                           dot(normalized(direction), normalized(point - pose.position)) < 0.7f;
+                };
+                const bool on_route = distance_to_segment(point, from, waypoint) < 0.01f &&
+                                      length(point - pose.position) < 0.65f * body.radius;
+                const bool own_route_clear =
+                    agent.route().empty() || away(agent.route().front() - pose.position);
+                if (on_route && length(pose.position - player) > 3 && own_route_clear &&
+                    away(rotated(Vec2{1, 0}, pose.angle))) {
+                    crossing = point;
+                    break;
+                }
+            }
+            if (crossing)
+                break;
+            from = waypoint;
+        }
+        if (crossing)
+            break;
+    }
+    REQUIRE_MESSAGE(crossing, "No route of the player crossed an agent");
+    demo::render(runtime, application);
+    const auto &frame = runtime.frame();
+    const auto [x, y] = screen(*crossing);
+    CHECK_MESSAGE(!player_color(frame.pixel(x, y)), "The player's route covers an agent it crosses");
+    // The route starts over the player itself: a pixel on its first segment, inside its body.
+    const auto first = scene.player_path().front() - player;
+    const auto [px, py] = screen(player + normalized(first) * (0.6f * world.body(scene.player()).radius));
+    CHECK_MESSAGE(player_color(frame.pixel(px, py)), "The start of the player's route is hidden");
 }
