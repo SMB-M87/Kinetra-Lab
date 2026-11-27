@@ -322,6 +322,15 @@ The nits taken:
 
 The harness is unchanged by all of it. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
 
+**Step 3, agent review round 1 of Kinetra#72** (*Fix first*):
+
+- *Should fix:* the restart case did not tell its rules apart, because every variant also stopped the count growing. Each variant now keeps the count growing, except the one that tests it. The case fails without the goal rule (checked by mutation).
+- *Should fix:* `footprint()` existed twice, in the coordinator and the detector. Both now use one internal helper, `kinetra/simulation/detail/footprint.h`. The formula is unchanged, so no recorded line moves.
+- Nits taken:
+  - The push-order case is named after the standing blocker it tests; an opposing mover and a push exclude each other.
+  - The invalid-input case covers every validated branch.
+  - The description no longer waits for #71.
+
 **Step 2, agent review round 1** ([#149](https://github.com/SMB-M87/Kinetra-Lab/pull/149), *Fix first*):
 
 - *Should fix:* no case pinned the goal-change retry rules. A new case keeps a failed pair's wait through a new goal outside a plan, coordinating once per tick as i4sim does, and lets a pair whose plan a goal ended form again at once. It fails without the early return in `cancel`.
@@ -422,6 +431,7 @@ Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordina
 - Found by step 2's review in behavior the adapter kept from i4sim's coordinator:
   - Restoring a participant's route resets its control, which on a `traffic_control` end drops the corridor recovery's control for that tick.
   - Restoring the route of a participant that stopped (went idle) sets it moving again toward its destination.
+- The shared footprint takes its extents from `position - bounds.min`, which rounds with the position: in float32 a 0.3 half extent reads 0.297 at x = 100,000 (Kinetra#72 review). Taking them from the bounds of the body moved to the origin would avoid that, but it changes every passing and stall result by a rounding, so it waits for a change of its own.
 - With passing on, the coordinator builds its own spatial index over the movers each tick, next to the one `MotionStep` builds; the profile in [performance](../performance.md#i4sim) predates the move.
 - Found by step 1's review, outside this stack:
   - i4sim's inspector STALLED row (from `stall_details`) and the HUD's STALLED count (from `stalled()`) use different definitions and can disagree for an exit-waiting mover.
