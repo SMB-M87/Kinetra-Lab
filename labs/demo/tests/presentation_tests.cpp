@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace kinetra;
 
@@ -181,4 +182,59 @@ TEST_CASE("a route passes under the agents it crosses and starts over its own bo
     const auto first = scene.player_path().front() - player;
     const auto [px, py] = screen(player + normalized(first) * (0.6f * world.body(scene.player()).radius));
     CHECK_MESSAGE(player_color(frame.pixel(px, py)), "The start of the player's route is hidden");
+}
+
+TEST_CASE("steering probes pass under the agents they cross") {
+    Runtime runtime("Demo probes under bodies", 1280, 800);
+    runtime.read_back(true);
+    runtime.camera.pixels_per_unit = 30;
+    demo::Application application(48, 123);
+    const auto &scene = application.scene();
+    const auto &world = scene.world();
+    for (int frame = 0; frame < 120; ++frame)
+        application.advance(1.0 / 60, {}, runtime.camera);
+    demo::FrameCommands probes;
+    probes.probes = true;
+    application.advance(0, probes, runtime.camera);
+    const auto probe_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The probes, {1, 0.65, 0.2}.
+        return pixel[0] > 240 && std::abs(pixel[1] - 166) < 15 && std::abs(pixel[2] - 51) < 20;
+    };
+    // Points (world space) where a probe of one moving body crosses the middle of an agent, as
+    // the renderer draws both this frame.
+    std::vector<Vec2> crossings;
+    for (std::size_t id = 0; id < world.bodies().size(); ++id) {
+        const auto &body = world.body(id);
+        if (body.motion == Motion::fixed || !scene.view().overlaps(bounds(body)))
+            continue;
+        const auto pose = application.presented_pose(id);
+        const auto direction =
+            length(body.velocity) > 0.01f ? normalized(body.velocity) : rotated(Vec2{1, 0}, pose.angle);
+        for (float angle : {0.f, 2.35619449f, -2.35619449f}) {
+            const auto end = pose.position + rotated(direction, angle) * (angle == 0 ? 4.f : 2.f);
+            for (const auto &agent : scene.agents()) {
+                if (agent.body_id() == id)
+                    continue;
+                const auto center = application.presented_pose(agent.body_id()).position;
+                const auto segment = end - pose.position;
+                const auto point = pose.position + segment * std::clamp(dot(center - pose.position, segment) /
+                                                                            dot(segment, segment),
+                                                                        0.f, 1.f);
+                const auto screen = runtime.camera.world_to_screen(point);
+                if (length(point - center) < 0.6f * world.body(agent.body_id()).radius && screen.x > 0 &&
+                    screen.y > 0 && screen.x < 1280 && screen.y < 800)
+                    crossings.push_back(point);
+            }
+        }
+    }
+    REQUIRE_MESSAGE(!crossings.empty(), "No probe crossed an agent");
+    demo::render(runtime, application);
+    const auto &frame = runtime.frame();
+    for (const auto point : crossings) {
+        CAPTURE(point.x);
+        CAPTURE(point.y);
+        const auto at = runtime.camera.world_to_screen(point);
+        CHECK_MESSAGE(!probe_color(frame.pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
+                      "A probe covers an agent it crosses");
+    }
 }

@@ -166,14 +166,9 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
                               route_color(id));
         }
     };
-    // Terrain first, then every route, then whatever moves, so no route hides a player or an
-    // agent while routes still cross the terrain they pass.
+    // Terrain first, then the steering probes and every route, then whatever moves, so no probe
+    // or route hides a player or an agent while both still cross the terrain they pass.
     draw_bodies(false);
-    for (std::size_t body = 0; body < routes.size(); ++body)
-        if (!routes[body].empty())
-            draw_route(runtime, position(body), routes[body], route_color(body));
-    draw_bodies(true);
-    // Draw probes after every body so later terrain cannot overwrite the debug strokes.
     if (options.probes)
         for (std::size_t probe = 0; probe < scene.world().bodies().size(); ++probe) {
             const auto &simulated = scene.world().body(probe);
@@ -187,6 +182,10 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
                              body.position + rotated(direction, angle) * (angle == 0 ? 4.f : 2.f),
                              3.f / runtime.camera.pixels_per_unit, layer_color::probes);
         }
+    for (std::size_t body = 0; body < routes.size(); ++body)
+        if (!routes[body].empty())
+            draw_route(runtime, position(body), routes[body], route_color(body));
+    draw_bodies(true);
     if (layers.home_range) {
         // Every awake agent is tied to its home; the range itself would clutter the view for
         // a whole crowd, so only the selected agent shows it.
