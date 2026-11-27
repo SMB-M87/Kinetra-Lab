@@ -87,6 +87,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Media and tools
 
+- **After merging `main` into a pull request that commits captures, render them again when the merge moved the Kinetra pointer past engine or runtime sources** · added 2026-11-27 · source: [#153](https://github.com/SMB-M87/Kinetra-Lab/pull/153)
+  A capture shows the pointer it was rendered with. #153's `demo-preview` and `i4sim-preview` were rendered at `da98dfa`; #142 then moved `main` to `9841a50`, which changes steering and the settings panel. Re-render the pull request's captures after the merge, and commit what changed or record that they came out byte-identical.
+
 - **When a label moves, search for the label alone with `git grep -n -i` as well as the phrases given to `check_copies.py`, which reads only Markdown and YAML** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
   #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order.
 
