@@ -46,7 +46,8 @@ inline constexpr std::uint64_t departure_wait_ticks = 10 * stall_ticks;
 inline constexpr std::uint64_t corridor_retry_ticks = 120;
 /// Ticks a mover waits after its passing plan failed (obstructed, without progress, or a
 /// participant stopped, was held or came under traffic control) before it may join a new
-/// one. A completed plan, a new goal and switching passing off impose no wait.
+/// one. A completed plan, a new goal and switching passing off impose no wait; switching it
+/// off also ends the waits that are running.
 inline constexpr std::uint64_t passing_retry_ticks = 120;
 /// Ticks a passing plan may go without its participants getting closer to their targets.
 inline constexpr std::uint64_t passing_timeout_ticks = 240;

@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <vector>
 
 namespace i4sim::detail {
 /// Predictive passing on the open floor, run by Kinetra's `PassingCoordinator`: two movers
