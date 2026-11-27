@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-27 | [Tick rates](2026-11-27-tick-rates.md): typed UPS and FPS rows in every lab, up to a million ticks per second, a budgeted clock in Kinetra, and runs of a million ticks that report ticks per second | accepted |
 | 2026-11-27 | [i4sim make-way showcase scene](2026-11-27-i4sim-make-way-showcase.md): the parked-blocker scene of MAKE WAY as the sixth showcase scene, with its clip | implemented |
 | 2026-11-27 | [Shared passing mechanism](2026-11-27-shared-passing-mechanism.md): Kinetra's `PassingCoordinator` runs head-on passing for Demo's agents and Dotio's enemies, off by default, with pressure scenarios per application | implemented |
 | 2026-11-27 | [i4sim make way](2026-11-27-i4sim-make-way.md) | implemented |
