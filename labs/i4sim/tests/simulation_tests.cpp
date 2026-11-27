@@ -3057,25 +3057,20 @@ TEST_CASE("predictive passing leaves a checked make way route under its existing
     const detail::FloorPlan floor(scenario.blueprint());
     detail::Fleet fleet;
     fleet.movers = scenario.movers();
-    std::vector<kinetra::Aabb> boxes;
-    for (const auto &mover : fleet.movers) {
+    for (const auto &mover : fleet.movers)
         fleet.max_half = {std::max(fleet.max_half.x, mover.body.half_extents.x),
                           std::max(fleet.max_half.y, mover.body.half_extents.y)};
-        boxes.push_back(kinetra::bounds(mover.body));
-    }
     fleet.progress.resize(fleet.movers.size());
-    kinetra::SpatialGrid index(floor.cell_size().x);
-    index.rebuild(boxes);
     detail::Traffic::begin_tick(fleet);
     detail::EventLog events;
     detail::PredictivePassing ordinary;
-    ordinary.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), index, events);
+    ordinary.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), events);
     REQUIRE(ordinary.pairs() == 1);
 
     detail::Traffic::begin_tick(fleet);
     fleet.movers[0].goal = GoalKind::making_way;
     detail::PredictivePassing during_make_way;
-    during_make_way.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), index, events);
+    during_make_way.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), events);
     CHECK(during_make_way.pairs() == 0);
     CHECK_FALSE(fleet.movers[0].coordination.passing);
 }

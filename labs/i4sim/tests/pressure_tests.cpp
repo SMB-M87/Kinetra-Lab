@@ -207,14 +207,14 @@ TEST_CASE("three oncoming movers under reciprocal steering end with every mover 
     check_three_oncoming(
         SteeringProfile::reciprocal,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
-        "arrived=3/3 waiting_ticks=9 stuck=0 fingerprint=7abc8e877fa1df6d");
+        "arrived=3/3 waiting_ticks=9 stuck=0 fingerprint=0dac31a5760eae98");
 }
 
 TEST_CASE("three oncoming movers under improved steering end with every mover arrived and no contact") {
     check_three_oncoming(
         SteeringProfile::improved,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
-        "arrived=3/3 waiting_ticks=10 stuck=0 fingerprint=58b08b416144079c");
+        "arrived=3/3 waiting_ticks=11 stuck=0 fingerprint=8dd64b61332f0292");
 }
 
 TEST_CASE(
@@ -254,26 +254,26 @@ TEST_CASE(
     check_simultaneous(
         SteeringProfile::reciprocal,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
-        "arrived=4/4 waiting_ticks=8 stuck=0 fingerprint=62657db7b0850622");
+        "arrived=4/4 waiting_ticks=8 stuck=0 fingerprint=192dd29b5f7eb9b3");
 }
 
 TEST_CASE("simultaneous passing pairs under improved steering end with every mover arrived and no contact") {
     check_simultaneous(
         SteeringProfile::improved,
         "ticks=5000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
-        "arrived=4/4 waiting_ticks=8 stuck=0 fingerprint=43747191bd7ca665");
+        "arrived=4/4 waiting_ticks=8 stuck=0 fingerprint=f5c30d7e02861916");
 }
 
 TEST_CASE("a narrow aisle under reciprocal steering ends with every mover arrived and no contact") {
     check_narrow_aisle(
         SteeringProfile::reciprocal,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=2/2 waiting_ticks=48 stuck=0 fingerprint=68f6981bfc4d901d");
+        "arrived=2/2 waiting_ticks=48 stuck=0 fingerprint=200f96bb2b743359");
 }
 
 TEST_CASE("a narrow aisle under improved steering ends with every mover arrived and no contact") {
     check_narrow_aisle(
         SteeringProfile::improved,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=1 crossings=1 ends=completed:1 "
-        "arrived=2/2 waiting_ticks=48 stuck=0 fingerprint=3fbe98faca6ee9a6");
+        "arrived=2/2 waiting_ticks=48 stuck=0 fingerprint=e9e5d747e9e33af2");
 }
