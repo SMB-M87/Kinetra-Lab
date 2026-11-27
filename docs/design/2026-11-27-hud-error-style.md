@@ -115,7 +115,7 @@ Full level: a public Kinetra header, `LaunchMenu` and three `presentation/` fold
 
 Lab `main` moved its Kinetra pointer while the pull requests were open: Kinetra `main` (with the menu's LAUNCHER button) is merged into `feat/hud-error-text`, the pointer follows that merge, and Lab `main` is merged into this branch. `LaunchMenu` keeps both the LAUNCHER button and the error panel.
 
-After review round 1: Kinetra `dev` 322 of 322, Kinetra `graphics` 25 of 25 (with the two new drawing cases), Lab `graphics` 35 of 35, Lab targeted 270 of 270, no warnings. Swapping the line order in `hud::draw_error` fails the new HUD case, so it catches what it is meant to.
+After review round 1: Kinetra `dev` 322 of 322, Kinetra `graphics` 25 of 25 (with the two new drawing cases), Lab `graphics` 35 of 35, Lab targeted 270 of 270, no warnings. Swapping the line order in `hud::draw_error` fails the new HUD case, so it catches what it is meant to. After merging both mains again (Kinetra #69, Lab #142 and #155): Kinetra `dev` 324 of 324, Lab `graphics` 35 of 35, Lab targeted 270 of 270.
 
 The pull requests' CI completes the Full level.
 
