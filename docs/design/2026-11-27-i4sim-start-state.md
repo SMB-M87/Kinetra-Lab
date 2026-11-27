@@ -107,6 +107,8 @@ Agent review round 1 on f22df81 (conclusion *Fix first*):
 | Nit: the blocked-exit steps listed the goals after the second Space | Reordered in `labs/i4sim/tests/README.md` | `3ccb744` |
 | Lesson: the #147 lesson (search a moved label with `git grep`) came back here | At the user's request a rule in `AGENTS.md` (*Verification in Lab*): search each key word a change makes stale with `git grep -n -i`, not only with `check_copies.py`; the lesson notes it | `68d4e19` |
 
+Agent review round 2 on 49d4cdf (conclusion *Questions*): round 1 accepted. One question: should the `git grep` step live in Lab's `AGENTS.md` only, while Kinetra's copies rule, the workflow and the `verify` and `feature` skills (which Lab's skills link to) leave it out? The user chose to add it in Kinetra too: [Kinetra#80](https://github.com/SMB-M87/Kinetra/pull/80) changes all four copies, and `cfa645a` links Kinetra's rule from Lab's section. The description now names the rule change (optional nit).
+
 ## Verification
 
 - `cmake --build --preset dev --target kinetra_i4sim_controller_tests` and `ctest --preset dev -R '^kinetra_i4sim_controller'`: 47 of 47 passed.
