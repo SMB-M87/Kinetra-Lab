@@ -2,7 +2,7 @@
 
 Status: implemented · Branch: `ccr-7e47a2ec-fcqma6` · Related: [system architecture](../architecture.md#session-ownership-and-frame-flow)
 
-The PATHS layer of Demo, Dotio and i4sim drew every route over the bodies, so in a crowd the routes hid the players, agents and movers they crossed, and it was hard to see what happened. Each application now draws every route under its moving bodies, and only the start of a body's own route over that body, so the route stays linked to its owner while its neighbors stay visible.
+The PATHS layer of Demo, Dotio and i4sim drew every route over the bodies, and the steering probes and i4sim's detection ranges did the same, so in a crowd the routes hid the players, agents and movers they crossed, and it was hard to see what happened. Each application now draws every route under its moving bodies, and only the start of a body's own route over that body, so the route stays linked to its owner while its neighbors stay visible.
 
 ## Table of contents
 
@@ -36,11 +36,12 @@ Goals:
 - No route of the PATHS layer hides a player, an agent, an enemy, a mover or a prop, in all three applications.
 - The start of a body's own route is drawn over that body, so it stays visible whose route it is; a neighbor drawn later covers it again.
 - Routes still cross the terrain (Demo's fixed bodies, Dotio's walls, i4sim's floor and producers) as before.
+- The steering probes of Demo and Dotio and i4sim's DETECTION circles go under the moving bodies too, as the user asked after the first round; they get no start over their own body, because they already start at its center and stay visible outside it.
 - One route line width for all three applications: 2.5 screen pixels at every zoom. The user found Demo's routes (3 pixels) too thick, and i4sim's (2 pixels) and Dotio's (0.05 world units: 1.25 pixels at the normal zoom, a fraction of a pixel zoomed out in Debug Mode) too thin.
 
 Non-goals:
 
-- The other debug layers (vectors, steering probes, forces, i4sim's retreat and passing target arrows, labels) keep their place over the bodies. The user asked about paths only.
+- The other debug layers (vectors, forces, i4sim's retreat and passing target arrows, contact shapes, labels) keep their place over the bodies.
 - No change to which routes are shown or their colors, nor to the width of other debug lines.
 
 ## Decisions
@@ -54,6 +55,7 @@ Non-goals:
 | How Dotio draws over one enemy at a time | An optional `after_enemy` callback on `World::draw` | `World::draw` draws all enemies through the logic's `Renderer`; the presentation needs to draw between two enemies without copying the draw order of enemies, arrows, bolts and the player. |
 | Route line width | `kinetra_lab::route_line_pixels` = 2.5 screen pixels, divided by the camera's zoom in each application | The user asked for thinner lines in Demo and thicker ones in i4sim and Dotio; one value between Demo's 3 and i4sim's 2 pixels makes the three alike. Dotio's width no longer depends on the zoom, so its paths stay visible zoomed out. |
 | Name of the i4sim test fixture `MAS-demonstrator` | `test-environment` (`labs/i4sim/tests/test-environment.json`, and its `name`), with the test names and READMEs that said MAS | Asked by the user on the same branch. Kebab case like the other fixtures (`pressure-*.json`). The READMEs still name `MAS-demonstrator` once, as the reference's blueprint it comes from; dated design documents keep the old name as history. The benchmark's CSV now names it `test-environment`, so the recorded baseline tables follow. |
+| Probes and detection ranges | Under the moving bodies, before the routes (Demo, Dotio's probes and wall contacts, i4sim's DETECTION); no start over the own body | Asked by the user on the same branch. A probe starts at its body's center and a detection circle lies around it, so both stay visible outside the body; drawing them before the routes keeps the routes over them, as before this branch. |
 | Which bodies go above the routes | Every body that moves (Demo's player, agents and props; Dotio's player, enemies and props; i4sim's movers) | The rule is about what the layer hides; a prop is as much a body in the crowd as an agent. Fixed terrain stays below, because routes go around it. |
 
 ## Design
@@ -69,7 +71,7 @@ The order of a frame's world drawing becomes, in each application:
 
 Demo builds the route of each body by its id once per frame (the player's walk, every active agent's route) and draws its bodies in two passes: fixed, then moving. Fixed bodies used to be drawn in id order between the moving ones; a moving body now always lies above terrain, which it cannot overlap anyway.
 
-Two side effects in Demo, both visible in the refreshed captures: the steering probes, still drawn after all bodies, now lie over the routes instead of under them; and a moving body's velocity vector is no longer hidden by terrain with a higher body id, because all terrain is drawn first.
+One side effect in Demo, visible in the refreshed captures: a moving body's velocity vector is no longer hidden by terrain with a higher body id, because all terrain is drawn first.
 
 ## Affected areas
 
@@ -88,6 +90,9 @@ Two side effects in Demo, both visible in the refreshed captures: the steering p
 | Demo: the player's route does not cover an agent it crosses, and its start shows over the player | `kinetra_demo_graphics:a route passes under the agents it crosses and starts over its own body` (doorway scenario, the player walks past each agent) | Full (graphics) |
 | Dotio: an enemy's path does not cover the player | `kinetra_dotio_graphics:an enemy's path passes under the player it crosses` (path wander, the first frame a path crosses the player) | Full (graphics) |
 | i4sim: a route does not cover a mover listed before its owner | `kinetra_i4sim_graphics:a mover's route passes under the movers it crosses` (`4320x2400` at seed 42, the first crossing within 10 000 ticks) | Full (graphics) |
+| Demo: no steering probe covers an agent it crosses | `kinetra_demo_graphics:steering probes pass under the agents they cross` (Terrain, 48 agents, seed 123, after two seconds) | Full (graphics) |
+| Dotio: no enemy probe covers the player | `kinetra_dotio_graphics:an enemy's probes pass under the player they cross` | Full (graphics) |
+| i4sim: no detection range covers a mover listed before its owner | `kinetra_i4sim_graphics:a mover's detection range passes under the movers it crosses` | Full (graphics) |
 | Dotio's `World::draw` without a callback draws as before | The existing Dotio suites | Targeted |
 
 Each graphics test failed on the old drawing order and passes on the new one.
@@ -105,6 +110,7 @@ Findings of the review of `git diff main...HEAD`, and how they were resolved, ar
 - Each new graphics test run against the old renderer of its application: it fails.
 - `tools/capture/capture_media.sh build-graphics` for the captures of the Demo, Dotio and i4sim rows. Committed are those that changed by more than a colour step in some pixel, each looked at before and after: `demo-debug-clip`, `demo-doorway-clip`, `demo-gravity-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug`, `i4sim-debug-clip`. `demo-clip`, `i4sim-clip` and `i4sim.png` differed only in encoding and were not committed; the others came out identical. After the route width changed, the same scenes were rendered again: `demo-debug-clip`, `demo-doorway-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug` and `i4sim-debug-clip` changed and were looked at; the rest again differed only in encoding or not at all.
 - After merging `main`: the same targeted builds and tests (dev 65 of 65, release i4sim 165 of 165), the graphics suites 25 of 25, and the debug captures rendered again on the merged code (`demo-debug-clip`, `dotio-debug`, `i4sim-debug`, `i4sim-debug-clip` changed and were looked at).
+- After moving the probes and detection ranges: the graphics suites 28 of 28; each of the three new cases fails on the previous drawing order and passes on the new one.
 - The pull request's CI is the Full level.
 
 ## Pull request
@@ -115,5 +121,5 @@ The description summarizes this document: the summary, the changes per applicati
 
 ## Open points
 
-- The steering probes, vectors and i4sim's force, retreat-target and passing-target arrows are still drawn over neighbors. If they clutter a crowd as the routes did, the same order (layer under the bodies, own start over the body) fits them.
+- The vectors and i4sim's force, retreat-target and passing-target arrows are still drawn over neighbors. If they clutter a crowd as the routes did, the same order fits them.
 - Kinetra's shared-UI GIF `ui-debug-layers` shows Demo's layers and follows this change with the next Kinetra change that makes it stale, as Kinetra's media guide says.
