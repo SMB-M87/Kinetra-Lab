@@ -1,5 +1,5 @@
 // Demo showcases: agents that hold on arrival and the scripts that send them from stop to
-// stop, in a hand-built arena.
+// stop, in a hand-built arena, and every showcase scenario run for a while.
 //
 // The cases assert outcomes (who turns when, who arrives where, no deep overlaps), not
 // recorded lines, so they hold on every toolchain.
@@ -27,6 +27,9 @@ using kinetra::Vec2;
 
 /// The Demo's fixed tick in seconds.
 constexpr float tick = 1.f / 120;
+/// Largest allowed overlap between two moving bodies, in world units: contact correction
+/// leaves about 0.001, more means the bodies ran into each other.
+constexpr float max_penetration = 0.01f;
 /// Distance within which an agent counts as at a stop: the agent's own arrival threshold
 /// and the little that steering and neighbors move a holding agent.
 constexpr float at_stop = 0.7f;
@@ -71,6 +74,15 @@ Vec2 position(const Scene &scene, std::size_t agent) {
     return scene.world().body(scene.agents()[agent].body_id()).position;
 }
 
+/// Largest overlap between two moving bodies of the scene right now.
+float deepest_overlap(const Scene &scene) {
+    float deepest = 0;
+    for (std::size_t a = 0; a < scene.moving_body_count(); ++a)
+        for (std::size_t b = a + 1; b < scene.moving_body_count(); ++b)
+            if (const auto hit = kinetra::collide(scene.world().body(a), scene.world().body(b)))
+                deepest = std::max(deepest, hit->penetration);
+    return deepest;
+}
 } // namespace
 
 TEST_CASE("an agent that holds on arrival stays at its goal until it is commanded again") {
@@ -239,3 +251,48 @@ TEST_CASE("showcase scripts reject what they cannot run") {
     CHECK_FALSE(scene.showcase());
 }
 
+TEST_CASE("every showcase scenario repeats without contact") {
+    struct Expectation {
+        Scenario scenario;
+        std::size_t agents;
+        /// Legs (holds after the start) every agent completes within the run.
+        int legs;
+    };
+    // Shuttles that turn together complete a leg in 6 to 14 seconds, Maze's agents in up
+    // to 18, roaming agents in about 5; following agents hold whenever they catch up.
+    for (const auto [scenario, agents, legs] :
+         {Expectation{Scenario::maze, 6, 2}, Expectation{Scenario::doorway, 6, 3},
+          Expectation{Scenario::corridor, 12, 2}, Expectation{Scenario::crossing, 12, 2},
+          Expectation{Scenario::circle, 16, 3}, Expectation{Scenario::bottleneck, 16, 2},
+          Expectation{Scenario::chaos, 40, 3}, Expectation{Scenario::fleet, 12, 2},
+          Expectation{Scenario::swarm, 30, 2}}) {
+        CAPTURE(demo::scenario_label(scenario));
+        Scene scene(0, 42, scenario);
+        REQUIRE(scene.agents().size() == agents);
+        REQUIRE(scene.showcase());
+        std::vector<int> holds(agents);
+        std::vector<bool> holding(agents);
+        float deepest = 0, farthest_from_stop = 0;
+        bool active = true;
+        for (int t = 0; t < 120 * 40; ++t) {
+            scene.update(tick, {});
+            for (std::size_t i = 0; i < agents; ++i) {
+                const auto &agent = scene.agents()[i];
+                active = active && agent.active();
+                if (agent.holding() && !holding[i]) {
+                    ++holds[i];
+                    // A shuttle's leg ends at its stop, not where its time ran out.
+                    if (const auto stop = scene.showcase()->stop(i))
+                        farthest_from_stop =
+                            std::max(farthest_from_stop, kinetra::length(position(scene, i) - *stop));
+                }
+                holding[i] = agent.holding();
+            }
+            deepest = std::max(deepest, deepest_overlap(scene));
+        }
+        CHECK(active);
+        CHECK(*std::ranges::min_element(holds) >= legs);
+        CHECK(farthest_from_stop < at_stop);
+        CHECK(deepest <= max_penetration);
+    }
+}

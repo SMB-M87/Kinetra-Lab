@@ -6,8 +6,21 @@
 #include <vector>
 
 namespace demo {
-/// Demo environments in launcher order. Terrain runs the streamed sandbox.
-enum class Scenario { terrain, gravity, maze, doorway };
+/// Demo environments in launcher order. Terrain runs the streamed sandbox; from Maze on, every
+/// scenario is a showcase whose agents repeat their motion on their own.
+enum class Scenario {
+    terrain,
+    gravity,
+    maze,
+    doorway,
+    corridor,
+    crossing,
+    circle,
+    bottleneck,
+    chaos,
+    fleet,
+    swarm
+};
 
 /// Scenario labels in launcher order.
 std::vector<std::string> scenario_labels();

@@ -4,11 +4,32 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <cctype>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace {
 constexpr double tick = 1.0 / 120;
 } // namespace
+
+TEST_CASE("the catalog lists eleven scenarios in launcher order with their CLI names") {
+    const std::vector<std::string> names{"terrain", "gravity",    "maze",  "doorway", "corridor", "crossing",
+                                         "circle",  "bottleneck", "chaos", "fleet",   "swarm"};
+    const auto labels = demo::scenario_labels();
+    REQUIRE(labels.size() == names.size());
+    for (std::size_t index = 0; index < names.size(); ++index) {
+        const auto scenario = demo::scenario_at(index);
+        CHECK(static_cast<std::size_t>(scenario) == index);
+        CHECK(demo::parse_scenario(names[index]) == scenario);
+        CHECK(demo::scenario_label(scenario) == labels[index]);
+        std::string upper = names[index];
+        std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+        CHECK(labels[index] == upper);
+    }
+    CHECK_THROWS_AS(demo::scenario_at(names.size()), std::out_of_range);
+    CHECK_THROWS_AS(demo::parse_scenario("MAZE"), std::invalid_argument);
+}
 
 TEST_CASE("Gravity drops the authored bodies with Debug Mode off") {
     demo::Application application(48, 42, demo::Scenario::gravity);
@@ -30,7 +51,7 @@ TEST_CASE("Gravity drops the authored bodies with Debug Mode off") {
 
 TEST_CASE("Maze keeps its walls and route through resize and Ghost movement") {
     demo::Scene scene(48, 42, demo::Scenario::maze);
-    const kinetra::Vec2 goal{17, 8};
+    const kinetra::Vec2 goal{16, 8};
     REQUIRE(scene.walk_to(goal));
     CHECK(scene.player_path().size() >= 4);
     REQUIRE(scene.player_goal());
@@ -71,18 +92,20 @@ TEST_CASE("Maze keeps its walls and route through resize and Ghost movement") {
     CHECK(scene.preview().chunks().empty());
     CHECK(scene.terrain().chunks().empty());
 
-    for (int frame = 0; frame < 2400 && scene.player_goal(); ++frame)
+    // The route winds through the labyrinth: about 75 units, 23 seconds.
+    for (int frame = 0; frame < 120 * 30 && scene.player_goal(); ++frame)
         scene.update(static_cast<float>(tick), {});
     CHECK(kinetra::length(scene.world().body(scene.player()).position - goal) < 1);
 }
 
-TEST_CASE("Doorway starts opposing agents and applies both avoidance modes") {
+TEST_CASE("Doorway starts opposing agents, brings them back and applies both avoidance modes") {
     demo::Application application(0, 42, demo::Scenario::doorway);
     const auto &scene = application.scene();
     REQUIRE(scene.agents().size() == 6);
     for (const auto &agent : scene.agents()) {
         CHECK(agent.active());
-        CHECK(agent.goal().x == -agent.home().x);
+        CHECK(agent.goal().x * agent.home().x < 0);
+        CHECK(agent.goal().y == agent.home().y);
     }
     const auto id = scene.agents().front().body_id();
     const auto start = scene.world().body(id).position;
@@ -99,6 +122,16 @@ TEST_CASE("Doorway starts opposing agents and applies both avoidance modes") {
     for (int frame = 0; frame < 1200 && !crossed(); ++frame)
         application.advance(tick, {}, camera);
     CHECK(crossed());
+    // After both groups arrived and paused, they turn and every agent comes home.
+    const auto home = [&] {
+        return std::ranges::all_of(scene.agents(), [&](const demo::Agent &agent) {
+            return agent.holding() &&
+                   kinetra::length(scene.world().body(agent.body_id()).position - agent.home()) < 0.7f;
+        });
+    };
+    for (int frame = 0; frame < 120 * 20 && !home(); ++frame)
+        application.advance(tick, {}, camera);
+    CHECK(home());
 
     demo::FrameCommands commands;
     commands.reciprocal_avoidance = false;

@@ -67,9 +67,10 @@ struct Run {
 };
 
 /// A Demo scene in the authored arena: the frame walls of the fixed scenarios, `inner`
-/// walls inside it, the player in a corner, and one agent per trip with PASSING on.
+/// walls inside it, the player in a corner, and one agent per trip with PASSING on. It
+/// starts from Gravity, the one authored scenario without agents.
 struct Arena {
-    demo::Scene scene{0, 7, demo::Scenario::maze};
+    demo::Scene scene{0, 7, demo::Scenario::gravity};
     std::vector<Trip> trips;
 
     Arena(std::vector<Trip> agent_trips, bool reciprocal, std::vector<Body> inner = {})
