@@ -128,6 +128,32 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (application.debug && application.collisions)
                 draw_debug_box(runtime, center, {2, 2}, 0, {0.6f, 0.8f, 1});
         }
+    // The steering probes go under the bodies, as the routes below do, so no feeler or wall
+    // contact hides the player, a crate or an enemy.
+    if (application.debug && application.probes)
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active)
+                continue;
+            const Vec2 position = to_world(enemy.position);
+            const Vec2 heading = normalized(to_world(enemy.velocity));
+            // A feeler and, where it meets a wall, the point of contact.
+            const auto draw_probe = [&](kinetra::Segment probe) {
+                runtime.line(to_world(probe.start), to_world(probe.end), 0.04f, color_of_state(enemy));
+                kinetra::Vec2 hit{};
+                if (application.world().grid().is_intersecting_any_cell(probe, hit))
+                    runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
+            };
+            // An enemy that wanders by steering shows the three feelers its steering
+            // tests; every other one the original probes: forward and two to the rear.
+            if (!enemy.frozen && enemy.is_wandering() &&
+                world.enemy_tuning().wander == dotio::WanderMode::steering)
+                for (const auto &feeler : dotio::wander_feelers(enemy))
+                    draw_probe(feeler);
+            else
+                for (const float angle : {0.f, 2.35619449f, -2.35619449f})
+                    draw_probe({enemy.position,
+                                from_world(position + rotated(heading, angle) * (angle == 0 ? 4.f : 1.2f))});
+        }
     // Every enemy's route goes under the bodies, so it never hides the player, a crate or
     // another enemy; the start of an enemy's own route is drawn over that enemy alone, right
     // after it, so the enemies drawn later cover it again where they overlap.
@@ -207,27 +233,6 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (!enemy.is_active)
                 continue;
             const auto &p = application.paths;
-            const Vec2 position = to_world(enemy.position);
-            const Vec2 heading = normalized(to_world(enemy.velocity));
-            // A feeler and, where it meets a wall, the point of contact.
-            const auto draw_probe = [&](kinetra::Segment probe) {
-                runtime.line(to_world(probe.start), to_world(probe.end), 0.04f, color_of_state(enemy));
-                kinetra::Vec2 hit{};
-                if (application.world().grid().is_intersecting_any_cell(probe, hit))
-                    runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
-            };
-            if (application.probes) {
-                // An enemy that wanders by steering shows the three feelers its steering
-                // tests; every other one the original probes: forward and two to the rear.
-                if (!enemy.frozen && enemy.is_wandering() &&
-                    world.enemy_tuning().wander == dotio::WanderMode::steering)
-                    for (const auto &feeler : dotio::wander_feelers(enemy))
-                        draw_probe(feeler);
-                else
-                    for (const float angle : {0.f, 2.35619449f, -2.35619449f})
-                        draw_probe({enemy.position, from_world(position + rotated(heading, angle) *
-                                                                              (angle == 0 ? 4.f : 1.2f))});
-            }
             if (p[5] && enemy.is_recovering()) {
                 kinetra::Vec2 hit{};
                 if (application.world().grid().is_intersecting_any_cell({enemy.position, enemy.target},

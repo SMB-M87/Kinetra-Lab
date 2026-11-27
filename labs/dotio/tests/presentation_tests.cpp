@@ -1,8 +1,8 @@
 // Tests for the Dotio presentation: the wall palette without a window, then input
 // mapping, culling, statistics, AI labels and the Ghost marker, read back from a real
 // OpenGL context. Those context checks share one Runtime, because only one may exist at a
-// time, so they form one case. A last case checks that enemy paths pass under the player.
-// CTest labels the suite `graphics`.
+// time, so they form one case. The last cases check that enemy paths and probes pass under
+// the player. CTest labels the suite `graphics`.
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/presentation/presentation.h"
 #include "dotio/presentation/session.h"
@@ -396,4 +396,57 @@ TEST_CASE("an enemy's path passes under the player it crosses") {
     const auto at = camera.world_to_screen(*crossing);
     CHECK_MESSAGE(player_color(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
                   "An enemy's path covers the player");
+}
+
+TEST_CASE("an enemy's probes pass under the player they cross") {
+    Runtime runtime("Dotio probes under bodies", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.probes = true;
+    // Path wander, so every enemy shows the original probes: forward and two to the rear.
+    application.world().enemy_tuning().wander = dotio::WanderMode::path;
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto player_color = [](std::array<std::uint8_t, 4> pixel) {
+        return std::abs(pixel[0] - 102) < 30 && pixel[1] < 30 && pixel[2] > 225;
+    };
+    // A point (world space) of an enemy's probe inside the player, both as drawn this frame.
+    std::optional<Vec2> crossing;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !crossing; ++frame) {
+        application.advance(1.0 / 60, {}, runtime.camera);
+        const auto &player = world.get_player();
+        const auto simulated = dotio::to_world(player.position);
+        const dotio::PresentedPositions presented(application);
+        shift = dotio::to_world(player.position) - simulated;
+        const auto center = dotio::to_world(player.position);
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active)
+                continue;
+            const auto start = dotio::to_world(enemy.position);
+            const auto heading = normalized(dotio::to_world(enemy.velocity));
+            for (const float angle : {0.f, 2.35619449f, -2.35619449f}) {
+                const auto segment = rotated(heading, angle) * (angle == 0 ? 4.f : 1.2f);
+                const float squared = dot(segment, segment);
+                if (squared == 0)
+                    continue;
+                const auto point =
+                    start + segment * std::clamp(dot(center - start, segment) / squared, 0.f, 1.f);
+                if (length(point - center) < 0.6f * player.radius / 25) {
+                    crossing = point;
+                    break;
+                }
+            }
+            if (crossing)
+                break;
+        }
+    }
+    REQUIRE_MESSAGE(crossing, "No enemy probe crossed the player");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*crossing);
+    CHECK_MESSAGE(player_color(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
+                  "An enemy's probe covers the player");
 }
