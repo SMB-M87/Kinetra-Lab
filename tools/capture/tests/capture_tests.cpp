@@ -661,11 +661,10 @@ TEST_CASE("a pointer path starts and ends on its points and stays near the strai
     std::mt19937 random(7);
     const kinetra::Vec2 from{100, 100}, to{900, 500};
     const auto path = capture::plan_pointer_path(from, to, random);
-    const auto same = [](kinetra::Vec2 a, kinetra::Vec2 b) { return a.x == b.x && a.y == b.y; };
-    CHECK(same(path.at(0), from));
-    CHECK(same(path.at(-1), from));
-    CHECK(same(path.at(path.duration), to));
-    CHECK(same(path.at(path.duration + 5), to));
+    CHECK(path.at(0) == from);
+    CHECK(path.at(-1) == from);
+    CHECK(path.at(path.duration) == to);
+    CHECK(path.at(path.duration + 5) == to);
     const float distance = kinetra::length(to - from);
     const kinetra::Vec2 along = (to - from) / distance;
     float covered = 0;
@@ -702,8 +701,8 @@ TEST_CASE("pointer paths repeat for a seed and bend otherwise for another") {
     const auto a = capture::plan_pointer_path({0, 0}, {800, 300}, first);
     const auto b = capture::plan_pointer_path({0, 0}, {800, 300}, again);
     const auto c = capture::plan_pointer_path({0, 0}, {800, 300}, other);
-    CHECK((a.control.x == b.control.x && a.control.y == b.control.y));
-    CHECK((a.control.x != c.control.x || a.control.y != c.control.y));
+    CHECK(a.control == b.control);
+    CHECK(a.control != c.control);
     CHECK(a.duration == c.duration);
 }
 

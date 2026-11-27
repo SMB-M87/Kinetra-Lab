@@ -288,8 +288,7 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
     start_crossing(reference, false);
     start_crossing(trial, true);
     start_crossing(replay, true);
-    CHECK_MESSAGE((trial.junction_count() == 1 && trial.junction_center(0).x == 700 &&
-                   trial.junction_center(0).y == 700),
+    CHECK_MESSAGE((trial.junction_count() == 1 && trial.junction_center(0) == Vec2{700, 700}),
                   "Isolated crossing detection failed");
     bool waited = false, checked_block = false, checked_late_cancel = false;
     for (int tick = 0; tick < 1000; ++tick) {
@@ -302,9 +301,8 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
                           "Junction traffic was nondeterministic");
             CHECK_MESSAGE(kinetra::length(m.body.acceleration) <= trial.motion_settings().force + 0.00001f,
                           "Junction stopping exceeded acceleration bounds");
-            CHECK_MESSAGE(
-                (m.destination.x == (i == 0 ? 1100 : 700) && m.destination.y == (i == 0 ? 700 : 1100)),
-                "Junction admission changed a manual goal");
+            const auto goal = i == 0 ? Vec2{1100, 700} : Vec2{700, 1100};
+            CHECK_MESSAGE(m.destination == goal, "Junction admission changed a manual goal");
             const auto delta = m.body.position - Vec2{700, 700};
             if (std::abs(delta.x) < 102 + m.body.half_extents.x &&
                 std::abs(delta.y) < 102 + m.body.half_extents.y)
@@ -1718,7 +1716,7 @@ TEST_CASE("without path planning a mover steers straight at its goal and still n
     motion.path_planning = false;
     s.configure_motion(motion);
     REQUIRE(s.movers()[0].route.size() == 1);
-    CHECK((s.movers()[0].route.front().x == goal.x && s.movers()[0].route.front().y == goal.y));
+    CHECK(s.movers()[0].route.front() == goal);
     // (720, 120) lies in the forbidden top bar of the H: no route, so no goal.
     CHECK_FALSE(s.move_to(1, {720, 120}));
     CHECK(s.movers()[1].lifecycle == MoverLifecycle::idle);
@@ -1726,7 +1724,7 @@ TEST_CASE("without path planning a mover steers straight at its goal and still n
     for (int tick = 0; tick < 3000 && s.movers()[0].moving(); ++tick)
         s.tick();
     CHECK_MESSAGE(s.movers()[0].lifecycle == MoverLifecycle::idle, "The mover stuck on the way");
-    CHECK((s.movers()[0].body.position.x == goal.x && s.movers()[0].body.position.y == goal.y));
+    CHECK(s.movers()[0].body.position == goal);
     CHECK(s.collisions() == 0);
 }
 
@@ -2274,11 +2272,11 @@ TEST_CASE("shuttling movers turn together after the pause") {
     CHECK_MESSAGE(s.ticks() == last_arrival + shuttle_pause_ticks, "Pause counted from the wrong tick");
     REQUIRE_MESSAGE((s.movers()[0].moving() && s.movers()[1].moving()),
                     "Shuttling movers did not turn together");
-    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
-    CHECK((s.movers()[1].destination.x == north_start.x && s.movers()[1].destination.y == north_start.y));
+    CHECK(s.movers()[0].destination == west_start);
+    CHECK(s.movers()[1].destination == north_start);
     CHECK_MESSAGE(drive_leg(), "The return leg did not meet at the junction again");
-    CHECK((s.movers()[0].body.position.x == west_start.x && s.movers()[0].body.position.y == west_start.y));
-    CHECK((s.movers()[1].body.position.x == north_start.x && s.movers()[1].body.position.y == north_start.y));
+    CHECK(s.movers()[0].body.position == west_start);
+    CHECK(s.movers()[1].body.position == north_start);
     CHECK((s.shuttling(0) && s.shuttling(1)));
     CHECK(s.collisions() == 0);
 }
@@ -2313,7 +2311,7 @@ TEST_CASE("a manual goal ends shuttling for that mover only") {
     for (std::uint64_t tick = 0; tick < shuttle_pause_ticks; ++tick)
         s.tick();
     CHECK_MESSAGE(s.movers()[0].moving(), "The remaining shuttling mover did not turn on its own");
-    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    CHECK(s.movers()[0].destination == west_start);
     run_until_idle(1);
     for (std::uint64_t tick = 0; tick <= shuttle_pause_ticks; ++tick)
         s.tick();
