@@ -1,4 +1,4 @@
-// Runs the MAS demonstrator fixture and two bundled large factories under one motion
+// Runs the test-environment fixture and two bundled large factories under one motion
 // configuration and prints one CSV line per blueprint and seed: throughput, contacts, flow
 // (waiting and stuck movers), predictive passing outcomes and ticks per second; `--events`
 // also writes each run's event log. Outside CTest: comparisons are useful, but too slow for
@@ -154,11 +154,11 @@ int main(int argc, char **argv) {
                                             "[--events DIRECTORY] [--blueprint FILE ...] [--seed N ...]");
             }
         }
-        // MAS is a test fixture since it left the catalog; the CSV keeps its name, so runs
-        // stay comparable with the recorded baselines.
+        // The test environment, the reference's MAS demonstrator under a new name, is a test
+        // fixture since it left the catalog; the CSV names it test-environment.
         const bool numbered_logs = blueprints.size() > 1;
         if (blueprints.empty())
-            blueprints = {test::fixture_blueprint("MAS-demonstrator"),
+            blueprints = {test::fixture_blueprint("test-environment"),
                           default_blueprint_directory() / "3840x2400.json",
                           default_blueprint_directory() / "8640x4800.json"};
         if (seeds.empty())

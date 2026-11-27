@@ -104,7 +104,7 @@ void check_summary(std::string_view name, const Recorder &recorder, const Simula
 TEST_CASE("the factory with default motion reproduces its recorded summary") {
     Recorder recorder;
     const auto simulation =
-        run_factory(recorder, fixture_blueprint("MAS-demonstrator"), 42, MotionSettings{}, 20000);
+        run_factory(recorder, fixture_blueprint("test-environment"), 42, MotionSettings{}, 20000);
     check_summary(
         "factory default motion", recorder, simulation,
         "ticks=20000 completed=5 collisions=16 contact_ticks=16 interactions=33 distance_mm=27436.008 "
@@ -114,7 +114,7 @@ TEST_CASE("the factory with default motion reproduces its recorded summary") {
 TEST_CASE("the coordinated factory reproduces its recorded summary") {
     Recorder recorder;
     const auto simulation =
-        run_factory(recorder, fixture_blueprint("MAS-demonstrator"), 42, coordinated_motion(), 20000);
+        run_factory(recorder, fixture_blueprint("test-environment"), 42, coordinated_motion(), 20000);
     check_summary(
         "factory coordinated", recorder, simulation,
         "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=33 distance_mm=28843.187 "
