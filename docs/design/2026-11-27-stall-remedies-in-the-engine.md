@@ -1,6 +1,6 @@
 # Stall remedies in the engine
 
-Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
+Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
 
 This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it is *i4sim on the passing coordinator*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
 
@@ -100,7 +100,17 @@ Three behaviors follow the engine now:
 - The guard queries a wider margin.
 - A mover whose plan ends forms its next plan one tick later, along the route planned again when the plan ended. The adapter gives a participant no heading, because the route it holds is its original one, overridden by the plan.
 
-**Steps 3 to 5** are designed on their branches and written here when each starts. The contracts the user accepted:
+**Step 3: stall detection in the engine.** `kinetra::StallDetector` ([navigation contract](../../external/Kinetra/docs/engine/navigation.md#stall-detection)) takes over i4sim's observation and diagnosis. Each step the caller gives it, per mover:
+
+- the body;
+- the point it heads for (i4sim: the next waypoint);
+- the goal;
+- the steps without progress (i4sim: the route-progress counter);
+- a `StallMoverState`.
+
+i4sim marks a mover on its own route, outside every coordination, `observed`; one that is not moving or is held `standing`; any other mover `busy`. That is the eligibility of its former detector. The engine adds the reason `pushed_back` after `opposing_mover`: the mover moves back along its leg faster than `stop_speed` while a moving neighbor within 1.6 combined half diagonals, within about 78 degrees of the leg ahead, approaches faster than `stop_speed`. i4sim's `StallReason` and `StallDetails` become aliases of the engine's `StallReason` and `StallDiagnosis`.
+
+**Steps 4 and 5** are designed on their branches and written here when each starts. The contracts the user accepted:
 
 - `StallDetector` takes, per mover, a progress counter, a state and a route heading from the application. It returns episodes with an onset diagnosis.
 - `RightOfWay` takes episodes and movers, and returns who is not cooperating for how long.
@@ -141,6 +151,15 @@ Step 2, Full level (an engine pointer moves; the engine itself is unchanged):
 | The golden runs with PASSING on stay as recorded | `kinetra_i4sim_golden_tests` |
 | A make-way mover joins no plan; the event log's reasons (`goal_changed`, `participant_held`, …) | the existing `kinetra_i4sim` passing cases |
 | The flow with PASSING on is equal | the harness and the 50,000-tick benchmark with `--predictive-passing`, before and after |
+
+Step 3, Full level (a new public engine header):
+
+| Behavior | Test |
+| --- | --- |
+| The detector's contract at two world scales: threshold and end, each reason and its order, what is no blocker and no push, oscillation, restarts, absent movers, invalid input that changes nothing | Kinetra `kinetra_stall_detector_tests` (13 cases; one fails without the push branch) |
+| An external consumer can use it | Kinetra's consumer check |
+| i4sim's diagnoses stay, and motion does not change | the existing stall cases of `kinetra_i4sim`, the golden and pressure suites, and the long benchmark with MAKE WAY |
+| The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) is `pushed_back` by mover 8 | `kinetra_i4sim:the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back` |
 
 ## Verification
 
@@ -191,6 +210,15 @@ The harness is identical run for run. The long runs diverge the way any small ch
 - Products and plans stay level, and no contact happens in a plan.
 - Waiting falls under both profiles, and Improved's own contacts beside parked movers fall.
 
+Step 3, with Kinetra `7eb05cb` (`feat/stall-detector`):
+
+- Kinetra's release preset with warnings as errors: 325 of 325 tests pass, and the external consumer builds and runs headless.
+- Lab: 172 of 172 i4sim cases pass.
+- The 50,000-tick benchmark with MAKE WAY gives the base's numbers exactly (Reciprocal 344 products, 104,020 waiting ticks, no contact; Improved 348, 7,638, 836), so detection changes no motion.
+- Its episodes, by reason:
+  - Reciprocal: 412 `pushed_back` of 631, the count the classifying replay found, with 166 `unknown`, 42 `opposing_mover`, 6 `stationary_blocker` and 5 `oscillating`.
+  - Improved: 322 `pushed_back` of 763.
+
 ## Review
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
@@ -221,6 +249,24 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 **Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
 
 **Follow-up.** Steps 2 to 5 (this document); Demo and Dotio adoption of the remedies becomes a roadmap item.
+
+Step 3. Title: `feat(i4sim): observe stalls with Kinetra's StallDetector`. Kinetra's: `feat(simulation): add StallDetector for episodes without progress`.
+
+**Summary.** Step 3 of 5. Stall detection moves into the engine as `StallDetector`, with a new reason, `pushed_back`, for a mover pushed away from its goal by a neighbor driving through its place. i4sim feeds it and records its episodes. Motion does not change.
+
+**Changes.**
+- Kinetra: `stall_detector.h` and `.cpp`, 13 contract cases, the consumer check, the navigation contract, and the module and test READMEs. The roadmap item moves to *Now*.
+- Lab:
+  - i4sim's `StallDetector` becomes an adapter over the engine's.
+  - `StallReason` and `StallDetails` alias the engine's types, and the event name `pushed_back` is added.
+  - A recorded case pins `pushed_back`.
+  - The architecture, i4sim and tests pages are updated.
+
+**Verification.** Kinetra 325 of 325, the consumer, Lab i4sim 172 of 172. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
+
+**Dependencies and merge order.** Kinetra's step 3 sits on Kinetra's step 2 (ADR) and merges after it; Lab's step 3 sits on Lab's step 2 and merges after it and after Kinetra's step 3.
+
+**Follow-up.** Steps 4 and 5.
 
 Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordinator`.
 
