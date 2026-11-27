@@ -1,6 +1,6 @@
 # HUD error style
 
-Status: draft · Branch: `ccr-41f5211f-186dv3` (Lab), `feat/hud-error-text` (Kinetra) · Related: [Kinetra's HUD text and errors](../../external/Kinetra/docs/engine/launcher-overlays.md#hud-text-and-errors)
+Status: implemented · Branch: `ccr-41f5211f-186dv3` (Lab), `feat/hud-error-text` (Kinetra) · Related: [Kinetra's HUD text and errors](../../external/Kinetra/docs/engine/launcher-overlays.md#hud-text-and-errors)
 
 The user found i4sim's error messages too small and hard to read, and asked that an error in any application use the font and size of the statistics, in red, directly above them. Kinetra now holds that HUD style, and a panel for screens without HUD lines to spare; i4sim uses both, and Demo and Dotio take their statistics style from it.
 
@@ -79,16 +79,50 @@ Non-goals:
 
 ## Verification
 
-To be filled in.
+Full level: a public Kinetra header, `LaunchMenu` and three `presentation/` folders changed. Locally, on Ubuntu 24.04 with software OpenGL:
+
+| Command | Result |
+| --- | --- |
+| In `external/Kinetra`: `cmake --preset dev && cmake --build --preset dev && ctest --preset dev` | 318 of 318 passed, no warnings |
+| `cmake --build --preset dev` (Lab, `KINETRA_LAB_WARNINGS` on) | Built, no warnings |
+| `ctest --preset dev -R '^kinetra_(i4sim\|menu\|lab:\|dotio:\|demo:)' -LE soak` | 272 of 272 passed |
+| `cmake --build --preset graphics && ctest --preset graphics -L graphics -LE soak` | 33 of 33 passed, among them the i4sim, Demo and Dotio presentation suites, `kinetra_runtime_tests` and every smoke test |
+| `clang-format --dry-run --Werror` on every changed C++ file | Clean |
+| `python3 external/Kinetra/tools/check_docs.py`, in Lab and in Kinetra | All links resolve |
+| `python3 external/Kinetra/tools/check_copies.py --term 'status line' --term '80 characters' --term 'below the toolbar' --term 'load-error screen'` | The hits are ADR status lines, the settings panel's toolbar and the load-error screen that still exists; none names the old behavior |
+| Frames from a temporary case, looked at and not committed | The HUD at 1280 × 720 and 420 × 480 (the message wraps to two lines), the blueprint menu with a long parse error in the panel, and the load-error screen without a catalog |
+
+The pull requests' CI completes the Full level.
 
 ## Review
 
-To be filled in.
+`/code-review` at medium depth on both diffs:
+
+- **Fixed:** a cut error in a panel narrower than three characters ended with the whole `...` mark, longer than its line. The mark is now cut to the line's width (Kinetra `fix(runtime): keep a cut HUD error within its columns`), with a test.
+- **Out of scope:** the review also reported five points in code this change does not touch: three in i4sim's `make_way.cpp` (a refuge trip whose return is blocked by a waiting mover, a timed-out return into the beneficiary's lane, a shuttling beneficiary's request recorded as `cancelled`), one in `stall_detector.cpp` (a first observation for a goal at the origin) and `file(COPY_FILE)` in `benchmark_log_names.cmake`, which needs CMake 3.21 while the project declares 3.16. They are not verified; see [open points](#open-points).
 
 ## Pull request
 
-To be filled in.
+Title: `feat(i4sim): show messages in the shared HUD error style`
+
+Summary: i4sim's error messages were small (scale 0.8) and hard to read. They now use a HUD style that Kinetra shares with every application: red, in the font and size of the statistics, directly above them, wrapped over up to four lines. On the blueprint menu a load error shows in full in an error panel that can use the whole window and closes with its X. Demo and Dotio read their statistics style from the same constants.
+
+Changes:
+
+- Kinetra ([feat/hud-error-text](https://github.com/SMB-M87/Kinetra/tree/feat/hud-error-text)): `hud_text.h` (scale, line height, margin, colors, wrapping, `draw_line`, `draw_error`), `error_view.h` (the error panel), and `LaunchMenu` showing its error in that panel.
+- i4sim: the HUD message above the statistics (`hud_lines`), the error panel on the blueprint menu with `ScreenAction::dismiss`, and the load-error screen in the HUD style.
+- Demo and Dotio: statistics drawn from `hud::` constants, same pixels.
+- Docs: i4sim's README and tests README, [launcher and overlays](../launcher-overlays.md), and in Kinetra the launcher contract, runtime and tests READMEs.
+
+Design: this document.
+
+Verification: see [Verification](#verification); CI runs the Full level.
+
+Dependencies and merge order: the Kinetra pull request merges first, with a merge commit; this pull request records its branch commit. Kinetra's `lab-pointer` workflow then moves the pointer to the merge commit.
+
+Follow-up: the [open points](#open-points).
 
 ## Open points
 
 - Demo and Dotio show no errors yet. When one does, it uses `hud::draw_error` on the line above its statistics.
+- The five out-of-scope review points above are unverified; each needs a reproduction before it becomes a roadmap item.
