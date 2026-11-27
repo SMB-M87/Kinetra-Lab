@@ -39,6 +39,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
+- **When a merge moves the Kinetra pointer after the measurements, record the new pointer and the engine changes its range brings in, and measure again what CI does not run** · added 2026-11-27 · source: #146, #150
+  Lab `main` moved the stack's pointer across Kinetra #69's steering change after steps 1 to 3 had measured. Step 3's "gives the base's numbers exactly" then described a pointer the pull request did not record, and measured again, step 1's gate went from a product gain to a product loss under Improved, which the user's decision rested on. This follows the #147 lesson on results recorded later.
+
 ## Applications
 
 - **When a pull request applies one rule in several applications, give each application its own test for each goal, not one application per goal** · added 2026-11-27 · source: [#145](https://github.com/SMB-M87/Kinetra-Lab/pull/145)
@@ -58,6 +61,12 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 - **Test a temporary departure while its product is still in a producer queue** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Checking only the product's optional producer can miss a lost reservation. Verify the actual queue, including order, and exercise the product reaching the front while the mover is away.
+
+- **When a policy gates a transition, gate every code path that performs that transition, not only the one the replay showed** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  DEPARTURE CHECK gated the head-of-queue departure in `approach`, but `schedule()` performs the same departure for a rescheduled product that heads an empty queue at once. Search for every caller that sets the goal (`goals.set`) before choosing where the gate goes.
+
+- **Check a grid id before indexing per-cell data with it** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  `WeightedGrid::cell` returns `-1` off the grid, and `FloorPlan::processing_cell` indexes without a check. New code that computes an id from a mover's position must check it, as the constructor does, or use an accessor that does.
 
 - **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
   Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
