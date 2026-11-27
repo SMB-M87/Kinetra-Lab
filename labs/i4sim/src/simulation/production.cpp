@@ -97,6 +97,15 @@ void Production::schedule(Product &product, Goals &goals) {
     auto &m = fleet.movers[*product.mover];
     if (m.held)
         return;
+    // A rescheduled product whose mover waits away from a processing place, at its parking
+    // place after a blocked producer for example, leaves the way a queued one does: approach()
+    // sends it once the product heads the queue, through DEPARTURE CHECK. A mover that just
+    // finished at a processing place leaves at once, or it would block that producer.
+    if (departure.empty() && goals.motion.departure_check &&
+        !floor.processing_cell(floor.grid().cell(m.body.position))) {
+        product.state = ProductState::transporting;
+        return;
+    }
     goals.set(m, goal);
     if (!departure.empty()) {
         m.route = std::move(departure);
@@ -193,8 +202,10 @@ bool Production::approach(Product &p, Mover &m, Producer &producer, Goals &goals
 
 std::optional<std::vector<Vec2>> Production::departure_route(const Product &p, const Mover &m, Vec2 goal,
                                                              const Goals &goals) {
-    if (!goals.motion.departure_check) {
-        // A wait that the operator ended by turning the check off does not count later.
+    if (!goals.motion.departure_check || m.lifecycle != MoverLifecycle::idle) {
+        // A wait that the operator ended by turning the check off does not count later. A mover
+        // still on its way to its holding place turns toward the producer as before: held back
+        // in the aisle it would drive on into its parking row and could seal itself in.
         departure_waits_.erase(p.id);
         return std::vector<Vec2>{};
     }

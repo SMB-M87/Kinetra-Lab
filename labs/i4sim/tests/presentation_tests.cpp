@@ -2,6 +2,7 @@
 // controls and traffic overlays. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
+#include "i4sim/blueprint/blueprint.h"
 #include "i4sim/presentation/session.h"
 #include "i4sim/testing/showcase.h"
 #include "kinetra_lab/inspector.h"
@@ -73,6 +74,53 @@ constexpr unsigned plain_a_star = 6;
 /// TRAFFIC open: heading on row 3, then its check boxes, of which the cases use these four.
 constexpr unsigned corridor = 4, junction = 5, parking = 6, predictive = 7;
 } // namespace menu_row
+
+/// Window position of a point given in the panel pixels of a Lab settings panel with its
+/// help collapsed, located through a panel with the same Lab rows, so the tests follow the
+/// shared layout.
+Vec2 settings_point(Vec2 viewport, float x, float y) {
+    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    const SettingsOverlay mirror(
+        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+    return viewport / 2 + (Vec2{x, y} - mirror.half_extent()) * SettingsOverlay::scale(viewport);
+}
+
+/// The settings panel's action row, at the button centered on `x`.
+Vec2 settings_action(Vec2 viewport, float x) {
+    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    const SettingsOverlay mirror(
+        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+    return settings_point(viewport, x, mirror.actions_y() + 3);
+}
+
+/// Opens the settings panel with Ctrl and clicks `point` in it.
+void click_in_settings(kinetra_lab::Session &session, Camera2D &camera, Vec2 point) {
+    Input open;
+    open.pressed[std::size_t(Key::control)] = true;
+    session.advance(0, open, camera);
+    Input click;
+    click.clicked = true;
+    click.mouse = point;
+    session.advance(0, click, camera);
+}
+
+/// Window position of `button` in the footer of the blueprint screen for the default
+/// catalog, on its blueprint list or on its SHOWCASE page, located through a menu with the
+/// same rows.
+Vec2 blueprint_footer(Vec2 viewport, FooterButton button, bool showcase_page) {
+    const auto directory = i4sim::default_blueprint_directory();
+    std::vector<LaunchChoice> rows{
+        {"SHOWCASE", "",
+         std::vector<std::string>(i4sim::discover_blueprints(directory / "showcase").size(), "S"), 0}};
+    for (std::size_t i = 0; i < i4sim::discover_blueprints(directory).size(); ++i)
+        rows.push_back({"BLUEPRINT", "", {}, 0});
+    LaunchMenu mirror(rows, "", LauncherButton::every_page);
+    if (showcase_page)
+        mirror.show_configurations({0, 0});
+    const auto x = mirror.footer_x(button);
+    REQUIRE(x);
+    return mirror.layout(viewport).footer_center(*x);
+}
 } // namespace
 
 TEST_CASE("a rejected goal expires on the blueprint screen") {
@@ -92,18 +140,7 @@ TEST_CASE("a rejected goal expires on the blueprint screen") {
     goal.mouse = camera.world_to_screen({1300, -700});
     session->advance(0, goal, camera);
 
-    Input debug;
-    debug.pressed[std::size_t(Key::shift)] = debug.pressed[std::size_t(Key::control)] = true;
-    session->advance(0, debug, camera);
-    const auto rows = session->debug_rows();
-    const auto blueprints = std::ranges::find(rows, "BLUEPRINTS", &kinetra_lab::DebugRow::label);
-    REQUIRE(blueprints != rows.end());
-    const auto row = static_cast<std::size_t>(blueprints - rows.begin());
-    Input close;
-    close.clicked = true;
-    close.mouse = Vec2{8, 32} + Vec2{12, DebugMenu::row_top(row) + DebugMenu::row_height / 2} *
-                                    DebugMenu::scale(camera.viewport);
-    session->advance(0, close, camera);
+    click_in_settings(*session, camera, settings_action(camera.viewport, SettingsOverlay::leave_x));
     session->advance(0, {}, camera);
     REQUIRE(session->status().starts_with("Loadscreen | GOAL REJECTED"));
 
@@ -111,6 +148,72 @@ TEST_CASE("a rejected goal expires on the blueprint screen") {
     CHECK(session->status().starts_with("Loadscreen | GOAL REJECTED"));
     session->advance(0.2, {}, camera);
     CHECK(session->status() == "Loadscreen");
+}
+
+TEST_CASE("BLUEPRINTS in the settings panel closes the blueprint, and the next one stays") {
+    auto session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
+                                         i4sim::test::showcase_blueprint("corridor-passing"));
+    Camera2D camera;
+    camera.viewport = {1280, 800};
+    session->advance(0, {}, camera);
+    REQUIRE_FALSE(session->status().starts_with("Loadscreen"));
+    // The button is the settings panel's, so it works with the debug mode off: STATISTICS is
+    // row 0 and DEBUG MODE row 1 of the Lab rows.
+    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    const SettingsOverlay mirror(
+        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+    click_in_settings(*session, camera, settings_point(camera.viewport, 60, mirror.row_y(1) + 3));
+    Input resume;
+    resume.clicked = true;
+    resume.mouse = settings_action(camera.viewport, SettingsOverlay::resume_x);
+    session->advance(0, resume, camera);
+    click_in_settings(*session, camera, settings_action(camera.viewport, SettingsOverlay::leave_x));
+    CHECK_MESSAGE(session->request() == SessionRequest::none, "BLUEPRINTS stays in i4sim");
+    CHECK_FALSE_MESSAGE(session->status().starts_with("Loadscreen"),
+                        "the frame of the click keeps its blueprint");
+    session->advance(0, {}, camera);
+    CHECK(session->status() == "Loadscreen");
+    CHECK(session->request() == SessionRequest::none);
+
+    Input choose;
+    choose.pressed[std::size_t(Key::enter)] = true;
+    session->advance(0, choose, camera); // the SHOWCASE page
+    session->advance(0, choose, camera); // its first scene
+    session->advance(0, {}, camera);
+    session->advance(0, {}, camera);
+    CHECK_MESSAGE(!session->status().starts_with("Loadscreen"), "the request closed the next blueprint too");
+    CHECK(session->request() == SessionRequest::none);
+}
+
+TEST_CASE("LAUNCHER on both pages of the blueprint screen leaves for the launcher") {
+    Camera2D camera;
+    camera.viewport = {1280, 800};
+    for (const bool showcase_page : {false, true}) {
+        CAPTURE(showcase_page);
+        auto session = i4sim::create_session(42, i4sim::default_blueprint_directory());
+        session->advance(0, {}, camera);
+        REQUIRE(session->status() == "Loadscreen");
+        if (showcase_page) {
+            Input choose;
+            choose.pressed[std::size_t(Key::enter)] = true;
+            session->advance(0, choose, camera);
+        }
+        Input click;
+        click.clicked = true;
+        click.mouse = blueprint_footer(camera.viewport, FooterButton::launcher, showcase_page);
+        session->advance(0, click, camera);
+        CHECK(session->request() == SessionRequest::menu);
+        auto exit = i4sim::create_session(42, i4sim::default_blueprint_directory());
+        exit->advance(0, {}, camera);
+        if (showcase_page) {
+            Input choose;
+            choose.pressed[std::size_t(Key::enter)] = true;
+            exit->advance(0, choose, camera);
+        }
+        click.mouse = blueprint_footer(camera.viewport, FooterButton::exit, showcase_page);
+        exit->advance(0, click, camera);
+        CHECK(exit->request() == SessionRequest::exit);
+    }
 }
 
 TEST_CASE("the mover inspector and debug pause work together") {
@@ -361,15 +464,15 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->advance(0, back, runtime.camera);
     session->render(runtime);
     back = {};
-    // Centered modal settings, default collapsed help: the LAUNCHER action, located through a
-    // panel with the same Lab rows so the test follows the shared layout.
-    bool mirror_statistics{}, mirror_debug{}, mirror_frame_times{}, mirror_frame_limit{};
-    const SettingsOverlay mirror(kinetra_lab::settings_rows(
-        mirror_statistics, mirror_debug, mirror_frame_times, mirror_frame_limit, {"LINE"}, {"LINE"}));
-    back.mouse = runtime.camera.viewport / 2 +
-                 (Vec2{SettingsOverlay::launcher_x, mirror.actions_y() + 3} - mirror.half_extent()) *
-                     SettingsOverlay::scale(runtime.camera.viewport);
+    // Centered modal settings, default collapsed help: BLUEPRINTS, then the blueprint
+    // screen's LAUNCHER.
+    back.mouse = settings_action(runtime.camera.viewport, SettingsOverlay::leave_x);
     back.clicked = true;
+    session->advance(0, back, runtime.camera);
+    session->advance(0, {}, runtime.camera);
+    CHECK_MESSAGE(session->status() == "Loadscreen", "BLUEPRINTS did not return to the blueprint screen");
+    session->render(runtime);
+    back.mouse = blueprint_footer(runtime.camera.viewport, FooterButton::launcher, false);
     session->advance(0, back, runtime.camera);
     CHECK_MESSAGE(session->request() == SessionRequest::menu, "Cannot return to launcher");
     session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
