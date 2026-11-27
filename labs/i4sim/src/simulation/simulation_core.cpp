@@ -99,10 +99,10 @@ void SimulationCore::pause() {
         state_ = RunState::paused;
 }
 void SimulationCore::updates_per_second(unsigned rate) {
-    if (rate < 1 || rate > 10000)
-        throw std::invalid_argument("UPS must be in 1..10000");
+    if (rate < 1 || rate > most_updates_per_second)
+        throw std::invalid_argument("UPS must be in 1.." + std::to_string(most_updates_per_second));
     ups_ = rate;
-    clock_ = FixedClock(1.0 / rate, 256);
+    clock_.rate(rate);
     // The new clock starts with no accumulated time; blending from the last tick's start
     // would draw the movers a tick back.
     settle_previous_positions();
@@ -111,7 +111,7 @@ void SimulationCore::settle_previous_positions() {
     for (auto &m : fleet_.movers)
         m.previous_position = m.body.position;
 }
-void SimulationCore::advance(double elapsed) {
+void SimulationCore::advance(double elapsed, std::uint64_t tick_limit) {
     if (!std::isfinite(elapsed) || elapsed < 0)
         throw std::invalid_argument("Invalid elapsed time");
     if (!running()) {
@@ -122,8 +122,8 @@ void SimulationCore::advance(double elapsed) {
         settle_previous_positions();
         resume_pending_ = false;
     }
-    const int count = clock_.advance(elapsed);
-    for (int i = 0; i < count && running(); ++i)
+    const auto count = clock_.advance(elapsed, tick_limit);
+    for (std::uint64_t i = 0; i < count && running(); ++i)
         tick();
 }
 std::uint64_t SimulationCore::add_product(ProductKind kind) {

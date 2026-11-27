@@ -4,10 +4,14 @@
 #include "demo/input/mapping.h"
 #include "demo/presentation/renderer.h"
 #include "demo/world/inspector.h"
+#include "kinetra_lab/debug.h"
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
+#include <kinetra/simulation/clock.h>
 #include <kinetra/view/timing.h>
+
+#include <chrono>
 
 namespace demo {
 namespace {
@@ -20,16 +24,16 @@ class DemoSession final : public Session {
     kinetra::DebugMenu menu_;
     kinetra::InspectorView inspector_;
     bool debug_{true}, statistics_{true}, frame_times_{};
-    kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     kinetra::SettingsOverlay settings_{
-        kinetra_lab::settings_rows(statistics_, debug_, frame_times_, frame_limit_.enabled,
+        kinetra_lab::settings_rows(statistics_, debug_, frame_times_,
                                    {"WASD / ARROWS  MOVE", "CLICK  WALK / SELECT / GOAL",
                                     "Q / E  ROTATE PLAYER", "SHIFT + LEFT / RIGHT  ROTATE"},
                                    {"GHOST CLICK  TELEPORT"}),
         &debug_};
     kinetra_lab::ModalPause pause_;
-    kinetra::RateCounter fps_;
+    kinetra::RateCounter fps_, ups_;
+    kinetra::TickBudget budget_;
     /// The menu's rows while it shows. A hidden menu needs none: it takes no click and
     /// draws nothing, and the rows are rebuilt on the frame after the shortcut shows it.
     std::vector<kinetra::DebugEntry> menu_rows() {
@@ -43,6 +47,7 @@ class DemoSession final : public Session {
     void advance(double elapsed, const kinetra::Input &input, kinetra::Camera2D &camera) override {
         fps_.count();
         fps_.advance(elapsed);
+        ups_.advance(elapsed);
         // The panels come first: an open settings panel takes the whole frame, and the debug
         // menu takes the pointer while it is over the menu.
         const bool modal = settings_.update(input, camera);
@@ -54,13 +59,21 @@ class DemoSession final : public Session {
             if (const auto snapshot = inspect_agent(application_.scene()))
                 examination = inspector_.update(
                     input, *snapshot, kinetra_lab::inspector_area(menu_, camera.viewport, frame_times_));
-        auto commands = demo::read_commands(modal ? kinetra::Input{} : input);
+        // While a number is typed into the menu, the keys are the menu's.
+        auto commands = demo::read_commands(modal                   ? kinetra::Input{}
+                                            : menu_.keys_captured() ? kinetra_lab::without_keys(input)
+                                                                    : input);
         commands.toggle_pause =
             pause_.update(settings_.visible(), application_.paused()) != application_.paused();
         panel_.apply(commands, debug_, captured || examination.captured, modal ? 0 : input.wheel);
         if (examination.close)
             commands.pointer = PointerCommand{PointerAction::clear_selection, input.mouse};
+        commands.tick_limit = budget_.ticks(kinetra_lab::tick_share * panel_.frame_rate().interval());
+        const auto started = std::chrono::steady_clock::now();
         application_.advance(elapsed, commands, camera);
+        budget_.record(application_.ticks_run(),
+                       std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
+        ups_.count(int(application_.ticks_run()));
         const auto after = application_.scene().selected_agent();
         if (bool(before) != bool(after) ||
             (before && after && (before->x != after->x || before->y != after->y)))
@@ -68,7 +81,7 @@ class DemoSession final : public Session {
         panel_.observe(camera);
     }
     void render(kinetra::Runtime &runtime) override {
-        frame_limit_.apply(runtime);
+        panel_.frame_rate().apply(runtime);
         const auto entries = menu_rows();
         const auto snapshot = settings_.visible() ? std::nullopt : inspect_agent(application_.scene());
         demo::render(runtime, application_, panel_.layers(debug_),
@@ -76,7 +89,8 @@ class DemoSession final : public Session {
                       .entries = entries,
                       .statistics = statistics_,
                       .fps = fps_.rate(),
-                      .time_scale = panel_.time_scale(),
+                      .ups = ups_.rate(),
+                      .target_ups = panel_.ups(),
                       .settings = &settings_,
                       .frame_times = frame_times_ ? &runtime.frame_times() : nullptr,
                       .inspector = &inspector_,

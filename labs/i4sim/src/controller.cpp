@@ -14,8 +14,10 @@ using kinetra::Camera2D;
 using kinetra::Input;
 using kinetra::Key;
 
-/// Bounds of the update rate, in ticks per simulated second.
-constexpr unsigned slowest_update_rate = 1, fastest_update_rate = 10000;
+/// Bounds of the update rate, in ticks per wall-clock second: Lab's limits of a UPS row.
+constexpr unsigned slowest_update_rate = unsigned(kinetra_lab::slowest_ups),
+                   fastest_update_rate = unsigned(kinetra_lab::fastest_ups);
+static_assert(fastest_update_rate <= most_updates_per_second);
 /// How long a rejected command stays on screen, in seconds.
 constexpr double message_seconds = 4;
 /// Screen height the fit keeps free for the toolbar and the HUD lines, in pixels, and the
@@ -91,7 +93,7 @@ constexpr std::pair<std::string_view, Layer> layer_rows[]{{"GRID", Layer::grid},
 FactoryController::FactoryController(std::uint32_t seed, bool running, unsigned updates_per_second)
     : seed_(seed), start_running_(running), updates_per_second_(updates_per_second) {
     if (updates_per_second < slowest_update_rate || updates_per_second > fastest_update_rate)
-        throw std::invalid_argument("UPS must be in 1..10000");
+        throw std::invalid_argument("UPS must be in 1.." + std::to_string(fastest_update_rate));
 }
 
 bool FactoryController::load(const std::filesystem::path &path) {
@@ -189,7 +191,7 @@ void FactoryController::change_motion(const std::function<void(MotionSettings &)
 
 void FactoryController::change_update_rate(bool faster) {
     const unsigned rate = simulation_->updates_per_second();
-    simulation_->updates_per_second(faster ? std::min(fastest_update_rate, rate * 2)
+    simulation_->updates_per_second(faster ? (rate > fastest_update_rate / 2 ? fastest_update_rate : rate * 2)
                                            : std::max(slowest_update_rate, rate / 2));
 }
 
@@ -325,7 +327,7 @@ void FactoryController::handle_input(double elapsed, const Input &input, Camera2
     camera.position += kinetra_lab::direction(input) * step;
     if (!panels.pointer_captured)
         handle_pointer(input, camera);
-    simulation_->advance(elapsed);
+    simulation_->advance(elapsed, tick_limit_);
     restart_when_due();
 }
 
@@ -356,11 +358,11 @@ void FactoryController::add_simulation_entries(std::vector<kinetra::DebugEntry> 
                        .active = [this] { return simulation_->running(); },
                        .depth = 1});
     entries.push_back({.label = "SINGLE TICK", .action = [this] { simulation_->single_step(); }, .depth = 1});
-    entries.push_back({.label = "UPS",
-                       .value = [this] { return std::to_string(simulation_->updates_per_second()); },
-                       .decrease = [this] { change_update_rate(false); },
-                       .increase = [this] { change_update_rate(true); },
-                       .depth = 1});
+    entries.push_back(kinetra::debug_rate(
+        "UPS", [this] { return std::uint64_t(simulation_->updates_per_second()); },
+        [this](std::uint64_t rate) { simulation_->updates_per_second(unsigned(rate)); }, slowest_update_rate,
+        fastest_update_rate));
+    entries.push_back(frame_rate_.entry());
     entries.push_back({.label = "WORKLOAD",
                        .action = [this] { simulation_->set_workload(!simulation_->workload()); },
                        .kind = kinetra::DebugEntryKind::check,

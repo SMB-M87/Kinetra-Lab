@@ -50,14 +50,15 @@ The window title is "Launcher" in the menu and the application's name in a sessi
 
 ## Settings policy
 
-Each session owns a `kinetra::SettingsOverlay` built by `kinetra_lab::settings_rows()` ([labs/shared](../labs/shared/include/kinetra_lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, FRAME LIMIT, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
+Each session owns a `kinetra::SettingsOverlay` built by `kinetra_lab::settings_rows()` ([labs/shared](../labs/shared/include/kinetra_lab/settings.h)), so every Lab panel has the same rows in the same order: STATISTICS, DEBUG MODE, FRAME TIMES, SIM CONTROLS and DEBUG CONTROLS. Applications supply only their help lines; DEBUG CONTROLS always starts with `SHIFT + CTRL  DEBUG MENU` and `WHEEL  ZOOM`.
 
 | Row | Effect |
 | --- | --- |
 | STATISTICS | The application's statistics line |
 | DEBUG MODE | The debug layers, the DEBUG toolbar button and the debug zoom range. Shift+Ctrl switches it on as well |
 | FRAME TIMES | Off by default. Draws Kinetra's frame-time graph in the top-right corner: the time between the last 240 presented frames and what paces them, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)) |
-| FRAME LIMIT | On by default. Where the platform has no VSync (WSLg), the runtime paces frames at the display's refresh rate; off shows the unpaced loop for comparison. Without effect where VSync works. The choice belongs to the window (`kinetra_lab::FrameLimitSwitch`), so it carries over to the next application started from the launcher |
+
+**Tick and frame rates.** Every application's debug menu has a UPS and an FPS row in its SIMULATION section, below SINGLE TICK. UPS is the ticks per wall-clock second, 1 to 1,000,000 (`kinetra_lab::ups_entry`); a tick keeps its length in simulated time (Demo 1/120 s, Dotio 1/60 s, i4sim one tick of its millimeter-per-tick motion), so the rate changes how fast the simulation runs, never what it computes, and Demo's 120 and Dotio's 60 are real time. FPS is VSYNC, a limit of 1 to 1000 frames per second, or UNCAPPED (Kinetra's `FrameRateSetting`; a click on the label moves to the next). On both rows `[-]` and `[+]` halve and double the value, and a number typed with the pointer on the row replaces it on Enter; Escape or moving the pointer off the row discards it, and while it is typed the application gets no keys (`kinetra_lab::without_keys`). Each frame runs at most the ticks that fit in `kinetra_lab::tick_share` (three quarters) of the frame's interval, by a `kinetra::TickBudget` that the session feeds with the measured time of its ticks; a backlog beyond that is dropped, so a UPS the processor cannot reach slows the simulation down while the window stays responsive. The FPS choice belongs to the window: the first frame of a session adopts what the runtime does, so it carries over to the next application started from the launcher, and the capture tool's uncapped frames stay uncapped.
 
 | Application | Zoom limits (pixels per unit) | Sim controls lines |
 | --- | --- | --- |
@@ -97,7 +98,7 @@ One section is open at a time (`kinetra::DebugFolds`). The rows of each applicat
 | Debug-menu clicks and buttons | Kinetra `kinetra_launcher` |
 | `run_launcher` requests, the configuration page, menu key and Escape policy | Kinetra `kinetra_engine_graphics` |
 | SCENARIOS and DIFFICULTY ask for the configuration page | `kinetra_graphics` |
-| Movement mapping, modal pause, the settings rows, the ZOOM and SPEED rows | `kinetra_lab` |
+| Movement mapping, input without keys, modal pause, the settings rows, the ZOOM and UPS rows | `kinetra_lab` |
 | Each application's menu rows and what they change | `kinetra_demo_logic`, `kinetra_dotio`, `kinetra_i4sim_controller` |
 | The registrations: names, order, Dotio difficulties and default | `kinetra_menu` |
 | Real sessions: settings, zoom, debug gating and navigation with an OpenGL context | `kinetra_graphics` and the application `*_graphics` suites |

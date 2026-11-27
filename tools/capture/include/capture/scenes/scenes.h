@@ -29,7 +29,7 @@ inline constexpr std::string_view i4sim_capture_blueprint = "4320x2400.json";
 /// evenly, and plain A*, whose routes are straight lines instead of detours around crowds.
 /// PROFILE and PLANNER each open a list below them that the next click chooses from.
 inline constexpr std::array<MenuClick, 5> i4sim_motion_clicks{
-    {{6, "MOTION"}, {3, "PROFILE"}, {7, "RECIPROCAL"}, {4, "PLANNER"}, {6, "A*"}}};
+    {{7, "MOTION"}, {3, "PROFILE"}, {7, "RECIPROCAL"}, {4, "PLANNER"}, {6, "A*"}}};
 /// The LAYERS heading in the menu i4sim_motion_clicks leaves behind, with MOTION open.
 inline constexpr MenuClick i4sim_layers_click{1, "LAYERS"};
 
@@ -45,8 +45,8 @@ void apply_menu_click(std::span<const kinetra::DebugEntry> menu, const MenuClick
 /// session (SIMULATION open): INVULNERABLE, then the LAYERS section and every layer in it.
 /// PATHS opens its four parts right below it, so the rows after it are clicked in their new
 /// places. GHOST CAMERA stays off.
-inline constexpr std::array<MenuClick, 13> dotio_debug_clicks{{{4, "INVULNERABLE"},
-                                                               {5, "LAYERS"},
+inline constexpr std::array<MenuClick, 13> dotio_debug_clicks{{{5, "INVULNERABLE"},
+                                                               {6, "LAYERS"},
                                                                {2, "VECTORS"},
                                                                {3, "STEERING PROBES"},
                                                                {4, "PATHS"},
@@ -60,7 +60,7 @@ inline constexpr std::array<MenuClick, 13> dotio_debug_clicks{{{4, "INVULNERABLE
                                                                {12, "HIDING HITS"}}};
 /// The MOTION heading in the debug menu of a new Demo session (SIMULATION open); the Demo
 /// debug screenshot shows that section's tuning rows.
-inline constexpr MenuClick demo_motion_click{6, "MOTION"};
+inline constexpr MenuClick demo_motion_click{7, "MOTION"};
 
 /// What a scene writes.
 enum class SceneKind {

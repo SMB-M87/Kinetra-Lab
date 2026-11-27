@@ -97,13 +97,13 @@ std::size_t row_with_label(std::span<const kinetra_lab::DebugRow> rows, std::str
 }
 
 struct Tour::PanelMirror {
-    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    bool statistics{}, debug{}, frame_times{};
     SettingsOverlay overlay;
     kinetra::Camera2D camera;
 
     PanelMirror(std::size_t sim_lines, std::size_t debug_lines, Vec2 viewport)
         : overlay(kinetra_lab::settings_rows(
-              statistics, debug, frame_times, frame_limit, std::vector<std::string>(sim_lines, "LINE"),
+              statistics, debug, frame_times, std::vector<std::string>(sim_lines, "LINE"),
               // settings_rows adds the two lines every application shares.
               std::vector<std::string>(debug_lines > 2 ? debug_lines - 2 : 0, "LINE"))) {
         camera.viewport = viewport;

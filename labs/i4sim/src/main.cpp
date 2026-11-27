@@ -55,14 +55,15 @@ int main(int argc, char **argv) {
             else if (option == "--ticks")
                 ticks = argument(value, 100000000);
             else if (option == "--ups")
-                ups = unsigned(argument(value, 10000));
+                ups = unsigned(argument(value, i4sim::most_updates_per_second));
             else
                 throw std::invalid_argument(
                     "Usage: kinetra_i4sim [--blueprint FILE] [--blueprints DIR] [--ticks N] [--output DIR] "
                     "[--seed N] [--frames N] [--run] [--ups N] [--inspect MOVER_ID_OR_INDEX]");
         }
         if (ups == 0)
-            throw std::invalid_argument("UPS must be in 1..10000");
+            throw std::invalid_argument("UPS must be in 1.." +
+                                        std::to_string(i4sim::most_updates_per_second));
         if (inspect && !ticks)
             throw std::invalid_argument("--inspect requires --blueprint FILE --ticks N");
         if (ticks) {

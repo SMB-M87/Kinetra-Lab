@@ -256,26 +256,50 @@ TEST_CASE("half the time scale runs half as many fixed ticks") {
     const Vec2 start = player_position(full);
     full.advance(elapsed, commands, camera);
     half_time.advance(elapsed / 2, commands, camera);
-    commands.time_scale = 0.5f;
+    commands.ups = demo::real_time_ups / 2;
     half_speed.advance(elapsed, commands, camera);
     CHECK_MESSAGE(player_position(half_time).x > start.x, "The player did not move");
     CHECK_MESSAGE(length(player_position(half_speed) - player_position(half_time)) == 0,
-                  "Half the time scale did not run the ticks of half the time");
+                  "Half the UPS did not run the ticks of half the time");
     CHECK_MESSAGE(player_position(full).x > player_position(half_speed).x,
-                  "Half the time scale ran as far as full speed");
-    // Scaled time accumulates like real time: two half ticks make one.
+                  "Half the UPS ran as far as full speed");
+    // Ticks accumulate across frames: two half ticks make one.
     Application slow(0, 42), reference(0, 42);
     slow.advance(1.0 / 120, commands, camera);
-    CHECK_MESSAGE(length(player_position(slow) - start) == 0, "Half a tick of scaled time ran a tick");
+    CHECK_MESSAGE(length(player_position(slow) - start) == 0, "Half a tick at half the UPS ran a tick");
     slow.advance(1.0 / 120, commands, camera);
-    commands.time_scale = 1;
+    commands.ups = demo::real_time_ups;
     reference.advance(1.0 / 120, commands, camera);
     CHECK_MESSAGE(length(player_position(slow) - player_position(reference)) == 0,
-                  "Two half ticks of scaled time did not run exactly one tick");
-    commands.time_scale = 0;
-    reference.advance(1, commands, camera);
-    CHECK_MESSAGE(length(player_position(slow) - player_position(reference)) == 0,
-                  "A time scale of zero advanced the scene");
+                  "Two half ticks at half the UPS did not run exactly one tick");
+}
+
+TEST_CASE("the tick limit drops the backlog, and a high UPS runs the same ticks as real time") {
+    FrameCommands commands;
+    commands.player.direction = {1, 0};
+    Camera2D camera;
+    Application limited(0, 42), stepped(0, 42), fast(0, 42), slow(0, 42);
+    commands.tick_limit = 3;
+    limited.advance(1, commands, camera);
+    CHECK(limited.ticks_run() == 3);
+    commands.tick_limit = demo::default_tick_limit;
+    for (int i = 0; i < 3; ++i)
+        stepped.advance(demo::tick_seconds, commands, camera);
+    CHECK_MESSAGE(length(player_position(limited) - player_position(stepped)) == 0,
+                  "The limit did not run exactly its ticks");
+    limited.advance(demo::tick_seconds, commands, camera);
+    CHECK_MESSAGE(limited.ticks_run() == 1, "The dropped backlog came back");
+    // The tick length is fixed: 12,000 UPS for 1/100 s runs the 120 ticks that a second at
+    // real time runs, and moves every body alike.
+    commands.ups = 12000;
+    commands.tick_limit = 1000;
+    fast.advance(0.01, commands, camera);
+    commands.ups = demo::real_time_ups;
+    commands.tick_limit = 120;
+    slow.advance(1, commands, camera);
+    CHECK(fast.ticks_run() == 120);
+    CHECK(slow.ticks_run() == 120);
+    CHECK(length(player_position(fast) - player_position(slow)) == 0);
 }
 
 TEST_CASE("a single step while paused runs exactly one fixed tick") {
@@ -323,22 +347,19 @@ TEST_CASE("a single step while paused runs exactly one fixed tick") {
                   "A single step changed the ticks of a running scene");
 }
 
-TEST_CASE("a negative or non-finite time scale is rejected before the frame changes anything") {
+TEST_CASE("a UPS of zero is rejected before the frame changes anything") {
     Application application(0, 42);
     Camera2D camera;
     application.advance(1.0 / 120, {}, camera);
     const Vec2 before = player_position(application);
-    for (const float bad :
-         {-0.5f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
-        FrameCommands commands;
-        commands.time_scale = bad;
-        commands.toggle_pause = commands.toggle_vectors = true;
-        commands.player.direction = {1, 0};
-        CHECK_THROWS_AS(application.advance(1.0 / 120, commands, camera), std::invalid_argument);
-        CHECK_MESSAGE((!application.paused() && !application.presentation().vectors &&
-                       length(player_position(application) - before) == 0),
-                      "A rejected frame changed the application");
-    }
+    FrameCommands commands;
+    commands.ups = 0;
+    commands.toggle_pause = commands.toggle_vectors = true;
+    commands.player.direction = {1, 0};
+    CHECK_THROWS_AS(application.advance(1.0 / 120, commands, camera), std::invalid_argument);
+    CHECK_MESSAGE((!application.paused() && !application.presentation().vectors &&
+                   length(player_position(application) - before) == 0),
+                  "A rejected frame changed the application");
 }
 
 TEST_CASE("switching avoidance mode neither resets nor advances the scene") {
@@ -509,7 +530,7 @@ void print_trace_oracle(demo::Scenario scenario) {
     CHECK(initial->title == "AGENT " + selector);
     std::cout << "TRACE_SELECTOR " << selector << '\n';
     for (std::uint64_t tick = 1; tick <= 3; ++tick) {
-        application.advance(kinetra::FixedClock{}.step(), {}, camera);
+        application.advance(demo::tick_seconds, {}, camera);
         const auto snapshot = inspect_agent(application.scene(), home);
         REQUIRE(snapshot);
         std::cout << "TRACE_RECORD ";

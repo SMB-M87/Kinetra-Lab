@@ -53,11 +53,11 @@ std::array<std::uint8_t, 4> pixel(const Runtime &runtime, Vec2 point) {
 /// A panel with the same rows as a Lab session's, used to address its rows and buttons and
 /// to mirror which help sections are open.
 struct PanelLayout {
-    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    bool statistics{}, debug{}, frame_times{};
     SettingsOverlay overlay;
     Camera2D camera;
     explicit PanelLayout(std::size_t sim_lines, Vec2 viewport)
-        : overlay(kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit,
+        : overlay(kinetra_lab::settings_rows(statistics, debug, frame_times,
                                              std::vector<std::string>(sim_lines, "LINE"), {"LINE"})) {
         camera.viewport = viewport;
         Input open;
@@ -82,8 +82,7 @@ struct PanelLayout {
     /// A click on the action button whose center is at panel x `x`.
     Input click_action(float x) { return click(x, overlay.actions_y() + 3); }
 };
-constexpr std::size_t statistics_row = 0, debug_mode_row = 1, frame_limit_row = 3, sim_row = 4,
-                      debug_controls_row = 5;
+constexpr std::size_t statistics_row = 0, debug_mode_row = 1, sim_row = 3, debug_controls_row = 4;
 
 /// A tap of Ctrl, which opens or closes the settings panel.
 Input settings_key() {
@@ -165,8 +164,8 @@ TEST_CASE("demo and i4sim start with every visual debug layer on") {
             session->advance(0, choose, runtime.camera);
         }
         session->advance(0, debug_keys(), runtime.camera);
-        // SIMULATION is open with four rows in both; the LAYERS heading on row 5 opens the layers.
-        session->advance(0, menu_click(runtime, 5), runtime.camera);
+        // SIMULATION is open with five rows in both; the LAYERS heading on row 6 opens the layers.
+        session->advance(0, menu_click(runtime, 6), runtime.camera);
         Input away;
         away.mouse = {600, 780};
         session->advance(0, away, runtime.camera);
@@ -269,36 +268,30 @@ TEST_CASE("settings pause toggle and navigate in demo and dotio") {
     }
 }
 
-TEST_CASE("the frame limit row follows the window and switches its limiter") {
-    Runtime runtime("Frame limit", 160, 120);
+TEST_CASE("the FPS row follows the window and switches its pacing") {
+    Runtime runtime("Frame rate", 160, 120);
     runtime.poll(false);
     auto session = start(Variant::demo, runtime.camera);
     session->advance(0, {}, runtime.camera);
     session->render(runtime);
     const auto before = runtime.pacing();
-    // Switch FRAME LIMIT off in the settings panel; the session passes it on when it draws.
-    session->advance(0, settings_key(), runtime.camera);
-    PanelLayout layout(4, runtime.camera.viewport);
-    session->advance(0, layout.click_row(frame_limit_row), runtime.camera);
-    session->advance(0, settings_key(), runtime.camera);
+    // SIMULATION is open: RUNNING, SINGLE TICK, UPS, then FPS on row 4. A click on its label
+    // moves from VSYNC to the limit and from the limit to UNCAPPED; the session passes the
+    // choice on when it draws.
+    session->advance(0, debug_keys(), runtime.camera);
+    session->advance(0, menu_click(runtime, 4), runtime.camera);
     session->render(runtime);
-    if (before == FramePacing::vsync) {
-        CHECK_MESSAGE(runtime.pacing() == FramePacing::vsync, "the row has no say where VSync paces frames");
-        return;
-    }
-    CHECK_MESSAGE(runtime.pacing() == FramePacing::uncapped, "FRAME LIMIT off left the limiter on");
-    // The choice belongs to the window: the next session starts from it and can switch it back.
+    const auto after = runtime.pacing();
+    if (before == FramePacing::vsync)
+        CHECK_MESSAGE(after != FramePacing::uncapped, "one click skipped the limit");
+    else
+        CHECK_MESSAGE(after == FramePacing::uncapped, "the limit stayed on");
+    // The choice belongs to the window: the next session starts from it.
     session.reset();
     session = start(Variant::dotio, runtime.camera);
     session->advance(0, {}, runtime.camera);
     session->render(runtime);
-    CHECK_MESSAGE(runtime.pacing() == FramePacing::uncapped, "a new session switched the limiter back on");
-    session->advance(0, settings_key(), runtime.camera);
-    PanelLayout next(3, runtime.camera.viewport);
-    session->advance(0, next.click_row(frame_limit_row), runtime.camera);
-    session->advance(0, settings_key(), runtime.camera);
-    session->render(runtime);
-    CHECK_MESSAGE(runtime.pacing() == FramePacing::limited, "FRAME LIMIT on did not restore the limiter");
+    CHECK_MESSAGE(runtime.pacing() == after, "a new session changed the pacing");
 }
 
 TEST_CASE("every launch creates a clean session with its own camera") {
@@ -377,9 +370,9 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
         CHECK_MESSAGE(paused(*session), "RUNNING did not pause Dotio");
         session->advance(0, menu_click(runtime, 1), runtime.camera);
         CHECK_MESSAGE(!paused(*session), "RUNNING did not resume Dotio");
-        // LAYERS on row 5 opens the layers; click each, PATHS included, which adds its parts.
+        // LAYERS on row 6 opens the layers; click each, PATHS included, which adds its parts.
         // The panel consumes the held button, so none of these clicks shoots.
-        session->advance(0, menu_click(runtime, 5), runtime.camera);
+        session->advance(0, menu_click(runtime, 6), runtime.camera);
         for (std::size_t row = 2; row <= 12; ++row)
             session->advance(0, menu_click(runtime, row), runtime.camera);
         session->render(runtime);
@@ -403,7 +396,7 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
     auto session = start(Variant::demo, runtime.camera);
     session->advance(0, {}, runtime.camera);
     session->advance(0, debug_keys(), runtime.camera);
-    // SIMULATION is open: RUNNING on row 1; below the sections ZOOM on row 8 and GHOST CAMERA on 9.
+    // SIMULATION is open: RUNNING on row 1; below the sections ZOOM on row 9 and GHOST CAMERA on 10.
     session->advance(0, menu_click(runtime, 1), runtime.camera);
     CHECK_MESSAGE(paused(*session), "RUNNING did not pause the Demo");
     session->advance(0, menu_click(runtime, 1), runtime.camera);
@@ -411,10 +404,10 @@ TEST_CASE("the debug shortcut opens the menu in dotio and demo and its rows reac
     const float zoom = runtime.camera.pixels_per_unit;
     Input zoom_in;
     zoom_in.clicked = true;
-    zoom_in.mouse = menu_point(runtime, 8, DebugMenu::increase_left + DebugMenu::stepper_width / 2);
+    zoom_in.mouse = menu_point(runtime, 9, DebugMenu::increase_left + DebugMenu::stepper_width / 2);
     session->advance(0, zoom_in, runtime.camera);
     CHECK_MESSAGE(runtime.camera.pixels_per_unit > zoom, "the ZOOM row did not zoom in");
-    session->advance(0, menu_click(runtime, 9), runtime.camera);
+    session->advance(0, menu_click(runtime, 10), runtime.camera);
     Input pan;
     pan.held[std::size_t(Key::right)] = true;
     session->advance(0.05, pan, runtime.camera);
@@ -469,13 +462,14 @@ TEST_CASE("every session reports the rows of its debug menu") {
         }
         // The rows are there whether the menu shows or not, with SIMULATION open at the start.
         auto rows = lab_session.debug_rows();
-        REQUIRE(rows.size() > 5);
+        REQUIRE(rows.size() > 6);
         CHECK((rows[0].label == "SIMULATION" && rows[0].depth == 0));
         CHECK((rows[1].label == "RUNNING" && rows[1].depth == 1));
-        CHECK(rows[5].label == "LAYERS");
+        CHECK((rows[3].label == "UPS" && rows[4].label == "FPS"));
+        CHECK(rows[6].label == "LAYERS");
         // A click on a heading changes them: LAYERS opens and SIMULATION closes.
         session->advance(0, debug_keys(), runtime.camera);
-        session->advance(0, menu_click(runtime, 5), runtime.camera);
+        session->advance(0, menu_click(runtime, 6), runtime.camera);
         rows = lab_session.debug_rows();
         REQUIRE(rows.size() > 2);
         CHECK(rows[1].label == "LAYERS");

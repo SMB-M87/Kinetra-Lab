@@ -1,19 +1,22 @@
 #include "dotio/presentation/session.h"
 #include "dotio/difficulty.h"
 #include "dotio/presentation/presentation.h"
+#include "kinetra_lab/debug.h"
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
+#include <kinetra/simulation/clock.h>
+
+#include <chrono>
 #include <stdexcept>
 namespace dotio {
 namespace {
 class DotioSession final : public Session {
     dotio::Application application_;
-    kinetra_lab::FrameLimitSwitch frame_limit_;
-    // Declared after the application and the switch whose flags it borrows.
+    kinetra::TickBudget budget_;
+    // Declared after the application whose flags it borrows.
     kinetra::SettingsOverlay settings_{
         kinetra_lab::settings_rows(application_.statistics, application_.debug, application_.frame_times,
-                                   frame_limit_.enabled,
                                    {"WASD / ARROWS  MOVE", "HOLD CLICK  SHOOT", "MOUSE  AIM"},
                                    {"GHOST CLICK  TELEPORT", "SHIFT + RIGHT CLICK  INSPECT"}),
         &application_.debug};
@@ -60,7 +63,11 @@ class DotioSession final : public Session {
             application_.world().get_ghost().position = application_.world().get_player().position;
             application_.world().get_ghost().velocity = {};
         }
-        auto commands = dotio::read_commands(modal ? kinetra::Input{} : input, camera);
+        // While a number is typed into the menu, the keys are the menu's.
+        auto commands = dotio::read_commands(modal                   ? kinetra::Input{}
+                                             : menu_.keys_captured() ? kinetra_lab::without_keys(input)
+                                                                     : input,
+                                             camera);
         commands.zoom_steps =
             application_.debug && !modal && !captured && !examination.captured ? input.wheel : 0;
         application_.paused = pause_.update(settings_.visible(), application_.paused);
@@ -68,13 +75,18 @@ class DotioSession final : public Session {
             commands.shoot = false;
             commands.teleport = false;
         }
+        application_.tick_limit =
+            budget_.ticks(kinetra_lab::tick_share * application_.frame_rate_setting.interval());
+        const auto started = std::chrono::steady_clock::now();
         application_.advance(elapsed, commands, camera);
+        budget_.record(application_.ticks_run(),
+                       std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
         const auto *after = application_.selected_enemy();
         if (before != after || (after && after->generation() != generation))
             inspector_.reset();
     }
     void render(kinetra::Runtime &runtime) override {
-        frame_limit_.apply(runtime);
+        application_.frame_rate_setting.apply(runtime);
         dotio::render(runtime, application_, settings_, menu_, &inspector_);
     }
     /// The settings panel's LAUNCHER and EXIT, or else the debug menu's DIFFICULTY, which

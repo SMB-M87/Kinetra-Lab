@@ -58,8 +58,8 @@ std::filesystem::path without_scenario(std::string_view name, const std::filesys
 /// section's rows always start right below its heading.
 namespace menu_row {
 /// The SIMULATION heading, and the LAYERS and MOTION headings while SIMULATION, with its
-/// four rows, is open.
-constexpr unsigned simulation = 0, layers_below_simulation = 5, motion_below_simulation = 6;
+/// five rows, is open.
+constexpr unsigned simulation = 0, layers_below_simulation = 6, motion_below_simulation = 7;
 /// LAYERS open: heading on row 1, then GRID, HEATMAP and PATHS.
 constexpr unsigned layers = 1, paths = 4;
 /// MOTION open: heading on row 2, then PROFILE, PLANNER, RECOVERY, SPEED, FORCE, HORIZON and
@@ -363,9 +363,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     back = {};
     // Centered modal settings, default collapsed help: the LAUNCHER action, located through a
     // panel with the same Lab rows so the test follows the shared layout.
-    bool mirror_statistics{}, mirror_debug{}, mirror_frame_times{}, mirror_frame_limit{};
-    const SettingsOverlay mirror(kinetra_lab::settings_rows(
-        mirror_statistics, mirror_debug, mirror_frame_times, mirror_frame_limit, {"LINE"}, {"LINE"}));
+    bool mirror_statistics{}, mirror_debug{}, mirror_frame_times{};
+    const SettingsOverlay mirror(
+        kinetra_lab::settings_rows(mirror_statistics, mirror_debug, mirror_frame_times, {"LINE"}, {"LINE"}));
     back.mouse = runtime.camera.viewport / 2 +
                  (Vec2{SettingsOverlay::launcher_x, mirror.actions_y() + 3} - mirror.half_extent()) *
                      SettingsOverlay::scale(runtime.camera.viewport);

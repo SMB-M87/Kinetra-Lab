@@ -169,7 +169,7 @@ void ui_debug_menu(Stage &stage) {
         tour.wait(0.5);
         tour.toggle_debug_menu();
         tour.pause(0.4, 0.6);
-        tour.step_row("SPEED", true);
+        tour.step_row("UPS", true);
         tour.wait(0.8);
         tour.click_row("MOTION");
         tour.pause();

@@ -7,6 +7,7 @@
 
 #include "kinetra_lab/debug.h"
 #include <kinetra/view/debug_menu.h>
+#include <kinetra/view/frame_rate.h>
 
 #include <vector>
 
@@ -91,8 +92,11 @@ class DebugPanel {
     bool reciprocal_avoidance() const { return reciprocal_; }
     /// Whether PASSING is on: agents on commanded travel pass each other in agreed lanes.
     bool passing() const { return passing_; }
-    /// Simulated seconds per elapsed second, as the SPEED row set it.
-    float time_scale() const { return time_scale_; }
+    /// Ticks per second, as the UPS row set it.
+    std::uint64_t ups() const { return ups_; }
+    /// The FPS row's setting; the session applies it to the runtime once per drawn frame.
+    kinetra::FrameRateSetting &frame_rate() { return frame_rate_; }
+    const kinetra::FrameRateSetting &frame_rate() const { return frame_rate_; }
     /// Whether SCENARIOS was clicked. The session then asks its host for the launcher's page
     /// of Demo scenarios (kinetra::SessionRequest::configurations), which ends the session,
     /// so the flag is never reset.
@@ -110,7 +114,8 @@ class DebugPanel {
     kinetra_lab::ZoomControl zoom_;
     DebugLayers layers_;
     bool ghost_{}, gravity_{}, click_sets_goal_{}, reciprocal_{true}, passing_{};
-    float time_scale_{1};
+    std::uint64_t ups_{real_time_ups};
+    kinetra::FrameRateSetting frame_rate_;
     /// Set by the RUNNING and SINGLE TICK rows; the next apply() turns them into commands.
     bool pause_requested_{}, step_requested_{};
     bool scenarios_requested_{};

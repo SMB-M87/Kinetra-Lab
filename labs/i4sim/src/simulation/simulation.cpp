@@ -174,8 +174,8 @@ bool Simulation::workload() const {
 void Simulation::set_workload(bool enabled) {
     core_->set_workload(enabled);
 }
-void Simulation::advance(double elapsed) {
-    core_->advance(elapsed);
+void Simulation::advance(double elapsed, std::uint64_t tick_limit) {
+    core_->advance(elapsed, tick_limit);
 }
 void Simulation::tick() {
     core_->tick();

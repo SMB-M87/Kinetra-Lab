@@ -1,6 +1,7 @@
 #include "demo/presentation/renderer.h"
 #include "kinetra_lab/camera.h"
 #include "kinetra_lab/inspector.h"
+#include <cmath>
 #include <string_view>
 
 namespace demo {
@@ -175,8 +176,9 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
         // What the debug menu's SIMULATION rows did to time is not visible in the scene itself.
         if (application.paused())
             text += " PAUSED";
-        else if (overlays.time_scale != 1)
-            text += " SPEED " + debug_number_text(overlays.time_scale) + "X";
+        else if (overlays.target_ups != real_time_ups)
+            text += " UPS " + std::to_string(std::llround(overlays.ups)) + "/" +
+                    std::to_string(overlays.target_ups);
         const float width = std::min(runtime.camera.viewport.x, 20.f + float(text.size()) * 9);
         runtime.box(runtime.camera.screen_to_world({width / 2, runtime.camera.viewport.y - 15}),
                     Vec2{width / 2, 13} / runtime.camera.pixels_per_unit, 0, {0.025f, 0.035f, 0.06f});

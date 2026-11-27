@@ -2,6 +2,7 @@
 
 #include <kinetra/runtime/bitmap_text.h>
 
+#include <cmath>
 #include <sstream>
 #include <string>
 
@@ -20,11 +21,12 @@ void draw_line(Runtime &runtime, std::string_view text, int line, Color color = 
 }
 
 /// Run totals, with the counters of the coordination features that are on.
-std::string totals_text(const Simulation &simulation) {
+std::string totals_text(const Simulation &simulation, double measured_ups) {
     const auto &motion = simulation.motion_settings();
     std::ostringstream text;
-    text << "TICK " << simulation.ticks() << " UPS " << simulation.updates_per_second() << " CONTACTS "
-         << simulation.collisions() << " DURATION " << simulation.contact_ticks();
+    text << "TICK " << simulation.ticks() << " UPS " << simulation.updates_per_second() << " ("
+         << std::llround(measured_ups) << ") CONTACTS " << simulation.collisions() << " DURATION "
+         << simulation.contact_ticks();
     if (motion.predictive_passing && supports_predictive_passing(motion.profile))
         text << " PASS " << simulation.predictive_pairs();
     if (motion.corridor_traffic)
@@ -63,7 +65,7 @@ void draw_producer_inspection(Runtime &runtime, const Simulation &simulation, st
 
 void draw_hud(Runtime &runtime, const Simulation &simulation, const HudContent &content) {
     if (content.statistics) {
-        draw_line(runtime, totals_text(simulation), 2);
+        draw_line(runtime, totals_text(simulation, content.measured_ups), 2);
         draw_line(runtime, motion_text(simulation), 1);
     }
     if (content.selected_producer)

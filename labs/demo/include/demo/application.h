@@ -17,10 +17,10 @@ class Application {
     /// Throws std::invalid_argument for another count, and std::runtime_error when the
     /// agents cannot all be placed clear of each other and of terrain.
     Application(int agent_count, std::uint32_t seed, Scenario scenario = Scenario::terrain);
-    /// Applies one frame of intent, then runs the fixed ticks that `elapsed` seconds times
-    /// `commands.time_scale` are worth; none while paused, except one for
-    /// `commands.single_step`. Throws std::invalid_argument, before anything changes, for
-    /// a negative or non-finite time scale.
+    /// Applies one frame of intent, then runs the fixed ticks that `elapsed` seconds are
+    /// worth at `commands.ups`, at most `commands.tick_limit`; none while paused, except one
+    /// for `commands.single_step`. Throws std::invalid_argument, before anything changes, for
+    /// a UPS of zero.
     void advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera);
     /// The scene, for drawing and inspection.
     const Scene &scene() const { return scene_; }
@@ -40,6 +40,8 @@ class Application {
         kinetra::Vec2 position;
         float angle{};
     };
+    /// Ticks the last advance() ran, for the session's tick budget and UPS counter.
+    std::uint64_t ticks_run() const { return ticks_run_; }
     /// Pose of world body `id` for drawing: between its states before and after the last
     /// fixed tick, by how much of the next tick has accumulated, so motion stays even when
     /// frames run different numbers of ticks. A body that changed since that tick (teleport,
@@ -49,7 +51,8 @@ class Application {
 
   private:
     Scene scene_;
-    kinetra::FixedClock clock_;
+    kinetra::TickClock clock_{double(real_time_ups)};
+    std::uint64_t ticks_run_{};
     PresentationOptions presentation_;
     bool paused_{}, gravity_{};
     ActionResult last_action_{};

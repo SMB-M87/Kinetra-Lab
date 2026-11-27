@@ -39,7 +39,8 @@ void DebugPanel::add_simulation_entries(std::vector<DebugEntry> &entries) {
                                step_requested_ = true;
                            },
                        .depth = 1});
-    entries.push_back(kinetra_lab::time_scale_entry(time_scale_));
+    entries.push_back(kinetra_lab::ups_entry(ups_));
+    entries.push_back(frame_rate_.entry());
     entries.push_back(kinetra::debug_check("GRAVITY", gravity_));
 }
 
@@ -112,7 +113,7 @@ void DebugPanel::reset_parameters() {
     application_.tuning() = Tuning{};
     reciprocal_ = true;
     passing_ = false;
-    time_scale_ = 1;
+    ups_ = real_time_ups;
 }
 
 std::vector<DebugEntry> DebugPanel::entries() {
@@ -153,7 +154,7 @@ void DebugPanel::apply(FrameCommands &commands, bool debug_mode, bool pointer_ca
     commands.toggle_gravity = (gravity_allowed && gravity_) != (scene.world().gravity.y != 0);
     commands.reciprocal_avoidance = reciprocal_;
     commands.passing = passing_;
-    commands.time_scale = time_scale_;
+    commands.ups = ups_;
     // The ZOOM row's steps are taken even outside debug mode, so none is left over for the
     // frame that switches it on.
     commands.zoom_steps = (debug_mode && !pointer_captured ? wheel : 0) + zoom_.take_steps();

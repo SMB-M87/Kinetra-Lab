@@ -21,6 +21,9 @@ struct HudContent {
     std::string_view description;
     /// A message for the operator, such as a rejected goal; empty for none.
     std::string_view message;
+    /// Ticks per second the clock reached, shown after the UPS it asks for: lower when the
+    /// processor cannot keep up or the run is paused.
+    double measured_ups{};
 };
 
 /// Draws the HUD inside a frame that the caller began, in logical screen pixels: the

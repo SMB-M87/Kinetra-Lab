@@ -1,9 +1,18 @@
 #pragma once
 
 #include "demo/input/player_control.h"
+#include <cstdint>
 #include <optional>
 
 namespace demo {
+/// Simulated seconds per tick: the scene's physics step, the same at every UPS.
+inline constexpr double tick_seconds = 1.0 / 120;
+/// The UPS at which the scene runs in real time.
+inline constexpr std::uint64_t real_time_ups = 120;
+/// Most ticks a frame runs when nothing else limits it: the backlog cap of the Demo's clock
+/// before its UPS could be set. The session replaces it with what its kinetra::TickBudget
+/// allows.
+inline constexpr std::uint64_t default_tick_limit = 16;
 
 /// What a click asks for.
 enum class PointerAction {
@@ -41,9 +50,12 @@ struct FrameCommands {
     bool reciprocal_avoidance{true};
     /// Agents on commanded travel pass each other head-on in agreed side lanes.
     bool passing{};
-    /// Simulated seconds per elapsed second: 1 is real time, 0.5 half speed, 0 stands
-    /// still. It must be finite and not negative. The camera is not slowed down.
-    float time_scale{1};
+    /// Ticks per elapsed second, at least one: real_time_ups is real time, half of it half
+    /// speed. The camera is not slowed down.
+    std::uint64_t ups{real_time_ups};
+    /// The most ticks this frame may run; a longer backlog is dropped, so a UPS the processor
+    /// cannot reach slows the scene down instead of the window.
+    std::uint64_t tick_limit{default_tick_limit};
     /// While the scene is paused, run exactly one fixed tick in this frame. Ignored while
     /// the scene runs.
     bool single_step{};

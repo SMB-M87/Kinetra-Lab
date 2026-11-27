@@ -11,6 +11,7 @@
 #include "kinetra_lab/input.h"
 #include <kinetra/view/camera.h>
 #include <kinetra/view/debug_menu.h>
+#include <kinetra/view/frame_rate.h>
 #include <kinetra/view/input.h>
 
 #include <cstddef>
@@ -52,7 +53,7 @@ class FactoryController {
   public:
     /// `seed` seeds every simulation the controller builds. `running` starts a loaded
     /// blueprint unpaused. `updates_per_second` is the tick rate of a loaded blueprint.
-    /// Throws std::invalid_argument for a rate outside 1..10000.
+    /// Throws std::invalid_argument for a rate outside 1..1,000,000 (kinetra_lab::fastest_ups).
     FactoryController(std::uint32_t seed, bool running, unsigned updates_per_second);
     FactoryController(const FactoryController &) = delete;
     FactoryController &operator=(const FactoryController &) = delete;
@@ -104,12 +105,19 @@ class FactoryController {
     /// values below them; choosing a value closes the list. A layer row gets the swatch
     /// `colors` gives for its layer; without `colors` no row has one.
     std::vector<kinetra::DebugEntry> menu(const LayerColors &colors = {});
+    /// The most ticks the next handle_input() may run; a longer backlog is dropped. The
+    /// session sets it from its kinetra::TickBudget; default_tick_limit until then.
+    void limit_ticks(std::uint64_t ticks) { tick_limit_ = ticks; }
+    /// The FPS row's setting, in the SIMULATION section after UPS; the session applies it to
+    /// the runtime once per drawn frame. It outlives every loaded blueprint.
+    kinetra::FrameRateSetting &frame_rate() { return frame_rate_; }
     /// Applies a frame of input and then advances the simulation by `elapsed` seconds.
     ///
     /// Space or P pause and resume. R restarts the blueprint paused with the current tick rate
     /// and motion settings, and replays a scenario's goals. G toggles the workload, F fits the
     /// camera, and 1 to 6 toggle grid, heatmap, paths, forces, borders and detection. Q and E
-    /// halve and double the update rate within 1..10000. The camera pans with WASD or the
+    /// halve and double the update rate within 1..1,000,000. The simulation runs at most the
+    /// ticks that limit_ticks() allowed. The camera pans with WASD or the
     /// arrows, and zooms with the wheel as `panels` allows and by the steps the menu's ZOOM
     /// row collected. A click selects the mover or producer under it. On empty ground,
     /// a left click clears only the producer selection. Right-click also holds or blocks
@@ -153,6 +161,8 @@ class FactoryController {
     std::uint32_t seed_;
     bool start_running_;
     unsigned updates_per_second_;
+    std::uint64_t tick_limit_{default_tick_limit};
+    kinetra::FrameRateSetting frame_rate_;
     std::optional<Simulation> simulation_;
     /// Setup of the loaded blueprint; R replays it.
     std::optional<Scenario> scenario_;

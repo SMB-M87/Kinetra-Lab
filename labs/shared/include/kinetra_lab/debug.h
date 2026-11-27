@@ -4,6 +4,7 @@
 #include <kinetra/view/debug_menu.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -41,20 +42,23 @@ class ZoomControl {
     float shown_{}, steps_{};
 };
 
-/// Slowest and fastest time scale of the SPEED row. The applications' fixed clocks run at
-/// most eight frames' worth of ticks in one frame, so four leaves room for a frame that
-/// takes twice as long before simulated time falls behind the scale shown.
-inline constexpr float slowest_time_scale = 0.125f, fastest_time_scale = 4;
+/// Slowest and fastest UPS of every Lab application's UPS row, in ticks per wall-clock
+/// second. A million is far above what the simulations reach; the rate the clock achieves
+/// then falls behind the setting, and the statistics show by how much.
+inline constexpr std::uint64_t slowest_ups = 1, fastest_ups = 1000000;
 
-/// The SPEED row of a debug menu over `scale`, the factor between simulated and real time,
-/// which the row borrows: it shows the factor ("0.5X") and its buttons halve and double it
-/// within [slowest_time_scale, fastest_time_scale].
-inline kinetra::DebugEntry time_scale_entry(float &scale, int depth = 1) {
-    return {.label = "SPEED",
-            .value = [&scale] { return kinetra::debug_number_text(scale) + "X"; },
-            .decrease = [&scale] { scale = std::max(slowest_time_scale, scale / 2); },
-            .increase = [&scale] { scale = std::min(fastest_time_scale, scale * 2); },
-            .depth = depth};
+/// Share of a frame's interval (kinetra::FrameRateSetting::interval) that a frame's ticks may
+/// use, for kinetra::TickBudget: the rest is for drawing and the window system, so the frame
+/// rate holds when the UPS asks for more than the processor can do.
+inline constexpr double tick_share = 0.75;
+
+/// The UPS row of a debug menu over `ups`, which the row borrows: it shows the ticks per
+/// second, its buttons halve and double them, and a typed number sets them, within
+/// [slowest_ups, fastest_ups] (kinetra::debug_rate).
+inline kinetra::DebugEntry ups_entry(std::uint64_t &ups, int depth = 1) {
+    return kinetra::debug_rate(
+        "UPS", [&ups] { return ups; }, [&ups](std::uint64_t value) { ups = value; }, slowest_ups, fastest_ups,
+        depth);
 }
 
 } // namespace kinetra_lab

@@ -70,14 +70,14 @@ void Application::apply_pointer(const PointerCommand &command, const kinetra::Ca
 void Application::tick(const FrameCommands &commands, bool snapshot) {
     if (snapshot)
         before_tick_ = poses(scene_.world());
-    scene_.update(float(clock_.step()), commands.debug && commands.ghost ? PlayerControl{} : commands.player);
+    scene_.update(float(tick_seconds), commands.debug && commands.ghost ? PlayerControl{} : commands.player);
     if (snapshot)
         after_tick_ = poses(scene_.world());
 }
 
 void Application::advance(double elapsed, const FrameCommands &commands, kinetra::Camera2D &camera) {
-    if (!std::isfinite(commands.time_scale) || commands.time_scale < 0)
-        throw std::invalid_argument("Time scale must be finite and not negative");
+    if (commands.ups == 0)
+        throw std::invalid_argument("UPS must be at least one");
     scene_.set_reciprocal_avoidance(commands.reciprocal_avoidance);
     scene_.set_passing(commands.passing);
     apply_actions(commands);
@@ -94,19 +94,26 @@ void Application::advance(double elapsed, const FrameCommands &commands, kinetra
         scene_.stream(camera);
     }
     // Consume clock time even when paused, so resuming cannot replay paused time. Only
-    // the simulation runs on scaled time; the camera above keeps real time.
-    const int steps = clock_.advance(elapsed * double(commands.time_scale));
+    // the simulation runs at the UPS; the camera above keeps real time. A new rate starts
+    // from the last tick.
+    if (clock_.rate() != double(commands.ups))
+        clock_.rate(double(commands.ups));
+    const auto steps = clock_.advance(elapsed, commands.tick_limit);
     // Snapshots from before a pause would draw the first running frames behind the state
     // shown while paused; start from the current state instead.
     if (!paused_ && was_paused_)
         before_tick_ = after_tick_ = poses(scene_.world());
     was_paused_ = paused_;
-    if (!paused_)
+    ticks_run_ = 0;
+    if (!paused_) {
         // Only the last tick is drawn between, so only it needs snapshots.
-        for (int i = 0; i < steps; ++i)
+        for (std::uint64_t i = 0; i < steps; ++i)
             tick(commands, i == steps - 1);
-    else if (commands.single_step)
+        ticks_run_ = steps;
+    } else if (commands.single_step) {
         tick(commands, true);
+        ticks_run_ = 1;
+    }
     scene_.follow(camera);
 }
 
