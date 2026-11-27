@@ -39,6 +39,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
+- **When a merge moves the Kinetra pointer after the measurements, record the new pointer and the engine changes its range brings in, and measure again what CI does not run** · added 2026-11-27 · source: #146, #150
+  Lab `main` moved the stack's pointer across Kinetra #69's steering change after steps 1 to 3 had measured. Step 3's "gives the base's numbers exactly" then described a pointer the pull request did not record, and measured again, step 1's gate went from a product gain to a product loss under Improved, which the user's decision rested on. This follows the #147 lesson on results recorded later.
+
 ## Applications
 
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
