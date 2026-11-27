@@ -67,6 +67,9 @@ class FactorySession final : public kinetra_lab::Session {
             if (inspection.close)
                 controller_.clear_selected_mover();
         }
+        // Lit only where a click would reach it: not under the debug menu or the inspector.
+        start_lit_ = !captured && !inspection.captured &&
+                     start_button(camera.viewport).overlaps({input.mouse, input.mouse});
         controller_.handle_input(elapsed, input, camera, {captured || inspection.captured, debug_});
         if (before != controller_.selected_mover())
             inspector_.reset();
@@ -87,6 +90,9 @@ class FactorySession final : public kinetra_lab::Session {
         draw_hud(
             runtime, simulation,
             {statistics_, controller_.selected_producer(), controller_.description(), controller_.message()});
+        // Below the panels, which cover it while they are open.
+        if (controller_.awaiting_start())
+            draw_start_button(runtime, start_button(runtime.camera.viewport), start_lit_);
         if (menu_.visible)
             menu_.draw(runtime, controller_.menu(layer_color));
         const auto selected = controller_.selected_mover();
@@ -161,6 +167,8 @@ class FactorySession final : public kinetra_lab::Session {
     DebugMenu menu_;
     InspectorView inspector_;
     bool statistics_{true}, debug_{true}, frame_times_{};
+    /// Whether the pointer was over the RUN button in the last advance(), which lights it.
+    bool start_lit_{};
     kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     SettingsOverlay settings_{
