@@ -63,8 +63,7 @@ class DemoSession final : public Session {
             commands.pointer = PointerCommand{PointerAction::clear_selection, input.mouse};
         application_.advance(elapsed, commands, camera);
         const auto after = application_.scene().selected_agent();
-        if (bool(before) != bool(after) ||
-            (before && after && (before->x != after->x || before->y != after->y)))
+        if (before != after)
             inspector_.reset();
         panel_.observe(camera);
     }
