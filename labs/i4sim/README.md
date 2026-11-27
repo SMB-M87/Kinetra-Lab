@@ -57,14 +57,16 @@ CMake copies the catalog to `i4sim-blueprints/` beside the executables, and the 
 The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`:
 
 ```sh
-./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --ticks 50000 --seed 42 --output /tmp/i4sim-results
+./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --ticks 1000000 --seed 42 --output /tmp/i4sim-results
 ```
+
+It prints the ticks it ran, the completed products and the ticks per second of the tick loop, for example `i4sim: 1000000 ticks, 1034 completed products, 77502 ticks/s`. The rate depends on the machine and the blueprint: on the cloud machine of the [performance](../../docs/performance.md) page, a few hundred thousand on the smallest factories and about 10,000 on `8640x4800`.
 
 | Option | Effect |
 | --- | --- |
 | `--blueprint FILE` | Load this file directly; with a `scenario` section, apply it |
 | `--blueprints DIR` | Catalog directory of the blueprint screen |
-| `--ticks N` | Batch mode: run N ticks without a window, or fewer when the blueprint's tick cap comes first. Needs `--blueprint` |
+| `--ticks N` | Batch mode: run N ticks (up to 100,000,000) without a window, as fast as the processor allows, or fewer when the blueprint's tick cap comes first, and report the ticks per second. `--ups` does not apply. Needs `--blueprint` |
 | `--output DIR` | Batch mode: write `summary.json` with run totals and per-mover, per-producer and per-product counters. A graphical session writes no summary |
 | `--seed N` | Seed of the workload; 42 by default |
 | `--run`, `--ups N` | Graphical: start every loaded blueprint running, not only showcase scenes, and its ticks per second (1 to 10000, default 200) |
