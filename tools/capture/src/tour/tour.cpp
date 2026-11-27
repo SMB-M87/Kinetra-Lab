@@ -399,6 +399,9 @@ void Tour::click_menu_page_row(std::size_t row, std::size_t rows) {
 }
 
 void Tour::click_menu_footer(kinetra::FooterButton button, std::size_t rows) {
+    if (!in_menu() && !session().status().starts_with("Loadscreen"))
+        throw std::runtime_error("The tour clicked a menu footer while a session runs outside i4sim's "
+                                 "blueprint screen");
     // i4sim's blueprint screen is a menu with LAUNCHER on every page; a menu with as many
     // rows puts its footer where i4sim's is.
     const auto x = in_menu()

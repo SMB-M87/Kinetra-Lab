@@ -25,7 +25,8 @@ struct Options {
 };
 
 /// Lab's launcher keys: no menu key and no Escape shutdown. Sessions leave through their
-/// settings panel (LAUNCHER, EXIT) and the window's close button.
+/// settings panel (SCENARIOS, DIFFICULTY or BLUEPRINTS, and EXIT), the LAUNCHER button of
+/// the page that leads to, and the window's close button.
 inline const kinetra::LauncherBindings bindings{std::nullopt, false};
 
 /// Registrations of the bundled applications, indexed by Variant. Each factory resets the

@@ -102,7 +102,9 @@ class FactorySession final : public kinetra_lab::Session {
     SessionRequest request() const override {
         if (exit_ || settings_.request() == SessionRequest::exit)
             return SessionRequest::exit;
-        if (leave_ || settings_.request() == SessionRequest::menu)
+        // Only the blueprint screen asks for the menu: the settings panel's first button is
+        // BLUEPRINTS, whose request the session serves itself in advance().
+        if (leave_)
             return SessionRequest::menu;
         return SessionRequest::none;
     }

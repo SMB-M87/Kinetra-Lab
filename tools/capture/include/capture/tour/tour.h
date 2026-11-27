@@ -128,9 +128,10 @@ class Tour {
     /// Clicks row `row` of a kinetra::LaunchMenu page that lists `rows` rows: the launcher's
     /// own menu, its configuration page, or i4sim's blueprint screen.
     void click_menu_page_row(std::size_t row, std::size_t rows);
-    /// Clicks `button` below a menu page that lists `rows` rows: the launcher's own page, or,
-    /// while i4sim runs, its blueprint screen, whose LAUNCHER shows on every page. Throws
-    /// std::runtime_error when the page does not show the button.
+    /// Clicks `button` below the menu page that shows, which lists `rows` rows: the
+    /// launcher's own page, or, while i4sim runs, either page of its blueprint screen, whose
+    /// LAUNCHER shows on every page. Throws std::runtime_error when the page does not show
+    /// the button, or when a session runs that is not on i4sim's blueprint screen.
     void click_menu_footer(kinetra::FooterButton button, std::size_t rows);
 
     // The debug menu of the running session.
