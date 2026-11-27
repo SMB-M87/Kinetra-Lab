@@ -1,6 +1,6 @@
 # i4sim: RECOVERY detour past a corner
 
-Status: implemented · Branch: `fix/i4sim-recovery-corner` (Lab), `fix/border-face-at-rest` (Kinetra) · Related: [roadmap item](../roadmap.md#later), [phase 7, open points](2026-11-21-i4sim-passing-under-pressure.md#open-points), [Kinetra's border corner slide](../../external/Kinetra/docs/design/2026-11-19-border-corner-slide.md)
+Status: implemented · Branch: `fix/i4sim-recovery-corner` (Lab), `fix/border-face-at-rest` (Kinetra) · Related: [Lab roadmap](../roadmap.md), [phase 7, open points](2026-11-21-i4sim-passing-under-pressure.md#open-points), [Kinetra's border corner slide](../../external/Kinetra/docs/design/2026-11-19-border-corner-slide.md)
 
 With route recovery (RECOVERY) on, mover 18 on `4320x2400` under Improved stops for good 3 mm beside a blocked cell, in six of the 48 runs of the tuning-stall harness. The cause is not the detour: it is Kinetra's `constrain_borders`, which beside the end of a wall picks the face to constrain by the time the body would reach it, and lets a drift of 3e-5 mm per tick toward a face 3 mm away decide. This change gives that choice a time horizon in Kinetra; Lab records the measurement and closes the roadmap item.
 
@@ -25,7 +25,7 @@ Replayed on 2026-11-27 at Lab `a83d82d` (Kinetra `e3ad07c`) with the [tuning-sta
 
 1. At tick 346 mover 18 (half extents 77.5 by 77.5 mm) has made no progress for the stall limit and `recover_route` (`labs/i4sim/src/simulation/routing.cpp:121`) gives it a `kinetra::Navigation` detour from (872.9, 2162.9) to its parking place (800.5, 1359.5): (720, 2160), (720, 1800), (840, 1680), (800.5, 1359.5).
 2. Navigation plans a circle of radius `max(half_extents) + 3` = 80.5 mm. The leg from (720, 1800) to (840, 1680) passes the bottom-right corner (720, 1680) of the blocked cell centered at (600, 1560) at 84.9 mm, which a circle clears but the square body does not: its corner reaches 109.6 mm along the diagonal. `constrain_borders` handles that as it should: from tick 784 the mover slides right along the cell's floor (y = 1680, its top at 1757.5 − 77.5), turns toward its parking place and comes to rest at (800.506, 1757.5), 3 mm right of the cell's side x = 720, its top flush with the floor.
-3. From there the last leg runs straight up to (800.5, 1359.5), clear of the cell by 3 mm. The mover never takes it: every tick its seek asks for (0, −0.6) mm/tick² and the border constraint returns (0, 0.6), so it stands still until the end of the run with velocity (−2.98e-5, 0).
+3. From there the last leg runs straight up to (800.5, 1359.5), clear of the cell by 3 mm. The mover never takes it: every tick its seek asks for (0, −0.6) mm/tick² and the border constraint corrects it by (0, 0.6) to (0, 0), so it stands still until the end of the run with velocity (−2.98e-5, 0).
 4. Why: for the cell's floor segment, `constrain_borders` (`external/Kinetra/src/simulation/priority_steering.cpp:8`) finds the body beside the segment's end, with gaps (3.006, 0). The rule from the [border corner slide](../../external/Kinetra/docs/design/2026-11-19-border-corner-slide.md#decisions) constrains the face the body would reach last at its current velocity, and a face it does not approach counts as never reached. The drift of 2.98e-5 mm/tick toward the side reaches x after 100,000 ticks; y, which the body does not approach, never. So y is constrained, with a gap of 0: the floor brakes the move up along the side. The side segment, beside its own end, makes the same choice.
 5. Nothing frees it: at x ≈ 800 a float steps by 6.1e-5 mm, so the drift of 3e-5 never moves the body, and the seek toward x = 800.5 keeps the drift alive. RECOVERY plans again every few hundred ticks and gets the same last leg.
 
@@ -53,7 +53,7 @@ Replayed on 2026-11-27 at Lab `a83d82d` (Kinetra `e3ad07c`) with the [tuning-sta
 | Velocity used ✱ | Still the current velocity | Tried first: judging by velocity plus requested acceleration frees mover 18 but makes three i4sim cases fail (a mover without path planning and two showcase scenes no longer finish their legs), as the corner slide's design predicted |
 | Pull requests ✱ | One in Kinetra (fix, tests, contract), one in Lab (pointer, this document, roadmap) | The behavior change is Kinetra's; this document lives in Lab, where the problem, the measurement and the item are |
 | Drift bound ✱ | Left as a named limit (Kinetra#69 review round 1) | A body resting closer to the far face than the horizon times its drift (about 1.6e-4 for 3e-5) still gets the old choice and can stay braked at large coordinates. Treating an approach that cannot change the float position as no approach would cover it, but it is a different rule and would move today's measurements; nothing measured hits the bound |
-| Benchmark runs that end worse ✱ | Accepted | With RECOVERY on, three of the twelve benchmark runs now end with a mover sealed in by parked neighbors, the documented standstill that *make way* addresses; the change only steers those runs elsewhere. The harness's stuck runs drop from 7 to 1 of 48 and nothing else stalls in a new way (see [Verification](#verification)) |
+| Benchmark runs that change ✱ | Accepted | With RECOVERY on, three of the twelve benchmark runs now end with a mover sealed in by parked neighbors, the documented standstill that *make way* addresses; the change only steers those runs elsewhere. With RECOVERY off, two Improved runs on `3840x2400` move as well, back to the values of the 2026-11-19 baseline (seed 42: 54 → 59 products, 1 → 3 contacts; seed 915839214: 60 → 59 products, 18 → 0 contacts); the i4sim tests README records them. The harness's stuck runs drop from 7 to 1 of 48 and nothing else stalls in a new way (see [Verification](#verification)) |
 
 ## Design
 
@@ -73,7 +73,7 @@ The takeaway: only the step marked *never* is new. Mover 18's side at 100,000 ti
 ## Affected areas
 
 - Kinetra: `src/simulation/priority_steering.cpp` (the horizon), `include/kinetra/simulation/steering.h` (contract of `constrain_borders`), `docs/engine/navigation.md`, `tests/weighted_navigation_tests.cpp` (two cases).
-- Lab: the `external/Kinetra` pointer, this document and the index, `docs/roadmap.md` (item removed). The phase 7 design document keeps its open point as history.
+- Lab: the `external/Kinetra` pointer, which also brings Kinetra#70 (runtime settings panel, already recorded by Lab `main`) and Kinetra#71 (ADR 0018, docs only); this document and the index; `docs/roadmap.md` (item removed); the benchmark note in `labs/i4sim/tests/README.md`; the sentence in `labs/i4sim/README.md` that pointed to the Kinetra roadmap item ADR 0018 replaced. The phase 7 design document keeps its open point as history.
 - Consumers: only i4sim calls `priority_steer` and `constrain_borders`.
 
 ## Test plan
@@ -133,6 +133,7 @@ The three runs that now end with a stuck mover were replayed: mover 0 on `MAS-de
 | Kinetra: `clang-format --dry-run --Werror` on the changed sources; `python3 tools/check_docs.py` | Clean; all links resolve |
 | Lab: `cmake --build --preset release` for the i4sim targets, `ctest --preset release -R '^kinetra_i4sim'` | Every simulation, golden, pressure and controller case passes; golden and pressure lines unchanged; again after merging `main` with Kinetra-Lab#140 (160 of 160) |
 | Lab: `python3 external/Kinetra/tools/check_docs.py`, `check_copies.py` with the terms above | All links resolve; hits judged in [Review](#review) |
+| i4sim captures (`i4sim`, `i4sim-debug`, `i4sim-clip`, `i4sim-debug-clip`, the six `i4sim-showcase-*-clip`): `kinetra_capture` in the `graphics` preset with the pointer at Kinetra `da98dfa` (Lab `main`) and at `9841a50` | All 1776 rendered frames byte-identical, so no capture is stale and none is refreshed |
 | Both pull requests' CI | Full level; recorded on the pull requests |
 | Lab after merging `main` (pointer at Kinetra `9841a50`): `cmake --build --preset release`, `ctest --preset release -LE soak` | 352 of 352 passed; Kinetra#70 changes only the runtime settings panel, which i4sim's logic does not use |
 
@@ -142,9 +143,9 @@ Title: `fix(i4sim): free mover 18 beside a cell corner under route recovery`
 
 Summary: records Kinetra#69, which lets a body at rest beside a wall's end move along the other face. With RECOVERY on, mover 18 on `4320x2400` no longer stands still 3 mm beside a blocked cell; the tuning-stall harness goes from 7 to 1 stuck run of 48. Closes the roadmap item *RECOVERY detour past a corner*.
 
-Changes: the `external/Kinetra` pointer; this design document and its index row; the roadmap item removed.
+Changes: the `external/Kinetra` pointer (with Kinetra#69, #70 and #71); this design document and its index row; the roadmap item removed; the benchmark note in `labs/i4sim/tests/README.md`; `labs/i4sim/README.md` names ADR 0018.
 
-Dependencies and merge order: Kinetra#69 merged first, with a merge commit (`9841a50`). Lab `main` then recorded Kinetra#70's branch commit, so merging `main` here conflicted on the pointer. Its resolution is Kinetra `main` at `9841a50`, which holds both, and this pull request was verified again with it. The pointer is then on Kinetra `main`, so no pointer-only pull request follows unless Kinetra moves on.
+Dependencies and merge order: Kinetra#69 merged first, with a merge commit (`9841a50`). Lab `main` then recorded Kinetra#70's branch commit, so merging `main` here conflicted on the pointer. Its resolution is Kinetra `main` at `9841a50`, which holds both, and this pull request was verified again with it. The pointer is then on Kinetra `main`, so no pointer-only pull request follows unless Kinetra moves on. Open Lab pull requests that also move the pointer (the review names #149, #150, #152 and #154) follow a Kinetra commit with Kinetra#69 once this merges. Their Improved measurements were taken without it.
 
 Follow-up: none new; the remaining stuck runs belong to *Stall detection and remedies in i4sim*.
 
@@ -153,6 +154,7 @@ Follow-up: none new; the remaining stuck runs belong to *Stall detection and rem
 For the user's review (decisions taken without the user):
 - The fix in Kinetra rather than in route recovery, the horizon `max_speed / max_acceleration + border_lookahead`, and keeping the current velocity for the choice.
 - Leaving the drift bound (below) as a named limit.
+- With RECOVERY off, Improved on `3840x2400` changes in two benchmark runs (54 → 59 and 60 → 59 products; 1 → 3 and 18 → 0 contacts), back to the 2026-11-19 values.
 - Accepting that three benchmark runs with RECOVERY on now end with a sealed-in mover (one of them, `MAS-demonstrator` seed 915839214, completes 10 products instead of 14) while the harness's stuck runs drop from 7 to 1.
 
 Known and not addressed here:
