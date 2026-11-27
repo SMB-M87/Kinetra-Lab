@@ -3075,6 +3075,18 @@ TEST_CASE("predictive passing leaves a checked make way route under its existing
     CHECK_FALSE(fleet.movers[0].coordination.passing);
 }
 
+TEST_CASE("a force so small that braking never ends still lets stalls be observed") {
+    Simulation simulation(fixture());
+    simulation.set_workload(false);
+    auto settings = simulation.motion_settings();
+    settings.force = 1e-39f;
+    REQUIRE_NOTHROW(simulation.configure_motion(settings));
+    REQUIRE(simulation.move_to(0, {1900, 750}));
+    simulation.run();
+    for (int tick = 0; tick < 200; ++tick)
+        REQUIRE_NOTHROW(simulation.tick());
+}
+
 TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back") {
     // Seed 7 under Reciprocal with MAKE WAY: from tick 10615 mover 8, bound north, pushes
     // mover 7 away from its processing goal 30 mm south of it for over a thousand ticks.

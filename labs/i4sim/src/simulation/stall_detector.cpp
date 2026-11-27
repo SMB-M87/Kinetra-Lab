@@ -1,6 +1,8 @@
 #include "i4sim/simulation/detail/stall_detector.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 
+#include <algorithm>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -35,7 +37,11 @@ StallObservation observation(const MotionSettings &motion) {
     return {.threshold_steps = stall_ticks,
             .excursion = excursion_distance_mm,
             .oscillation_reversals = oscillation_reversals,
-            .lookahead = motion.speed * motion.horizon + braking_distance(motion.speed, motion.force),
+            // A tiny force accepted by configure_motion can make the braking distance
+            // infinite; the whole leg is then within reach, as it was before the engine.
+            .lookahead =
+                std::min(motion.speed * motion.horizon + braking_distance(motion.speed, motion.force),
+                         std::numeric_limits<float>::max()),
             .clearance = clearance,
             .stop_speed = stop_speed,
             .opposing_cosine = opposing_cosine,

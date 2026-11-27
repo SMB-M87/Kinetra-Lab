@@ -156,10 +156,11 @@ Step 3, Full level (a new public engine header):
 
 | Behavior | Test |
 | --- | --- |
-| The detector's contract at two world scales: threshold and end, each reason and its order, what is no blocker and no push, oscillation, restarts, absent movers, invalid input that changes nothing | Kinetra `kinetra_stall_detector_tests` (13 cases; one fails without the push branch) |
+| The detector's contract at two world scales: threshold and end, each reason and its order, what is no blocker and no push, oscillation, restarts, absent movers, a shorter span, a goal at the origin, invalid input that changes nothing | Kinetra `kinetra_stall_detector_tests` (15 cases; the push case fails without the push branch, the last two without their fixes) |
 | An external consumer can use it | Kinetra's consumer check |
 | i4sim's diagnoses stay, and motion does not change | the existing stall cases of `kinetra_i4sim`, the golden and pressure suites, and the long benchmark with MAKE WAY |
 | The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) is `pushed_back` by mover 8 | `kinetra_i4sim:the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back` |
+| A force so small that the braking distance is infinite still lets a tick observe stalls | `kinetra_i4sim:a force so small that braking never ends still lets stalls be observed` (fails without the clamp) |
 
 ## Verification
 
@@ -210,10 +211,10 @@ The harness is identical run for run. The long runs diverge the way any small ch
 - Products and plans stay level, and no contact happens in a plan.
 - Waiting falls under both profiles, and Improved's own contacts beside parked movers fall.
 
-Step 3, with Kinetra `7eb05cb` (`feat/stall-detector`):
+Step 3, with Kinetra `24fb31d` (`feat/stall-detector`):
 
-- Kinetra's release preset with warnings as errors: 325 of 325 tests pass, and the external consumer builds and runs headless.
-- Lab: 172 of 172 i4sim cases pass.
+- Kinetra's release preset with warnings as errors: 327 of 327 tests pass, and the external consumer builds and runs headless.
+- Lab: 173 of 173 i4sim cases pass.
 - The 50,000-tick benchmark with MAKE WAY gives the base's numbers exactly (Reciprocal 344 products, 104,020 waiting ticks, no contact; Improved 348, 7,638, 836), so detection changes no motion.
 - Its episodes, by reason:
   - Reciprocal: 412 `pushed_back` of 631, the count the classifying replay found, with 166 `unknown`, 42 `opposing_mover`, 6 `stationary_blocker` and 5 `oscillating`.
@@ -228,7 +229,15 @@ Step 3, with Kinetra `7eb05cb` (`feat/stall-detector`):
 - The coordinator's `cancel` also ends a retry wait, so a new goal for a mover outside any plan cut its 120-tick wait after a failed plan short. The adapter now cancels only a participant.
 - A mover whose plan completed could form its next plan in the same step from its old, overridden route. The adapter now gives a participant no heading, so the next plan forms a tick later from the route planned again. Two pressure lines moved by a tick of waiting for it.
 
-Two smaller fixes followed: an end reason for a participant on a make-way trip, and `details` builds the plan list only for a participant. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
+Two smaller fixes followed: an end reason for a participant on a make-way trip, and `details` builds the plan list only for a participant.
+
+**Step 3, the author's review** (`/code-review` at high, the Lab diff and Kinetra's). Three issues:
+
+- A shorter movers span left the episodes of the indices it dropped active, and a returning index took them over. Those episodes now end, with events.
+- A fresh track's zero goal and anchor matched a mover whose goal is the world origin, so its first move toward the goal read as a reversal. A track now anchors at the mover on its first observed step.
+- In i4sim a tiny force that `configure_motion` accepts made the lookahead infinite, which the engine rejects in every tick, after motion. The adapter clamps it.
+
+Each now has a case that fails without its fix. Three documentation gaps were closed too: the README's module row, the testing table, and the validation of absent movers. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
 
 ## Pull request
 
@@ -255,14 +264,14 @@ Step 3. Title: `feat(i4sim): observe stalls with Kinetra's StallDetector`. Kinet
 **Summary.** Step 3 of 5. Stall detection moves into the engine as `StallDetector`, with a new reason, `pushed_back`, for a mover pushed away from its goal by a neighbor driving through its place. i4sim feeds it and records its episodes. Motion does not change.
 
 **Changes.**
-- Kinetra: `stall_detector.h` and `.cpp`, 13 contract cases, the consumer check, the navigation contract, and the module and test READMEs. The roadmap item moves to *Now*.
+- Kinetra: `stall_detector.h` and `.cpp`, 15 contract cases, the consumer check, the navigation contract, the README, the testing table, and the module and test READMEs. The roadmap item moves to *Now*.
 - Lab:
   - i4sim's `StallDetector` becomes an adapter over the engine's.
   - `StallReason` and `StallDetails` alias the engine's types, and the event name `pushed_back` is added.
   - A recorded case pins `pushed_back`.
   - The architecture, i4sim and tests pages are updated.
 
-**Verification.** Kinetra 325 of 325, the consumer, Lab i4sim 172 of 172. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
+**Verification.** Kinetra 327 of 327, the consumer, Lab i4sim 173 of 173. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
 
 **Dependencies and merge order.** Kinetra's step 3 sits on Kinetra's step 2 (ADR) and merges after it; Lab's step 3 sits on Lab's step 2 and merges after it and after Kinetra's step 3.
 
