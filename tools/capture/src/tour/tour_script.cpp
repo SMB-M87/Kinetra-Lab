@@ -110,9 +110,9 @@ void demo_chapter(Tour &tour) {
     tour.caption("LAYERS: WHAT DEBUG MODE DRAWS, EACH IN ITS COLOR");
     tour.click_row("LAYERS");
     tour.pause();
-    // STEERING PROBES and COLLISION SHAPES start off: on for a look, then off with VECTORS,
-    // so HOME RANGE shows on a quiet scene.
-    click_rows(tour, {"STEERING PROBES", "COLLISION SHAPES"});
+    // STEERING PROBES, COLLISION SHAPES and ACTIVE AGENTS start off: all five layers on for a
+    // look, then three off, so HOME RANGE shows on PATHS and ACTIVE AGENTS, as before.
+    click_rows(tour, {"STEERING PROBES", "COLLISION SHAPES", "ACTIVE AGENTS"});
     tour.wait(0.8);
     click_rows(tour, {"STEERING PROBES", "VECTORS", "COLLISION SHAPES"});
     tour.wait(0.8);
@@ -433,9 +433,10 @@ void i4sim_chapter(Tour &tour) {
     tour.caption("LAYERS: ROUTES, FORCES, BORDERS AND DETECTION, PART BY PART");
     tour.click_row("LAYERS");
     tour.pause();
-    click_rows(tour, {"DETECTION", "FORCES", "HEATMAP"});
+    // HEATMAP starts off, so hiding DETECTION and FORCES leaves routes and borders.
+    click_rows(tour, {"DETECTION", "FORCES"});
     tour.wait(2.2);
-    click_rows(tour, {"HEATMAP", "FORCES", "DETECTION"});
+    click_rows(tour, {"FORCES", "DETECTION"});
     tour.wait(1.0);
     tour.caption("TRAFFIC: JUNCTIONS AND CORRIDORS ADMIT ONE DIRECTION AT A TIME");
     tour.click_row("TRAFFIC");

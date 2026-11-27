@@ -255,7 +255,7 @@ TEST_CASE("the keys one to six toggle their layers") {
     frame(controller, camera, key(Key::one));
     CHECK_FALSE(layers.selected(Layer::grid));
     frame(controller, camera, key(Key::two));
-    CHECK_MESSAGE(layers.selected(Layer::heatmap), "the heatmap starts off");
+    CHECK_MESSAGE(layers.selected(Layer::heatmap), "key two turns on the heatmap, which starts off");
     frame(controller, camera, key(Key::three));
     CHECK_FALSE(layers.selected(Layer::paths));
     frame(controller, camera, key(Key::four));

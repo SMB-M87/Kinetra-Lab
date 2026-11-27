@@ -385,7 +385,7 @@ void i4sim_debug_clip(Stage &stage) {
     stage.record(long_clip_frames, no_input);
 }
 
-// i4sim showcase scenes: Debug Mode and every visual layer on, as the session starts, the
+// i4sim showcase scenes: Debug Mode and the default layers on, as the session starts, the
 // debug menu closed, at the session's own rate.
 
 /// Records one cycle of the showcase scene in `showcase/<scene>.json`. The clip ends in the

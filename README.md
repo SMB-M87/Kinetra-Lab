@@ -38,7 +38,7 @@ The reference for Kinetra's mechanisms: physics and contacts, A* navigation, ste
 
 | Normal view | Debug view |
 | --- | --- |
-| ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with steering probes, vectors and collision shapes: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
+| ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with vectors and paths: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
 
 The other three scenarios each show one mechanism, from its start, in Debug Mode:
 
