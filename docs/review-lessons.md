@@ -59,6 +59,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When a policy gates a transition, gate every code path that performs that transition, not only the one the replay showed** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
   DEPARTURE CHECK gated the head-of-queue departure in `approach`, but `schedule()` performs the same departure for a rescheduled product that heads an empty queue at once. Search for every caller that sets the goal (`goals.set`) before choosing where the gate goes.
 
+- **Check a grid id before indexing per-cell data with it** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  `WeightedGrid::cell` returns `-1` off the grid, and `FloorPlan::processing_cell` indexes without a check. New code that computes an id from a mover's position must check it, as the constructor does, or use an accessor that does.
+
 - **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
   Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
 
