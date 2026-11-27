@@ -106,7 +106,7 @@ stateDiagram-v2
     moving --> moving: new goal with a route
 ```
 
-The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces all of this to the HUD's status, and `Simulation::stalled` reports a mover that made no progress for 120 ticks while no coordination held it back.
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls).
 
 ## Execution
 
@@ -227,13 +227,13 @@ with a bounded visibility graph using the original grid waypoints and expanded
 rectangular mover corners. The same refinement runs after sustained lack of
 progress, including movers that have stalled for at least 100 ticks. This supplies
 safe aisle approaches without a circular envelope excluding a tight parking slot.
-Transport allocation also requires a clear departure route around stationary/stalled
-bodies, so a reserved mover trapped behind parked neighbors is skipped in favor
-of an available mover. Refinement considers current stationary/stalled bodies, preserves grid clearance
-and falls back to the weighted route if no connection exists or the 256-node
-budget is exceeded. Other moving traffic still uses local avoidance. This is
-separate from optional geometric recovery and does not guarantee progress in
-arbitrary crowds.
+Initial transport allocation requires a clear departure route around stationary or
+stalled bodies. If refinement finds no connection or exceeds its 256-node budget,
+allocation skips that mover. Ordinary routing can use the weighted route in those
+cases. When a product already has a mover and reaches the front of the producer's
+queue, dispatch uses ordinary routing. The [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem)
+shows how that can leave a mover with an obstructed first leg. Other moving
+traffic still uses local avoidance. Optional geometric recovery is a separate policy.
 
 Route recovery converts millimeter geometry into units of one planner resolution (a quarter of the smaller factory cell dimension), then converts the route back to millimeters. This keeps long factory routes within the planner's spatial query budget while retaining the configured resolution and mover clearance.
 

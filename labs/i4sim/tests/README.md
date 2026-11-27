@@ -209,7 +209,9 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 
 The `MAS-demonstrator` fixture and the catalog's `3840x2400` and `8640x4800` run for 50000 ticks each with seeds 42 and 915839214.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
-`--ticks` accepts 1 through 1000000; `--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv` (tick, kind, plan, both movers, end reason, border and passing flags), so a contact or plan can be replayed from its seed and tick. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
+`--ticks` accepts 1 through 1000000. Repeat `--blueprint <file>` or `--seed <unsigned 32-bit integer>` to select floors and seeds. Each selected floor runs with every selected seed. Omit either option to keep its default set. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
+
+`--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv`. For a stall event, `first` is the affected mover's index and `stall_reason`, `stall_blocker` and `stall_detected_at` carry the onset diagnosis. Use separate output directories for passing on and off to keep both logs. The benchmark's `stuck_movers` and `stuck_at_end` still count sustained lack of progress toward the goal by straight-line distance. The shorter route-progress stall episodes support inspection and replay.
 The CSV has one line per blueprint and seed:
 
 | Column | Meaning |

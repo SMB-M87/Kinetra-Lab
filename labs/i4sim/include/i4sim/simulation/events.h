@@ -18,6 +18,27 @@ enum class EventKind {
     passing_ended,
     /// A mover started touching another mover or a border.
     contact,
+    /// A mover began a sustained period without route progress.
+    stall_started,
+    /// A previously reported stall ended because progress resumed or observation reset.
+    stall_ended,
+};
+
+/// Evidence available when the detector observed the start of a stall.
+enum class StallReason {
+    stationary_blocker,
+    opposing_mover,
+    oscillating,
+    unknown,
+};
+
+/// Diagnosis at the onset of one observed stall episode.
+struct StallDetails {
+    /// Tick at which sustained lack of progress was first reported.
+    std::uint64_t detected_at{};
+    StallReason reason{StallReason::unknown};
+    /// Index into Simulation::movers() for a stationary blocker or opposing mover.
+    std::optional<std::size_t> blocker{};
 };
 
 /// Why a passing plan was removed. When several reasons apply in the same tick, the
@@ -61,10 +82,11 @@ struct SimulationEvent {
     std::uint64_t tick{};
     EventKind kind{};
     /// Passing plan the event belongs to; ids start at 1 and are unique per simulation.
-    /// 0 for contacts.
+    /// 0 for events outside a passing plan.
     std::uint64_t plan{};
     /// Passing: the two participants. Contact: the two movers, or for a border contact
-    /// the mover and the index into `Simulation::borders()`.
+    /// the mover and the index into `Simulation::borders()`. Stall: first entry is the
+    /// affected mover and the second entry is unused.
     std::array<std::size_t, 2> movers{};
     /// `passing_formed`: the entry and exit target of each participant, in the order
     /// of `movers`.
@@ -75,6 +97,8 @@ struct SimulationEvent {
     bool border{};
     /// `contact`: true when a participant was in a passing plan in that tick.
     bool passing{};
+    /// Stall events carry the onset diagnosis, including when the episode ends.
+    std::optional<StallDetails> stall{};
 };
 
 /// Stable lower-case name of `kind`, for logs, CSV columns and test output.
@@ -88,6 +112,25 @@ constexpr std::string_view name(EventKind kind) {
         return "passing_ended";
     case EventKind::contact:
         return "contact";
+    case EventKind::stall_started:
+        return "stall_started";
+    case EventKind::stall_ended:
+        return "stall_ended";
+    }
+    return "unknown";
+}
+
+/// Stable lower-case name of the diagnosis for event logs.
+constexpr std::string_view name(StallReason reason) {
+    switch (reason) {
+    case StallReason::stationary_blocker:
+        return "stationary_blocker";
+    case StallReason::opposing_mover:
+        return "opposing_mover";
+    case StallReason::oscillating:
+        return "oscillating";
+    case StallReason::unknown:
+        return "unknown";
     }
     return "unknown";
 }

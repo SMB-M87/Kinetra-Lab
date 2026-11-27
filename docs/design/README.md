@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-26 | [i4sim stall detection](2026-11-26-i4sim-stall-detection.md) | accepted |
+| 2026-11-26 | [i4sim stall detection](2026-11-26-i4sim-stall-detection.md) | implemented |
 | 2026-11-24 | [Ubuntu as the Linux CI reference](2026-11-24-ubuntu-ci.md) | implemented |
 | 2026-11-24 | [Drop the i4sim loadscreen clip](2026-11-24-drop-i4sim-loadscreen-clip.md): the root README's loadscreen GIF and its sentence go, and with them the clip's scene, script, GIF and every page that names it | implemented |
 | 2026-11-24 | [Kinetra's .claude/ does not build Lab](2026-11-24-kinetra-claude-unread.md): a pointer move whose Kinetra range adds only `.claude/` runs only the docs check | implemented |

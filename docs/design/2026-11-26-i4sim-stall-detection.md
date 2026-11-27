@@ -1,6 +1,6 @@
 # i4sim stall detection
 
-Status: accepted · Branch: `feat/i4sim-stall-detection` · Related: [Lab roadmap](../roadmap.md), [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md#step-4-why-two-movers-stand-still-near-a-destination)
+Status: implemented · Branch: `feat/i4sim-stall-detection` · Related: [Lab roadmap](../roadmap.md), [i4sim passing under pressure](2026-11-21-i4sim-passing-under-pressure.md#step-4-why-two-movers-stand-still-near-a-destination)
 
 Record why movers stop making route progress and measure whether predictive passing affects the number of stuck movers. This is the first step of stall detection and remedies, which informs adoption of shared passing in Demo and Dotio.
 
@@ -42,9 +42,9 @@ The phase 7 replay on `4320x2400`, seed 2026, also left an open question about m
 
 ## Design
 
-Observe the completed tick after motion, production and shuttle updates. Per mover, reset the episode when route progress returns or the mover becomes ineligible. Within a no-progress interval, track direction reversals with a two-millimeter deadband to ignore small position adjustments. At the stall threshold, examine the forward route leg within steering reach. A stationary mover on that leg supplies a blocker. Two active movers whose swept route legs are blocked by each other count as a standoff when their headings oppose and each moves at most 0.05 mm/tick along its leg. Two meaningful reversals supply evidence of oscillation. When none applies, report unknown.
+Observe the completed tick after motion, production and shuttle updates. Reset the episode when the route progress counter restarts, the destination changes or the mover becomes ineligible. Within a no-progress interval, track direction reversals with a two-millimeter deadband to ignore small position adjustments. At the stall threshold, examine the forward route leg within steering reach. A stationary mover on that leg supplies a blocker. Two active movers whose swept route legs are blocked by each other count as a standoff when their headings oppose and each moves at most 0.05 mm/tick along its leg. Two meaningful reversals supply evidence of oscillation. When none applies, report unknown.
 
-The detector owns its observation state. The inspector reads the latest completed tick and the opt-in event log receives one start and end per observed episode. The existing HUD and benchmark criteria continue to use their respective route and straight-line thresholds. Begin with a paired Reciprocal sample on `8640x4800` at 50,000 ticks so the phase 7 comparison remains directly comparable.
+The detector owns its observation state. The inspector reads the latest completed tick and the opt-in event log receives episode transitions. Events include the onset information even if logging began after the episode started. The existing route flag and benchmark criteria continue to use their respective route and straight-line thresholds.
 
 ## Affected areas
 
@@ -59,15 +59,62 @@ i4sim simulation, inspector snapshots and motion benchmark. The engine submodule
 
 ## Verification
 
-Pending.
+Local checks on Lab base `87f7a1a` with Kinetra `2f85f15`:
+
+- `cmake --build --preset dev --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark -j 3` with the runtime enabled and developer warnings.
+- `ctest --preset dev -R '^kinetra_i4sim' -j 3 --output-on-failure` passed all 149 cases. The pressure and golden lines retain their recorded values.
+- `python3 external/Kinetra/tools/check_docs.py`, `check_copies.py`, `clang-format --dry-run --Werror` on changed C++ files, and `git diff --check`.
+
+### Paired measurement
+
+Release build on `8640x4800`, Reciprocal, 50,000 ticks, eight seeds, with other traffic policies and recovery off. The first two seeds repeat phase 7's large-floor comparison. Every cell is **passing off → on**.
+
+| Seed | Stuck during run | Stuck at end | Products | Waiting ticks |
+| --- | ---: | ---: | ---: | ---: |
+| 42 | 6 → 11 | 0 → 1 | 95 → 100 | 48,187 → 41,273 |
+| 915839214 | 15 → 11 | 1 → 0 | 93 → 104 | 64,702 → 33,500 |
+| 7 | 7 → 3 | 1 → 0 | 98 → 100 | 39,559 → 26,483 |
+| 1234 | 14 → 7 | 0 → 0 | 94 → 100 | 60,118 → 29,604 |
+| 99 | 7 → 7 | 0 → 1 | 100 → 101 | 49,146 → 30,646 |
+| 2026 | 4 → 6 | 0 → 1 | 101 → 108 | 41,195 → 29,263 |
+| 314159 | 10 → 9 | 0 → 1 | 102 → 97 | 34,841 → 44,412 |
+| 8675309 | 5 → 7 | 1 → 1 | 101 → 101 | 37,267 → 36,290 |
+| Sum of runs | 68 → 61 | 3 → 5 | 784 → 811 | 375,015 → 271,471 |
+
+The increase seen at seed 42 recurs in two other seeds. Four seeds have fewer distinct stuck movers with passing and one is tied. Five movers remain stuck at the end with passing and three without, across the eight runs in each mode. There were no contacts in either mode. The sample covers one floor and one steering profile, and does not settle whether passing affects long-lived stalls across other layouts.
+
+```bash
+for mode in no-predictive-passing predictive-passing; do
+  ./build-release/kinetra_i4sim_motion_benchmark --profile reciprocal --ticks 50000 \
+    --blueprint labs/i4sim/blueprints/8640x4800.json \
+    --seed 42 --seed 915839214 --seed 7 --seed 1234 --seed 99 --seed 2026 \
+    --seed 314159 --seed 8675309 "--$mode" --events "/tmp/i4sim-$mode" > "/tmp/i4sim-$mode.csv"
+done
+```
+
+The `4320x2400` seed-2026 replay also reports `stationary_blocker` on mover 25 at tick 8569. By then mover 25 had tried to go west and its next leg was blocked by mover 22. The departure check replay above concerns its earlier eastbound leg and mover 26.
 
 ## Review
 
-Pending.
+The head-on test showed that Reciprocal can move each body sideways while making almost no forward progress. The classifier now checks velocity projected onto both route legs. A route reset can also occur between completed ticks while preserving the destination. Tests cover a counter reset as well as a changed goal, which prevents stale episodes from being carried across either boundary.
 
 ## Pull request
 
 Title `feat(i4sim): diagnose mover stalls without changing motion`.
+
+**Summary.** Step 1 of Stall detection and remedies in i4sim. The inspector and event log report stall episodes and the evidence available when they start. The current traffic and motion paths do not consume the diagnostics.
+
+**Changes.** Observe the existing route progress counter after each tick. Report stationary blockers, opposing movers, oscillation or unknown. Accept repeatable benchmark seeds and blueprints and record the diagnosis in event CSVs.
+
+**Design.** [i4sim stall detection](2026-11-26-i4sim-stall-detection.md).
+
+**Verification.** All 149 i4sim checks passed, including the original golden and pressure lines, the inspector trace and the new detector tests. Eight 50,000-tick pairs reproduced phase 7's results for its two seeds and measured six additional seeds. Documentation links, format and whitespace passed.
+
+**Review notes.** Check that controlled holds end observations, that same-destination route resets begin a new observation, and that the diagnosis refers to onset rather than to the current position of a neighbor.
+
+**Dependencies and merge order.** Lab only, based on `main`. This merges before any remedy branch.
+
+**Follow-up.** Decide whether dispatch should apply the strict departure check to a mover that already has a product. MAKE WAY and temporary fallback follow that decision.
 
 ## Open points
 

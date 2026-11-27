@@ -6,6 +6,8 @@
 // The `the bundled catalog holds five blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
+#include "i4sim/simulation/detail/simulation_constants.h"
+#include "i4sim/simulation/detail/stall_detector.h"
 #include "i4sim/simulation/flow_metrics.h"
 #include "i4sim/simulation/inspector.h"
 #include "i4sim/simulation/simulation.h"
@@ -542,6 +544,115 @@ TEST_CASE("the corridor fixture stalls head-on without corridor traffic") {
         reference.tick();
     CHECK_MESSAGE((reference.movers()[0].moving() && reference.movers()[1].moving()),
                   "Corridor fixture no longer reproduces the head-on stall");
+}
+
+TEST_CASE("a head-on stall reports its neighbor and ends when the mover is held") {
+    Simulation standstill(corridor_fixture());
+    start_corridor(standstill, false, {1900, 700}, {300, 700});
+    standstill.record_events(true);
+    for (int tick = 0; tick < 1500; ++tick)
+        standstill.tick();
+
+    for (std::size_t mover = 0; mover < 2; ++mover) {
+        const auto diagnosis = standstill.stall_details(mover);
+        CAPTURE(mover);
+        REQUIRE(diagnosis);
+        CHECK(diagnosis->reason == StallReason::opposing_mover);
+        CHECK(diagnosis->blocker == 1 - mover);
+        CHECK(diagnosis->detected_at < standstill.ticks());
+        const auto snapshot = inspect_mover(standstill, mover);
+        CHECK(inspection_value(snapshot, "STALLED") == "YES");
+        CHECK(inspection_value(snapshot, "STALL REASON") == "opposing_mover");
+        CHECK(inspection_value(snapshot, "STALL NEIGHBOR") == standstill.movers()[1 - mover].definition.id);
+    }
+    CHECK(i4sim::test::count(standstill.events(), EventKind::stall_started) == 2);
+    CHECK(i4sim::test::count(standstill.events(), EventKind::stall_ended) == 0);
+    const auto before = standstill.stall_details(0);
+    standstill.toggle_mover(0);
+    standstill.tick();
+    CHECK_FALSE(standstill.stall_details(0));
+    const auto &event = standstill.events().back();
+    CHECK(event.kind == EventKind::stall_ended);
+    CHECK(event.movers[0] == 0);
+    CHECK(event.tick == standstill.ticks());
+    REQUIRE(event.stall);
+    CHECK(event.stall->detected_at == before->detected_at);
+    CHECK_THROWS_AS(standstill.stall_details(2), std::out_of_range);
+}
+
+TEST_CASE("stall diagnosis uses stationary obstacles and meaningful direction reversals") {
+    using namespace i4sim::detail;
+    Fleet fleet;
+    fleet.movers.resize(2);
+    fleet.progress.resize(2);
+    auto &mover = fleet.movers[0];
+    mover.lifecycle = MoverLifecycle::moving;
+    mover.route = {{300, 100}};
+    mover.destination = mover.route.front();
+    mover.body.shape = kinetra::Shape::box;
+    mover.body.half_extents = {20, 20};
+    mover.body.position = {100, 100};
+    auto &neighbor = fleet.movers[1];
+    neighbor.body.shape = kinetra::Shape::box;
+    neighbor.body.half_extents = mover.body.half_extents;
+    neighbor.body.position = {150, 100};
+    StallDetector detector(fleet.movers.size());
+    EventLog log;
+
+    StallReason expected = StallReason::stationary_blocker;
+    bool coordinated = false;
+    SUBCASE("a neighbor blocks the swept next leg") {
+    }
+    SUBCASE("repeated excursions without progress") {
+        neighbor.body.position.y = 300;
+        expected = StallReason::oscillating;
+    }
+    SUBCASE("a controlled hold is not a stall") {
+        mover.coordination.exit_waiting = true;
+        coordinated = true;
+    }
+    SUBCASE("minor jitter alone cannot diagnose oscillation") {
+        neighbor.body.position.y = 300;
+        expected = StallReason::unknown;
+    }
+    for (unsigned tick = 1; tick <= stall_ticks; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        if (expected == StallReason::oscillating)
+            mover.body.position.x = tick % 2 ? 100.f : 105.f;
+        else if (expected == StallReason::unknown)
+            mover.body.position.x = tick % 2 ? 100.f : 101.f;
+        detector.observe(fleet, MotionSettings{}, tick, log);
+        if (tick < stall_ticks)
+            CHECK_FALSE(detector.details(0));
+    }
+    CHECK(log.events().empty());
+    if (coordinated) {
+        CHECK_FALSE(detector.details(0));
+        return;
+    }
+    const auto diagnosis = detector.details(0);
+    REQUIRE(diagnosis);
+    CHECK(diagnosis->reason == expected);
+    CHECK(diagnosis->detected_at == stall_ticks);
+    if (expected == StallReason::stationary_blocker)
+        CHECK(diagnosis->blocker == 1);
+    else
+        CHECK_FALSE(diagnosis->blocker);
+
+    for (const bool new_goal : {false, true}) {
+        CAPTURE(new_goal);
+        auto changed = fleet;
+        auto observing = detector;
+        EventLog transitions;
+        transitions.record(true);
+        changed.progress[0].no_progress = new_goal ? stall_ticks + 1 : 1;
+        if (new_goal)
+            changed.movers[0].destination.x += 1;
+        observing.observe(changed, MotionSettings{}, stall_ticks + 1, transitions);
+        CHECK_FALSE(observing.details(0));
+        REQUIRE(transitions.events().size() == 1);
+        CHECK(transitions.events().front().kind == EventKind::stall_ended);
+    }
 }
 
 TEST_CASE("corridor admission passes opposing movers one at a time in every orientation") {

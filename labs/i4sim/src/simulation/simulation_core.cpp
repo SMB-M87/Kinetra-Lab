@@ -18,7 +18,7 @@ bool SimulationCore::stalled(std::size_t index) const {
 }
 SimulationCore::SimulationCore(Blueprint b, std::uint32_t seed)
     : blueprint_(std::move(b)), floor_(blueprint_), traffic_(floor_), production_(blueprint_, seed),
-      seed_(seed) {
+      stalls_(blueprint_.movers.size()), seed_(seed) {
     for (const auto &definition : blueprint_.movers) {
         Mover m;
         m.definition = definition;
@@ -246,6 +246,7 @@ void SimulationCore::tick() {
     production_.update(goals_now);
     turn_shuttle();
     // Observe the completed tick, at the same point as the batch benchmark.
+    stalls_.observe(fleet_, motion_, ticks_, log_);
     for (auto &mover : fleet_.movers) {
         if (waiting_for_progress(mover)) {
             ++mover.current_wait_ticks;

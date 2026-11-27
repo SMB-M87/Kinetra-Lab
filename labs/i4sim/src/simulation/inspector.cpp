@@ -56,19 +56,27 @@ kinetra::InspectorSnapshot inspect_mover(const Simulation &simulation, std::size
     } else {
         passing.rows.push_back({"PLAN", "NONE"});
     }
+    const auto stall = simulation.stall_details(index);
+    InspectorGroup state{"STATE",
+                         {{"LIFECYCLE", lifecycle_name(mover.lifecycle)},
+                          {"COORDINATION", mover.coordination.corridor_retreating ? "CORRIDOR RETREAT"
+                                           : mover.coordination.passing           ? "PASSING DETOUR"
+                                                                                  : "NONE"},
+                          {"HELD", mover.held ? "YES" : "NO"},
+                          {"PRODUCT", mover.product ? std::to_string(*mover.product) : "NONE"},
+                          {"STALLED", stall ? "YES" : "NO"},
+                          {"CURRENT WAIT", std::to_string(mover.current_wait_ticks) + " TICKS"},
+                          {"TOTAL WAIT", std::to_string(mover.total_wait_ticks) + " TICKS"},
+                          {"DISTANCE", inspector_number(mover.distance) + " MM"},
+                          {"CONTACT", std::to_string(mover.collision_ticks) + " TICKS"}}};
+    if (stall) {
+        state.rows.push_back({"STALL REASON", std::string(name(stall->reason))});
+        state.rows.push_back({"STALL DETECTED", "TICK " + std::to_string(stall->detected_at)});
+        if (stall->blocker)
+            state.rows.push_back({"STALL NEIGHBOR", simulation.movers().at(*stall->blocker).definition.id});
+    }
     return {"MOVER " + std::to_string(index) + " / " + mover.definition.id,
-            {{"STATE",
-              {{"LIFECYCLE", lifecycle_name(mover.lifecycle)},
-               {"COORDINATION", mover.coordination.corridor_retreating ? "CORRIDOR RETREAT"
-                                : mover.coordination.passing           ? "PASSING DETOUR"
-                                                                       : "NONE"},
-               {"HELD", mover.held ? "YES" : "NO"},
-               {"PRODUCT", mover.product ? std::to_string(*mover.product) : "NONE"},
-               {"STALLED", simulation.stalled(index) ? "YES" : "NO"},
-               {"CURRENT WAIT", std::to_string(mover.current_wait_ticks) + " TICKS"},
-               {"TOTAL WAIT", std::to_string(mover.total_wait_ticks) + " TICKS"},
-               {"DISTANCE", inspector_number(mover.distance) + " MM"},
-               {"CONTACT", std::to_string(mover.collision_ticks) + " TICKS"}}},
+            {std::move(state),
              {"MOTION",
               {{"PROFILE", profile_name(settings.profile)},
                {"SPEED LIMIT", inspector_number(settings.speed) + " MM/TICK"},

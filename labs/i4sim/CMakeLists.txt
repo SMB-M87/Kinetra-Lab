@@ -4,7 +4,8 @@ add_library(kinetra_i4sim_logic src/controller.cpp
     src/simulation/flow_metrics.cpp src/simulation/floor_plan.cpp src/simulation/geometry.cpp
     src/simulation/goals.cpp src/simulation/inspector.cpp src/simulation/motion_step.cpp src/simulation/predictive_passing.cpp
     src/simulation/production.cpp src/simulation/routing.cpp src/simulation/shuttle.cpp
-    src/simulation/simulation.cpp src/simulation/simulation_core.cpp src/simulation/traffic.cpp)
+    src/simulation/simulation.cpp src/simulation/simulation_core.cpp src/simulation/stall_detector.cpp
+    src/simulation/traffic.cpp)
 target_include_directories(kinetra_i4sim_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab: the controller uses the headless input policy in kinetra_lab/input.h.
 target_link_libraries(kinetra_i4sim_logic PUBLIC Kinetra::Simulation kinetra_lab

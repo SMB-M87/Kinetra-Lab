@@ -7,6 +7,7 @@
 #include "i4sim/testing/event_counts.h"
 #include "i4sim/testing/showcase.h"
 
+#include <charconv>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -15,17 +16,28 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 /// Writes every recorded event of one run as CSV, so a contact or a passing plan can be
 /// replayed from its blueprint, seed and tick.
 void write_events(const std::filesystem::path &file, std::span<const i4sim::SimulationEvent> events) {
     std::ofstream out(file);
-    out << "tick,kind,plan,first,second,end,border,passing\n";
-    for (const auto &event : events)
+    out << "tick,kind,plan,first,second,end,border,passing,stall_reason,stall_blocker,stall_detected_at\n";
+    for (const auto &event : events) {
         out << event.tick << ',' << i4sim::name(event.kind) << ',' << event.plan << ',' << event.movers[0]
             << ',' << event.movers[1] << ',' << (event.end ? i4sim::name(*event.end) : "") << ','
-            << event.border << ',' << event.passing << '\n';
+            << event.border << ',' << event.passing << ',';
+        if (event.stall) {
+            out << i4sim::name(event.stall->reason) << ',';
+            if (event.stall->blocker)
+                out << *event.stall->blocker;
+            out << ',' << event.stall->detected_at;
+        } else {
+            out << ",,";
+        }
+        out << '\n';
+    }
     if (!out)
         throw std::runtime_error("Cannot write event log: " + file.string());
 }
@@ -39,6 +51,8 @@ int main(int argc, char **argv) {
         auto profile = SteeringProfile::improved;
         std::uint64_t ticks = 50000;
         std::optional<std::filesystem::path> event_directory;
+        std::vector<std::uint32_t> seeds;
+        std::vector<std::filesystem::path> blueprints;
         for (int i = 1; i < argc; ++i) {
             const std::string option = argv[i];
             if (option == "--predictive-passing") {
@@ -82,6 +96,15 @@ int main(int argc, char **argv) {
             } else if (option == "--events") {
                 event_directory = value;
                 std::filesystem::create_directories(*event_directory);
+            } else if (option == "--blueprint") {
+                blueprints.emplace_back(value);
+            } else if (option == "--seed") {
+                std::uint32_t seed{};
+                const auto *end = value.data() + value.size();
+                const auto parsed = std::from_chars(value.data(), end, seed);
+                if (parsed.ec != std::errc{} || parsed.ptr != end)
+                    throw std::invalid_argument("Invalid unsigned 32-bit seed: " + value);
+                seeds.push_back(seed);
             } else if (option == "--ticks") {
                 std::size_t used{};
                 if (value.empty() || value.front() == '-')
@@ -94,7 +117,7 @@ int main(int argc, char **argv) {
                                             "[--parking-traffic] [--junction-traffic] [--corridor-traffic] "
                                             "[--predictive-passing|--no-predictive-passing] "
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N] "
-                                            "[--events DIRECTORY]");
+                                            "[--events DIRECTORY] [--blueprint FILE ...] [--seed N ...]");
             }
         }
         std::cout
@@ -103,12 +126,15 @@ int main(int argc, char **argv) {
                "elapsed_ms\n";
         // MAS is a test fixture since it left the catalog; the CSV keeps its name, so runs
         // stay comparable with the recorded baselines.
-        const std::filesystem::path blueprints[]{test::fixture_blueprint("MAS-demonstrator"),
-                                                 default_blueprint_directory() / "3840x2400.json",
-                                                 default_blueprint_directory() / "8640x4800.json"};
+        if (blueprints.empty())
+            blueprints = {test::fixture_blueprint("MAS-demonstrator"),
+                          default_blueprint_directory() / "3840x2400.json",
+                          default_blueprint_directory() / "8640x4800.json"};
+        if (seeds.empty())
+            seeds = {42u, 915839214u};
         for (const auto &file : blueprints) {
             const auto name = file.stem().string();
-            for (unsigned seed : {42u, 915839214u}) {
+            for (auto seed : seeds) {
                 Simulation simulation(load_blueprint(file), seed);
                 auto settings = simulation.motion_settings();
                 settings.predictive_passing = predictive_passing;
