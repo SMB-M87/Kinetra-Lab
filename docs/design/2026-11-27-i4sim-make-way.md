@@ -90,14 +90,14 @@ The software OpenGL capture shows the enabled TRAFFIC checkbox and the active `M
 
 These runs used Reciprocal with other traffic policies and RECOVERY off. In the MAS replay, the first search at tick 27,028 finds no route. Thirty ticks later mover 4 can yield while retaining its product. The event log records the original blockage as cleared at tick 27,440.
 
-In the 48-run harness, Reciprocal went from two runs with a stuck mover at the end to zero, with zero contacts throughout. Improved went from zero such runs to one, with 170 → 167 contacts and 3,487 → 3,832 waiting ticks. Both profiles completed the same number of products in aggregate. The remedy stays off by default.
+In the 48-run harness, Reciprocal went from two runs with a stuck mover at the end to zero, with zero contacts throughout. Improved went from zero such runs to one, with 170 → 167 contacts and 3,487 → 3,833 waiting ticks. Both profiles completed the same number of products in aggregate. The remedy stays off by default.
 
 The 50,000-tick benchmark used its default three blueprints and two seeds in each profile. Each row compares six runs per setting.
 
 | Profile | Products, off → on | Contacts, off → on | Waiting ticks, off → on | Runs with a stuck mover at end, off → on |
 | --- | ---: | ---: | ---: | ---: |
 | Reciprocal | 334 → 344 | 0 → 0 | 152,001 → 104,020 | 3 → 0 |
-| Improved | 343 → 348 | 1,386 → 837 | 8,022 → 7,635 | 1 → 1 |
+| Improved | 343 → 348 | 1,386 → 836 | 8,022 → 7,638 | 1 → 1 |
 
 ```bash
 benchmark=build-release/kinetra_i4sim_motion_benchmark
