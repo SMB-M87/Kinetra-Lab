@@ -63,7 +63,7 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 | Gate on a product rescheduled away from a processing place | Yes, through the same `approach()`; review round 1 of #146 | A product that heads an empty queue the moment it is rescheduled, after a blocked producer for example, leaves its parking row as a queued one does |
 | Showcase scene for the sealed departure | No | The scene needs a hold during allocation and timed goals after the product queues, which the scenario format cannot express; making it expressible would change a data contract for one clip |
 | Fallback motion | *Right of way* (RIGHT OF WAY), opt-in, Reciprocal and Improved: the pushed mover keeps steering at its goal and the others treat it as not cooperating, so the pusher avoids alone | Prototype over 50,000 ticks, Reciprocal: products 344 → 346, waiting −12%, stuck movers 23 → 16, no contact. *Stand still* failed: Reciprocal 38 contacts and fewer products, Improved waiting ×25 |
-| Return rule | A fixed window of 480 ticks (`4 × stall_ticks`), shorter when the mover arrives, changes goal, is held or comes under traffic control. The goal change is checked since review round 1 of Kinetra#74 | 50,000 ticks: Reciprocal 344 → 345 products, waiting −10%, stuck 23 → 12; Improved 348 → 354, contacts 836 → 554, stuck 6 → 5. The version before the review gave 351 and 356 products, the goal-change end alone 342 and 350 (*Verification*). Returning on progress was worse than no fallback. In the harness two Reciprocal runs end with a stuck mover (base: none) |
+| Return rule | A fixed window of 480 ticks (`4 × stall_ticks`), shorter when the mover arrives, changes goal, is held or comes under traffic control. The goal change is checked since review round 1 of Kinetra#74 | 50,000 ticks: Reciprocal 344 → 345 products, waiting −10%, stuck 23 → 12; Improved 352 → 354, contacts 835 → 554, stuck 5 → 5. The version before the review gave 351 and 355 products, the goal-change end alone 342 and 350 (*Verification*). Returning on progress was worse than no fallback. In the harness two Reciprocal runs end with a stuck mover (base: none) |
 | A pusher against its own holder | Gets no right of way against it; review round 1 of Kinetra#74 | Each would be a fixed body to the other, so neither makes room. Before the rule, 3 of 85 and 7 of 106 grants in the harness and 16 of 511 and 46 of 497 over 50,000 ticks were such grants; with it, none |
 | i4sim on `PassingCoordinator` | Yes; the lines with PASSING on are recorded again once the harness shows an equal flow | One lifecycle in three applications; the three differences above are not worth engine options |
 | Where MAKE WAY and the fallback live | Both in Kinetra (the user's choice; the agent recommended i4sim) | The user wants the remedies reusable by every application |
@@ -259,31 +259,33 @@ Step 3, with Kinetra `b6a8e34` (`feat/stall-detector` after review round 1 of Ki
 
 The first measurement ran on Kinetra `24fb31d`, before Kinetra #69 came in through the merge of Kinetra `main`. Reciprocal's figures are the same on `b6a8e34`. Improved's move with #69: before it, the base had 348 products, 7,638 waiting ticks and 836 contacts, and 322 of 763 episodes were `pushed_back`.
 
-Step 4, with Kinetra `feat/right-of-way` after review round 1 of Kinetra#74 (`404199c`):
+Step 4, with Kinetra `feat/right-of-way` after review round 1 of Kinetra#74 (`404199c`; `0bbcb7e` adds only Kinetra#72's open point):
 
 - Kinetra: 342 of 342 tests pass, and the consumer runs.
 - Lab: 182 of 182 i4sim cases pass, the golden and pressure lines unchanged.
 
-With MAKE WAY on, RIGHT OF WAY off → on:
+With MAKE WAY on, RIGHT OF WAY off → on, both with the same binary:
 
 | Run | Products | Contacts | Waiting ticks | Stuck movers | Runs stuck at end | Rights of way granted |
 | --- | --- | --- | --- | --- | --- | --- |
-| Harness, Reciprocal | 110 → 114 | 0 → 0 | 17,449 → 14,313 | 1 → 3 | 0 → 2 | 80 |
-| Harness, Improved | 103 → 105 | 167 → 194 | 3,833 → 3,355 | 3 → 0 | 1 → 0 | 94 |
+| Harness, Reciprocal | 110 → 114 | 0 → 0 | 17,434 → 14,313 | 1 → 3 | 0 → 2 | 80 |
+| Harness, Improved | 102 → 105 | 177 → 194 | 4,063 → 3,355 | 4 → 0 | 2 → 0 | 94 |
 | 50,000 ticks, Reciprocal | 344 → 345 | 0 → 0 | 104,020 → 93,913 | 23 → 12 | 0 → 0 | 452 |
-| 50,000 ticks, Improved | 348 → 354 | 836 → 554 | 7,638 → 9,496 | 6 → 5 | 1 → 0 | 458 |
+| 50,000 ticks, Improved | 352 → 354 | 835 → 554 | 7,323 → 9,496 | 5 → 5 | 0 → 0 | 458 |
 
-Products rise in all four cells, Reciprocal waits less (harness −18%, 50,000 ticks −10%) without a contact, and there are fewer stuck movers over 50,000 ticks. Every right of way lasts at most its 480 ticks, and none goes to a pusher against its own holder.
+Products rise in all four cells. Reciprocal waits less (harness −18%, 50,000 ticks −10%) without a contact, and over 50,000 ticks it has 12 stuck movers instead of 23. Improved's contacts fall by a third over 50,000 ticks, while it waits 30% more there. Every right of way lasts at most its 480 ticks, and none goes to a pusher against its own holder.
+
+The base column was first taken from step 1's measurement on Kinetra `da98dfa`, before Kinetra #69. The pointers of every step now bring in #69, so the base is measured again with this branch's binary and RIGHT OF WAY off: Reciprocal's long runs are the same, and Improved's moved (it was 348 / 836 / 7,638).
 
 The long cells vary between versions of the fallback, so only their direction is a finding:
 
 | Version | 50,000 ticks, Reciprocal: products / waiting / stuck | 50,000 ticks, Improved: products / contacts / waiting |
 | --- | --- | --- |
-| Before the review round (the prototype's numbers exactly) | 351 / 75,481 / 15 | 356 / 644 / 10,541 |
+| Before the review round | 351 / 75,481 / 15 | 355 / 654 / 11,694 |
 | With the goal-change end | 342 / 84,158 / 19 | 350 / 1,010 / 11,481 |
 | With the goal-change end and the pusher rule | 345 / 93,913 / 12 | 354 / 554 / 9,496 |
 
-The goal-change end leaves the harness identical to the version before it (Reciprocal 114 products, 13,587 waiting ticks; Improved 105 products). The pusher rule changes the harness, as the table above shows.
+All three rows ran on Kinetra with #69. The version before the review gives the prototype's numbers exactly under Reciprocal; the prototype ran before #69, when Improved gave 356 / 644 / 10,541. The goal-change end leaves the harness identical to the version before it (Reciprocal 114 products, 13,587 waiting ticks; Improved 105 products). The pusher rule changes the harness, as the table above shows.
 
 ## Review
 
@@ -368,7 +370,7 @@ The harness is unchanged by all of it. Two findings are older than this change a
 - *Should fix:* the testing table's stall row runs both suites, `^kinetra_(stall_detector\|right_of_way)` (`d5852d0`).
 - *Should fix:* the invalid-input case grants first, checks that each invalid step throws with the right of way kept, and then that a valid step ends it (`d5852d0`).
 - *Question:* can a pusher get the right of way against its own holder? Yes: 3 of 85 and 7 of 106 grants in the harness, 16 of 511 and 46 of 497 over 50,000 ticks. A grant now keeps its pusher, which gets none against the holder. A case fails without it, and the measurement has no such grant left (Kinetra `404199c`).
-- Both fixes change the measurement, which is redone (*Verification*): the gains hold in every cell, smaller over 50,000 ticks than the prototype's.
+- Both fixes change the measurement, which is redone (*Verification*): the gains hold in every cell, smaller over 50,000 ticks than the prototype's. The base column is measured again too, since it predated Kinetra #69 (Kinetra-Lab#150's round 1).
 - Lessons: two on Kinetra's page, on carrying a detector's end conditions into its remedy and moving tests with code (`e56935a`).
 
 **Step 3, agent review round 1** ([#150](https://github.com/SMB-M87/Kinetra-Lab/pull/150), *Fix first*):
@@ -428,7 +430,7 @@ Step 4. Title: `feat(i4sim): give a pushed-back mover the right of way`. Kinetra
 **Verification.** Kinetra 342 of 342, Lab i4sim 182 of 182, golden and pressure unchanged. Over 50,000 ticks with MAKE WAY:
 
 - Reciprocal: 344 → 345 products, waiting −10%, stuck movers 23 → 12, no contact.
-- Improved: 348 → 354 products, contacts 836 → 554.
+- Improved: 352 → 354 products, contacts 835 → 554.
 
 These cells vary by several products and hundreds of contacts between versions of the fallback; the design document has the comparison.
 
