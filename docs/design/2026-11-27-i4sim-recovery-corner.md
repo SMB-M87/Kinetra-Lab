@@ -52,6 +52,7 @@ Replayed on 2026-11-27 at Lab `a83d82d` (Kinetra `e3ad07c`) with the [tuning-sta
 | Rule ✱ | A face counts as reached only within `max_speed / max_acceleration + border_lookahead`; beyond that it counts as never reached, so when neither face is reached in time, the larger gap decides, as before the corner slide | A face the body reaches only after it could brake from full speed needs no braking now. The horizon is in the caller's time units, like the other settings, and keeps every choice the swept rule made for a face reached soon. For i4sim it is 2 / 0.6 + 2 = 5.3 ticks |
 | Velocity used ✱ | Still the current velocity | Tried first: judging by velocity plus requested acceleration frees mover 18 but makes three i4sim cases fail (a mover without path planning and two showcase scenes no longer finish their legs), as the corner slide's design predicted |
 | Pull requests ✱ | One in Kinetra (fix, tests, contract), one in Lab (pointer, this document, roadmap) | The behavior change is Kinetra's; this document lives in Lab, where the problem, the measurement and the item are |
+| Drift bound ✱ | Left as a named limit (Kinetra#69 review round 1) | A body resting closer to the far face than the horizon times its drift (about 1.6e-4 for 3e-5) still gets the old choice and can stay braked at large coordinates. Treating an approach that cannot change the float position as no approach would cover it, but it is a different rule and would move today's measurements; nothing measured hits the bound |
 | Benchmark runs that end worse ✱ | Accepted | With RECOVERY on, three of the twelve benchmark runs now end with a mover sealed in by parked neighbors, the documented standstill that *make way* addresses; the change only steers those runs elsewhere. The harness's stuck runs drop from 7 to 1 of 48 and nothing else stalls in a new way (see [Verification](#verification)) |
 
 ## Design
@@ -96,7 +97,7 @@ Self-review of both diffs before pushing:
 - The lambda parameter was renamed from `gap` to `clearance_left`, which would have shadowed the outer `gap` under `KINETRA_WARNINGS`.
 - `check_copies.py` with the terms *reach last*, *face the body would reach*, *face the agent would reach*, *convex corner*, *RECOVERY detour*, *3 mm to spare* and *mover 18*: the rule's copies in `steering.h`, `navigation.md` and Kinetra's `tests/README.md` now name the horizon; the roadmap item is removed; the dated design documents keep their history.
 
-The agent reviews of both pull requests are recorded on them.
+Agent review of Kinetra#69, round 1 (conclusion *Questions*): one question, whether a body resting within `horizon × drift` of the far face is in scope. Answered as a named limit (decision *Drift bound*), now stated in Kinetra's `docs/engine/navigation.md` and under [Open points](#open-points). The nits: the description links this pull request. `max(1, border_lookahead)` in the horizon is left for later (every consumer uses 2). The test's 0.3 units are mover 18's 3 mm at the cruiser's scale.
 
 ## Verification
 
@@ -150,7 +151,10 @@ Follow-up: none new; the remaining stuck runs belong to *Stall detection and rem
 
 For the user's review (decisions taken without the user):
 - The fix in Kinetra rather than in route recovery, the horizon `max_speed / max_acceleration + border_lookahead`, and keeping the current velocity for the choice.
+- Leaving the drift bound (below) as a named limit.
 - Accepting that three benchmark runs with RECOVERY on now end with a sealed-in mover (one of them, `MAS-demonstrator` seed 915839214, completes 10 products instead of 14) while the harness's stuck runs drop from 7 to 1.
 
 Known and not addressed here:
+- The horizon frees a drift only toward a face farther than `horizon × drift`. A body resting closer, about 1.6e-4 for mover 18's 3e-5, keeps the old choice and stays braked where a float cannot absorb the drift. If such a stall appears, the remedy is to treat an approach that cannot change the position at its coordinates as no approach.
+- The horizon adds the raw `border_lookahead`, while the braking divides by `max(1, border_lookahead)`; with a lookahead below 1 a face beyond the horizon could still need braking. No consumer uses a lookahead below 1.
 - Route recovery plans with a circle of radius `max(half_extents) + 3` for a square mover, so a diagonal leg past a corner overlaps the corner by up to 29 mm (109.6 − 80.5) and the border constraint turns it into a slide along the wall. The detour still arrives, more slowly.
