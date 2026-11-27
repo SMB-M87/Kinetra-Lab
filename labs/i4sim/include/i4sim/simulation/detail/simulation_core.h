@@ -73,7 +73,7 @@ class SimulationCore {
     /// and copying the simulation copies its log.
     void record_events(bool enabled) { log_.record(enabled); }
     bool recording_events() const { return log_.recording(); }
-    /// Passing, contact and stall events recorded while recording was on, oldest first. The
+    /// Passing, contact, stall and make-way events recorded while recording was on, oldest first. The
     /// log grows without bound while recording is on. The span is valid until the next
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const { return log_.events(); }

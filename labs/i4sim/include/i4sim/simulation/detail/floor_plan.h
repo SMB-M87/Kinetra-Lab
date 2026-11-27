@@ -60,6 +60,10 @@ class FloorPlan {
     /// those cells.
     bool processing_cell(int id) const { return processing_cells_[std::size_t(id)]; }
 
+    /// True when a footprint in millimeters, including any desired clearance, stays
+    /// outside all producer processing places. Touching a reservation counts as overlap.
+    bool processing_clear(kinetra::Aabb footprint) const;
+
     /// Sets each cell's route cost from the movers whose footprint corners lie in it, or to
     /// zero when `enabled` is false.
     void update_heatmap(std::span<const Mover> movers, bool enabled);
@@ -71,6 +75,7 @@ class FloorPlan {
     std::vector<ZoneGeometry> zones_;
     std::size_t junction_count_{};
     std::vector<bool> processing_cells_;
+    std::vector<kinetra::Aabb> processing_reservations_;
     Vec2 cell_size_, dimension_;
     float mover_max_extent_{};
     void find_junctions();

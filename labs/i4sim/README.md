@@ -97,7 +97,7 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 | MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
 | TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY |
 
-Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. Only a PLANNER change plans every route again. Turning passing off ends plans as `disabled`. Turning MAKE WAY off cancels relief requests and returns the yielding movers when their parking routes are clear. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
+Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. A PLANNER change replans ordinary routes. MAKE WAY retains its checked routes until return or cancellation. Turning passing off ends plans as `disabled`. Turning MAKE WAY off cancels relief requests and returns the yielding movers when their parking routes are clear. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
 
 The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space).
 
@@ -118,16 +118,16 @@ The current wait counts consecutive ticks in which the mover has a goal, is free
 | Producer | A robot or manual station with a processing place where a mover stands while it works, and a bounded queue |
 | Product, recipe | A product needs a fixed sequence of interactions, each at a producer that supports it. It keeps one mover until it is complete |
 | Workload | The generator that opens a random product while fewer products than movers are open |
-| Goal kind | Who chose a mover's goal: the factory (`automatic`), the operator (`manual`), or parking traffic (`parking_staging`) |
+| Goal kind | Who chose a mover's goal: the factory (`automatic`), the operator (`manual`), parking traffic (`parking_staging`), or MAKE WAY (`making_way`) |
 | Hold, block | The operator's stop for a mover (it keeps goal and product) and for a producer (it accepts and processes nothing) |
 | Steering profile | How movers avoid each other: Improved (default), Original, RVO experiment, Reciprocal |
-| Traffic policy | An optional rule on top of steering: parking, junction or corridor traffic, or predictive passing. All are off by default |
+| Traffic policy | An optional rule on top of steering: parking, junction or corridor traffic, predictive passing, or MAKE WAY. All are off by default |
 | Zone | A junction or corridor that a traffic policy admits movers to, one at a time |
 | Exit pocket | The space behind a zone that an admitted mover needs to leave it; it is reserved with the admission |
 | Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
 | Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch, mover goals and a repeat mode; a showcase scene is a small blueprint with one |
 | Shuttle | Movers that drive back and forth between their start and a goal and turn together after `shuttle_pause_ticks` (`Simulation::shuttle`); how most showcase scenes repeat |
-| Event log, flow metrics | Opt-in passing, contact and stall events ([events.h](include/i4sim/simulation/events.h)). Waiting and stuck movers are measured through [FlowMetrics](include/i4sim/simulation/flow_metrics.h). |
+| Event log, flow metrics | Opt-in passing, contact, stall and make-way events ([events.h](include/i4sim/simulation/events.h)). Waiting and stuck movers are measured through [FlowMetrics](include/i4sim/simulation/flow_metrics.h). |
 
 ## Structure
 
@@ -200,6 +200,7 @@ Sources and private headers, in [src/](src/) and the `detail/` folders:
 | [floor_plan.cpp](src/simulation/floor_plan.cpp), [routing.cpp](src/simulation/routing.cpp), [goals.cpp](src/simulation/goals.cpp), [traffic.cpp](src/simulation/traffic.cpp), [predictive_passing.cpp](src/simulation/predictive_passing.cpp), [production.cpp](src/simulation/production.cpp), [motion_step.cpp](src/simulation/motion_step.cpp), [shuttle.cpp](src/simulation/shuttle.cpp) | The components of the simulation; their ownership and dependencies are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) |
 | [fleet.h](include/i4sim/simulation/detail/fleet.h), [event_log.h](include/i4sim/simulation/detail/event_log.h), [geometry.cpp](src/simulation/geometry.cpp), [simulation_constants.h](include/i4sim/simulation/detail/simulation_constants.h) | Shared mover data, the event log, geometry helpers and the named tuning values |
 | [stall_detector.cpp](src/simulation/stall_detector.cpp) | Observes route progress and records stall episodes after the tick |
+| [make_way.cpp](src/simulation/make_way.cpp) | Optional parking relief for active stall episodes |
 | [flow_metrics.cpp](src/simulation/flow_metrics.cpp) | `FlowMetrics` |
 | [controller.cpp](src/controller.cpp) | `FactoryController` |
 | [session.cpp](src/presentation/session.cpp) | `FactorySession`: the frame order, the settings overlay and the debug menu |
@@ -247,12 +248,12 @@ sequenceDiagram
 
 ### A tick of the simulation
 
-`Simulation` forwards every call to a private `SimulationCore`. Each tick opens a product when the workload allows it, refreshes the heatmap every ten ticks, runs the parking interlock, moves, advances production and turns shuttling movers whose pause has ended. It then observes stalls and updates waiting counters. During movement, the simulation prepares routes, takes one snapshot of all bodies, runs corridor recovery, predictive passing and zone admission against that snapshot, steers and integrates every mover, and counts and resolves contacts. See the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) for the component diagram, tick order and mover state.
+`Simulation` forwards every call to a private `SimulationCore`. Each tick opens a product when the workload allows it, refreshes the heatmap every ten ticks, runs the parking interlock, moves, advances production and turns shuttling movers whose pause has ended. It then observes stalls, advances any MAKE WAY trips and updates waiting counters. During movement, the simulation prepares routes, takes one snapshot of all bodies, runs corridor recovery, predictive passing and zone admission against that snapshot, steers and integrates every mover, and counts and resolves contacts. See the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) for the component diagram, tick order and mover state.
 
 Two design choices explain most of the code:
 
 - **One snapshot per tick.** Every decision of a tick reads the same positions, and movers are handled in a stable order. That makes a run reproducible: the same blueprint, seed, settings and commands give the same run, tick for tick.
-- **Policies change targets, not bodies.** A traffic policy never moves a mover itself. It makes the mover wait (a stop line the steering respects) or gives it a temporary target, while the destination, the product and the parking place stay as they were. When the policy ends, the mover plans a route to its unchanged goal.
+- **Policy targets.** A traffic policy can put up a stop line or select a temporary target that the existing steering follows. MAKE WAY assigns a temporary goal and retains the parking reservation and any product. The mover returns to its reserved parking place on a checked route.
 
 ### Steering profiles
 
@@ -352,7 +353,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 
 - **Determinism.** The same blueprint, seed, motion settings and commands give the same run tick for tick. Randomness comes only from the seeded workload generator. The [golden and pressure suites](tests/README.md#golden-and-pressure-lines) pin this with fingerprints of every position after every tick, so they need exact floating-point results (no fast-math, no FMA contraction).
 - **Units.** Millimeters, ticks, millimeters per tick. The frame time only selects how many ticks run; it never scales a physical value.
-- **Observation only.** The stall detector, event log, `FlowMetrics`, world view and HUD observe the simulation. The detector reports its onset diagnosis through `stall_details` and records `stall_started` and `stall_ended` when the event log is on. Steering, traffic and production make their decisions independently.
+- **Observation.** The detector exposes its onset diagnosis through `stall_details`. MAKE WAY uses the active episode and checks present geometry before intervening. The event log records `stall_started`, `stall_ended` and make-way events when enabled. Log recording, `FlowMetrics` and rendering are independent of simulation decisions.
 - **Copies are deep.** Copying a `Simulation` copies its whole state, including the event log. Components store no references to each other, so a copy cannot point into the original.
 - **Only goals move goals.** A mover's destination changes only through the `Goals` view, which also cancels the corridor recovery and passing plan that depended on the old goal.
 - **Controller preconditions.** Every `FactoryController` call that reads or commands the simulation requires `loaded()`. `simulation()` returns a reference that a load, a restart or a close invalidates; the drawing code takes it anew each frame.

@@ -15,6 +15,12 @@ class MakeWay {
     void update(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
                 const StallDetector &stalls);
 
+    /// True if the route avoids currently enabled zones and their reserved exits.
+    static bool traffic_clear(const Goals &goals, const Mover &mover, std::span<const Vec2> route);
+    /// True if dropping a waypoint keeps the next leg clear of live footprints and
+    /// traffic reservations. The caller checks static floor clearance.
+    static bool shortcut_clear(const Goals &goals, const Mover &mover, Vec2 next);
+
   private:
     enum class Phase { outbound, waiting, returning };
     struct Trip {

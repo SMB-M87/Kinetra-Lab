@@ -86,21 +86,8 @@ std::vector<Vec2> checked_route(const Goals &goals, std::size_t index, Vec2 targ
         }
     }
     auto route = clearance_route(goals.floor, movers[index], target, obstacles, goals.motion.path_planning);
-    // Leave enabled traffic zones and their exit pockets to the existing coordinator.
-    for (std::size_t i = 0; i < goals.floor.zones().size(); ++i) {
-        const auto &zone = goals.floor.zones()[i];
-        if (!(zone.corridor ? goals.motion.corridor_traffic : goals.motion.junction_traffic))
-            continue;
-        if (crosses_route(movers[index], route,
-                          Body{.position = zone.center, .half_extents = zone.half_extents, .vertices = {}}))
-            return {};
-        if (const auto exit = goals.traffic.exit_reservation(i);
-            exit && crosses_route(movers[index], route,
-                                  Body{.position = (exit->max + exit->min) / 2,
-                                       .half_extents = (exit->max - exit->min) / 2,
-                                       .vertices = {}}))
-            return {};
-    }
+    if (!MakeWay::traffic_clear(goals, movers[index], route))
+        return {};
     return route;
 }
 
@@ -110,15 +97,18 @@ bool refuge_free(const Goals &goals, std::size_t index, int cell) {
     if (grid.blocked(cell) || goals.floor.processing_cell(cell) || cell == grid.cell(m.parking))
         return false;
     const auto center = grid.center(cell);
+    const auto extent = m.body.half_extents + clearance;
+    if (!goals.floor.processing_clear({center - extent, center + extent}))
+        return false;
     for (const auto &other : goals.fleet.movers) {
         if (&other == &m)
             continue;
         auto reserved = other.body;
         reserved.position = other.parking;
-        if (swept_box_overlaps(center, center, m.body.half_extents + clearance, reserved))
+        if (swept_box_overlaps(center, center, extent, reserved))
             return false;
         reserved.position = other.destination;
-        if (swept_box_overlaps(center, center, m.body.half_extents + clearance, reserved))
+        if (swept_box_overlaps(center, center, extent, reserved))
             return false;
     }
     return true;
@@ -165,6 +155,33 @@ void install_route(Goals &goals, std::size_t index, std::vector<Vec2> route, Goa
 }
 } // namespace
 
+bool MakeWay::traffic_clear(const Goals &goals, const Mover &mover, std::span<const Vec2> route) {
+    // Leave enabled traffic zones and their exit pockets to the existing coordinator.
+    for (std::size_t i = 0; i < goals.floor.zones().size(); ++i) {
+        const auto &zone = goals.floor.zones()[i];
+        if (!(zone.corridor ? goals.motion.corridor_traffic : goals.motion.junction_traffic))
+            continue;
+        if (crosses_route(mover, route,
+                          Body{.position = zone.center, .half_extents = zone.half_extents, .vertices = {}}))
+            return false;
+        if (const auto exit = goals.traffic.exit_reservation(i);
+            exit && crosses_route(mover, route,
+                                  Body{.position = (exit->max + exit->min) / 2,
+                                       .half_extents = (exit->max - exit->min) / 2,
+                                       .vertices = {}}))
+            return false;
+    }
+    return true;
+}
+
+bool MakeWay::shortcut_clear(const Goals &goals, const Mover &mover, Vec2 next) {
+    const std::span leg(&next, 1);
+    return traffic_clear(goals, mover, leg) &&
+           std::none_of(goals.fleet.movers.begin(), goals.fleet.movers.end(), [&](const Mover &other) {
+               return &other != &mover && crosses_route(mover, leg, other.body);
+           });
+}
+
 void MakeWay::advance_trip(Goals &goals, std::size_t index) {
     auto &entry = trips_[index];
     auto &m = goals.fleet.movers[index];
@@ -185,9 +202,6 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
         finish(MakeWayEnd::cancelled);
         return;
     }
-    if (coordinated(m))
-        return;
-
     if (trip.phase == Phase::returning && m.lifecycle == MoverLifecycle::idle) {
         if (distance(m.body.position, m.parking) < same_point_mm) {
             m.goal = GoalKind::automatic;
@@ -211,7 +225,16 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
         finish(MakeWayEnd::cleared);
     else if (goals.tick >= trip.deadline)
         finish(MakeWayEnd::timed_out);
+    const bool route_hits_traffic = m.moving() && !traffic_clear(goals, m, m.route);
+    if (route_hits_traffic)
+        finish(MakeWayEnd::obstructed);
+    if (coordinated(m))
+        return;
 
+    // A failed or cancelled request cannot reserve the parking space forever.
+    // The return planner still checks the beneficiary's current footprint.
+    const bool can_return = !protects_beneficiary || cancelled || goals.tick >= trip.deadline ||
+                            trip.outcome == MakeWayEnd::cancelled;
     const auto return_home = [&] {
         if (auto home = checked_route(goals, index, m.parking); !home.empty()) {
             install_route(goals, index, std::move(home), GoalKind::making_way);
@@ -221,8 +244,7 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
         return false;
     };
     if (m.moving()) {
-        if (trip.phase == Phase::outbound && trip.outcome && (!protects_beneficiary || cancelled) &&
-            return_home())
+        if (trip.phase == Phase::outbound && trip.outcome && can_return && return_home())
             return;
 
         // A newly stationary body may occupy the checked trip. Brake via the
@@ -232,7 +254,7 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
                 return &other != &m && (!other.moving() || other.held) &&
                        crosses_route(m, m.route, other.body);
             });
-        if (trip.phase != Phase::waiting && obstructed) {
+        if (trip.phase != Phase::waiting && (obstructed || route_hits_traffic)) {
             finish(MakeWayEnd::obstructed);
             install_route(goals, index, {m.body.position}, GoalKind::making_way);
             trip.phase = Phase::waiting;
@@ -247,7 +269,7 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
         trip.phase = Phase::waiting;
         return;
     }
-    if (trip.outcome && (!protects_beneficiary || cancelled))
+    if (trip.outcome && can_return)
         return_home();
 }
 

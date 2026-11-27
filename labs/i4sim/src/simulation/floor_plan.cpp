@@ -36,9 +36,18 @@ FloorPlan::FloorPlan(const Blueprint &blueprint)
     }
     zone_index_.rebuild(boxes);
     processing_cells_.assign(std::size_t(grid_.width() * grid_.height()), false);
-    for (const auto &definition : blueprint.producers)
-        if (const int id = grid_.cell(processing_goal(definition.processing_position)); id >= 0)
+    const Vec2 processing_size{mover_max_extent_, mover_max_extent_};
+    for (const auto &definition : blueprint.producers) {
+        const auto corner = definition.processing_position;
+        processing_reservations_.push_back({corner, corner + processing_size});
+        if (const int id = grid_.cell(processing_goal(corner)); id >= 0)
             processing_cells_[std::size_t(id)] = true;
+    }
+}
+
+bool FloorPlan::processing_clear(Aabb footprint) const {
+    return std::none_of(processing_reservations_.begin(), processing_reservations_.end(),
+                        [footprint](Aabb reservation) { return footprint.overlaps(reservation); });
 }
 
 void FloorPlan::find_junctions() {

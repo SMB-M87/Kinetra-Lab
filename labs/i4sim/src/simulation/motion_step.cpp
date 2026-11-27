@@ -1,5 +1,6 @@
 #include "i4sim/simulation/detail/motion_step.h"
 #include "i4sim/simulation/detail/geometry.h"
+#include "i4sim/simulation/detail/make_way.h"
 #include "i4sim/simulation/detail/routing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 
@@ -54,10 +55,13 @@ void MotionStep::run(Goals &goals, Production &production) {
             continue;
         const auto around = surroundings(goals, i, snapshot, index);
         const auto &control = fleet.controls[i];
-        const auto target = control ? control->target : m.route.front();
-        const bool arrival = control ? control->arrival : m.route.size() == 1;
+        // Admission runs after route preparation and can reserve a new exit.
+        const bool make_way_stop =
+            m.goal == GoalKind::making_way && !MakeWay::traffic_clear(goals, m, m.route);
+        const auto target = make_way_stop ? m.body.position : control ? control->target : m.route.front();
+        const bool arrival = make_way_stop || (control ? control->arrival : m.route.size() == 1);
         choose_acceleration(goals, m, snapshot[i], around, target, arrival);
-        integrate(goals, production, i, around, control.has_value());
+        integrate(goals, production, i, around, make_way_stop || control.has_value());
     }
     resolve_contacts(goals);
 }
@@ -91,7 +95,8 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
         ++tracking.recovery_attempts;
     }
     while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < waypoint_reach_mm &&
-           goals.floor.grid().clear(m.body.position, m.route[1], m.body.half_extents))
+           goals.floor.grid().clear(m.body.position, m.route[1], m.body.half_extents) &&
+           (!temporary || MakeWay::shortcut_clear(goals, m, m.route[1])))
         m.route.erase(m.route.begin());
     return true;
 }
@@ -195,7 +200,7 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
     m.body.position += m.body.velocity;
     const float moved = distance(before, m.body.position);
     m.distance += moved;
-    if (m.product && m.goal != GoalKind::making_way)
+    if (m.product)
         production.add_distance(*m.product, moved);
     const float remaining = route_remaining(m.body.position, m.route);
     // Arrival slows continuously; a fixed 2 mm threshold would classify
@@ -205,7 +210,7 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
         tracking.best_remaining = remaining;
         tracking.no_progress = 0;
     }
-    if (m.product && m.goal != GoalKind::making_way)
+    if (m.product)
         ++m.transport_ticks;
     // Snap to the destination once the mover is there, slow, and the snap touches nothing.
     if (!controlled && m.route.size() == 1 &&
