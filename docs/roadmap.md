@@ -20,8 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Vec2 equality in place of component comparisons** · i4sim, demo, capture · added 2026-11-24
-  Where: [design document](design/2026-11-27-vec2-component-comparisons.md), branch `refactor/vec2-component-comparisons`.
+Nothing in progress.
 
 ## Next
 
