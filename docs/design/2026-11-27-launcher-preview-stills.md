@@ -63,12 +63,23 @@ The launcher's Demo and i4sim previews were the full 1920 × 1080 screenshots sc
 
 ## Review
 
-Self-review of the diff: the first version set the camera directly, against the tool's input-only invariant; the scripts now zoom with the wheel. The agent review's findings follow in the pull request.
+Self-review of the diff: the first version set the camera directly, against the tool's input-only invariant; the scripts now zoom with the wheel.
+
+Agent review, round 1 (on `8d4c8c3`, conclusion *Fix first*):
+
+| Finding | Resolution | Commit |
+| --- | --- | --- |
+| Should fix: the branch conflicts with `main`, and the merge moves the Kinetra pointer from `da98dfa` to `9841a50` (steering, settings panel), against which the scenes were never rendered | Merged `main`; rendered `demo-preview`, `i4sim-preview` and `launcher` again at `9841a50`: the PNGs and both stills came out byte-identical | merge of `main`, `23cbc28` |
+| Nit: the *Screenshot* term names only 1920 × 1080 | It names the preview size too | `23cbc28` |
+| Nit: "i4sim's scenes load `4320x2400.json`" and the section comment in `scenes.cpp` read as covering the preview | Both scoped to the screenshots and clips | `23cbc28` |
+| Nit: the test hard-codes the 60 s search | `i4sim_preview_search_seconds` moved to `scenes.h`; the test uses it | `23cbc28` |
+| Nit: no warning when no mover drives in the searched minute | `i4sim_preview_start` warns, as `dotio_debug_clip` does | `23cbc28` |
+| Lesson proposed | Added to *Media and tools* | `99be18f` |
 
 ## Verification
 
 - `cmake --build --preset graphics --target kinetra_capture_tests kinetra_menu_tests kinetra_capture` and `ctest --preset graphics -R '^kinetra_capture|^kinetra_menu:'`: 46 of 46 passed, `kinetra_capture_smoke` included.
-- `tools/capture/capture_media.sh build-graphics demo-preview i4sim-preview launcher`: wrote both previews and `launcher.png`, and rebuilt the capture tool with the new stills first; each looked at.
+- `tools/capture/capture_media.sh build-graphics demo-preview i4sim-preview launcher`: wrote both previews and `launcher.png`, and rebuilt the capture tool with the new stills first; each looked at. After each merge of `main` (Kinetra at `da98dfa`, then `9841a50`) the same command gave byte-identical files.
 - `clang-format --dry-run --Werror` on the changed C++ files; `python3 external/Kinetra/tools/check_docs.py`; `python3 external/Kinetra/tools/check_copies.py` with the old wordings as terms: only intended hits.
 - Full level: the pull request's CI.
 
