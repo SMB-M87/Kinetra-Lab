@@ -115,7 +115,7 @@ The current wait counts consecutive ticks in which the mover has a goal, is free
 | --- | --- |
 | Blueprint | A JSON file with the floor size, the grid cell size, movers, producers and forbidden zones. Validated on load; a data format, so changing a field is a contract change |
 | Factory space | Millimeters from the floor's top-left corner, **Y down**. Blueprints, the simulation and every `Simulation` query use it. The camera's world has Y up; `flip_y` ([view.h](include/i4sim/simulation/view.h)) converts either way |
-| Tick, UPS | The simulation advances in fixed ticks. Speeds are millimeters per tick, so changing the ticks per second (UPS) changes only how fast the wall clock runs. A frame runs at most the ticks that fit in three quarters of its interval; at a UPS the processor cannot reach, the HUD's `UPS 1000000 (9800)` shows the rate asked for and the one reached |
+| Tick, UPS | The simulation advances in fixed ticks. Speeds are millimeters per tick, so changing the ticks per second (UPS) changes only how fast the wall clock runs. A frame runs at most the ticks that fit in three quarters of its interval; at a UPS the processor cannot reach, the HUD's `UPS 9800/1000000` shows the rate reached and the one asked for |
 | Mover | A rectangular transport vehicle. It has a parking place (its start), at most one goal, and at most one product |
 | Producer | A robot or manual station with a processing place where a mover stands while it works, and a bounded queue |
 | Product, recipe | A product needs a fixed sequence of interactions, each at a producer that supports it. It keeps one mover until it is complete |

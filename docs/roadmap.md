@@ -24,13 +24,18 @@ Nothing in progress.
 
 ## Next
 
-Nothing agreed next.
+- **i4sim toward a million ticks per second** · i4sim, with Kinetra · added 2026-11-27
+  The user's goal: a headless run of a million ticks per second. After hotspot 7 a long run reaches about 290,000 ticks per second on `MAS-demonstrator` and 9,800 on `8640x4800` ([performance](performance.md#measured-changes), [tick rates](design/2026-11-27-tick-rates.md#step-2-the-hotspot-of-a-long-run)). In its profile, `kinetra::validate` on every body that each steering and collision call is given (11%), `MotionStep::surroundings` with its spatial queries (21%), `resolve_contacts` over every pair (11%) and `kinetra::steer` (12%) are the next candidates; results may shift slightly when the benchmark's metrics do not get worse (the user's decision of 2026-11-27).
+  Next step: profile again on top of hotspot 7 and take the largest, one pull request per hotspot, measured before and after. Open question: whether parallel ticks (several simulations, or movers in parallel within one tick) belong on this path.
 
 ## Later
 
 - **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
   [Stall detection](design/2026-11-26-i4sim-stall-detection.md) supplies the diagnosis, and [MAKE WAY](design/2026-11-27-i4sim-make-way.md) lets one parked neighbor clear the route when a checked refuge is available. The remedy is measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness).
   Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Step 3 is a temporary motion fallback. The user chooses its motion type and return rule from the detection data. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [MAKE WAY follow-up](design/2026-11-27-i4sim-make-way.md#open-points).
+- **MAS stops producing in a long run** · i4sim · added 2026-11-27
+  In the motion benchmark's first million-tick runs, `MAS-demonstrator` with seed 915839214 completes 29 products, against 202 with seed 42, and ends with a stuck mover: the run stalls early and stays stalled. 50,000 ticks did not show it.
+  Next step: replay the run with `--events` and find the tick where production stops. Where: [tick rates, step 1](design/2026-11-27-tick-rates.md#verification).
 - **RECOVERY detour past a corner** · i4sim · added 2026-11-21
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).

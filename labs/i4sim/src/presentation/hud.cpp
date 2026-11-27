@@ -24,8 +24,9 @@ void draw_line(Runtime &runtime, std::string_view text, int line, Color color = 
 std::string totals_text(const Simulation &simulation, double measured_ups) {
     const auto &motion = simulation.motion_settings();
     std::ostringstream text;
-    text << "TICK " << simulation.ticks() << " UPS " << simulation.updates_per_second() << " ("
-         << std::llround(measured_ups) << ") CONTACTS " << simulation.collisions() << " DURATION "
+    // Reached, then asked for, as in Demo; the bitmap font has no parentheses.
+    text << "TICK " << simulation.ticks() << " UPS " << std::llround(measured_ups) << "/"
+         << simulation.updates_per_second() << " CONTACTS " << simulation.collisions() << " DURATION "
          << simulation.contact_ticks();
     if (motion.predictive_passing && supports_predictive_passing(motion.profile))
         text << " PASS " << simulation.predictive_pairs();
