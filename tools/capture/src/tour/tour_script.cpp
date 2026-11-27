@@ -110,6 +110,10 @@ void demo_chapter(Tour &tour) {
     tour.caption("LAYERS: WHAT DEBUG MODE DRAWS, EACH IN ITS COLOR");
     tour.click_row("LAYERS");
     tour.pause();
+    // STEERING PROBES and COLLISION SHAPES start off: on for a look, then off with VECTORS,
+    // so HOME RANGE shows on a quiet scene.
+    click_rows(tour, {"STEERING PROBES", "COLLISION SHAPES"});
+    tour.wait(0.8);
     click_rows(tour, {"STEERING PROBES", "VECTORS", "COLLISION SHAPES"});
     tour.wait(0.8);
     tour.caption("HOME RANGE: AGENTS STAY AROUND THE PLACE THEY STARTED");

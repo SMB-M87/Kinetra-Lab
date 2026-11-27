@@ -115,13 +115,18 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
 TEST_CASE("the layer rows carry their colors and start as the session shows them") {
     Fixture f;
     f.open("LAYERS");
+    // A scenario opens with VECTORS and PATHS only.
     for (const char *label : {"VECTORS", "STEERING PROBES", "PATHS", "COLLISION SHAPES", "ACTIVE AGENTS"}) {
         CAPTURE(label);
         const auto row = f.row(label);
-        CHECK((row.kind == DebugEntryKind::check && row.depth == 1 && row.active()));
+        const bool on = std::string(label) == "VECTORS" || std::string(label) == "PATHS";
+        CHECK((row.kind == DebugEntryKind::check && row.depth == 1 && row.active() == on));
         CHECK(row.swatch);
     }
     CHECK_FALSE(f.row("HOME RANGE").active());
+    const auto start = f.panel.layers(true);
+    CHECK((start.vectors && start.paths && !start.probes && !start.collisions && !start.active_agents &&
+           !start.home_range));
     const auto paths = f.row("PATHS");
     REQUIRE(paths.swatch);
     CHECK(paths.swatch->b == demo::layer_color::paths.b);

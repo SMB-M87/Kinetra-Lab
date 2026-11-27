@@ -322,7 +322,7 @@ void dotio_debug_clip(Stage &stage) {
 enum class I4simView {
     /// Debug Mode off: the floor, the labels and the statistics.
     normal,
-    /// Debug Mode with every layer, the debug menu closed.
+    /// Debug Mode with the default layers, the debug menu closed.
     debug,
     /// Debug Mode with the debug menu open on LAYERS: every part and its swatch.
     debug_with_layers,

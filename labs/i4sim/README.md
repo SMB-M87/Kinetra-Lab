@@ -71,7 +71,7 @@ The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=O
 
 ## Controls
 
-Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. LAUNCHER and EXIT are in that panel. Debug Mode, the statistics and every debug layer start on. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
+Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. LAUNCHER and EXIT are in that panel. Debug Mode, the statistics and every debug layer with all its parts start on, except HEATMAP and CONTACT SHAPES. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
 
 | Input | Action |
 | --- | --- |
