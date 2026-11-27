@@ -134,8 +134,12 @@ void Production::update_product(Product &p, Goals &goals) {
     }
     auto &m = goals.fleet.movers.at(*p.mover);
     auto &producer = producers_.at(*p.producer);
-    if (m.held || m.goal == GoalKind::making_way)
+    if (m.held || m.goal == GoalKind::making_way) {
+        // A held or yielding mover does not wait for its departure; its wait starts again
+        // when it is back, so the limit never lets it leave unchecked at once.
+        departure_waits_.erase(p.id);
         return;
+    }
     if (producer.blocked && p.state != ProductState::processing) {
         departure_waits_.erase(p.id);
         std::erase(producer.queue, p.id);

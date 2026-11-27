@@ -82,7 +82,7 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 - When a route exists, the mover gets that refined route.
 - When none exists, the mover stays at its holding place with its product and tries again in the next tick. `Production::departure_waits_` keeps the tick at which the wait began, per product.
 - After `departure_wait_ticks` (1,200) without a route, it departs as without the setting.
-- Turning the setting off releases a waiting mover in the next tick and drops its wait.
+- Turning the setting off releases a waiting mover in the next tick and drops its wait. A hold or a make-way trip drops it too, so the wait starts again when the mover is back.
 
 A departure from a processing place to the next producer is unchanged.
 
@@ -112,6 +112,7 @@ Step 1, Targeted level (Lab logic), with the full i4sim suites:
 | With it, the mover stays at its holding place with its product and the producer waits; once a neighbor drives away, it departs long before the limit and reaches the producer without contact | `…departure check keeps a sealed queued mover waiting until a checked route opens` |
 | A mover sealed in for good departs exactly `departure_wait_ticks` after its product headed the queue | `…departure check lets a mover sealed in for good depart after the wait limit` |
 | Turning the setting off releases a waiting mover in the next tick | `…turning departure check off releases a waiting mover` |
+| A hold (or a make-way trip) during the wait starts the wait again, so the limit never lets the mover leave unchecked at once | `…a hold during a departure wait starts the wait again` (fails without the restart) |
 | The recorded `1680x960+` departure (seed 42, Improved) makes contacts without the check and none with it | `…departure check routes a queued Improved departure around its parked neighbors` |
 | The scenario key and the TRAFFIC row | the scenario case and two `kinetra_i4sim_controller` cases, extended |
 | Off by default changes nothing | `kinetra_i4sim_golden_tests`, `kinetra_i4sim_pressure_tests` unchanged |
@@ -126,7 +127,7 @@ Step 1, on Lab `main` `39cb628` with Kinetra `e3ad07c`, Release with Lab and Kin
 cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON
 cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests \
   kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark -j 4
-ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 170 of 170 passed
+ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 171 of 171 passed
 ```
 
 The branch reproduces the measured gate exactly. On the harness with `--make-way --departure-check`:
@@ -147,7 +148,7 @@ The 50,000-tick rows come from the measuring copy of the code. The branch matche
 
 ## Review
 
-Filled in per step.
+**Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
 
 ## Pull request
 
@@ -158,12 +159,12 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 **Changes.**
 - `MotionSettings::departure_check`, with `Production::departure_route` and its wait limit.
 - The TRAFFIC row, the scenario key `departureCheck` and the benchmark flag `--departure-check`.
-- Five simulation cases; the scenario and menu cases are extended.
+- Six simulation cases; the scenario and menu cases are extended.
 - README, blueprint, tests and architecture pages.
 
 **Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md), which records the user's decisions for the whole stack.
 
-**Verification.** Every i4sim suite passes (170 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises products by 1 to 4% in every configuration, cuts Reciprocal waiting by 24 to 39%, and cuts Improved contacts from 836 to 233 with MAKE WAY.
+**Verification.** Every i4sim suite passes (171 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises products by 1 to 4% in every configuration, cuts Reciprocal waiting by 24 to 39%, and cuts Improved contacts from 836 to 233 with MAKE WAY.
 
 **Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
 
@@ -172,4 +173,11 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 ## Open points
 
 - The *refine* variant without the wait cut Improved contacts as well as the gate, but raised Reciprocal waiting with MAKE WAY on (104,020 → 111,295). The gate was chosen; the data stay here.
+- Found by step 1's review in existing MAKE WAY code, for step 5, which moves it:
+  - `checked_route` applies `traffic_clear` to the beneficiary's routes, so a stalled mover whose route crosses an enabled junction or corridor never gets help.
+  - A yielding mover braking inside a zone switched on around it passes `controlled` to `integrate`, never snaps to idle and can hold the zone with no deadline.
+  - A yielding mover that is held keeps its trip and goal, so its queued product freezes the producer's queue for the length of the hold.
+- Found by the same review, outside this stack:
+  - i4sim's inspector STALLED row (from `stall_details`) and the HUD's STALLED count (from `stalled()`) use different definitions and can disagree for an exit-waiting mover.
+  - Demo's `passing_events()` drops the events of plans that `end_passing()` ends, and Dotio clears them before they are read.
 - In the 12,000-tick harness the gate holds one recurring mover for 672 ticks on `4320x2400` under Reciprocal. A route that opens only when a neighbor leaves its parking place cannot be found by refinement; MAKE WAY does not act on an idle mover.

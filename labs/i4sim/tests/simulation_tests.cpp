@@ -1919,6 +1919,23 @@ TEST_CASE("departure check lets a mover sealed in for good depart after the wait
     CHECK(simulation.movers()[0].moving());
 }
 
+TEST_CASE("a hold during a departure wait starts the wait again") {
+    auto simulation = start_sealed_departure(true);
+    for (int tick = 0; tick < 100; ++tick)
+        simulation.tick();
+    simulation.toggle_mover(0);
+    for (std::uint64_t tick = 0; tick < detail::departure_wait_ticks; ++tick)
+        simulation.tick();
+    simulation.toggle_mover(0);
+    const auto released = simulation.ticks();
+    while (!simulation.movers()[0].moving() &&
+           simulation.ticks() < released + 2 * detail::departure_wait_ticks)
+        simulation.tick();
+    // The wait begins at the first approach after the release; without the restart the
+    // mover would leave in that tick.
+    CHECK(simulation.ticks() - released >= detail::departure_wait_ticks);
+}
+
 TEST_CASE("turning departure check off releases a waiting mover") {
     auto simulation = start_sealed_departure(true);
     for (int tick = 0; tick < 100; ++tick)
