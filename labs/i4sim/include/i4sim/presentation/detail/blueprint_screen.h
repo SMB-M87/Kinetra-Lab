@@ -20,6 +20,8 @@ enum class ScreenAction {
     load,
     /// Enter was pressed while the catalog is unavailable: try refresh() again.
     rediscover,
+    /// The close button of the error panel over the menu was clicked: clear the message.
+    dismiss,
 };
 /// Outcome of one frame on the blueprint screen.
 struct ScreenEvent {
@@ -46,10 +48,14 @@ class BlueprintScreen {
     /// Whether a catalog is listed.
     bool available() const { return menu_ != nullptr; }
     /// Applies one frame of input; `viewport` in logical window pixels. On the SHOWCASE
-    /// page, Escape and M return to the blueprint list instead of leaving.
-    ScreenEvent update(const kinetra::Input &input, kinetra::Vec2 viewport);
-    /// Draws a whole frame: the menu with `message` as its status line, or without a
-    /// catalog the load-error screen with `message` wrapped over several lines.
+    /// page, Escape and M return to the blueprint list instead of leaving. `message` is the
+    /// one draw() shows: over the menu its error panel takes the pointer first, and its close
+    /// button gives ScreenAction::dismiss.
+    ScreenEvent update(const kinetra::Input &input, kinetra::Vec2 viewport, std::string_view message = {});
+    /// Draws a whole frame: the menu with `message` in an error panel over it, which closes
+    /// with its X (kinetra::LaunchMenu::draw()), or without a catalog the load-error screen
+    /// with `message` on its bottom lines (kinetra::hud::draw_error()). Both show the message
+    /// in the HUD error style, wrapped to the window width.
     void draw(kinetra::Runtime &runtime, std::string_view message) const;
 
   private:

@@ -5,6 +5,7 @@
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
 #include <kinetra/runtime/help_view.h>
+#include <kinetra/runtime/hud_text.h>
 
 namespace dotio {
 using namespace kinetra;
@@ -258,7 +259,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             draw_text(
                 runtime, text,
                 {runtime.camera.viewport.x - static_cast<float>(text.size() * 6 + 8) * statistics_scale, y},
-                statistics_scale, {1, 1, 0});
+                statistics_scale, hud::statistics_color);
         };
         if (!population.empty())
             draw_row(population, baseline - 12 * statistics_scale);

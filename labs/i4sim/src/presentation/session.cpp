@@ -126,7 +126,7 @@ class FactorySession final : public kinetra_lab::Session {
     }
 
     void advance_screen(const Input &input, Vec2 viewport) {
-        const auto event = screen_.update(input, viewport);
+        const auto event = screen_.update(input, viewport, controller_.message());
         switch (event.action) {
         case ScreenAction::leave:
             leave_ = true;
@@ -139,6 +139,9 @@ class FactorySession final : public kinetra_lab::Session {
             break;
         case ScreenAction::rediscover:
             refresh_catalog();
+            break;
+        case ScreenAction::dismiss:
+            controller_.clear_message();
             break;
         case ScreenAction::none:
             break;
