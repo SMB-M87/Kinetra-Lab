@@ -2579,3 +2579,146 @@ TEST_CASE("a station may stand outside the floor up to twice its size, with its 
     CHECK(below.producers.front().position.y == 1080);
     CHECK_THROWS_AS(load_blueprint(with_station("beyond", 1921)), std::runtime_error);
 }
+
+namespace {
+Blueprint parked_blocker_fixture(bool refuge) {
+    Blueprint blueprint = fixture();
+    blueprint.dimension = {1400, 600};
+    blueprint.producers.clear();
+    blueprint.zones = {{"north", {0, 0}, {1400, 200}},
+                       {"southwest", {0, 400}, {600, 200}},
+                       {"southeast", {800, 400}, {600, 200}}};
+    if (!refuge)
+        blueprint.zones.push_back({"closed refuge", {600, 400}, {200, 200}});
+    blueprint.movers = {{"through", Model::APM4220, {243.5f, 243.5f}},
+                        {"parked", Model::APM4220, {643.5f, 243.5f}}};
+    return blueprint;
+}
+
+Simulation start_parked_blocker(bool refuge, bool make_way) {
+    Simulation simulation(parked_blocker_fixture(refuge));
+    simulation.set_workload(false);
+    simulation.record_events(true);
+    auto settings = simulation.motion_settings();
+    settings.heatmap = false;
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = make_way;
+    simulation.configure_motion(settings);
+    REQUIRE(simulation.move_to(0, {1100, 300}));
+    simulation.run();
+    return simulation;
+}
+} // namespace
+
+TEST_CASE("make way uses a checked refuge and returns the parked mover without contact") {
+    auto simulation = start_parked_blocker(true, true);
+    const auto parking = simulation.movers()[1].parking;
+    for (int tick = 0; tick < 2000; ++tick)
+        simulation.tick();
+    CHECK(i4sim::test::count(simulation.events(), EventKind::make_way_started) == 1);
+    CHECK(i4sim::test::count(simulation.events(), EventKind::make_way_ended) == 1);
+    CHECK(simulation.collisions() == 0);
+    CHECK(kinetra::distance(simulation.movers()[0].body.position, {1100, 300}) == doctest::Approx(0));
+    CHECK(kinetra::distance(simulation.movers()[1].body.position, parking) == doctest::Approx(0));
+    CHECK(simulation.movers()[1].goal == GoalKind::automatic);
+    CHECK_FALSE(simulation.stall_details(0));
+}
+
+TEST_CASE("make way keeps observing a stall when no refuge can open a route") {
+    auto simulation = start_parked_blocker(false, true);
+    for (int tick = 0; tick < 1300; ++tick)
+        simulation.tick();
+    CHECK(simulation.stall_details(0));
+    CHECK(i4sim::test::count(simulation.events(), EventKind::stall_started) == 1);
+    std::vector<std::uint64_t> attempts;
+    for (const auto &event : simulation.events())
+        if (event.kind == EventKind::make_way_unavailable)
+            attempts.push_back(event.tick);
+    REQUIRE(attempts.size() == 2);
+    CHECK(attempts[1] - attempts[0] == 30);
+    CHECK(i4sim::test::count(simulation.events(), EventKind::make_way_started) == 0);
+    CHECK(simulation.collisions() == 0);
+}
+
+TEST_CASE("turning make way off returns a yielding mover once its parking route is clear") {
+    auto simulation = start_parked_blocker(true, true);
+    const auto parking = simulation.movers()[1].parking;
+    for (int tick = 0; tick < 1000 && simulation.movers()[1].goal != GoalKind::making_way; ++tick)
+        simulation.tick();
+    REQUIRE(simulation.movers()[1].goal == GoalKind::making_way);
+    for (int tick = 0; tick < 30; ++tick)
+        simulation.tick();
+    auto settings = simulation.motion_settings();
+    settings.make_way = false;
+    simulation.configure_motion(settings);
+    for (int tick = 0; tick < 700 && simulation.movers()[1].goal == GoalKind::making_way; ++tick)
+        simulation.tick();
+    CHECK(simulation.collisions() == 0);
+    CHECK(simulation.movers()[1].goal == GoalKind::automatic);
+    CHECK(kinetra::distance(simulation.movers()[1].body.position, parking) == doctest::Approx(0));
+    CHECK(std::any_of(simulation.events().begin(), simulation.events().end(),
+                      [](const auto &event) { return event.make_way_end == MakeWayEnd::cancelled; }));
+}
+
+TEST_CASE("make way clears the recorded 4320x2400 departures") {
+    for (const auto seed : {2026u, 915839214u}) {
+        CAPTURE(seed);
+        Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), seed);
+        auto settings = simulation.motion_settings();
+        settings.profile = SteeringProfile::reciprocal;
+        settings.make_way = true;
+        simulation.configure_motion(settings);
+        simulation.record_events(true);
+        simulation.run();
+        for (int tick = 0; tick < 12000; ++tick)
+            simulation.tick();
+        CHECK(std::any_of(simulation.events().begin(), simulation.events().end(), [](const auto &event) {
+            return event.movers[0] == 25 && event.make_way_end == MakeWayEnd::cleared;
+        }));
+        CHECK_FALSE(simulation.stall_details(25));
+        CHECK_FALSE(simulation.stall_details(23));
+        CHECK(simulation.collisions() == 0);
+    }
+}
+
+TEST_CASE("make way preserves a parked product and lets the recorded MAS recipe resume") {
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator")), 42);
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = true;
+    simulation.configure_motion(settings);
+    simulation.record_events(true);
+    simulation.run();
+
+    const auto &blocker = simulation.movers()[4];
+    for (int tick = 0; tick < 30000 && blocker.goal != GoalKind::making_way; ++tick)
+        simulation.tick();
+    REQUIRE(blocker.goal == GoalKind::making_way);
+    REQUIRE(blocker.product);
+    const auto product = *blocker.product;
+    const auto carries_product = [&](const Product &p) { return p.id == product; };
+    const auto initial =
+        std::find_if(simulation.products().begin(), simulation.products().end(), carries_product);
+    REQUIRE(initial != simulation.products().end());
+    const auto step = initial->step;
+    const auto producer = initial->producer;
+    const auto parking = blocker.parking;
+
+    for (int tick = 0; tick < 6000 && blocker.goal == GoalKind::making_way; ++tick) {
+        CHECK(blocker.product == product);
+        const auto current =
+            std::find_if(simulation.products().begin(), simulation.products().end(), carries_product);
+        REQUIRE(current != simulation.products().end());
+        CHECK((current->step == step && current->producer == producer && current->mover == 4));
+        CHECK(kinetra::distance(blocker.parking, parking) == 0);
+        simulation.tick();
+    }
+    CHECK(blocker.goal == GoalKind::automatic);
+    while (simulation.running() && simulation.ticks() < 50000)
+        simulation.tick();
+    CHECK(std::any_of(simulation.events().begin(), simulation.events().end(), [](const auto &event) {
+        return event.movers[0] == 0 && event.make_way_end == MakeWayEnd::cleared;
+    }));
+    CHECK(simulation.completed() >= 15);
+    CHECK(simulation.collisions() == 0);
+}

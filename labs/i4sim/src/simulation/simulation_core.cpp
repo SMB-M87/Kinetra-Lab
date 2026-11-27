@@ -71,7 +71,8 @@ void SimulationCore::configure_motion(MotionSettings settings) {
         m.body.velocity = limited(m.body.velocity, settings.speed);
         if (!settings.parking_traffic && m.goal == GoalKind::parking_staging)
             goals().set(m, m.parking);
-        else if (m.moving() && (routes_change || (m.detour && !settings.recovery))) {
+        else if (m.moving() && m.goal != GoalKind::making_way &&
+                 (routes_change || (m.detour && !settings.recovery))) {
             // Setting the same goal again replans the route but keeps its origin. A recovery
             // detour ends with recovery: a mover keeping one would skip its own obstruction
             // replanning, and nothing else would free it.
@@ -247,6 +248,7 @@ void SimulationCore::tick() {
     turn_shuttle();
     // Observe the completed tick, at the same point as the batch benchmark.
     stalls_.observe(fleet_, motion_, ticks_, log_);
+    make_way_.update(goals_now, production_.products(), shuttle_, stalls_);
     for (auto &mover : fleet_.movers) {
         if (waiting_for_progress(mover)) {
             ++mover.current_wait_ticks;

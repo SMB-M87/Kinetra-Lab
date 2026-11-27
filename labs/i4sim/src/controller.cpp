@@ -455,6 +455,7 @@ void FactoryController::add_traffic_entries(std::vector<kinetra::DebugEntry> &en
     if (!supports_predictive_passing(simulation_->motion_settings().profile))
         passing.value = [] { return std::string("LEGACY"); };
     entries.push_back(std::move(passing));
+    entries.push_back(motion_check("MAKE WAY", &MotionSettings::make_way));
 }
 
 std::vector<kinetra::DebugEntry> FactoryController::menu(const LayerColors &colors) {

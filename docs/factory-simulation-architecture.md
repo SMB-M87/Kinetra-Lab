@@ -59,7 +59,8 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
-| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact and stall events |
+| `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Active refuge and return trips | Optional checked parking relief after stall observation |
+| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall and make-way events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
 | `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Per-mover observations and the active episode's onset diagnosis | Observe route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
 

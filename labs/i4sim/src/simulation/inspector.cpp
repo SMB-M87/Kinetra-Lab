@@ -27,6 +27,8 @@ const char *goal_name(GoalKind goal) {
         return "MANUAL";
     case GoalKind::parking_staging:
         return "PARKING STAGING";
+    case GoalKind::making_way:
+        return "MAKE WAY";
     }
     return "";
 }

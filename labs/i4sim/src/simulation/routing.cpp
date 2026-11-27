@@ -47,21 +47,9 @@ template <class Clear> std::vector<Vec2> shortest_clear_path(const std::vector<V
     }
     return {};
 }
-/// The grid route of plan_route, refined around stationary movers where needed.
-std::vector<Vec2> grid_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 target,
-                             bool require_departure) {
-    const auto &m = fleet.movers[mover];
-    auto route = floor.grid().path(m.body.position, target, m.body.half_extents);
-    if (route.empty() || (!require_departure && distance(target, m.parking) > same_point_mm &&
-                          fleet.progress[mover].no_progress < obstruction_ticks))
-        return route;
-    std::vector<const Body *> obstacles;
-    for (std::size_t j = 0; j < fleet.movers.size(); ++j) {
-        const auto &other = fleet.movers[j];
-        if (j != mover &&
-            (!other.moving() || other.held || fleet.progress[j].no_progress >= obstruction_ticks))
-            obstacles.push_back(&other.body);
-    }
+/// Refines a route around rectangular footprints, or returns an empty route.
+std::vector<Vec2> refine_route(const FloorPlan &floor, const Mover &m, const std::vector<Vec2> &route,
+                               std::span<const Body *const> obstacles) {
     auto clear = [&](Vec2 from, Vec2 to) {
         if (!floor.grid().clear(from, to, m.body.half_extents))
             return false;
@@ -81,7 +69,7 @@ std::vector<Vec2> grid_route(const FloorPlan &floor, const Fleet &fleet, std::si
     // Refine parking/stalled routes around rectangular stationary footprints.
     // Grid waypoints retain topology; obstacle corners allow tight aisle entries
     // that a cell center or a conservative circular recovery envelope cannot fit.
-    std::vector<Vec2> nodes{m.body.position, target};
+    std::vector<Vec2> nodes{m.body.position, route.back()};
     nodes.insert(nodes.end(), route.begin(), route.end());
     for (const auto *other : obstacles) {
         const Vec2 extent = m.body.half_extents + other->half_extents + Vec2{3, 3};
@@ -102,11 +90,32 @@ std::vector<Vec2> grid_route(const FloorPlan &floor, const Fleet &fleet, std::si
             }
         // Keep pathological dense blueprints from creating an unbounded graph.
         if (nodes.size() > 256)
-            return require_departure ? std::vector<Vec2>{} : route;
+            return {};
     }
     if (auto refined = shortest_clear_path(nodes, clear); !refined.empty())
         return refined;
-    return require_departure ? std::vector<Vec2>{} : route;
+    return {};
+}
+
+/// The grid route of plan_route, refined around stationary movers where needed.
+std::vector<Vec2> grid_route(const FloorPlan &floor, const Fleet &fleet, std::size_t mover, Vec2 target,
+                             bool require_departure) {
+    const auto &m = fleet.movers[mover];
+    auto route = floor.grid().path(m.body.position, target, m.body.half_extents);
+    if (route.empty() || (!require_departure && distance(target, m.parking) > same_point_mm &&
+                          fleet.progress[mover].no_progress < obstruction_ticks))
+        return route;
+    std::vector<const Body *> obstacles;
+    for (std::size_t j = 0; j < fleet.movers.size(); ++j) {
+        const auto &other = fleet.movers[j];
+        if (j != mover &&
+            (!other.moving() || other.held || fleet.progress[j].no_progress >= obstruction_ticks))
+            obstacles.push_back(&other.body);
+    }
+    auto refined = refine_route(floor, m, route, obstacles);
+    if (refined.empty() && !require_departure)
+        return route;
+    return refined;
 }
 } // namespace
 std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
@@ -117,6 +126,23 @@ std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, const M
     if (!motion.path_planning && !route.empty())
         return {target};
     return route;
+}
+std::vector<Vec2> clearance_route(const FloorPlan &floor, const Mover &m, Vec2 target,
+                                  std::span<const Body *const> obstacles, bool planning) {
+    const auto &grid = floor.grid();
+    if (grid.clear(m.body.position, target, m.body.half_extents)) {
+        const std::vector<Vec2> direct{target};
+        if (std::none_of(obstacles.begin(), obstacles.end(), [&](const Body *other) {
+                return swept_box_overlaps(m.body.position, target, m.body.half_extents + clearance, *other);
+            }))
+            return direct;
+    }
+    if (!planning)
+        return {};
+    const auto route = grid.path(m.body.position, target, m.body.half_extents);
+    if (route.empty())
+        return {};
+    return refine_route(floor, m, route, obstacles);
 }
 void recover_route(const FloorPlan &floor, Fleet &fleet, std::size_t mover) {
     auto &m = fleet.movers[mover];

@@ -69,7 +69,9 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
         return false;
     // Congestion includes this mover's footprint; it is not evidence that
     // its route is obstructed. Replan only after sustained lack of progress.
-    if (!m.detour && ++tracking.replan >= replan_ticks && tracking.no_progress >= obstruction_ticks) {
+    const bool temporary = m.goal == GoalKind::making_way;
+    if (!temporary && !m.detour && ++tracking.replan >= replan_ticks &&
+        tracking.no_progress >= obstruction_ticks) {
         auto route = plan_route(goals.floor, goals.fleet, goals.motion, i, m.destination);
         if (!route.empty()) {
             m.route = std::move(route);
@@ -84,7 +86,7 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
     }
     if (++tracking.no_progress >= stall_ticks + std::min(recovery_backoff_limit, tracking.recovery_attempts) *
                                                     recovery_backoff_ticks &&
-        goals.motion.recovery) {
+        goals.motion.recovery && !temporary) {
         recover_route(goals.floor, goals.fleet, i);
         ++tracking.recovery_attempts;
     }
@@ -193,7 +195,7 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
     m.body.position += m.body.velocity;
     const float moved = distance(before, m.body.position);
     m.distance += moved;
-    if (m.product)
+    if (m.product && m.goal != GoalKind::making_way)
         production.add_distance(*m.product, moved);
     const float remaining = route_remaining(m.body.position, m.route);
     // Arrival slows continuously; a fixed 2 mm threshold would classify
@@ -203,7 +205,7 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
         tracking.best_remaining = remaining;
         tracking.no_progress = 0;
     }
-    if (m.product)
+    if (m.product && m.goal != GoalKind::making_way)
         ++m.transport_ticks;
     // Snap to the destination once the mover is there, slow, and the snap touches nothing.
     if (!controlled && m.route.size() == 1 &&

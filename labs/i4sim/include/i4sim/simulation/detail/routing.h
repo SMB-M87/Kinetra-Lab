@@ -3,6 +3,7 @@
 #include "i4sim/simulation/detail/floor_plan.h"
 
 #include <cstddef>
+#include <span>
 #include <vector>
 
 namespace i4sim::detail {
@@ -19,6 +20,12 @@ namespace i4sim::detail {
 /// returned is the destination alone: the mover steers straight at it.
 std::vector<Vec2> plan_route(const FloorPlan &floor, const Fleet &fleet, const MotionSettings &motion,
                              std::size_t mover, Vec2 destination, bool require_departure = false);
+
+/// Finds a route with the mover's full static clearance and clearance from every given
+/// body. Returns empty if the bounded search cannot confirm a route. With planning off,
+/// only the direct leg is considered.
+std::vector<Vec2> clearance_route(const FloorPlan &floor, const Mover &mover, Vec2 target,
+                                  std::span<const kinetra::Body *const> obstacles, bool planning);
 
 /// Replaces the route of `mover` with a Navigation route around blocked cells and all other
 /// movers, when one reaches the destination, and marks it as a detour. Resets the progress

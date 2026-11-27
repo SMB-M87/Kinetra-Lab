@@ -39,7 +39,8 @@ void write_csv_field(std::ostream &out, std::string_view field) {
 /// replayed from its blueprint, seed and tick.
 void write_events(const std::filesystem::path &file, std::span<const i4sim::SimulationEvent> events) {
     std::ofstream out(file);
-    out << "tick,kind,plan,first,second,end,border,passing,stall_reason,stall_blocker,stall_detected_at\n";
+    out << "tick,kind,plan,first,second,end,border,passing,stall_reason,stall_blocker,stall_detected_at,make_"
+           "way_end\n";
     for (const auto &event : events) {
         out << event.tick << ',' << i4sim::name(event.kind) << ',' << event.plan << ',' << event.movers[0]
             << ',' << event.movers[1] << ',' << (event.end ? i4sim::name(*event.end) : "") << ','
@@ -52,6 +53,9 @@ void write_events(const std::filesystem::path &file, std::span<const i4sim::Simu
         } else {
             out << ",,";
         }
+        out << ',';
+        if (event.make_way_end)
+            out << i4sim::name(*event.make_way_end);
         out << '\n';
     }
     if (!out)
@@ -63,7 +67,7 @@ int main(int argc, char **argv) {
     try {
         using namespace i4sim;
         bool recovery = false, parking_traffic = false, junction_traffic = false, corridor_traffic = false;
-        bool predictive_passing = false;
+        bool predictive_passing = false, make_way = false;
         auto profile = SteeringProfile::improved;
         std::uint64_t ticks = 50000;
         std::optional<std::filesystem::path> event_directory;
@@ -89,6 +93,10 @@ int main(int argc, char **argv) {
             }
             if (option == "--parking-traffic") {
                 parking_traffic = true;
+                continue;
+            }
+            if (option == "--make-way") {
+                make_way = true;
                 continue;
             }
             if (option == "--recovery") {
@@ -130,7 +138,7 @@ int main(int argc, char **argv) {
             } else {
                 throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] "
                                             "[--parking-traffic] [--junction-traffic] [--corridor-traffic] "
-                                            "[--predictive-passing|--no-predictive-passing] "
+                                            "[--predictive-passing|--no-predictive-passing] [--make-way] "
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N] "
                                             "[--events DIRECTORY] [--blueprint FILE ...] [--seed N ...]");
             }
@@ -163,6 +171,7 @@ int main(int argc, char **argv) {
                 Simulation simulation(load_blueprint(file), seed);
                 auto settings = simulation.motion_settings();
                 settings.predictive_passing = predictive_passing;
+                settings.make_way = make_way;
                 settings.recovery = recovery;
                 settings.parking_traffic = parking_traffic;
                 settings.junction_traffic = junction_traffic;

@@ -17,6 +17,7 @@ A local C++20 factory simulation, ported from the C# Industry 4.0 reference. Mov
   - [Corridor traffic and recovery](#corridor-traffic-and-recovery)
   - [Predictive passing](#predictive-passing)
   - [Parking traffic](#parking-traffic)
+  - [Make way](#make-way)
 - [Invariants and contracts](#invariants-and-contracts)
 - [Changing this module](#changing-this-module)
 - [Tests](#tests)
@@ -94,9 +95,9 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 | SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second), WORKLOAD |
 | LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. A color swatch beside a row is the color it is drawn in |
 | MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
-| TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing) |
+| TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY |
 
-Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. Only a PLANNER change plans every route again. Turning a policy off drops its state; passing plans end as `disabled`. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
+Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. Only a PLANNER change plans every route again. Turning passing off ends plans as `disabled`. Turning MAKE WAY off cancels relief requests and returns the yielding movers when their parking routes are clear. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
 
 The two statistics lines show ticks, ticks per second, contacts and contact duration, and the counters of the policies that are on: `PASS` (active passing pairs), `RETREAT` (corridor recoveries), `AVOID LIMIT` (Reciprocal: movers whose constraints were infeasible or overridden in the last tick), `PARK WAIT`, `CROSS WAIT` and `LANE WAIT` (waiting movers, with the number of detected zones) and `EXIT` (movers waiting for exit space).
 
@@ -343,6 +344,10 @@ Mint arrows show the temporary targets (a waiting participant's braking point wh
 
 Before movement, an automatic parking return whose parking footprint lies on another mover's active route is sent to a free staging cell instead (goal kind `parking_staging`). The mover keeps its parking place, is not given a new product while it waits, and resumes its own parking goal when the route is clear. `PARK WAIT` counts the movers that wait. Manual goals and new production take precedence.
 
+### Make way
+
+**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
+
 ## Invariants and contracts
 
 - **Determinism.** The same blueprint, seed, motion settings and commands give the same run tick for tick. Randomness comes only from the seeded workload generator. The [golden and pressure suites](tests/README.md#golden-and-pressure-lines) pin this with fingerprints of every position after every tick, so they need exact floating-point results (no fast-math, no FMA contraction).
@@ -417,6 +422,6 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 
 - With LAYERS open and every layer on, the debug menu is 24 rows high. It fits the default 1280 × 800 window, but in a window lower than about 650 pixels FRAME SCENE and BLUEPRINTS fall below the edge until a section or layer is closed.
 - The main graphics case clicks debug-menu rows by number. The numbers in `menu_row` follow the menu's layout by hand.
-- A mover can be sealed in for good by neighbors that stay parked (often idle with a product, waiting for a producer) along a wall or below a producer cell; parked movers never make way. A mover that returns to its own place can then stop about 120 mm from it. It happens without any setting change (2 of 48 seeded runs, `4320x2400` under Reciprocal), it causes the low throughput of `MAS-demonstrator` seed 42 under Reciprocal, and a SPEED, FORCE or HORIZON change can steer a run into it. PARKING TRAFFIC and RECOVERY do not resolve it. See [the departure replay and measurements](../../docs/design/2026-11-26-i4sim-stall-detection.md) and [the remaining remedies](../../docs/roadmap.md#later).
+- A parked mover can seal an exit when MAKE WAY is off or one eligible blocker cannot open a checked route. The strict departure check on queue advancement remains open. [MAKE WAY and the departure replay](../../docs/design/2026-11-27-i4sim-make-way.md)
 - Predictive passing stays off by default. Under Improved its benchmark results stay mixed because of Improved's own contact episodes; under Reciprocal it raises throughput without contact ([phase 7](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result)). i4sim uses [Kinetra’s passing geometry](../../external/Kinetra/docs/engine/navigation.md#predictive-passing). The [roadmap](../../docs/roadmap.md#later) tracks adoption in Demo and Dotio.
 - Desktop playtests and performance checks stay manual.

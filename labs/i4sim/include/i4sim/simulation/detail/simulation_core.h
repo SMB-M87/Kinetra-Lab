@@ -4,6 +4,7 @@
 #include "i4sim/simulation/detail/fleet.h"
 #include "i4sim/simulation/detail/floor_plan.h"
 #include "i4sim/simulation/detail/goals.h"
+#include "i4sim/simulation/detail/make_way.h"
 #include "i4sim/simulation/detail/motion_step.h"
 #include "i4sim/simulation/detail/predictive_passing.h"
 #include "i4sim/simulation/detail/production.h"
@@ -136,6 +137,7 @@ class SimulationCore {
     MotionStep motion_step_;
     Shuttle shuttle_;
     StallDetector stalls_;
+    MakeWay make_way_;
     std::uint32_t seed_;
     /// Set while not running; the first running advance() then aligns previous positions
     /// with the current ones, so drawing does not step back behind the state shown.

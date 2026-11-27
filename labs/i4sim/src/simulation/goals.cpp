@@ -12,7 +12,7 @@ void Goals::set(Mover &m, Vec2 target) {
     traffic.cancel_recovery(fleet, fleet.index(m), tick);
     passing.cancel(floor, fleet, motion, fleet.index(m), tick, log);
     // A manual goal stays manual until arrival; a parking staging goal is replaced.
-    if (m.goal == GoalKind::parking_staging)
+    if (m.goal == GoalKind::parking_staging || m.goal == GoalKind::making_way)
         m.goal = GoalKind::automatic;
     m.destination = target;
     m.route = plan_route(floor, fleet, motion, fleet.index(m), target);
@@ -77,7 +77,7 @@ void Goals::coordinate_parking() {
         return;
     for (auto &m : fleet.movers) {
         const bool staging = m.goal == GoalKind::parking_staging;
-        if (m.held || m.goal == GoalKind::manual ||
+        if (m.held || m.goal == GoalKind::manual || m.goal == GoalKind::making_way ||
             (!staging && (!m.moving() || distance(m.destination, m.parking) >= same_point_mm)))
             continue;
         if (!parking_conflict(m, m.parking)) {

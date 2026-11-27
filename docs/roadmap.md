@@ -29,8 +29,8 @@ Nothing agreed next.
 ## Later
 
 - **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
-  After [stall detection](design/2026-11-26-i4sim-stall-detection.md), add two optional remedies, off by default and measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness). In step 2, MAKE WAY asks parked neighbors to let a stalled mover pass. A neighbor waiting for a producer keeps its product and queue slot and returns once the way is clear or a fixed time passes. Step 3 adds a temporary motion fallback. The user chooses the motion type and return rule from the detection data.
-  Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [phase 7, step 4](design/2026-11-21-i4sim-passing-under-pressure.md#step-4-a-documented-limit-and-a-proposed-remedy).
+  [Stall detection](design/2026-11-26-i4sim-stall-detection.md) supplies the diagnosis, and [MAKE WAY](design/2026-11-27-i4sim-make-way.md) lets one parked neighbor clear the route when a checked refuge is available. The remedy is measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness).
+  Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Step 3 is a temporary motion fallback. The user chooses its motion type and return rule from the detection data. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [MAKE WAY follow-up](design/2026-11-27-i4sim-make-way.md#open-points).
 - **RECOVERY detour past a corner** · i4sim · added 2026-11-21
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
