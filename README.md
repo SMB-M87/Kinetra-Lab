@@ -224,7 +224,7 @@ i4sim blueprints are copied next to each executable that opens them; see [i4sim 
 
 The [documentation index](docs/README.md) links system dependencies, application ownership and session/overlay interactions. Usage and controls live alongside each lab.
 
-Changes follow the shared [development workflow](external/Kinetra/docs/workflow.md): a [design document](docs/design/README.md) per branch, tests, an independent review and documentation for a code change, the author's own review for a change to documentation alone, each verified at the level its impact requires. [AGENTS.md](AGENTS.md) holds the Lab-specific rules; the [roadmap](docs/roadmap.md) lists the planned work in order of priority.
+Changes follow the shared [development workflow](external/Kinetra/docs/workflow.md): the implementing session plans the affected scenarios, adds and runs regression tests, and reviews the final diff before pushing. Code changes have a [design document](docs/design/README.md). Each change is verified at the level its impact requires. [AGENTS.md](AGENTS.md) holds the Lab-specific rules; the [roadmap](docs/roadmap.md) lists the planned work in order of priority.
 
 ## License
 
