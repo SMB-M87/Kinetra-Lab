@@ -37,6 +37,12 @@ const char *profile_name(SteeringProfile profile);
 constexpr bool supports_predictive_passing(SteeringProfile profile) {
     return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
 }
+/// Whether `profile` can run RIGHT OF WAY. Only Improved's steering and Reciprocal's avoidance
+/// read the fixed body a right of way marks, so the other profiles ignore
+/// `MotionSettings::right_of_way`.
+constexpr bool supports_right_of_way(SteeringProfile profile) {
+    return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
+}
 /// Longest prediction horizon `Simulation::configure_motion` accepts, in ticks.
 inline constexpr float longest_motion_horizon = 64;
 /// Motion and traffic settings of a simulation; see `Simulation::configure_motion`.
@@ -74,6 +80,11 @@ struct MotionSettings {
     /// check. A mover still driving to its holding place, or leaving a processing place,
     /// departs as without the check.
     bool departure_check{};
+    /// A mover that stalls because a neighbor drives it back from its goal gets the right of
+    /// way for 480 ticks: it keeps steering at its goal and the others no longer count on it
+    /// to make room. See `Coordination::right_of_way`. Only under the profiles of
+    /// `supports_right_of_way`.
+    bool right_of_way{};
 };
 /// Whether a simulation advances. Every simulation starts `paused`.
 enum class RunState {
@@ -139,6 +150,8 @@ struct Coordination {
     bool corridor_retreating{};
     /// Following the temporary targets of a predictive passing plan.
     bool passing{};
+    /// Holding the right of way after a neighbor pushed it back from its goal (RIGHT OF WAY).
+    bool right_of_way{};
 };
 /// One transport mover: its definition, physical state, goal and statistics. Positions are
 /// in millimeters, velocities in millimeters per tick. Only Simulation changes a mover.

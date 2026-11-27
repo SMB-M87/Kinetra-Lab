@@ -29,6 +29,12 @@ enum class EventKind {
     make_way_unavailable,
     /// The request ended and the yielding mover can return when a route clears.
     make_way_ended,
+    /// A stalled mover that a neighbor pushed back got the right of way; the second mover is
+    /// the pushing neighbor.
+    right_of_way_granted,
+    /// The right of way ended: its window passed, the mover left its route or the policy
+    /// was turned off.
+    right_of_way_ended,
 };
 
 /// Evidence available when the detector observed the start of a stall: Kinetra's reasons
@@ -136,6 +142,10 @@ constexpr std::string_view name(EventKind kind) {
         return "make_way_unavailable";
     case EventKind::make_way_ended:
         return "make_way_ended";
+    case EventKind::right_of_way_granted:
+        return "right_of_way_granted";
+    case EventKind::right_of_way_ended:
+        return "right_of_way_ended";
     }
     return "unknown";
 }

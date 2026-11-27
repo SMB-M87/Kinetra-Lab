@@ -3,6 +3,7 @@
 #include "i4sim/simulation/detail/make_way.h"
 #include "i4sim/simulation/detail/routing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
+#include "i4sim/simulation/detail/stall_detector.h"
 
 #include <kinetra/simulation/steering.h>
 
@@ -14,7 +15,60 @@ using namespace kinetra;
 namespace {
 /// Margin in millimeters beyond the steering reach within which borders are considered.
 constexpr float border_search_margin_mm = 10;
+/// Ticks a pushed-back mover keeps the right of way: four stall windows, the best of the
+/// windows measured under the prototype's return rule (design: stall remedies in the engine).
+constexpr std::uint64_t right_of_way_ticks = 4 * stall_ticks;
+
+/// What a mover is to RIGHT OF WAY at the start of a tick, from the coordination of the last
+/// tick: on its own route, standing, or under another control (a traffic control, a wait at a
+/// junction or corridor, a corridor retreat, a passing plan, a make-way trip). The first tick
+/// has no controls yet.
+StallMoverState right_of_way_state(const Fleet &fleet, std::size_t id) {
+    const auto &m = fleet.movers[id];
+    if (!m.moving() || m.held)
+        return StallMoverState::standing;
+    const auto &coord = m.coordination;
+    if (m.goal == GoalKind::making_way || (id < fleet.controls.size() && fleet.controls[id]) ||
+        m.route.empty() || coord.junction_waiting || coord.exit_waiting || coord.corridor_waiting ||
+        coord.corridor_retreating || coord.passing)
+        return StallMoverState::busy;
+    return StallMoverState::observed;
+}
 } // namespace
+
+void MotionStep::end_right_of_way(Fleet &fleet, std::uint64_t tick, EventLog &log) {
+    for (std::size_t i = 0; i < fleet.movers.size(); ++i)
+        if (right_of_way_.granted(i)) {
+            fleet.movers[i].coordination.right_of_way = false;
+            if (log.recording())
+                log.add({.tick = tick, .kind = EventKind::right_of_way_ended, .movers = {i, 0}});
+        }
+    right_of_way_.clear();
+}
+
+void MotionStep::update_right_of_way(Goals &goals) {
+    const auto &fleet = goals.fleet;
+    auto record = [&](EventKind kind, std::size_t mover, std::size_t pusher) {
+        if (goals.log.recording())
+            goals.log.add({.tick = goals.tick, .kind = kind, .movers = {mover, pusher}});
+    };
+    if (!goals.motion.right_of_way || !supports_right_of_way(goals.motion.profile)) {
+        end_right_of_way(goals.fleet, goals.tick, goals.log);
+        return;
+    }
+    std::vector<StallMover> movers;
+    movers.reserve(fleet.movers.size());
+    for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
+        const auto &m = fleet.movers[i];
+        movers.push_back({m.body, m.route.empty() ? m.body.position : m.route.front(), m.destination,
+                          fleet.progress[i].no_progress, right_of_way_state(fleet, i)});
+    }
+    for (const auto &event :
+         right_of_way_.step(movers, stall_observation(goals.motion), {right_of_way_ticks}, goals.tick))
+        record(event.kind == RightOfWayEvent::Kind::granted ? EventKind::right_of_way_granted
+                                                            : EventKind::right_of_way_ended,
+               event.mover, event.pusher.value_or(0));
+}
 
 void MotionStep::run(Goals &goals, Production &production) {
     auto &fleet = goals.fleet;
@@ -23,17 +77,25 @@ void MotionStep::run(Goals &goals, Production &production) {
     const bool prepare_together = (motion.junction_traffic && goals.floor.junction_count() > 0) ||
                                   (motion.corridor_traffic && goals.floor.corridor_count() > 0) ||
                                   (PredictivePassing::enabled(motion) && fleet.movers.size() > 1);
+    // Decided from the state the last tick left, before any route preparation of this tick.
+    update_right_of_way(goals);
     if (prepare_together)
         for (std::size_t i = 0; i < fleet.movers.size(); ++i)
             follow_route(goals, i);
     avoidance_limited_ = 0;
     std::vector<Body> snapshot;
     std::vector<Aabb> boxes;
-    for (const auto &m : fleet.movers) {
+    for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
+        const auto &m = fleet.movers[i];
         snapshot.push_back(m.body);
         if (m.held || !m.moving()) {
             snapshot.back().motion = Motion::fixed;
             snapshot.back().velocity = {};
+        } else if (right_of_way_.granted(i)) {
+            // The others stop counting on it to make room: Reciprocal's agents take the whole
+            // avoidance instead of half, and Improved's steering avoids it as a standing body.
+            // It still avoids them itself.
+            snapshot.back().motion = Motion::fixed;
         }
         boxes.push_back(bounds(m.body));
     }
@@ -41,6 +103,8 @@ void MotionStep::run(Goals &goals, Production &production) {
     index.rebuild(boxes);
     // Corridor recovery and passing claim movers first; admission then skips their zones.
     Traffic::begin_tick(fleet);
+    for (std::size_t i = 0; i < fleet.movers.size(); ++i)
+        fleet.movers[i].coordination.right_of_way = right_of_way_.granted(i);
     if (motion.corridor_traffic)
         goals.traffic.recover_corridors(goals.floor, fleet, goals.tick, index);
     goals.passing.coordinate(goals.floor, fleet, motion, goals.tick, goals.log);

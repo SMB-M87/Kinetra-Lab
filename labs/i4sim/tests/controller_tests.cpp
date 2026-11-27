@@ -678,10 +678,10 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     choose(controller, "TRAFFIC");
-    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC",
-                                                         "CORRIDOR TRAFFIC", "JUNCTION TRAFFIC",
-                                                         "PARKING TRAFFIC", "PREDICTIVE PASS", "MAKE WAY",
-                                                         "DEPARTURE CHECK", "ZOOM", "FRAME SCENE"});
+    CHECK(labels(controller) ==
+          std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "CORRIDOR TRAFFIC",
+                                   "JUNCTION TRAFFIC", "PARKING TRAFFIC", "PREDICTIVE PASS", "MAKE WAY",
+                                   "DEPARTURE CHECK", "RIGHT OF WAY", "ZOOM", "FRAME SCENE"});
     choose(controller, "TRAFFIC");
     CHECK(labels(controller) ==
           std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "ZOOM", "FRAME SCENE"});
@@ -966,15 +966,16 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     const auto &motion = controller.simulation().motion_settings();
     open_section(controller, "TRAFFIC");
     for (const char *label : {"CORRIDOR TRAFFIC", "JUNCTION TRAFFIC", "PARKING TRAFFIC", "PREDICTIVE PASS",
-                              "MAKE WAY", "DEPARTURE CHECK"}) {
+                              "MAKE WAY", "DEPARTURE CHECK", "RIGHT OF WAY"}) {
         CHECK(entry(controller, label).kind == kinetra::DebugEntryKind::check);
         CHECK_FALSE(entry(controller, label).active());
         choose(controller, label);
         CHECK(entry(controller, label).active());
     }
     CHECK((motion.corridor_traffic && motion.junction_traffic && motion.parking_traffic &&
-           motion.predictive_passing && motion.make_way && motion.departure_check));
+           motion.predictive_passing && motion.make_way && motion.departure_check && motion.right_of_way));
     CHECK_FALSE(entry(controller, "PREDICTIVE PASS").value);
+    CHECK_FALSE(entry(controller, "RIGHT OF WAY").value);
 
     open_section(controller, "MOTION");
     CHECK_FALSE(entry(controller, "RECOVERY").active());
@@ -985,6 +986,8 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     open_section(controller, "TRAFFIC");
     CHECK(entry(controller, "PREDICTIVE PASS").value() == "LEGACY");
     CHECK_MESSAGE(entry(controller, "PREDICTIVE PASS").active(), "the legacy profile keeps the setting");
+    CHECK(entry(controller, "RIGHT OF WAY").value() == "LEGACY");
+    CHECK_MESSAGE(entry(controller, "RIGHT OF WAY").active(), "the legacy profile keeps the setting");
 }
 
 TEST_CASE("a motion setting the simulation rejects shows its reason and changes nothing") {
