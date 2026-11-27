@@ -1,6 +1,6 @@
 # Stall remedies in the engine
 
-Status: accepted · Branch: `feat/i4sim-departure-check` (step 1 of 5) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
+Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
 
 This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it is *i4sim on the passing coordinator*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
 
@@ -86,7 +86,21 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 
 A departure from a processing place to the next producer is unchanged.
 
-**Steps 2 to 5** are designed on their branches and written here when each starts. The contracts the user accepted:
+**Step 2: i4sim on the coordinator.** `PredictivePassing` keeps its interface and becomes an adapter over `kinetra::PassingCoordinator`; the 300 lines of its own plan lifecycle go. Per tick it maps every mover to a state:
+
+- a mover that is not moving, or is held, is `standing`;
+- one under traffic control, retreating in a corridor or on a make-way trip is `busy`;
+- every other mover is `free`, heading along its route.
+
+A lane check keeps each leg on the floor's grid and out of every traffic zone, as before. The coordinator's events go to the event log with the factory's reasons: `unavailable` becomes `participant_stopped`, `participant_held` or `traffic_control`, in the documented order, and `cancelled` becomes `goal_changed` (from `cancel`) or `disabled` (from `clear`). After each ended plan the adapter plans both routes again. Kinetra's [ADR 0018](../../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md) amends 0017.
+
+Three behaviors follow the engine now:
+
+- After a goal change a mover may join a new plan at once.
+- The guard queries a wider margin.
+- A plan formed in the tick another plan ended uses the heading from the start of the tick.
+
+**Steps 3 to 5** are designed on their branches and written here when each starts. The contracts the user accepted:
 
 - `StallDetector` takes, per mover, a progress counter, a state and a route heading from the application. It returns episodes with an onset diagnosis.
 - `RightOfWay` takes episodes and movers, and returns who is not cooperating for how long.
@@ -119,6 +133,15 @@ Step 1, Targeted level (Lab logic), with the full i4sim suites:
 
 The harness and the 50,000-tick benchmark with `--departure-check` reproduce the measured gate results.
 
+Step 2, Full level (an engine pointer moves; the engine itself is unchanged):
+
+| Behavior | Test |
+| --- | --- |
+| Every plan outcome, arrival, contact and waiting count of the five pressure scenarios under both profiles stays; only trajectories may change | `kinetra_i4sim_pressure_tests`, lines recorded again where the fingerprint moved |
+| The golden runs with PASSING on stay as recorded | `kinetra_i4sim_golden_tests` |
+| A make-way mover joins no plan; the event log's reasons (`goal_changed`, `participant_held`, …) | the existing `kinetra_i4sim` passing cases |
+| The flow with PASSING on is equal | the harness and the 50,000-tick benchmark with `--predictive-passing`, before and after |
+
 ## Verification
 
 Step 1, on Lab `main` `39cb628` with Kinetra `e3ad07c`, Release with Lab and Kinetra warnings on:
@@ -146,6 +169,28 @@ The 50,000-tick rows come from the measuring copy of the code. The branch matche
 | Improved, MAKE WAY off | 343 / 8,022 / 1,386 / 1 | 356 / 8,331 / 1,430 / 2 |
 | Improved, MAKE WAY on | 348 / 7,638 / 836 / 1 | 352 / 8,109 / 233 / 0 |
 
+Step 2, on step 1's branch with Kinetra `e81fab3` (`refactor/i4sim-passing-coordinator`, ADR only), the same Release build: 171 of 171 i4sim cases pass.
+
+- The golden lines, those with PASSING on included, are unchanged.
+- Six of the ten pressure lines were recorded again:
+  - Every plan count, crossing count, end reason, arrival count and contact count is the same, and five waiting counts too.
+  - The Improved three-oncoming case waits 11 ticks instead of 10.
+  - The trajectory fingerprints differ.
+
+The flow with PASSING on, before and after:
+
+| Run, PASSING on | Products | Contacts (in plans) | Waiting ticks | Stuck movers | Runs stuck at end | Plans formed |
+| --- | --- | --- | --- | --- | --- | --- |
+| Harness, Reciprocal | 114 → 114 | 0 (0) → 0 (0) | 16,234 → 16,234 | 3 → 3 | 2 → 2 | 33 → 33 |
+| Harness, Improved | 106 → 106 | 168 (0) → 168 (0) | 6,326 → 6,326 | 0 → 0 | 0 → 0 | 38 → 38 |
+| 50,000 ticks, Reciprocal | 353 → 355 | 0 (0) → 0 (0) | 112,588 → 117,494 | 24 → 16 | 3 → 4 | 474 → 453 |
+| 50,000 ticks, Improved | 347 → 349 | 1,045 (0) → 1,301 (0) | 38,347 → 36,810 | 9 → 11 | 0 → 0 | 426 → 448 |
+
+The harness is identical run for run. The long runs diverge the way any small change makes them diverge:
+
+- Products and plans in passing stay level, and no contact happens in a plan.
+- Improved's own contacts beside parked movers vary in both directions; the departure variants of step 1 moved them by a similar amount.
+
 ## Review
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
@@ -169,6 +214,24 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 **Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
 
 **Follow-up.** Steps 2 to 5 (this document); Demo and Dotio adoption of the remedies becomes a roadmap item.
+
+Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordinator`.
+
+**Summary.** Step 2 of 5. i4sim's passing becomes an adapter over the engine's coordinator, as Demo's and Dotio's already are, and its own plan lifecycle is removed. Kinetra's ADR 0018 records the move and the remedies to come.
+
+**Changes.**
+- `PredictivePassing` maps movers to `PassingMoverState`, checks lanes against the floor and its zones, logs events with the factory's reasons and restores routes.
+- `coordinate` no longer takes the spatial index.
+- Six pressure lines are recorded again.
+- The architecture, performance and i4sim pages are updated, the retry comment follows the engine, and the Kinetra pointer moves to the ADR branch.
+
+**Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md#design), step 2; Kinetra [ADR 0018](https://github.com/SMB-M87/Kinetra/blob/refactor/i4sim-passing-coordinator/docs/decisions/0018-stall-remedies-in-the-engine.md).
+
+**Verification.** 171 of 171 i4sim cases pass, and the golden lines are unchanged. The pressure lines keep every outcome; one wait grows by a tick and the trajectories differ. With PASSING on, the harness is identical and the long runs stay level; the tables are in the design document.
+
+**Dependencies and merge order.** It sits on step 1 (#146) and merges after it. Kinetra's ADR pull request merges first, with a merge commit.
+
+**Follow-up.** Steps 3 to 5.
 
 ## Open points
 
