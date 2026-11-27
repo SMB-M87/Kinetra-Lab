@@ -110,7 +110,7 @@ Measured with Lab at `a83d82d`, Kinetra at `e3ad07c` (before) and `fix/border-fa
 | Off, before / after | 2 / 2 (the same runs) | 3 / 3 | 213 / 213 |
 | On, before / after | 7 / 1 | 8 / 1 | 219 / 222 |
 
-With RECOVERY on, mover 18 reaches its parking place in all six runs. The one stuck run left is `4320x2400` seed 2026 under Improved: movers 22 and 23 jostle beside parked mover 25 at (3359.5, 2331.5), the standstill of the [stall detection replay](2026-11-26-i4sim-stall-detection.md#problem).
+Repeated after merging Lab `main` at `39cb628` (Kinetra-Lab#140, MAKE WAY, off by default): the same counts before and after, run for run. With RECOVERY on, mover 18 reaches its parking place in all six runs. The one stuck run left is `4320x2400` seed 2026 under Improved: movers 22 and 23 jostle beside parked mover 25 at (3359.5, 2331.5), the standstill of the [stall detection replay](2026-11-26-i4sim-stall-detection.md#problem).
 
 **Motion benchmark** (`kinetra_i4sim_motion_benchmark`, 50,000 ticks, seeds 42 and 915839214). Rows not listed are equal before and after, tick for tick; `--profile reciprocal --recovery` is equal in every row. Cells are before → after.
 
@@ -131,7 +131,7 @@ The three runs that now end with a stuck mover were replayed: mover 0 on `MAS-de
 | Kinetra: the two new cases without the fix | Both fail: 0 instead of −0.6 along the side, and the face 6 steps away still brakes |
 | Kinetra: `kinetra_weighted_navigation_tests` with `KINETRA_WARNINGS_AS_ERRORS=ON` | No warnings |
 | Kinetra: `clang-format --dry-run --Werror` on the changed sources; `python3 tools/check_docs.py` | Clean; all links resolve |
-| Lab: `cmake --build --preset release` for the i4sim targets, `ctest --preset release -R '^kinetra_i4sim'` | Every simulation, golden, pressure and controller case passes; golden and pressure lines unchanged |
+| Lab: `cmake --build --preset release` for the i4sim targets, `ctest --preset release -R '^kinetra_i4sim'` | Every simulation, golden, pressure and controller case passes; golden and pressure lines unchanged; again after merging `main` with Kinetra-Lab#140 (160 of 160) |
 | Lab: `python3 external/Kinetra/tools/check_docs.py`, `check_copies.py` with the terms above | All links resolve; hits judged in [Review](#review) |
 | Both pull requests' CI | Full level; recorded on the pull requests |
 
