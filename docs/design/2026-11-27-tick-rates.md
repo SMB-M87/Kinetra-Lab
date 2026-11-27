@@ -1,6 +1,6 @@
 # Tick rates: typed UPS and FPS in every lab, and runs of a million ticks
 
-Status: accepted · Branch: `ccr-74d1b15a-ig41um` (step 1), later steps below · Related: [i4sim](../../labs/i4sim/README.md), [performance](../performance.md), [motion benchmark](../../labs/i4sim/tests/README.md#motion-benchmark)
+Status: implemented · Branches: see [Steps](#steps) · Related: [i4sim](../../labs/i4sim/README.md), [performance](../performance.md), [motion benchmark](../../labs/i4sim/tests/README.md#motion-benchmark)
 
 Every lab gets a UPS row (ticks per second) and an FPS row in its debug menu, where a number can be typed as well as halved or doubled, up to a million ticks per second. The mechanism lives in Kinetra. Headless runs and the motion benchmark run a million ticks by default and report ticks per second, and the largest hotspot of a long run is optimized. The user asked for all of this on 2026-11-27: i4sim's UPS was hard to tune, stopped at 10000, existed only in i4sim, and a 50000-tick benchmark says little.
 
@@ -191,8 +191,38 @@ Step 2, on 2026-11-27:
 - Lab `ctest --preset dev -R '^kinetra_i4sim|^kinetra_demo(:|_passing|_crowd_characterization)'`: 210 of 210 passed, golden lines unchanged.
 - `release` preset, `kinetra_i4sim_motion_benchmark --ticks 50000` and with `--predictive-passing`, before and after, three runs each, interleaved: medians 12.2 s to 10.0 s and 20.1 s to 17.1 s; the CSV columns other than `elapsed_ms` and `ticks_per_second` equal in every run. The default million-tick set after: the same results as before, `8640x4800` in 102 s instead of 148 s and 138 s.
 
+Steps 3 to 5, on 2026-11-27:
+
+- Kinetra `ctest --preset dev`: 331 of 331 passed; `ctest --preset graphics -R kinetra_engine_graphics`: 23 of 23, among them typed text through SDL and the FPS setting on a real runtime.
+- Lab `ctest --preset dev -LE soak`: 359 of 359; `ctest --preset graphics -L graphics`: 31 of 31; `ctest --preset graphics -R kinetra_capture`: 35 of 35, the smoke run included; the eight `kinetra_smoke` cases pass.
+- `SDL_VIDEODRIVER=offscreen kinetra_i4sim --blueprint 8640x4800.json --run --ups 1000000 --frames 120`: 120 frames in 2.6 s, against 1.15 s at 200 UPS: the window keeps running at a UPS far beyond what the processor reaches.
+- `tools/capture/capture_media.sh build-graphics`, every scene, then the i4sim scenes, `launcher` and `ui-launcher` again after the HUD fix; each changed still looked at, and each changed GIF through a sheet of every twentieth frame.
+- `check_docs.py` in both repositories; `check_copies.py` with `FRAME LIMIT`, `time scale`, `SPEED row`, `1 to 10000`, `1..10000`, `FrameLimitSwitch`, `time_scale_entry` and `frame_limit`: every remaining hit is a dated design document, Kinetra's own `run_session(frame_limit)` or the capture tool's `limit_frames(false)`.
+- Not run locally: the soak cases, the `ci`, `headless` and `windows` presets; the pull requests' CI runs them.
+
 ## Review
 
+`/code-review` at medium on Kinetra `e3ad07c..feat/tick-rates`:
+
+| Finding | Resolution |
+| --- | --- |
+| `TickBudget` raised its cost by a quarter per frame, so after a cheap blueprint a large one at a million UPS ran frames of 1.6 s, 0.4 s and 0.13 s | Fixed: a dearer tick takes effect at once, a cheaper one over a few frames; the test pins both |
+| Holding Backspace removes one digit, since `pressed` excludes key repeat | Kept: a number holds at most seven digits |
+| SDL text input is on for every window, which may show an input method's window | Kept and documented in Kinetra's runtime guide |
+
+Found by looking at the captures: the bitmap font has no parentheses, so i4sim's `UPS 200 (201)` showed as `UPS 200  201`. It now reads `UPS 201/200`, reached before asked, as Demo writes it.
+
 ## Pull request
+
+Six pull requests, three in each repository, opened bottom-up; each description starts with its place in the stack.
+
+1. Kinetra-Lab `ccr-74d1b15a-ig41um` → `main`: **feat(i4sim): run a million ticks and report ticks per second**. The motion benchmark runs 1,000,000 ticks by default (at most 100,000,000) and writes `ticks_per_second`; `kinetra_i4sim --ticks N` reports the rate of its tick loop.
+2. Kinetra `refactor/priority-steer-pairs` → `main`: **refactor(steering): skip neighbors and steps that cannot meet in priority_steer**. Same forces, about 18% off the i4sim benchmark and 31% off a million-tick run on the largest factory.
+3. Kinetra-Lab `feat/i4sim-long-run-hotspot` → step 1: **feat(i4sim): record the faster priority_steer of Kinetra**. The pointer and hotspot 7 on the performance page.
+4. Kinetra `feat/typed-number-rows` → step 2: **feat(debug-menu): type a number over a row**.
+5. Kinetra `feat/tick-rates` → step 4: **feat(runtime): tick rates up to a million per second and a chosen frame rate**, with the refreshed shared-UI GIFs.
+6. Kinetra-Lab `feat/tick-rates` → step 3: **feat(labs): UPS up to a million and an FPS row in every lab**, with the refreshed captures.
+
+Merge order: Kinetra's stack bottom-up with merge commits, then Lab's bottom-up; Lab's step 3 needs Kinetra's step 2, Lab's last step Kinetra's last.
 
 ## Open points
