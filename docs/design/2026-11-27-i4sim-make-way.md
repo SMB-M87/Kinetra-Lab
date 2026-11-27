@@ -43,11 +43,11 @@ A mover at the front of a producer queue can get boxed into its own parking row 
 
 Enable the policy through DEBUG → TRAFFIC → MAKE WAY, `scenario.motion.makeWay` or the benchmark's `--make-way` flag. It starts disabled. It uses the merged observer's active episode as a trigger and checks current route geometry before taking action. The observer's onset diagnosis can be different from the obstacle currently in the way.
 
-For each episode, first try a checked alternate route. Otherwise look for one nearby parked mover whose temporary departure opens a route while its footprint is in the refuge. Reuse the existing footprint-aware route refinement to check the stalled mover's route and each proposed trip. The full refuge footprint, with clearance, stays outside parking and processing reservations. Checked paths avoid enabled traffic zones and reserved exits. A shortcut is valid only after checking the live footprints and reservations. Motion checks the route again after admission and brakes before following a newly obstructed leg. The search covers two cells on each axis around the parked blocker and picks the nearest valid refuge in stable order.
+For each episode, first try a checked alternate route. Otherwise look for one nearby parked mover whose temporary departure opens a route while its footprint is in the refuge. Reuse the existing footprint-aware route refinement to check the stalled mover's route and each proposed trip. The full refuge footprint, with clearance, stays outside parking and processing reservations. Checked paths avoid enabled traffic zones and reserved exits. A shortcut is valid only after checking the live footprints and reservations. Motion checks the route again after admission and brakes before following a newly obstructed leg. If a zone or exit becomes protected around a mover, the mover can withdraw outward and stay outside once it clears the boundary. It still counts as an occupant while inside and makes no new admission request. The search covers two cells on each axis around the parked blocker and picks the nearest valid refuge in stable order.
 
 An idle mover at its own parking place can yield while holding a product. Production defers a new movement while the mover is away and retains its product, recipe step and queue reservation. Exclude a held mover, a mover under other traffic control, a shuttle participant and a mover processing a product. The maneuver uses existing steering and contact rules and keeps its route independent of passing and corridor retreat. Product and mover distance counters record the actual detour even while production is deferred.
 
-The request ends when the beneficiary clears, is held, changes goals, the policy is disabled or the 1,200-tick deadline passes. Cancellation and expiry release the claim on the parking space. The blocker can turn back immediately once the return route is clear. Otherwise it uses the checked outbound leg or stops on encountering a new stationary obstruction and waits for a checked return. The event log records attempted relief, an unavailable path, and the request's outcome. A failed geometry search may retry once after 30 ticks, so a nearby mover can finish parking. Only one trip starts per episode.
+The request ends when the beneficiary clears, is held, changes goals, the policy is disabled or the 1,200-tick deadline passes. Cancellation, expiry and an invalidated traffic leg release the claim on the parking space. A traffic wait may slow movement, while the trip can still install a checked return. The blocker can turn back immediately once the return route is clear. Otherwise it uses the checked outbound leg or stops on encountering a new stationary obstruction and waits for a checked return. The event log records attempted relief, an unavailable path, and the request's outcome. A failed geometry search may retry once after 30 ticks, so a nearby mover can finish parking. Only one trip starts per episode.
 
 ## Affected areas
 
@@ -60,12 +60,12 @@ The request ends when the beneficiary clears, is held, changes goals, the policy
 - A parked blocker moves to a checked refuge and returns to its reservation. The stalled mover reaches its original goal and both remain contact-free.
 - A narrow floor with no refuge retains its stall and records the unavailable attempt. Disabling the feature or reaching its deadline returns the blocker safely when the route is clear.
 - Check both recorded `4320x2400` seeds and the `MAS-demonstrator` product-bearing blocker. The mover retains its product and queue order while yielding. The ready product stays queued at the front until the mover returns. Product and mover odometers both count the detour.
-- Check refuge overlap at a processing-place boundary, a checked shortcut around a mover, a newly admitted exit, coexistence with predictive passing, and the scenario setting through load and application.
+- Check refuge overlap at a processing-place boundary, a checked shortcut around a mover, a newly admitted exit, an expired return with a persistent wait flag, withdrawal after a live traffic toggle, coexistence with predictive passing, and the scenario setting through load and application.
 - Run the i4sim controller, simulation, golden and pressure suites. Compare paired runs across Improved and Reciprocal on the 48-run harness and in the long benchmark.
 
 ## Verification
 
-The Release build with warnings enabled passed all 162 i4sim checks including the golden and pressure suites, the inspector trace and review regressions. The initial timeout test failed because the refuge was still the destination after the deadline. Formatting, documentation links and whitespace checks passed.
+The Release build with warnings enabled passed all 164 i4sim checks including the golden and pressure suites, the inspector trace and review regressions. The initial timeout test failed because the refuge was still the destination after the deadline. Formatting, documentation links and whitespace checks passed.
 
 ```sh
 cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON
@@ -130,6 +130,8 @@ done
 
 [Round 1 review](https://github.com/SMB-M87/Kinetra-Lab/pull/140#pullrequestreview-6087576789)
 
+Round 2 found that a persistent wait could veto the return and that a zone enabled around a yielding mover could also trap it. The wait no longer vetoes a checked repair. The swept route may withdraw outward from an overlapping region, then must stay outside it. Regressions exercise the active timed-out trip and the steering response after a zone is enabled. [Round 2 review](https://github.com/SMB-M87/Kinetra-Lab/pull/140#pullrequestreview-6087733229)
+
 ## Pull request
 
 **Title** `feat(i4sim): let parked movers clear stalled routes`
@@ -140,9 +142,9 @@ done
 
 **Design.** [i4sim make way](2026-11-27-i4sim-make-way.md).
 
-**Verification.** `cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON` and the i4sim targets built with warnings enabled. `ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure` passed all 162 checks. The paired 48-run harness and the 50,000-tick benchmark cover Improved and Reciprocal. The [verification commands and results](2026-11-27-i4sim-make-way.md#verification) include the benchmark arguments and the software OpenGL capture. Documentation, formatting and whitespace checks passed.
+**Verification.** `cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON` and the i4sim targets built with warnings enabled. `ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure` passed all 164 checks. The paired 48-run harness and the 50,000-tick benchmark cover Improved and Reciprocal. The [verification commands and results](2026-11-27-i4sim-make-way.md#verification) include the benchmark arguments and the software OpenGL capture. Documentation, formatting and whitespace checks passed.
 
-**Review notes.** The queue-departure check and the separate Improved corner case remain open. The remedy stays opt-in.
+**Review notes.** Review fixes cover checked returns under persistent traffic waits and outward withdrawal from a newly enabled zone. The queue-departure check and the separate Improved corner case remain open. The remedy stays opt-in.
 
 **Dependencies and merge order.** Lab only, based on already-merged PR #135.
 

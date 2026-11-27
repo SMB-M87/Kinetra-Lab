@@ -96,7 +96,7 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
     }
     while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < waypoint_reach_mm &&
            goals.floor.grid().clear(m.body.position, m.route[1], m.body.half_extents) &&
-           (!temporary || MakeWay::shortcut_clear(goals, m, m.route[1])))
+           (!temporary || MakeWay::shortcut_clear(goals, m, std::span(m.route).subspan(1))))
         m.route.erase(m.route.begin());
     return true;
 }

@@ -4,6 +4,7 @@
 #include "i4sim/simulation/detail/simulation_constants.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 
 namespace i4sim::detail {
@@ -35,15 +36,44 @@ void record(Goals &goals, EventKind kind, std::size_t beneficiary, std::size_t b
             {.tick = goals.tick, .kind = kind, .movers = {beneficiary, blocker}, .make_way_end = outcome});
 }
 
-/// Test all legs, including the first from the current position.
-bool crosses_route(const Mover &m, std::span<const Vec2> route, const Body &body) {
-    Vec2 from = m.body.position;
+bool crosses_region(Vec2 from, std::span<const Vec2> route, Vec2 extent, const Body &body) {
     for (const auto to : route) {
-        if (swept_box_overlaps(from, to, m.body.half_extents + clearance, body))
+        if (swept_box_overlaps(from, to, extent, body))
             return true;
         from = to;
     }
     return false;
+}
+
+bool crosses_route(const Mover &m, std::span<const Vec2> route, const Body &body) {
+    return crosses_region(m.body.position, route, m.body.half_extents + clearance, body);
+}
+
+/// A live policy change can enclose a mover. Allow it to leave by moving outward
+/// along one face of the expanded box, then keep off the reserved area.
+bool can_leave_region(const Mover &m, std::span<const Vec2> route, const Body &region) {
+    const Vec2 extent = m.body.half_extents + clearance;
+    const Vec2 from = m.body.position;
+    if (!swept_box_overlaps(from, from, extent, region))
+        return !crosses_region(from, route, extent, region);
+
+    const Vec2 half = region.half_extents + extent;
+    constexpr std::array faces{Vec2{-1, 0}, Vec2{1, 0}, Vec2{0, -1}, Vec2{0, 1}};
+    return std::any_of(faces.begin(), faces.end(), [&](Vec2 outward) {
+        float previous = dot(from - region.position, outward);
+        if (previous < 0)
+            return false;
+        const float face = outward.x != 0 ? half.x : half.y;
+        for (std::size_t i = 0; i < route.size(); ++i) {
+            const float next = dot(route[i] - region.position, outward);
+            if (next < previous)
+                return false;
+            if (next >= face)
+                return !crosses_region(route[i], route.subspan(i + 1), extent, region);
+            previous = next;
+        }
+        return false;
+    });
 }
 
 std::optional<std::size_t> parked_blocker(const Goals &goals, std::size_t index) {
@@ -161,22 +191,23 @@ bool MakeWay::traffic_clear(const Goals &goals, const Mover &mover, std::span<co
         const auto &zone = goals.floor.zones()[i];
         if (!(zone.corridor ? goals.motion.corridor_traffic : goals.motion.junction_traffic))
             continue;
-        if (crosses_route(mover, route,
-                          Body{.position = zone.center, .half_extents = zone.half_extents, .vertices = {}}))
+        if (!can_leave_region(
+                mover, route,
+                Body{.position = zone.center, .half_extents = zone.half_extents, .vertices = {}}))
             return false;
         if (const auto exit = goals.traffic.exit_reservation(i);
-            exit && crosses_route(mover, route,
-                                  Body{.position = (exit->max + exit->min) / 2,
-                                       .half_extents = (exit->max - exit->min) / 2,
-                                       .vertices = {}}))
+            exit && !can_leave_region(mover, route,
+                                      Body{.position = (exit->max + exit->min) / 2,
+                                           .half_extents = (exit->max - exit->min) / 2,
+                                           .vertices = {}}))
             return false;
     }
     return true;
 }
 
-bool MakeWay::shortcut_clear(const Goals &goals, const Mover &mover, Vec2 next) {
-    const std::span leg(&next, 1);
-    return traffic_clear(goals, mover, leg) &&
+bool MakeWay::shortcut_clear(const Goals &goals, const Mover &mover, std::span<const Vec2> remaining) {
+    const auto leg = remaining.first(1);
+    return traffic_clear(goals, mover, remaining) &&
            std::none_of(goals.fleet.movers.begin(), goals.fleet.movers.end(), [&](const Mover &other) {
                return &other != &mover && crosses_route(mover, leg, other.body);
            });
@@ -228,13 +259,10 @@ void MakeWay::advance_trip(Goals &goals, std::size_t index) {
     const bool route_hits_traffic = m.moving() && !traffic_clear(goals, m, m.route);
     if (route_hits_traffic)
         finish(MakeWayEnd::obstructed);
-    if (coordinated(m))
-        return;
-
     // A failed or cancelled request cannot reserve the parking space forever.
     // The return planner still checks the beneficiary's current footprint.
-    const bool can_return = !protects_beneficiary || cancelled || goals.tick >= trip.deadline ||
-                            trip.outcome == MakeWayEnd::cancelled;
+    const bool can_return = !protects_beneficiary || cancelled || route_hits_traffic ||
+                            goals.tick >= trip.deadline || trip.outcome == MakeWayEnd::cancelled;
     const auto return_home = [&] {
         if (auto home = checked_route(goals, index, m.parking); !home.empty()) {
             install_route(goals, index, std::move(home), GoalKind::making_way);

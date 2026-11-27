@@ -15,11 +15,13 @@ class MakeWay {
     void update(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
                 const StallDetector &stalls);
 
-    /// True if the route avoids currently enabled zones and their reserved exits.
+    /// True if the route avoids currently enabled zones and their reserved exits,
+    /// or withdraws outward from an area the mover already overlaps.
     static bool traffic_clear(const Goals &goals, const Mover &mover, std::span<const Vec2> route);
-    /// True if dropping a waypoint keeps the next leg clear of live footprints and
-    /// traffic reservations. The caller checks static floor clearance.
-    static bool shortcut_clear(const Goals &goals, const Mover &mover, Vec2 next);
+    /// True if dropping a waypoint keeps the new first leg clear of live footprints
+    /// and the remaining route clear of traffic reservations. The caller checks static
+    /// floor clearance of the new leg. `remaining` must contain at least one point.
+    static bool shortcut_clear(const Goals &goals, const Mover &mover, std::span<const Vec2> remaining);
 
   private:
     enum class Phase { outbound, waiting, returning };

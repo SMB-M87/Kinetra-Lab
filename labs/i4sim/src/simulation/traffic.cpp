@@ -266,7 +266,9 @@ Traffic::Requests Traffic::find_requests(const FloorPlan &floor, const Fleet &fl
             const auto extent = m.body.half_extents + half;
             if (std::abs(offset.x) < extent.x && std::abs(offset.y) < extent.y)
                 result.occupants[j].push_back(i);
-            if (m.held || !m.moving() || m.route.empty())
+            // A temporary parking trip can leave a zone enabled around it, but
+            // cannot request entry or reserve the exit it is already avoiding.
+            if (m.goal == GoalKind::making_way || m.held || !m.moving() || m.route.empty())
                 continue;
             Body zone;
             zone.position = shape.center;

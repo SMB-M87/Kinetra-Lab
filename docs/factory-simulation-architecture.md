@@ -59,7 +59,7 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
-| `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Active refuge and return trips | Optional checked parking relief after stall observation |
+| `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Active refuge and return trips | Checked parking relief after stall observation, including outward withdrawal from newly protected space |
 | `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall and make-way events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
 | `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Per-mover observations and the active episode's onset diagnosis | Observe route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
@@ -166,7 +166,9 @@ Before a new grant, i4sim follows the route to the first fully clear exit and
 reserves its swept rectangular footprint plus a bounded braking pocket (clipped
 to the next waypoint). Static geometry, other bodies, their braking travel and
 existing exit reservations must leave this pocket clear. A goal ending inside the
-junction supplies no exit and is ineligible for a new grant. The oldest eligible
+junction supplies no exit and is ineligible for a new grant. A MAKE WAY mover contributes physical
+occupancy and may withdraw from a newly enabled zone. Its temporary trip makes no
+new admission or exit request. The oldest eligible
 request may pass a blocked request, whose FIFO ticket remains intact. An admitted
 exit stays reserved while that agent still requests or physically occupies the
 zone, including after a goal change; it is not revoked by later readiness changes.

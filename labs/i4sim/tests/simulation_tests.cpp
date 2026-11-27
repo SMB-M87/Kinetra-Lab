@@ -8,6 +8,7 @@
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/detail/floor_plan.h"
 #include "i4sim/simulation/detail/make_way.h"
+#include "i4sim/simulation/detail/motion_step.h"
 #include "i4sim/simulation/detail/predictive_passing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 #include "i4sim/simulation/detail/stall_detector.h"
@@ -2695,6 +2696,47 @@ TEST_CASE("make way times out and returns even while the beneficiary needs the p
     }));
 }
 
+TEST_CASE("a persistent traffic wait cannot veto an expired make way return") {
+    const auto scenario = start_parked_blocker(true, false);
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    fleet.movers[0].body.position = {580, 300};
+    fleet.progress.resize(fleet.movers.size());
+    fleet.max_half = fleet.movers[0].body.half_extents;
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::StallDetector stalls(fleet.movers.size());
+    detail::Shuttle shuttle;
+    detail::MakeWay make_way;
+    detail::EventLog log;
+    log.record(true);
+    auto settings = scenario.motion_settings();
+    settings.make_way = true;
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 0};
+
+    for (unsigned tick = 1; tick <= 120; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        stalls.observe(fleet, settings, tick, log);
+    }
+    REQUIRE(stalls.details(0));
+    goals.tick = 120;
+    make_way.update(goals, {}, shuttle, stalls);
+    auto &yielding = fleet.movers[1];
+    REQUIRE(yielding.goal == GoalKind::making_way);
+    REQUIRE(yielding.destination != yielding.parking);
+    yielding.body.position.y += 24;
+    yielding.coordination.exit_waiting = true;
+    goals.tick += 1200;
+    make_way.update(goals, {}, shuttle, stalls);
+
+    CHECK(yielding.goal == GoalKind::making_way);
+    CHECK(yielding.destination == yielding.parking);
+    CHECK(fleet.movers[0].moving());
+    CHECK(std::any_of(log.events().begin(), log.events().end(),
+                      [](const auto &event) { return event.make_way_end == MakeWayEnd::timed_out; }));
+}
+
 TEST_CASE("a make way refuge near a processing place checks the full footprint") {
     auto layout = fixture();
     layout.cell_size = {100, 100};
@@ -2715,22 +2757,60 @@ TEST_CASE("make way shortcuts keep clear of footprints and freshly enabled traff
     auto &mover = fleet.movers[0];
     mover.body.position = {300, 700};
     fleet.movers[1].body.position = {1000, 700};
-    const Vec2 target{1300, 700};
-    REQUIRE(floor.grid().clear(mover.body.position, target, mover.body.half_extents));
+    const std::array route{Vec2{1300, 700}};
+    REQUIRE(floor.grid().clear(mover.body.position, route.front(), mover.body.half_extents));
     detail::Traffic traffic(floor);
     detail::PredictivePassing passing;
     detail::EventLog log;
     auto settings = scenario.motion_settings();
     detail::Goals goals{floor, fleet, traffic, passing, log, settings, 1};
 
-    CHECK_FALSE(detail::MakeWay::shortcut_clear(goals, mover, target));
+    CHECK_FALSE(detail::MakeWay::shortcut_clear(goals, mover, route));
     fleet.movers[1].body.position = {1900, 1000};
-    CHECK(detail::MakeWay::shortcut_clear(goals, mover, target));
+    CHECK(detail::MakeWay::shortcut_clear(goals, mover, route));
 
     REQUIRE(floor.corridor_count() > 0);
     settings.corridor_traffic = true;
     traffic.configure(floor, settings);
-    CHECK_FALSE(detail::MakeWay::shortcut_clear(goals, mover, target));
+    CHECK_FALSE(detail::MakeWay::shortcut_clear(goals, mover, route));
+}
+
+TEST_CASE("make way can withdraw from a traffic zone enabled around the mover") {
+    const Simulation scenario(corridor_fixture());
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    auto &mover = fleet.movers[0];
+    mover.body.position = {800, 700};
+    const std::array withdrawal{Vec2{700, 700}, Vec2{300, 700}};
+    const std::array deeper{Vec2{1000, 700}, Vec2{300, 700}};
+    const std::array reentry{Vec2{300, 700}, Vec2{800, 700}};
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::EventLog log;
+    auto settings = scenario.motion_settings();
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 1};
+
+    CHECK(detail::MakeWay::traffic_clear(goals, mover, deeper));
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    CHECK(detail::MakeWay::traffic_clear(goals, mover, withdrawal));
+    fleet.movers[1].body.position = {1900, 1000};
+    CHECK(detail::MakeWay::shortcut_clear(goals, mover, withdrawal));
+    CHECK_FALSE(detail::MakeWay::traffic_clear(goals, mover, deeper));
+    CHECK_FALSE(detail::MakeWay::traffic_clear(goals, mover, reentry));
+
+    mover.goal = GoalKind::making_way;
+    mover.lifecycle = MoverLifecycle::moving;
+    mover.route.assign(withdrawal.begin(), withdrawal.end());
+    mover.destination = withdrawal.back();
+    fleet.progress.resize(fleet.movers.size());
+    fleet.max_half = mover.body.half_extents;
+    detail::Production production(scenario.blueprint(), 42);
+    detail::MotionStep motion;
+    motion.run(goals, production);
+    CHECK(mover.body.position.x < 800);
+    CHECK_FALSE(traffic.exit_reservation(floor.junction_count()));
 }
 
 TEST_CASE("a newly admitted exit can invalidate a make way leg outside the junction") {
