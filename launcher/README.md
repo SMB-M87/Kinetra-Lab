@@ -61,7 +61,7 @@ Selecting an application always creates a new session, so returning to the menu 
 | --- | --- |
 | `--variant` | `demo`, `dotio`, `i4sim`; omit for the menu |
 | `--difficulty` | `easy`, `medium`, `hard` for Dotio; default `medium` |
-| `--scenario` | `terrain`, `gravity`, `maze`, `doorway`. Starts Demo directly. The default for `--variant demo` is `terrain` |
+| `--scenario` | `terrain`, `gravity`, `maze`, `doorway`, `corridor`, `crossing`, `circle`, `bottleneck`, `chaos`, `fleet`, `swarm`. Starts Demo directly. The default for `--variant demo` is `terrain` |
 | `--agents` | 0–300 initial agents in Demo's Terrain scenario. Default 48 |
 | `--frames` | 1–100000 rendered frames; omit for unlimited |
 
