@@ -205,7 +205,12 @@ TEST_CASE("LAUNCHER on both pages of the blueprint screen leaves for the launche
         CHECK(session->request() == SessionRequest::menu);
         auto exit = i4sim::create_session(42, i4sim::default_blueprint_directory());
         exit->advance(0, {}, camera);
-        click.mouse = blueprint_footer(camera.viewport, FooterButton::exit, false);
+        if (showcase_page) {
+            Input choose;
+            choose.pressed[std::size_t(Key::enter)] = true;
+            exit->advance(0, choose, camera);
+        }
+        click.mouse = blueprint_footer(camera.viewport, FooterButton::exit, showcase_page);
         exit->advance(0, click, camera);
         CHECK(exit->request() == SessionRequest::exit);
     }
