@@ -1919,6 +1919,26 @@ TEST_CASE("departure check lets a mover sealed in for good depart after the wait
     CHECK(simulation.movers()[0].moving());
 }
 
+TEST_CASE("departure check also holds back a product rescheduled after a blocked producer") {
+    // Blocking the producer sends the head product's mover back to its parking place; when the
+    // producer opens again, the product heads the empty queue at once, from the sealed corner.
+    auto simulation = start_sealed_departure(true);
+    const auto &queue = simulation.producers()[0].queue;
+    simulation.toggle_producer(0);
+    for (int tick = 0; tick < 50; ++tick)
+        simulation.tick();
+    REQUIRE(queue.empty());
+    REQUIRE_FALSE(simulation.movers()[0].moving());
+    simulation.toggle_producer(0);
+    for (int tick = 0; tick < 200; ++tick) {
+        simulation.tick();
+        REQUIRE_FALSE(simulation.movers()[0].moving());
+    }
+    REQUIRE_FALSE(queue.empty());
+    CHECK(queue.front() == 2u);
+    CHECK(simulation.movers()[0].product == 2u);
+}
+
 TEST_CASE("a hold during a departure wait starts the wait again") {
     auto simulation = start_sealed_departure(true);
     for (int tick = 0; tick < 100; ++tick)
