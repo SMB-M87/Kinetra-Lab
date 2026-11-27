@@ -207,14 +207,14 @@ TEST_CASE("three oncoming movers under reciprocal steering end with every mover 
     check_three_oncoming(
         SteeringProfile::reciprocal,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
-        "arrived=3/3 waiting_ticks=9 stuck=0 fingerprint=0dac31a5760eae98");
+        "arrived=3/3 waiting_ticks=10 stuck=0 fingerprint=aa294060e8155a0f");
 }
 
 TEST_CASE("three oncoming movers under improved steering end with every mover arrived and no contact") {
     check_three_oncoming(
         SteeringProfile::improved,
         "ticks=6000 contacts=0 contact_ticks=0 passing_contacts=0 plans=2 crossings=2 ends=completed:2 "
-        "arrived=3/3 waiting_ticks=11 stuck=0 fingerprint=8dd64b61332f0292");
+        "arrived=3/3 waiting_ticks=10 stuck=0 fingerprint=9431f3b54f2f3a83");
 }
 
 TEST_CASE(

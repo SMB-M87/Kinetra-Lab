@@ -5,6 +5,7 @@
 
 #include <kinetra/simulation/physics.h>
 
+#include <array>
 #include <cmath>
 
 namespace i4sim::detail {
@@ -59,6 +60,10 @@ PassingEnd unavailable_reason(const Fleet &fleet, const std::array<std::size_t, 
             return PassingEnd::participant_held;
         if (fleet.controls[id] || m.coordination.corridor_retreating)
             return PassingEnd::traffic_control;
+        // A make-way trip starts with a new goal, which cancels the plan first; a goal kind
+        // set without one still reads as a goal change.
+        if (m.goal == GoalKind::making_way)
+            return PassingEnd::goal_changed;
     }
     return PassingEnd::participant_stopped;
 }
@@ -105,6 +110,9 @@ std::optional<Vec2> PredictivePassing::target(std::size_t mover) const {
 }
 
 std::optional<Simulation::PassingDetails> PredictivePassing::details(std::size_t mover) const {
+    // The inspector asks for every mover in every frame; only a participant needs the plans.
+    if (!coordinator_.target(mover))
+        return std::nullopt;
     for (const auto &plan : coordinator_.plans())
         for (std::size_t side = 0; side < 2; ++side)
             if (plan.movers[side] == mover)
@@ -143,6 +151,10 @@ void PredictivePassing::apply(std::span<const PassingEvent> events, PassingEnd c
 
 void PredictivePassing::cancel(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion,
                                std::size_t mover, std::uint64_t tick, EventLog &log) {
+    // The coordinator's cancel also ends a retry wait, for a new occupant of a slot; a factory
+    // mover keeps its index, so a new goal outside a plan must not cut the wait short.
+    if (!coordinator_.target(mover))
+        return;
     apply(coordinator_.cancel(mover), PassingEnd::goal_changed, floor, fleet, motion, tick, log);
 }
 
@@ -161,7 +173,12 @@ void PredictivePassing::coordinate(const FloorPlan &floor, Fleet &fleet, const M
     movers.reserve(fleet.movers.size());
     for (std::size_t id = 0; id < fleet.movers.size(); ++id) {
         const auto &m = fleet.movers[id];
-        const Vec2 heading = m.route.empty() ? Vec2{} : normalized(m.route.front() - m.body.position);
+        // A participant's route is its original one, overridden by its plan, so it gives no
+        // heading: a mover whose plan ends in this step forms its next plan in the next step,
+        // from the route planned again when the plan ended.
+        const bool in_plan = coordinator_.target(id).has_value();
+        const Vec2 heading =
+            in_plan || m.route.empty() ? Vec2{} : normalized(m.route.front() - m.body.position);
         movers.push_back({m.body, heading, m.destination, state(fleet, id)});
     }
     // Lanes keep to the floor and stay out of every traffic zone, whether or not its

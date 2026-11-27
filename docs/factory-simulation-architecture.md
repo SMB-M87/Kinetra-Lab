@@ -304,7 +304,7 @@ Disabling the feature, blocking a participant or issuing a new goal releases the
 pair and rebuilds the original routes. A pair also releases after 240 ticks without
 measurable progress. After a plan that did not complete, both participants wait 120
 ticks before retrying; after a completed one, or one that a new goal or switching the
-feature off ended, they may pair again at once. Body positions
+feature off ended, they may pair again from the next tick. Body positions
 are never snapped by this policy. Existing local avoidance and contact correction
 remain active. The guard predicts along current velocities; this is not a general
 collision-free or starvation-free scheduler.
