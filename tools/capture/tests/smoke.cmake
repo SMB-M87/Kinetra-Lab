@@ -3,8 +3,8 @@
 # player is scripted against the session's world; a showcase clip, whose blueprint lies in a
 # subdirectory of the catalog and whose length is measured; and the shared-UI clips of the
 # settings panel and of the launcher, which a tour plays through the launcher into Kinetra's
-# subdirectory. The launcher clip stops the tool unless Demo's SCENARIOS row returns to the
-# scenario page with Doorway selected.
+# subdirectory. The launcher clip stops the tool unless SCENARIOS in Demo's settings panel
+# returns to the scenario page with Doorway selected and the page's LAUNCHER to the list.
 # Then plays the first seconds of the tour and verifies which Demo scenario starts.
 # Called by CTest as: cmake -DTOOL=<kinetra_capture> -DOUTPUT=<directory> -P smoke.cmake
 file(REMOVE_RECURSE "${OUTPUT}")
