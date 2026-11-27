@@ -115,9 +115,8 @@ Three behaviors follow the engine now:
 
 i4sim marks a mover on its own route, outside every coordination, `observed`; one that is not moving or is held `standing`; any other mover `busy`. That is the eligibility of its former detector. The engine adds the reason `pushed_back` after `opposing_mover`: the mover moves back along its leg faster than `stop_speed` while a moving neighbor within 1.6 combined half diagonals, within about 78 degrees of the leg ahead, approaches faster than `stop_speed`. i4sim's `StallReason` and `StallDetails` become aliases of the engine's `StallReason` and `StallDiagnosis`.
 
-**Steps 4 and 5** are designed on their branches and written here when each starts. The contracts the user accepted:
+**Steps 4 and 5** are designed on their branches and written here when each starts. The contracts the user accepted (step 3 settled the detector's, with a target point instead of a route heading):
 
-- `StallDetector` takes, per mover, a progress counter, a state and a route heading from the application. It returns episodes with an onset diagnosis.
 - `RightOfWay` takes episodes and movers, and returns who is not cooperating for how long.
 - `MakeWay` owns a request: trigger, alternate route first, then the nearest refuge, a deadline, the return and events. The application supplies refuge candidates and a callback that checks a route against its world and reservations.
 
@@ -287,7 +286,7 @@ The first measurement ran on Kinetra `24fb31d`, before Kinetra #69 came in throu
 - The coordinator's `cancel` also ends a retry wait, so a new goal for a mover outside any plan cut its 120-tick wait after a failed plan short. The adapter now cancels only a participant.
 - A mover whose plan completed could form its next plan in the same step from its old, overridden route. The adapter now gives a participant no heading, so the next plan forms a tick later from the route planned again. Two pressure lines moved by a tick of waiting for it.
 
-Two smaller fixes followed: an end reason for a participant on a make-way trip, and `details` builds the plan list only for a participant.
+Two smaller fixes followed: an end reason for a participant on a make-way trip, and `details` builds the plan list only for a participant. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
 
 **Step 3, the author's review** (`/code-review` at high, the Lab diff and Kinetra's). Three issues:
 
@@ -295,7 +294,7 @@ Two smaller fixes followed: an end reason for a participant on a make-way trip, 
 - A fresh track's zero goal and anchor matched a mover whose goal is the world origin, so its first move toward the goal read as a reversal. A track now anchors at the mover on its first observed step.
 - In i4sim a tiny force that `configure_motion` accepts made the lookahead infinite, which the engine rejects in every tick, after motion. The adapter clamps it.
 
-Each now has a case that fails without its fix. Three documentation gaps were closed too: the README's module row, the testing table, and the validation of absent movers. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
+Each now has a case that fails without its fix. Three documentation gaps were closed too: the README's module row, the testing table, and the validation of absent movers.
 
 **Step 3, agent review round 1 of Kinetra#72** (*Fix first*):
 
@@ -313,6 +312,7 @@ Each now has a case that fails without its fix. Three documentation gaps were cl
   - the small-force case checks that an episode starts;
   - the lesson on measuring again after a pointer move.
 - Not changed: commit `d6628fe` names a header its pointer does not have yet; history stays, and in steps 4 and 5 the pointer comes with or before the code that needs it.
+- A second agent review on 3519735 concluded *Ready to merge*. Its nits are taken: the sentence on step 2's older findings is back under step 2, the contract list no longer carries the detector's, the *Pull request* sections run in step order, and the description gives the commands. Its test nit is taken as the episode check above; the case keeps its denormal force, because i4sim builds without fast-math or flush-to-zero (the determinism invariant), and a normal float would need a speed the floors do not reach to overflow the braking distance.
 - Kinetra#72's nits: the footprint's rounding is listed under the module's *Open points* (`b6a8e34`). The `///` of `detail/footprint.h` names the right of way, which Kinetra#74 adds; it stays, because changing a header would need another review round for a word that becomes true when #74 merges.
 
 **Step 2, agent review round 1** ([#149](https://github.com/SMB-M87/Kinetra-Lab/pull/149), *Fix first*):
@@ -344,24 +344,6 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 
 **Follow-up.** Steps 2 to 5 (this document); Demo and Dotio adoption of the remedies becomes a roadmap item.
 
-Step 3. Title: `feat(i4sim): observe stalls with Kinetra's StallDetector`. Kinetra's: `feat(simulation): add StallDetector for episodes without progress`.
-
-**Summary.** Step 3 of 5. Stall detection moves into the engine as `StallDetector`, with a new reason, `pushed_back`, for a mover pushed away from its goal by a neighbor driving through its place. i4sim feeds it and records its episodes. Motion does not change.
-
-**Changes.**
-- Kinetra: `stall_detector.h` and `.cpp`, 15 contract cases, the consumer check, the navigation contract, the README, the testing table, and the module and test READMEs. The roadmap item moves to *Now*.
-- Lab:
-  - i4sim's `StallDetector` becomes an adapter over the engine's.
-  - `StallReason` and `StallDetails` alias the engine's types, and the event name `pushed_back` is added.
-  - A recorded case pins `pushed_back`.
-  - The architecture, i4sim and tests pages are updated.
-
-**Verification.** Kinetra 331 of 331, the consumer, Lab i4sim 178 of 178, on Kinetra `b6a8e34`. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
-
-**Dependencies and merge order.** Kinetra's step 3 (Kinetra#72) is based on Kinetra `main`, where the ADR (#71) has merged. Lab's step 3 sits on Lab's step 2 and merges after it and after Kinetra#72.
-
-**Follow-up.** Steps 4 and 5.
-
 Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordinator`.
 
 **Summary.** Step 2 of 5. i4sim's passing becomes an adapter over the engine's coordinator, as Demo's and Dotio's already are, and its own plan lifecycle is removed. Kinetra's ADR 0018 records the move and the remedies to come.
@@ -379,6 +361,24 @@ Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordina
 **Dependencies and merge order.** It sits on step 1 (#146) and merges after it. Kinetra's ADR pull request (Kinetra#71) has merged.
 
 **Follow-up.** Steps 3 to 5.
+
+Step 3. Title: `feat(i4sim): observe stalls with Kinetra's StallDetector`. Kinetra's: `feat(simulation): add StallDetector for episodes without progress`.
+
+**Summary.** Step 3 of 5. Stall detection moves into the engine as `StallDetector`, with a new reason, `pushed_back`, for a mover pushed away from its goal by a neighbor driving through its place. i4sim feeds it and records its episodes. Motion does not change.
+
+**Changes.**
+- Kinetra: `stall_detector.h` and `.cpp`, 15 contract cases, the consumer check, the navigation contract, the README, the testing table, and the module and test READMEs. The roadmap item moves to *Now*.
+- Lab:
+  - i4sim's `StallDetector` becomes an adapter over the engine's.
+  - `StallReason` and `StallDetails` alias the engine's types, and the event name `pushed_back` is added.
+  - A recorded case pins `pushed_back`.
+  - The architecture, i4sim and tests pages are updated.
+
+**Verification.** Kinetra 331 of 331, the consumer, Lab i4sim 178 of 178, on Kinetra `b6a8e34`. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
+
+**Dependencies and merge order.** Kinetra's step 3 (Kinetra#72) is based on Kinetra `main`, where the ADR (#71) has merged. Lab's step 3 sits on Lab's step 2 and merges after it and after Kinetra#72.
+
+**Follow-up.** Steps 4 and 5.
 
 ## Open points
 
