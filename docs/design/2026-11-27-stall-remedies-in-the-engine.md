@@ -132,6 +132,7 @@ Step 1, Targeted level (Lab logic), with the full i4sim suites:
 | A mover sealed in for good departs exactly `departure_wait_ticks` after its product headed the queue | `…departure check lets a mover sealed in for good depart after the wait limit` |
 | Turning the setting off releases a waiting mover in the next tick | `…turning departure check off releases a waiting mover` |
 | A hold (or a make-way trip) during the wait starts the wait again, so the limit never lets the mover leave unchecked at once | `…a hold during a departure wait starts the wait again` (fails without the restart) |
+| A mover that finishes at a processing place leaves at once for its next producer, with the check on | `…departure check lets a mover leave a processing place at once for its next producer` (fails with the processing-place test inverted) |
 | A product rescheduled after a blocked producer, heading the empty queue at once, is held back too | `…departure check also holds back a product rescheduled after a blocked producer` (fails without the fix) |
 | The recorded `1680x960+` departure (seed 42, Improved) makes contacts without the check and none with it | `…departure check routes a queued Improved departure around its parked neighbors` |
 | The scenario key and the TRAFFIC row | the scenario case and two `kinetra_i4sim_controller` cases, extended |
@@ -152,36 +153,38 @@ Step 2, Full level (an engine pointer moves; the engine itself is unchanged):
 
 ## Verification
 
-Step 1, after review round 1 and the merge of `main` (Kinetra `da98dfa`), Release with Lab and Kinetra warnings on:
+Step 1, after review round 3 and the merge of `main` (#142, Kinetra `9841a50`), Release with Lab and Kinetra warnings on:
 
 ```sh
 cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON
 cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests \
   kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark -j 4
-ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 172 of 172 passed
+ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 173 of 173 passed
 ```
 
 The first version of the branch reproduced the measured gate exactly: on the harness with `--make-way --departure-check`, Reciprocal had 111 products, 0 contacts and 19,812 waiting ticks; Improved 104 products, 5 contacts and 2,786 waiting ticks. A mover held by the gate stands idle, so `FlowMetrics` does not count it as waiting. Gated ticks summed to at most 2,016 in a harness profile and 143 over the 50,000-tick benchmark, so the reductions in waiting are not an artifact of that.
 
-Review rounds 1 and 2 narrowed the gate to a standing mover, added the rescheduling path and staged a rescheduled mover near its new producer. Measured again with the branch, *base → departure check*, as products / waiting ticks / contacts / runs with a stuck mover at the end:
+Review rounds 1 and 2 narrowed the gate to a standing mover, added the rescheduling path and staged a rescheduled mover at a holding place for its new producer. Measured again with the branch on Kinetra `9841a50`, *base → departure check*, as products / waiting ticks / contacts / runs with a stuck mover at the end:
 
 | Run | MAKE WAY off | MAKE WAY on |
 | --- | --- | --- |
 | 50,000 ticks, Reciprocal | 334 / 152,001 / 0 / 3 → 347 / 84,776 / 0 / 3 | 344 / 104,020 / 0 / 0 → 349 / 62,636 / 0 / 1 |
-| 50,000 ticks, Improved | 343 / 8,022 / 1,386 / 1 → 350 / 7,817 / 671 / 0 | 348 / 7,638 / 836 / 1 → 352 / 6,765 / 397 / 0 |
-| Harness, Reciprocal | 110 / 20,383 / 0 / 2 → 113 / 20,874 / 0 / 0 | 110 / 17,449 / 0 / 0 → 113 / 20,874 / 0 / 0 |
-| Harness, Improved | 103 / 3,487 / 170 / 0 → 104 / 2,426 / 5 / 0 | 103 / 3,833 / 167 / 1 → 104 / 2,700 / 4 / 1 |
+| 50,000 ticks, Improved | 347 / 7,710 / 1,370 / 1 → 345 / 15,850 / 692 / 1 | 352 / 7,323 / 835 / 0 → 348 / 7,351 / 398 / 0 |
+| Harness, Reciprocal | 110 / 20,382 / 0 / 2 → 113 / 20,874 / 0 / 0 | 110 / 17,434 / 0 / 0 → 113 / 20,874 / 0 / 0 |
+| Harness, Improved | 103 / 3,606 / 186 / 0 → 103 / 2,557 / 6 / 0 | 102 / 4,063 / 177 / 2 → 104 / 2,845 / 5 / 2 |
 
-Over 50,000 ticks products rise in every configuration (by 1 to 4%), Reciprocal waiting falls by 40 to 44%, and Improved's contacts halve. In the shorter harness Reciprocal waits more than its base: without MAKE WAY a little (20,383 → 20,874), with it by a fifth (17,449 → 20,874). Its runs with a stuck mover at the end fall from 2 to 0 without MAKE WAY.
+Under Reciprocal the check raises products over 50,000 ticks (334 → 347, 344 → 349) and cuts waiting by 44 and 40%, without a contact. In the shorter harness Reciprocal waits more than its base: without MAKE WAY a little (20,382 → 20,874), with it by a fifth (17,434 → 20,874). Its runs with a stuck mover at the end fall from 2 to 0 without MAKE WAY. Under Improved the check cuts contacts everywhere (1,370 → 692 and 835 → 398 over 50,000 ticks, 186 → 6 and 177 → 5 in the harness) and harness waiting by about 30%. Over 50,000 ticks Improved makes 2 and 4 products fewer, and without MAKE WAY it waits twice as long (7,710 → 15,850).
+
+The merge of `main` moved the pointer from `da98dfa` to `9841a50`, which brings in Kinetra #69, a change to priority steering at rest that i4sim steers with. On `9841a50` Reciprocal's long runs and its harness runs with the check are identical, its two base harness cells move by 1 and 15 waiting ticks, and Improved's runs change. On `da98dfa` Improved's products rose with the check too (343 → 350 and 348 → 352), with the same halving of contacts.
 
 The two Reciprocal harness cells with the check are identical run for run because MAKE WAY never starts there. The parked-blocker departures it cleared on `4320x2400` now leave along checked routes, so no episode needs it. With the check, MAKE WAY starts in 2 harness runs under Improved and 3 and 6 times over the 50,000-tick benchmark.
 
-The gate's figures for the branch after review rounds 1 and 2, from an instrumented copy that logged every held tick:
+The gate's figures for the branch after review rounds 1 to 3, on Kinetra `9841a50`, from an instrumented copy that logged every held tick:
 
 - The longest wait is 672 consecutive ticks, the one recurring `4320x2400` mover under Reciprocal on the harness. No run reaches the 1,200-tick limit.
 - Held ticks sum to 2,016 (Reciprocal) and 186 (Improved) on the harness, and to at most 79 and 7 over the 50,000-tick benchmark.
 
-These are the first version's figures, and round 2's staging of a rescheduled mover near its new producer changed no measured run.
+The longest wait and the harness sums equal the first version's; over 50,000 ticks the held ticks fell from 143 to at most 79. Round 2's staging of a rescheduled mover at a holding place for its new producer changed no measured run, and the figures are the same on `da98dfa` and `9841a50`.
 
 Step 2, on step 1's branch with Kinetra `9841a50` (Kinetra `main`, which holds #71's ADR and #69), the same Release build: 176 of 176 i4sim cases pass, after the review cases of round 1 and the merges of step 1, the last with Lab `main`'s #142.
 
@@ -222,12 +225,22 @@ The harness is identical run for run. The long runs diverge the way any small ch
 - *Should fix:* two behaviors had no case.
   - A mover finishing at a processing place leaves at once: a new case covers it, and fails with the processing test inverted.
   - A moving mover is not held back: no case. Through the public API it needs a mover with a product that drives inside a sealed corner when its product heads the queue. An operator goal is refused for a mover with a product, and every other path makes the mover stand before `approach()` runs. The condition is one comparison, and the contract names it.
-- *Question:* a rescheduled product that does not head its new queue kept its mover at the old producer's holding place. It is now sent to a holding place near the new producer, as a queued product is.
+- *Question:* a rescheduled product that does not head its new queue kept its mover at the old producer's holding place. It is now sent to a holding place for the new producer, as a queued product is.
 - *Question:* the figures.
   - The identical harness cells are real: MAKE WAY never starts there with the check.
   - The summary sentence now names both harness rises.
   - The gate's figures were measured again for this version.
 - Nits: the `///` of `approach()` and `departure_route()` name the rescheduled product and a mover that is not idle (still driving or unreachable), and the decision row marks its figures as the prototype's.
+
+**Step 1, agent review round 3** ([#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146), *Fix first*):
+
+- *Blocking:* the branch conflicted with `main` again (#142). `main` is merged in (`ba64805`), keeping both removals in the roadmap and both lines of the *Known issues*. #142 moves the pointer to Kinetra `9841a50`, which brings in Kinetra #69. Measured again on it (*Verification*): Reciprocal's long runs and the gate's figures are identical. Improved's runs change, and over 50,000 ticks the check now costs it 2 and 4 products while it still halves contacts.
+- Nits taken:
+  - the counts (173 cases, eight new ones);
+  - the test-plan row for the processing-place case;
+  - the sentence on the gate's figures;
+  - the comment at the staging, and a check for an empty queue before its head, as `approach()` and `update_product()` do (`ac27d31`).
+- Not taken: cases for the staging branch and the `cell < 0` guard. Both need an unusable parking place or a floor that is no multiple of its cells, which the public API does not build.
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
 
@@ -256,12 +269,12 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 **Changes.**
 - `MotionSettings::departure_check`, with `Production::departure_route` and its wait limit.
 - The TRAFFIC row, the scenario key `departureCheck` and the benchmark flag `--departure-check`.
-- Seven simulation cases; the scenario and menu cases are extended.
+- Eight simulation cases; the scenario and menu cases are extended.
 - README, blueprint, tests and architecture pages.
 
 **Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md), which records the user's decisions for the whole stack.
 
-**Verification.** Every i4sim suite passes (172 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises products by 1 to 4% in every configuration, cuts Reciprocal waiting by 40 to 44%, and cuts Improved contacts from 836 to 397 with MAKE WAY.
+**Verification.** Every i4sim suite passes (173 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises Reciprocal's products (334 → 347, 344 → 349) and cuts its waiting by 40 to 44%, without a contact. Under Improved it halves contacts (1,370 → 692, 835 → 398) while products fall by 2 and 4, measured on Kinetra `9841a50` after the merge of `main` brought in Kinetra #69.
 
 **Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
 
