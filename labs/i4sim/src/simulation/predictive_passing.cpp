@@ -262,8 +262,8 @@ void PredictivePassing::form_plans(const FloorPlan &floor, const Fleet &fleet, c
         approaches.push_back(passing_approach(m));
     auto eligible = [&](std::size_t id) {
         const auto &m = fleet.movers[id];
-        return !claimed[id] && m.moving() && !m.held && !m.coordination.corridor_retreating &&
-               !m.route.empty() && retry_[id] <= tick;
+        return !claimed[id] && m.goal != GoalKind::making_way && m.moving() && !m.held &&
+               !m.coordination.corridor_retreating && !m.route.empty() && retry_[id] <= tick;
     };
     for (std::size_t a = 0; a < fleet.movers.size(); ++a) {
         if (!eligible(a))

@@ -61,6 +61,8 @@ void Production::update(Goals &goals) {
 void Production::schedule(Product &product, Goals &goals) {
     const auto &floor = goals.floor;
     auto &fleet = goals.fleet;
+    if (product.mover && fleet.movers[*product.mover].goal == GoalKind::making_way)
+        return;
     const auto interaction = recipe(product.kind).at(product.step);
     if (!product.producer) {
         // The cheapest supporting producer, weighing its queue against the transport distance.
@@ -132,7 +134,7 @@ void Production::update_product(Product &p, Goals &goals) {
     }
     auto &m = goals.fleet.movers.at(*p.mover);
     auto &producer = producers_.at(*p.producer);
-    if (m.held)
+    if (m.held || m.goal == GoalKind::making_way)
         return;
     if (producer.blocked && p.state != ProductState::processing) {
         std::erase(producer.queue, p.id);

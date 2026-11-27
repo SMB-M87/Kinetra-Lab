@@ -22,6 +22,12 @@ enum class EventKind {
     stall_started,
     /// A previously reported stall ended because progress resumed or observation reset.
     stall_ended,
+    /// A parked mover started a trip to a checked refuge.
+    make_way_started,
+    /// The policy could not find a checked way past a parked mover.
+    make_way_unavailable,
+    /// The request ended and the yielding mover can return when a route clears.
+    make_way_ended,
 };
 
 /// Evidence available when the detector observed the start of a stall.
@@ -72,6 +78,18 @@ enum class PassingEnd {
     obstructed,
 };
 
+/// Why an active make-way request stopped.
+enum class MakeWayEnd {
+    /// The beneficiary cleared the space it needed.
+    cleared,
+    /// The beneficiary changed goals, was held, or the operator disabled the policy.
+    cancelled,
+    /// The trip exceeded its time limit before clearing the space.
+    timed_out,
+    /// The checked path to the refuge no longer clears an obstruction.
+    obstructed,
+};
+
 /// One entry of the simulation event log (see `Simulation::record_events`).
 ///
 /// Fields that do not apply to `kind` keep their default value. Positions are in
@@ -86,7 +104,7 @@ struct SimulationEvent {
     std::uint64_t plan{};
     /// Passing: the two participants. Contact: the two movers, or for a border contact
     /// the mover and the index into `Simulation::borders()`. Stall: first entry is the
-    /// affected mover and the second entry is unused.
+    /// affected mover and the second entry is unused. MAKE WAY uses both mover indices.
     std::array<std::size_t, 2> movers{};
     /// `passing_formed`: the entry and exit target of each participant, in the order
     /// of `movers`.
@@ -99,6 +117,8 @@ struct SimulationEvent {
     bool passing{};
     /// Stall events carry the onset diagnosis, including when the episode ends.
     std::optional<StallDetails> stall{};
+    /// Outcome for `make_way_ended` events.
+    std::optional<MakeWayEnd> make_way_end{};
 };
 
 /// Stable lower-case name of `kind`, for logs, CSV columns and test output.
@@ -116,6 +136,27 @@ constexpr std::string_view name(EventKind kind) {
         return "stall_started";
     case EventKind::stall_ended:
         return "stall_ended";
+    case EventKind::make_way_started:
+        return "make_way_started";
+    case EventKind::make_way_unavailable:
+        return "make_way_unavailable";
+    case EventKind::make_way_ended:
+        return "make_way_ended";
+    }
+    return "unknown";
+}
+
+/// Stable lower-case name of a make-way outcome for event export.
+constexpr std::string_view name(MakeWayEnd outcome) {
+    switch (outcome) {
+    case MakeWayEnd::cleared:
+        return "cleared";
+    case MakeWayEnd::cancelled:
+        return "cancelled";
+    case MakeWayEnd::timed_out:
+        return "timed_out";
+    case MakeWayEnd::obstructed:
+        return "obstructed";
     }
     return "unknown";
 }

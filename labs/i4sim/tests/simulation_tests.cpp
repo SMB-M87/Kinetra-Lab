@@ -6,8 +6,13 @@
 // The `the bundled catalog holds five blueprints that all load` case doubles as the
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
+#include "i4sim/simulation/detail/floor_plan.h"
+#include "i4sim/simulation/detail/make_way.h"
+#include "i4sim/simulation/detail/motion_step.h"
+#include "i4sim/simulation/detail/predictive_passing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 #include "i4sim/simulation/detail/stall_detector.h"
+#include "i4sim/simulation/detail/traffic.h"
 #include "i4sim/simulation/flow_metrics.h"
 #include "i4sim/simulation/inspector.h"
 #include "i4sim/simulation/simulation.h"
@@ -2307,6 +2312,7 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     REQUIRE(restarting);
     CHECK(restarting->repeat == ScenarioRepeat::restart);
     CHECK(loaded->motion.path_planning);
+    CHECK_FALSE(loaded->motion.make_way);
     CHECK(loaded->motion.speed == MotionSettings{}.speed);
     CHECK(load_error(with_scenario(R"({"motion": {"pathPlanning": "no"}})"))
               .find("pathplanning must be true or false") != std::string::npos);
@@ -2316,10 +2322,16 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
               .find("force must be a positive number") != std::string::npos);
     CHECK(load_error(with_scenario(R"({"motion": {"horizon": 65}})"))
               .find("horizon must be a positive number of at most 64") != std::string::npos);
-    const auto tuned = load_scenario(
-        with_scenario(R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64}})"));
+    const auto tuned = load_scenario(with_scenario(
+        R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64, "MakeWay": true}})"));
     REQUIRE(tuned);
     CHECK_FALSE(tuned->motion.path_planning);
+    CHECK(tuned->motion.make_way);
+    Simulation with_policy(crossing_fixture());
+    apply_scenario(*tuned, with_policy);
+    CHECK(with_policy.motion_settings().make_way);
+    CHECK(load_error(with_scenario(R"({"motion": {"makeWay": 1}})")).find("makeway must be true or false") !=
+          std::string::npos);
     CHECK(tuned->motion.speed == 2.5f);
     CHECK(tuned->motion.force == 0.25f);
     CHECK(tuned->motion.horizon == 64);
@@ -2578,4 +2590,480 @@ TEST_CASE("a station may stand outside the floor up to twice its size, with its 
     REQUIRE(below.producers.size() == 1);
     CHECK(below.producers.front().position.y == 1080);
     CHECK_THROWS_AS(load_blueprint(with_station("beyond", 1921)), std::runtime_error);
+}
+
+namespace {
+Blueprint parked_blocker_fixture(bool refuge) {
+    Blueprint blueprint = fixture();
+    blueprint.dimension = {1400, 600};
+    blueprint.producers.clear();
+    blueprint.zones = {{"north", {0, 0}, {1400, 200}},
+                       {"southwest", {0, 400}, {600, 200}},
+                       {"southeast", {800, 400}, {600, 200}}};
+    if (!refuge)
+        blueprint.zones.push_back({"closed refuge", {600, 400}, {200, 200}});
+    blueprint.movers = {{"through", Model::APM4220, {243.5f, 243.5f}},
+                        {"parked", Model::APM4220, {643.5f, 243.5f}}};
+    return blueprint;
+}
+
+Simulation start_parked_blocker(bool refuge, bool make_way) {
+    Simulation simulation(parked_blocker_fixture(refuge));
+    simulation.set_workload(false);
+    simulation.record_events(true);
+    auto settings = simulation.motion_settings();
+    settings.heatmap = false;
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = make_way;
+    simulation.configure_motion(settings);
+    REQUIRE(simulation.move_to(0, {1100, 300}));
+    simulation.run();
+    return simulation;
+}
+} // namespace
+
+TEST_CASE("make way uses a checked refuge and returns the parked mover without contact") {
+    auto simulation = start_parked_blocker(true, true);
+    const auto parking = simulation.movers()[1].parking;
+    for (int tick = 0; tick < 2000; ++tick)
+        simulation.tick();
+    CHECK(i4sim::test::count(simulation.events(), EventKind::make_way_started) == 1);
+    CHECK(i4sim::test::count(simulation.events(), EventKind::make_way_ended) == 1);
+    CHECK(simulation.collisions() == 0);
+    CHECK(kinetra::distance(simulation.movers()[0].body.position, {1100, 300}) == doctest::Approx(0));
+    CHECK(kinetra::distance(simulation.movers()[1].body.position, parking) == doctest::Approx(0));
+    CHECK(simulation.movers()[1].goal == GoalKind::automatic);
+    CHECK_FALSE(simulation.stall_details(0));
+}
+
+TEST_CASE("make way keeps observing a stall when no refuge can open a route") {
+    auto simulation = start_parked_blocker(false, true);
+    for (int tick = 0; tick < 1300; ++tick)
+        simulation.tick();
+    CHECK(simulation.stall_details(0));
+    CHECK(i4sim::test::count(simulation.events(), EventKind::stall_started) == 1);
+    std::vector<std::uint64_t> attempts;
+    for (const auto &event : simulation.events())
+        if (event.kind == EventKind::make_way_unavailable)
+            attempts.push_back(event.tick);
+    REQUIRE(attempts.size() == 2);
+    CHECK(attempts[1] - attempts[0] == 30);
+    CHECK(i4sim::test::count(simulation.events(), EventKind::make_way_started) == 0);
+    CHECK(simulation.collisions() == 0);
+}
+
+TEST_CASE("turning make way off returns a yielding mover once its parking route is clear") {
+    auto simulation = start_parked_blocker(true, true);
+    const auto parking = simulation.movers()[1].parking;
+    for (int tick = 0; tick < 1000 && simulation.movers()[1].goal != GoalKind::making_way; ++tick)
+        simulation.tick();
+    REQUIRE(simulation.movers()[1].goal == GoalKind::making_way);
+    for (int tick = 0; tick < 30; ++tick)
+        simulation.tick();
+    auto settings = simulation.motion_settings();
+    settings.make_way = false;
+    simulation.configure_motion(settings);
+    for (int tick = 0; tick < 700 && simulation.movers()[1].goal == GoalKind::making_way; ++tick)
+        simulation.tick();
+    CHECK(simulation.collisions() == 0);
+    CHECK(simulation.movers()[1].goal == GoalKind::automatic);
+    CHECK(kinetra::distance(simulation.movers()[1].body.position, parking) == doctest::Approx(0));
+    CHECK(std::any_of(simulation.events().begin(), simulation.events().end(),
+                      [](const auto &event) { return event.make_way_end == MakeWayEnd::cancelled; }));
+}
+
+TEST_CASE("make way times out and returns even while the beneficiary needs the parking space") {
+    auto simulation = start_parked_blocker(true, true);
+    for (int tick = 0; tick < 1000 && simulation.movers()[1].goal != GoalKind::making_way; ++tick)
+        simulation.tick();
+    REQUIRE(simulation.movers()[1].goal == GoalKind::making_way);
+    const auto start = simulation.ticks();
+
+    // Both movers are limited to a crawl so the beneficiary still needs the original
+    // parking space at the deadline, while reverse travel to parking remains clear.
+    auto settings = simulation.motion_settings();
+    settings.speed = 0.000025f;
+    simulation.configure_motion(settings);
+    for (int tick = 0; tick < 1200; ++tick)
+        simulation.tick();
+
+    CHECK(simulation.movers()[0].moving());
+    CHECK(simulation.movers()[0].destination.x == 1100);
+    CHECK(simulation.movers()[1].destination == simulation.movers()[1].parking);
+    CHECK(simulation.collisions() == 0);
+    CHECK(std::any_of(simulation.events().begin(), simulation.events().end(), [start](const auto &event) {
+        return event.make_way_end == MakeWayEnd::timed_out && event.tick == start + 1200;
+    }));
+}
+
+TEST_CASE("a persistent traffic wait cannot veto an expired make way return") {
+    const auto scenario = start_parked_blocker(true, false);
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    fleet.movers[0].body.position = {580, 300};
+    fleet.progress.resize(fleet.movers.size());
+    fleet.max_half = fleet.movers[0].body.half_extents;
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::StallDetector stalls(fleet.movers.size());
+    detail::Shuttle shuttle;
+    detail::MakeWay make_way;
+    detail::EventLog log;
+    log.record(true);
+    auto settings = scenario.motion_settings();
+    settings.make_way = true;
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 0};
+
+    for (unsigned tick = 1; tick <= 120; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        stalls.observe(fleet, settings, tick, log);
+    }
+    REQUIRE(stalls.details(0));
+    goals.tick = 120;
+    make_way.update(goals, {}, shuttle, stalls);
+    auto &yielding = fleet.movers[1];
+    REQUIRE(yielding.goal == GoalKind::making_way);
+    REQUIRE(yielding.destination != yielding.parking);
+    yielding.body.position.y += 24;
+    yielding.coordination.exit_waiting = true;
+    goals.tick += 1200;
+    make_way.update(goals, {}, shuttle, stalls);
+
+    CHECK(yielding.goal == GoalKind::making_way);
+    CHECK(yielding.destination == yielding.parking);
+    CHECK(fleet.movers[0].moving());
+    CHECK(std::any_of(log.events().begin(), log.events().end(),
+                      [](const auto &event) { return event.make_way_end == MakeWayEnd::timed_out; }));
+}
+
+TEST_CASE("a make way refuge near a processing place checks the full footprint") {
+    auto layout = fixture();
+    layout.cell_size = {100, 100};
+    layout.producers = {{"producer", Model::Kuka, {150, 150}, {400, 400}}};
+    const detail::FloorPlan floor(layout);
+    const auto center = floor.grid().center(floor.grid().cell({650, 450}));
+    REQUIRE_FALSE(floor.processing_cell(floor.grid().cell(center)));
+    CHECK_FALSE(floor.processing_clear({center - Vec2{100, 50}, center + Vec2{100, 50}}));
+    CHECK(floor.processing_clear({center - Vec2{70, 50}, center + Vec2{70, 50}}));
+}
+
+TEST_CASE("make way shortcuts keep clear of footprints and freshly enabled traffic zones") {
+    auto scenario = Simulation(corridor_fixture());
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    REQUIRE(fleet.movers.size() == 2);
+    auto &mover = fleet.movers[0];
+    mover.body.position = {300, 700};
+    fleet.movers[1].body.position = {1000, 700};
+    const std::array route{Vec2{1300, 700}};
+    REQUIRE(floor.grid().clear(mover.body.position, route.front(), mover.body.half_extents));
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::EventLog log;
+    auto settings = scenario.motion_settings();
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 1};
+
+    CHECK_FALSE(detail::MakeWay::shortcut_clear(goals, mover, route));
+    fleet.movers[1].body.position = {1900, 1000};
+    CHECK(detail::MakeWay::shortcut_clear(goals, mover, route));
+
+    REQUIRE(floor.corridor_count() > 0);
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    CHECK_FALSE(detail::MakeWay::shortcut_clear(goals, mover, route));
+}
+
+TEST_CASE("make way can withdraw from a traffic zone enabled around the mover") {
+    const Simulation scenario(corridor_fixture());
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    auto &mover = fleet.movers[0];
+    mover.body.position = {800, 700};
+    const std::array withdrawal{Vec2{700, 700}, Vec2{300, 700}};
+    const std::array deeper{Vec2{1000, 700}, Vec2{300, 700}};
+    const std::array reentry{Vec2{300, 700}, Vec2{800, 700}};
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::EventLog log;
+    auto settings = scenario.motion_settings();
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 1};
+
+    CHECK(detail::MakeWay::traffic_clear(goals, mover, deeper));
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    CHECK(detail::MakeWay::traffic_clear(goals, mover, withdrawal));
+    fleet.movers[1].body.position = {1900, 1000};
+    CHECK(detail::MakeWay::shortcut_clear(goals, mover, withdrawal));
+    CHECK_FALSE(detail::MakeWay::traffic_clear(goals, mover, deeper));
+    CHECK_FALSE(detail::MakeWay::traffic_clear(goals, mover, reentry));
+
+    mover.goal = GoalKind::making_way;
+    mover.lifecycle = MoverLifecycle::moving;
+    mover.route.assign(withdrawal.begin(), withdrawal.end());
+    mover.destination = withdrawal.back();
+    fleet.progress.resize(fleet.movers.size());
+    fleet.max_half = mover.body.half_extents;
+    detail::Production production(scenario.blueprint(), 42);
+    detail::MotionStep motion;
+    motion.run(goals, production);
+    CHECK(mover.body.position.x < 800);
+    CHECK_FALSE(traffic.exit_reservation(floor.junction_count()));
+}
+
+TEST_CASE("a braking make way trip retries its checked return when an obstruction clears") {
+    auto layout = corridor_fixture();
+    layout.movers.push_back({"return obstruction", Model::APM4220, {1843.5f, 943.5f}});
+    Simulation scenario(layout);
+    REQUIRE(scenario.move_to(0, {1900, 700}));
+    const detail::FloorPlan floor(layout);
+    REQUIRE(floor.corridor_count() == 1);
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    auto &beneficiary = fleet.movers[0];
+    auto &yielding = fleet.movers[1];
+    auto &obstruction = fleet.movers[2];
+    beneficiary.body.position = {330, 700};
+    beneficiary.route = {beneficiary.destination};
+    yielding.parking = yielding.body.position = {460, 700};
+    fleet.progress.resize(fleet.movers.size());
+    fleet.max_half = yielding.body.half_extents;
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::StallDetector stalls(fleet.movers.size());
+    detail::Shuttle shuttle;
+    detail::MakeWay make_way;
+    detail::EventLog log;
+    log.record(true);
+    auto settings = scenario.motion_settings();
+    settings.make_way = true;
+    settings.path_planning = false;
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 120};
+
+    for (unsigned tick = 1; tick <= 120; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        stalls.observe(fleet, settings, tick, log);
+    }
+    REQUIRE(stalls.details(0));
+    make_way.update(goals, {}, shuttle, stalls);
+    REQUIRE(yielding.goal == GoalKind::making_way);
+    REQUIRE(yielding.destination != yielding.parking);
+
+    // The outbound leg now heads deeper into the corridor, and a third mover
+    // occupies the only withdrawal route to the parking reservation.
+    yielding.body.position = {800, 700};
+    yielding.destination = {1000, 700};
+    yielding.route = {yielding.destination};
+    obstruction.body.position = {625, 700};
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    REQUIRE_FALSE(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+    ++goals.tick;
+    make_way.update(goals, {}, shuttle, stalls);
+    REQUIRE(yielding.destination == yielding.body.position);
+    REQUIRE(yielding.moving());
+    CHECK(std::any_of(log.events().begin(), log.events().end(),
+                      [](const auto &event) { return event.make_way_end == MakeWayEnd::obstructed; }));
+
+    SUBCASE("the enabled corridor keeps the brake target inside a zone") {
+        CHECK_FALSE(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+        detail::Production production(layout, 42);
+        detail::MotionStep motion;
+        motion.run(goals, production);
+        REQUIRE(yielding.moving());
+    }
+    SUBCASE("disabling the corridor leaves the outbound claim released") {
+        settings.corridor_traffic = false;
+        traffic.configure(floor, settings);
+        CHECK(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+    }
+
+    obstruction.body.position = {450, 1000};
+    ++goals.tick;
+    make_way.update(goals, {}, shuttle, stalls);
+    CHECK(yielding.destination == yielding.parking);
+    CHECK(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+}
+
+TEST_CASE("a newly admitted exit can invalidate a make way leg outside the junction") {
+    Simulation scenario(opposing_fixture());
+    REQUIRE(scenario.move_to(0, {1100, 700}));
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    fleet.progress.resize(fleet.movers.size());
+    std::vector<kinetra::Aabb> boxes;
+    for (const auto &mover : fleet.movers) {
+        fleet.max_half = {std::max(fleet.max_half.x, mover.body.half_extents.x),
+                          std::max(fleet.max_half.y, mover.body.half_extents.y)};
+        boxes.push_back(kinetra::bounds(mover.body));
+    }
+    kinetra::SpatialGrid index(floor.cell_size().x);
+    index.rebuild(boxes);
+    detail::Traffic traffic(floor);
+    detail::Traffic::begin_tick(fleet);
+    detail::PredictivePassing passing;
+    detail::EventLog log;
+    auto settings = scenario.motion_settings();
+    settings.junction_traffic = true;
+    traffic.configure(floor, settings);
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 1};
+
+    // The prospective leg lies east of the junction and enters its exit pocket.
+    auto probe = fleet.movers[1];
+    probe.body.position = {875, 900};
+    const std::array leg{Vec2{875, 700}};
+    CHECK(detail::MakeWay::traffic_clear(goals, probe, leg));
+    traffic.admit(floor, fleet, settings, index, boxes);
+    REQUIRE(traffic.exit_reservation(0));
+    CHECK_FALSE(detail::MakeWay::traffic_clear(goals, probe, leg));
+}
+
+TEST_CASE("predictive passing leaves a checked make way route under its existing policy") {
+    auto scenario = passing_pair(SteeringProfile::reciprocal);
+    run_until_pair(scenario);
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    std::vector<kinetra::Aabb> boxes;
+    for (const auto &mover : fleet.movers) {
+        fleet.max_half = {std::max(fleet.max_half.x, mover.body.half_extents.x),
+                          std::max(fleet.max_half.y, mover.body.half_extents.y)};
+        boxes.push_back(kinetra::bounds(mover.body));
+    }
+    fleet.progress.resize(fleet.movers.size());
+    kinetra::SpatialGrid index(floor.cell_size().x);
+    index.rebuild(boxes);
+    detail::Traffic::begin_tick(fleet);
+    detail::EventLog events;
+    detail::PredictivePassing ordinary;
+    ordinary.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), index, events);
+    REQUIRE(ordinary.pairs() == 1);
+
+    detail::Traffic::begin_tick(fleet);
+    fleet.movers[0].goal = GoalKind::making_way;
+    detail::PredictivePassing during_make_way;
+    during_make_way.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), index, events);
+    CHECK(during_make_way.pairs() == 0);
+    CHECK_FALSE(fleet.movers[0].coordination.passing);
+}
+
+TEST_CASE("make way clears the recorded 4320x2400 departures") {
+    for (const auto seed : {2026u, 915839214u}) {
+        CAPTURE(seed);
+        Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), seed);
+        auto settings = simulation.motion_settings();
+        settings.profile = SteeringProfile::reciprocal;
+        settings.make_way = true;
+        simulation.configure_motion(settings);
+        simulation.record_events(true);
+        simulation.run();
+        for (int tick = 0; tick < 12000; ++tick)
+            simulation.tick();
+        CHECK(std::any_of(simulation.events().begin(), simulation.events().end(), [](const auto &event) {
+            return event.movers[0] == 25 && event.make_way_end == MakeWayEnd::cleared;
+        }));
+        CHECK_FALSE(simulation.stall_details(25));
+        CHECK_FALSE(simulation.stall_details(23));
+        CHECK(simulation.collisions() == 0);
+    }
+}
+
+TEST_CASE("make way preserves a parked product and lets the recorded MAS recipe resume") {
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator")), 42);
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = true;
+    simulation.configure_motion(settings);
+    simulation.record_events(true);
+    simulation.run();
+
+    const auto &blocker = simulation.movers()[4];
+    for (int tick = 0; tick < 30000 && blocker.goal != GoalKind::making_way; ++tick)
+        simulation.tick();
+    REQUIRE(blocker.goal == GoalKind::making_way);
+    REQUIRE(blocker.product);
+    const auto product = *blocker.product;
+    const auto carries_product = [&](const Product &p) { return p.id == product; };
+    const auto initial =
+        std::find_if(simulation.products().begin(), simulation.products().end(), carries_product);
+    REQUIRE(initial != simulation.products().end());
+    const auto step = initial->step;
+    const auto producer = initial->producer;
+    REQUIRE(producer);
+    const auto starting_queue = simulation.producers()[*producer].queue;
+    const auto starting_slot = std::find(starting_queue.begin(), starting_queue.end(), product);
+    REQUIRE(starting_slot != starting_queue.end());
+    const auto parking = blocker.parking;
+    const auto product_distance = initial->distance;
+    const auto mover_distance = blocker.distance;
+    const auto mover_transport_ticks = blocker.transport_ticks;
+    std::uint64_t carrying_movement_ticks = 0;
+
+    // Hold the clone at its refuge until the preceding product leaves the queue.
+    // After releasing the hold, MAKE WAY itself must defer the now-ready product.
+    auto queue_head = simulation;
+    for (int tick = 0; tick < 1200 && queue_head.movers()[4].moving(); ++tick)
+        queue_head.tick();
+    REQUIRE(queue_head.movers()[4].goal == GoalKind::making_way);
+    REQUIRE_FALSE(queue_head.movers()[4].moving());
+    queue_head.toggle_mover(4);
+    const auto is_front = [&] {
+        const auto &queue = queue_head.producers()[*producer].queue;
+        return !queue.empty() && queue.front() == product;
+    };
+    for (int tick = 0; tick < 5000 && !is_front(); ++tick)
+        queue_head.tick();
+    REQUIRE(is_front());
+    queue_head.toggle_mover(4);
+    queue_head.tick();
+    CHECK(is_front());
+    CHECK(queue_head.movers()[4].goal == GoalKind::making_way);
+    CHECK(queue_head.producers()[*producer].product != product);
+
+    for (int tick = 0; tick < 6000 && blocker.goal == GoalKind::making_way; ++tick) {
+        CHECK(blocker.product == product);
+        const auto current =
+            std::find_if(simulation.products().begin(), simulation.products().end(), carries_product);
+        REQUIRE(current != simulation.products().end());
+        CHECK((current->step == step && current->producer == producer && current->mover == 4));
+        const auto &queue = simulation.producers()[*producer].queue;
+        const auto slot = std::find(queue.begin(), queue.end(), product);
+        REQUIRE(std::count(queue.begin(), queue.end(), product) == 1);
+        if (blocker.moving())
+            ++carrying_movement_ticks;
+        for (auto previous = starting_queue.begin(); previous != starting_queue.end(); ++previous) {
+            const auto position = std::find(queue.begin(), queue.end(), *previous);
+            if (position != queue.end())
+                CHECK((previous < starting_slot) == (position < slot));
+        }
+        CHECK(kinetra::distance(blocker.parking, parking) == 0);
+        simulation.tick();
+    }
+    CHECK(blocker.goal == GoalKind::automatic);
+    const auto after =
+        std::find_if(simulation.products().begin(), simulation.products().end(), carries_product);
+    REQUIRE(after != simulation.products().end());
+    REQUIRE(blocker.distance > mover_distance);
+    CHECK(carrying_movement_ticks > 0);
+    CHECK(blocker.transport_ticks - mover_transport_ticks == carrying_movement_ticks);
+    CHECK(after->distance - product_distance == doctest::Approx(blocker.distance - mover_distance));
+    bool processed_after_return = false;
+    while (simulation.running() && simulation.ticks() < 50000) {
+        simulation.tick();
+        if (!processed_after_return) {
+            const auto carried =
+                std::find_if(simulation.products().begin(), simulation.products().end(), carries_product);
+            processed_after_return = carried != simulation.products().end() &&
+                                     (carried->state == ProductState::processing || carried->step > step);
+        }
+    }
+    CHECK(processed_after_return);
+    CHECK(std::any_of(simulation.events().begin(), simulation.events().end(), [](const auto &event) {
+        return event.movers[0] == 0 && event.make_way_end == MakeWayEnd::cleared;
+    }));
+    CHECK(simulation.completed() >= 15);
+    CHECK(simulation.collisions() == 0);
 }

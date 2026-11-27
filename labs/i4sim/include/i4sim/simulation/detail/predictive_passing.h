@@ -53,6 +53,7 @@ class PredictivePassing {
     /// Advances and ends existing plans, forms new ones when passing is enabled, and sets
     /// the controls and `Coordination::passing` of every participant. Call after corridor
     /// recovery has set its controls, so movers under traffic control are left out.
+    /// Movers with a temporary make-way goal retain their checked routes.
     /// `index` holds the movers' bounds.
     void coordinate(const FloorPlan &floor, Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
                     const kinetra::SpatialGrid &index, EventLog &log);
