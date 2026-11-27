@@ -3279,6 +3279,8 @@ TEST_CASE("a force so small that braking never ends still lets stalls be observe
     simulation.run();
     for (int tick = 0; tick < 200; ++tick)
         REQUIRE_NOTHROW(simulation.tick());
+    // Mover 0 cannot accelerate, so its route makes no progress and an episode starts.
+    CHECK(simulation.stall_details(0));
 }
 
 TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back") {
