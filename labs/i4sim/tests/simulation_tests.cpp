@@ -3368,6 +3368,43 @@ TEST_CASE("a mover with the right of way is marked, and turning the policy off e
     }));
 }
 
+TEST_CASE("a mover with the right of way loses it when it gets a new goal") {
+    auto [longest, simulation] = pushed_mover_run(true);
+    (void)longest;
+    // Run on until a mover without a product holds the right of way, so an operator can send
+    // it elsewhere.
+    std::optional<std::size_t> holder;
+    for (int tick = 0; tick < 50000 && !holder; ++tick) {
+        simulation.tick();
+        for (std::size_t i = 0; i < simulation.movers().size(); ++i)
+            if (simulation.movers()[i].coordination.right_of_way && !simulation.movers()[i].product)
+                holder = i;
+    }
+    REQUIRE(holder);
+    // Send it to the place of the mover farthest from it.
+    const auto &movers = simulation.movers();
+    const auto from = movers[*holder].body.position;
+    std::vector<std::size_t> others;
+    for (std::size_t i = 0; i < movers.size(); ++i)
+        if (i != *holder)
+            others.push_back(i);
+    std::sort(others.begin(), others.end(), [&](std::size_t a, std::size_t b) {
+        return distance(movers[a].body.position, from) > distance(movers[b].body.position, from);
+    });
+    const auto sent = std::find_if(others.begin(), others.end(), [&](std::size_t i) {
+        return simulation.move_to(*holder, simulation.movers()[i].body.position);
+    });
+    REQUIRE(sent != others.end());
+    const auto before = simulation.events().size();
+    simulation.tick();
+    // The new trip has nothing to do with the push, so the others count on it again.
+    CHECK_FALSE(simulation.movers()[*holder].coordination.right_of_way);
+    const auto events = simulation.events().subspan(before);
+    CHECK(std::any_of(events.begin(), events.end(), [&](const SimulationEvent &event) {
+        return event.kind == EventKind::right_of_way_ended && event.movers[0] == *holder;
+    }));
+}
+
 TEST_CASE("right of way runs from the first tick of a scene whose movers already have goals") {
     // The scenario's goals make movers move before the first tick, when no traffic control
     // has been sized yet.

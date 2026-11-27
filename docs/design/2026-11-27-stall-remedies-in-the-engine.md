@@ -63,7 +63,8 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 | Gate on a product rescheduled away from a processing place | Yes, through the same `approach()`; review round 1 of #146 | A product that heads an empty queue the moment it is rescheduled, after a blocked producer for example, leaves its parking row as a queued one does |
 | Showcase scene for the sealed departure | No | The scene needs a hold during allocation and timed goals after the product queues, which the scenario format cannot express; making it expressible would change a data contract for one clip |
 | Fallback motion | *Right of way* (RIGHT OF WAY), opt-in, Reciprocal and Improved: the pushed mover keeps steering at its goal and the others treat it as not cooperating, so the pusher avoids alone | Prototype over 50,000 ticks, Reciprocal: products 344 → 346, waiting −12%, stuck movers 23 → 16, no contact. *Stand still* failed: Reciprocal 38 contacts and fewer products, Improved waiting ×25 |
-| Return rule | A fixed window of 480 ticks (`4 × stall_ticks`), shorter when the mover arrives, changes goal, is held or comes under traffic control | 50,000 ticks: Reciprocal 344 → 351 products, waiting −27%, stuck 23 → 15; Improved 348 → 356, contacts 836 → 644, stuck 6 → 3. Returning on progress was worse than no fallback. In the harness the 480 window has two Reciprocal runs with a stuck mover at the end (base: none) |
+| Return rule | A fixed window of 480 ticks (`4 × stall_ticks`), shorter when the mover arrives, changes goal, is held or comes under traffic control. The goal change is checked since review round 1 of Kinetra#74 | 50,000 ticks: Reciprocal 344 → 345 products, waiting −10%, stuck 23 → 12; Improved 348 → 354, contacts 836 → 554, stuck 6 → 5. The version before the review gave 351 and 356 products, the goal-change end alone 342 and 350 (*Verification*). Returning on progress was worse than no fallback. In the harness two Reciprocal runs end with a stuck mover (base: none) |
+| A pusher against its own holder | Gets no right of way against it; review round 1 of Kinetra#74 | Each would be a fixed body to the other, so neither makes room. Before the rule, 3 of 85 and 7 of 106 grants in the harness and 16 of 511 and 46 of 497 over 50,000 ticks were such grants; with it, none |
 | i4sim on `PassingCoordinator` | Yes; the lines with PASSING on are recorded again once the harness shows an equal flow | One lifecycle in three applications; the three differences above are not worth engine options |
 | Where MAKE WAY and the fallback live | Both in Kinetra (the user's choice; the agent recommended i4sim) | The user wants the remedies reusable by every application |
 | Engine form | Classes of their own beside `PassingCoordinator` in `Kinetra::Simulation` | Each has its own per-step contract and events; an application composes the ones it needs |
@@ -115,7 +116,7 @@ Three behaviors follow the engine now:
 
 i4sim marks a mover on its own route, outside every coordination, `observed`; one that is not moving or is held `standing`; any other mover `busy`. That is the eligibility of its former detector. The engine adds the reason `pushed_back` after `opposing_mover`: the mover moves back along its leg faster than `stop_speed` while a moving neighbor within 1.6 combined half diagonals, within about 78 degrees of the leg ahead, approaches faster than `stop_speed`. i4sim's `StallReason` and `StallDetails` become aliases of the engine's `StallReason` and `StallDiagnosis`.
 
-**Step 4: right of way.** `kinetra::RightOfWay` ([navigation contract](../../external/Kinetra/docs/engine/navigation.md#right-of-way)) takes the movers and tuning of the stall detector and a window in steps. An observed mover whose steps without progress reach the threshold, and that `pushing_neighbor()` (the push test, moved out of the detector) finds pushed back, gets the right of way for the window. It loses it early when it is no longer observed, and gets a new one at once when it is still stalled and pushed when the window passes.
+**Step 4: right of way.** `kinetra::RightOfWay` ([navigation contract](../../external/Kinetra/docs/engine/navigation.md#right-of-way)) takes the movers and tuning of the stall detector and a window in steps. An observed mover whose steps without progress reach the threshold, and that `pushing_neighbor()` (the push test, moved out of the detector) finds pushed back, gets the right of way for the window. It loses it early when it is no longer observed or its destination changes, and gets a new one at once when it is still stalled and pushed when the window passes. A pusher that the holder drives back in turn gets none against the holder.
 
 i4sim's `MotionSettings::right_of_way` (DEBUG → TRAFFIC → RIGHT OF WAY, `scenario.motion.rightOfWay`, `--right-of-way`) runs it at the start of `MotionStep::run`, from the state at the end of the last tick, with a window of 480 ticks (`4 × stall_ticks`). It counts a mover on its route as observed; a mover that stands or is held as standing; and as busy a mover under a traffic control of the last tick, waiting at a junction or corridor, retreating, in a passing plan or on a make-way trip. Without traffic policies and passing that is the prototype's eligibility, so the measurement holds. A mover with the right of way is a fixed body in the tick's snapshot: Reciprocal's other agents take the whole avoidance instead of half, and Improved's steering avoids it as a standing body. It still steers at its goal and avoids the others itself. Turning the policy off ends every right of way at once. `Coordination::right_of_way` marks it for the inspector, and the event log records `right_of_way_granted` (with the pusher) and `right_of_way_ended`.
 
@@ -178,9 +179,10 @@ Step 4, Full level (a new public engine header):
 
 | Behavior | Test |
 | --- | --- |
-| The fallback's contract at two world scales: grant and window, a new window at once, no grant below the threshold, without a push or for a mover not observed, early end, a shorter span, the push test against the detector's reason and for every mover, a window past the clock's end, invalid input | Kinetra `kinetra_right_of_way_tests` (8 cases) |
+| The fallback's contract at two world scales: grant and window, a new window at once, no grant below the threshold, without a push or for a mover not observed, early end, the end on a new goal, none for a pusher against its own holder, a shorter span with its ends in mover order, the push test against the detector's reason and for every mover, a window past the clock's end, invalid input with a right of way kept | Kinetra `kinetra_right_of_way_tests` (11 cases) |
 | The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) lasts over 1,000 ticks without the fallback and under 200 with it, mover 7 gets the right of way against mover 8, no contact, and every right of way lasts at most its window | `kinetra_i4sim:right of way ends the recorded stall of a mover pushed from its goal` |
 | The holder is marked in the inspector, and turning the policy off ends it at once, with an event | `kinetra_i4sim:a mover with the right of way is marked, and turning the policy off ends it` |
+| An operator's new goal for the holder ends its right of way the next tick, with an event | `kinetra_i4sim:a mover with the right of way loses it when it gets a new goal` (fails without the goal check) |
 | The first tick of a scene whose movers already have goals runs with the policy on | `kinetra_i4sim:right of way runs from the first tick of a scene whose movers already have goals` (an out-of-range read before; a release build need not show it) |
 | The scenario key and the TRAFFIC row | the scenario case and two controller cases, extended |
 | Off by default changes nothing | the golden and pressure suites |
@@ -250,20 +252,31 @@ Step 3, with Kinetra `24fb31d` (`feat/stall-detector`):
   - Reciprocal: 412 `pushed_back` of 631, the count the classifying replay found, with 166 `unknown`, 42 `opposing_mover`, 6 `stationary_blocker` and 5 `oscillating`.
   - Improved: 322 `pushed_back` of 763.
 
-Step 4, with Kinetra `feat/right-of-way` after its review fix:
+Step 4, with Kinetra `feat/right-of-way` after review round 1 of Kinetra#74 (`404199c`):
 
-- Kinetra: 335 of 335 tests pass, and the consumer runs.
-- Lab: 176 of 176 i4sim cases pass, the golden and pressure lines unchanged.
-- The review fixes leave the harness identical (Reciprocal 114 products, 13,587 waiting ticks; Improved 105, 196 contacts).
+- Kinetra: 342 of 342 tests pass, and the consumer runs.
+- Lab: 182 of 182 i4sim cases pass, the golden and pressure lines unchanged.
 
-With MAKE WAY on, RIGHT OF WAY off → on. The integrated version gives the prototype's numbers for the 480-tick window exactly:
+With MAKE WAY on, RIGHT OF WAY off → on:
 
 | Run | Products | Contacts | Waiting ticks | Stuck movers | Runs stuck at end | Rights of way granted |
 | --- | --- | --- | --- | --- | --- | --- |
-| Harness, Reciprocal | 110 → 114 | 0 → 0 | 17,449 → 13,587 | 1 → 2 | 0 → 2 | 85 |
-| Harness, Improved | 103 → 105 | 167 → 196 | 3,833 → 3,662 | 3 → 1 | 1 → 1 | 103 |
-| 50,000 ticks, Reciprocal | 344 → 351 | 0 → 0 | 104,020 → 75,481 | 23 → 15 | 0 → 0 | 511 |
-| 50,000 ticks, Improved | 348 → 356 | 836 → 644 | 7,638 → 10,541 | 6 → 3 | 1 → 0 | 466 |
+| Harness, Reciprocal | 110 → 114 | 0 → 0 | 17,449 → 14,313 | 1 → 3 | 0 → 2 | 80 |
+| Harness, Improved | 103 → 105 | 167 → 194 | 3,833 → 3,355 | 3 → 0 | 1 → 0 | 94 |
+| 50,000 ticks, Reciprocal | 344 → 345 | 0 → 0 | 104,020 → 93,913 | 23 → 12 | 0 → 0 | 452 |
+| 50,000 ticks, Improved | 348 → 354 | 836 → 554 | 7,638 → 9,496 | 6 → 5 | 1 → 0 | 458 |
+
+Products rise in all four cells, Reciprocal waits less (harness −18%, 50,000 ticks −10%) without a contact, and there are fewer stuck movers over 50,000 ticks. Every right of way lasts at most its 480 ticks, and none goes to a pusher against its own holder.
+
+The long cells vary between versions of the fallback, so only their direction is a finding:
+
+| Version | 50,000 ticks, Reciprocal: products / waiting / stuck | 50,000 ticks, Improved: products / contacts / waiting |
+| --- | --- | --- |
+| Before the review round (the prototype's numbers exactly) | 351 / 75,481 / 15 | 356 / 644 / 10,541 |
+| With the goal-change end | 342 / 84,158 / 19 | 350 / 1,010 / 11,481 |
+| With the goal-change end and the pusher rule | 345 / 93,913 / 12 | 354 / 554 / 9,496 |
+
+The goal-change end leaves the harness identical to the version before it (Reciprocal 114 products, 13,587 waiting ticks; Improved 105 products). The pusher rule changes the harness, as the table above shows.
 
 ## Review
 
@@ -331,6 +344,16 @@ The harness is unchanged by all of it. Two findings are older than this change a
   - The invalid-input case covers every validated branch.
   - The description no longer waits for #71.
 
+**Step 4, agent review round 1 of Kinetra#74** (*Fix first*):
+
+- *Blocking:* a right of way survived a goal change, which the return rule the user chose ends. A grant now keeps its destination and ends when it changes. A Kinetra case at two scales and an i4sim case, in which an operator sends the holder elsewhere, fail without it (Kinetra `d5852d0`).
+- *Should fix:* with a shorter span, the ends beyond it came first. They now come after the others, so every end is in mover order, and the span case has an in-span end in the same step (`d5852d0`).
+- *Should fix:* the testing table's stall row runs both suites, `^kinetra_(stall_detector\|right_of_way)` (`d5852d0`).
+- *Should fix:* the invalid-input case grants first, checks that each invalid step throws with the right of way kept, and then that a valid step ends it (`d5852d0`).
+- *Question:* can a pusher get the right of way against its own holder? Yes: 3 of 85 and 7 of 106 grants in the harness, 16 of 511 and 46 of 497 over 50,000 ticks. A grant now keeps its pusher, which gets none against the holder. A case fails without it, and the measurement has no such grant left (Kinetra `404199c`).
+- Both fixes change the measurement, which is redone (*Verification*): the gains hold in every cell, smaller over 50,000 ticks than the prototype's.
+- Lessons: two on Kinetra's page, on carrying a detector's end conditions into its remedy and moving tests with code (`e56935a`).
+
 **Step 2, agent review round 1** ([#149](https://github.com/SMB-M87/Kinetra-Lab/pull/149), *Fix first*):
 
 - *Should fix:* no case pinned the goal-change retry rules. A new case keeps a failed pair's wait through a new goal outside a plan, coordinating once per tick as i4sim does, and lets a pair whose plan a goal ended form again at once. It fails without the early return in `cancel`.
@@ -366,20 +389,22 @@ Step 4. Title: `feat(i4sim): give a pushed-back mover the right of way`. Kinetra
 
 **Changes.**
 - Kinetra:
-  - `right_of_way.h` and `.cpp`, with six contract cases.
+  - `right_of_way.h` and `.cpp`, with 11 contract cases.
   - `pushing_neighbor()` and `validate()` move out of the detector, so both use one push test.
   - The consumer check, the navigation contract, the module, test and main READMEs, and the testing table are updated.
 - Lab:
   - `MotionSettings::right_of_way` and `Coordination::right_of_way`.
   - The events `right_of_way_granted` and `right_of_way_ended`.
   - The TRAFFIC row, the scenario key, the benchmark flag, and the inspector value.
-  - Two simulation cases; the scenario and menu cases are extended.
+  - Four simulation cases; the scenario and menu cases are extended.
   - The README, blueprint, tests and architecture pages.
 
-**Verification.** Kinetra 335 of 335, Lab i4sim 176 of 176, golden and pressure unchanged. Over 50,000 ticks with MAKE WAY:
+**Verification.** Kinetra 342 of 342, Lab i4sim 182 of 182, golden and pressure unchanged. Over 50,000 ticks with MAKE WAY:
 
-- Reciprocal: 344 → 351 products, waiting −27%, no contact.
-- Improved: 348 → 356 products, contacts 836 → 644.
+- Reciprocal: 344 → 345 products, waiting −10%, stuck movers 23 → 12, no contact.
+- Improved: 348 → 354 products, contacts 836 → 554.
+
+These cells vary by several products and hundreds of contacts between versions of the fallback; the design document has the comparison.
 
 **Dependencies and merge order.** Kinetra's step 4 sits on Kinetra's step 3; Lab's step 4 sits on Lab's step 3. Kinetra merges first.
 
