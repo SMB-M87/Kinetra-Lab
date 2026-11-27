@@ -39,6 +39,8 @@ struct FrameCommands {
     bool debug{}, ghost{}, probes{};
     /// Agents use reciprocal avoidance rather than legacy steering.
     bool reciprocal_avoidance{true};
+    /// Agents on commanded travel pass each other head-on in agreed side lanes.
+    bool passing{};
     /// Simulated seconds per elapsed second: 1 is real time, 0.5 half speed, 0 stands
     /// still. It must be finite and not negative. The camera is not slowed down.
     float time_scale{1};

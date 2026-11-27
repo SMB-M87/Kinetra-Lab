@@ -66,7 +66,8 @@ class DebugPanel {
     ///
     /// MOTION lists the rows of the chosen avoidance model only: HORIZON and PASSING BIAS
     /// for RECIPROCAL, LOOKAHEAD, SEPARATION and SEP WEIGHT for LEGACY. AGENTS lists WANDER
-    /// REACH and WANDER JITTER only while agents wander by steering.
+    /// REACH and WANDER JITTER only while agents wander by steering, and ends with CLICK SETS
+    /// GOAL and PASSING.
     std::vector<kinetra::DebugEntry> entries();
 
     /// Completes `commands`, which hold the frame's keyboard and pointer intent and its
@@ -88,6 +89,8 @@ class DebugPanel {
     /// Whether the reciprocal avoidance model is chosen (the default) rather than legacy
     /// steering.
     bool reciprocal_avoidance() const { return reciprocal_; }
+    /// Whether PASSING is on: agents on commanded travel pass each other in agreed lanes.
+    bool passing() const { return passing_; }
     /// Simulated seconds per elapsed second, as the SPEED row set it.
     float time_scale() const { return time_scale_; }
     /// Whether SCENARIOS was clicked. The session then asks its host for the launcher's page
@@ -106,7 +109,7 @@ class DebugPanel {
     kinetra::DebugFolds folds_{"SIMULATION"};
     kinetra_lab::ZoomControl zoom_;
     DebugLayers layers_;
-    bool ghost_{}, gravity_{}, click_sets_goal_{}, reciprocal_{true};
+    bool ghost_{}, gravity_{}, click_sets_goal_{}, reciprocal_{true}, passing_{};
     float time_scale_{1};
     /// Set by the RUNNING and SINGLE TICK rows; the next apply() turns them into commands.
     bool pause_requested_{}, step_requested_{};
