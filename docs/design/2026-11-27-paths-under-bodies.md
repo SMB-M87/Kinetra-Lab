@@ -104,15 +104,14 @@ Findings of the review of `git diff main...HEAD`, and how they were resolved, ar
 - `cmake --build --preset graphics --target kinetra_demo_presentation_tests kinetra_dotio_presentation_tests kinetra_i4sim_presentation_tests kinetra kinetra_demo kinetra_dotio kinetra_i4sim kinetra_capture`, `ctest --preset graphics -L graphics` with `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1`: 23 of 23 passed.
 - Each new graphics test run against the old renderer of its application: it fails.
 - `tools/capture/capture_media.sh build-graphics` for the captures of the Demo, Dotio and i4sim rows. Committed are those that changed by more than a colour step in some pixel, each looked at before and after: `demo-debug-clip`, `demo-doorway-clip`, `demo-gravity-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug`, `i4sim-debug-clip`. `demo-clip`, `i4sim-clip` and `i4sim.png` differed only in encoding and were not committed; the others came out identical. After the route width changed, the same scenes were rendered again: `demo-debug-clip`, `demo-doorway-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug` and `i4sim-debug-clip` changed and were looked at; the rest again differed only in encoding or not at all.
+- After merging `main`: the same targeted builds and tests (dev 65 of 65, release i4sim 165 of 165), the graphics suites 25 of 25, and the debug captures rendered again on the merged code (`demo-debug-clip`, `dotio-debug`, `i4sim-debug`, `i4sim-debug-clip` changed and were looked at).
 - The pull request's CI is the Full level.
 
 ## Pull request
 
 Title: `fix(labs): draw debug routes under the bodies they cross`
 
-Summary: the PATHS layer of Demo, Dotio and i4sim no longer hides players, agents, enemies, movers or props. Every route is drawn under the moving bodies; the start of a body's own route is drawn over that body only.
-
-Changes, design and verification as above; no dependencies, no Kinetra change. Follow-up: the open points below.
+The description summarizes this document: the summary, the changes per application, the route width, the fixture rename, the verification, the side effects and the open points. No dependencies and no Kinetra change; `main` was merged into the branch before the pull request (#140 to #155), and the verification below was repeated on the merge.
 
 ## Open points
 
