@@ -19,6 +19,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Roadmap and decisions
 
+- **Record every result that *Verification* says follows later before the review starts, or list it under *Open points*** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
+  #147 promised the tour's result in a later commit; the commits that fixed what the run found recorded no run of the fixed tour, which CI does not play. This carries Kinetra's #65 lesson from CI outcomes to local runs.
+
 - **When a decision session closes a roadmap item, carry every question it listed into a decision or a remaining item** · added 2026-11-22 · source: #67
   The removed item *Decide on making way and a temporary motion fallback* listed three questions; the session answered two, and the third (the departure check) dropped out of the plan until the agent review found it. Before removing such an item, tick off each of its questions against the Decisions table.
 
@@ -46,6 +49,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 - **Recheck how an existing coordinator restores a new temporary route** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Passing could restore an ordinary route for a mover with a checked parking detour. Waypoint pruning could also skip a checked corner. The remedy now rechecks shortcuts and current reservations before steering.
+
+- **Turn a test scene that shows a new i4sim policy at work into a showcase scene in the same pull request** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
+  #140's parked-blocker fixture showed MAKE WAY in its design capture, but the scene reached the SHOWCASE page and the README only in a follow-up, at the user's request. Add the scene file, its hand-built setup and its clip with the policy ([i4sim's how-to table](../labs/i4sim/README.md#changing-this-module)).
 
 - **Test a temporary departure while its product is still in a producer queue** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Checking only the product's optional producer can miss a lost reservation. Verify the actual queue, including order, and exercise the product reaching the front while the mover is away.
@@ -77,6 +83,12 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
   Lab has a `windows` job that Kinetra does not. #98 copied "and so does each install step" from Kinetra's header, true there, while Lab's `setup-msys2` step had no time limit.
 
 ## Media and tools
+
+- **When a label moves, search for the label alone with `git grep -n -i` as well as the phrases given to `check_copies.py`, which reads only Markdown and YAML** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
+  #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order.
+
+- **When a change moves an action out of a menu, run every script that clicked it to its end, the tour included** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
+  The tour opened i4sim's debug menu to click BLUEPRINTS and relied on it staying open for the next floor's MOTION rows. With BLUEPRINTS in the settings panel the menu stayed closed and the tour stopped there; CI runs only the clips, not the tour, so only a full local run showed it.
 
 - **Rebuild after changing an embedded image before capturing scenes that display it** · added 2026-11-24 · source: [#110](https://github.com/SMB-M87/Kinetra-Lab/pull/110)
   A combined capture can otherwise publish a fresh lab screenshot beside a launcher image rendered with the old still. Verify the combined command with a deliberately stale embedded image.

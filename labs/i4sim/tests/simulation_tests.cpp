@@ -1942,14 +1942,14 @@ TEST_CASE("the bundled catalog holds five blueprints that all load") {
         load_blueprint(file);
 }
 
-TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply") {
+TEST_CASE("the bundled showcase holds six scenes whose scenarios load and apply") {
     const auto files = discover_blueprints(default_blueprint_directory() / "showcase");
-    REQUIRE_MESSAGE(files.size() == 5, "Showcase bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 6, "Showcase bundle is incomplete");
     for (const auto &file : files) {
         CAPTURE(file);
         const auto scenario = load_scenario(file);
         REQUIRE_MESSAGE(scenario, "Showcase blueprint has no scenario");
-        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() >= 2),
+        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && !scenario->goals.empty()),
                       "Showcase scenario lacks a description, disables no workload or misses goals");
         Simulation simulation(load_blueprint(file));
         apply_scenario(*scenario, simulation);
@@ -1960,13 +1960,17 @@ TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply
         apply_scenario(*scenario, running);
         CHECK_MESSAGE(running.running(), "Applying a scenario must keep a running simulation running");
         CHECK_MESSAGE(!simulation.workload(), "Scenario workload not applied");
+        // A mover without a goal stays parked, as the blocker in the make-way scene does.
         const bool shuttles = scenario->repeat == ScenarioRepeat::shuttle;
+        std::size_t sent = 0;
         for (std::size_t mover = 0; mover < simulation.movers().size(); ++mover) {
             CAPTURE(mover);
-            CHECK_MESSAGE(simulation.movers()[mover].goal == GoalKind::manual,
-                          "Scenario goals were not sent");
-            CHECK_MESSAGE(simulation.shuttling(mover) == shuttles, "Scenario repeat mode not applied");
+            const bool has_goal = simulation.movers()[mover].goal == GoalKind::manual;
+            sent += has_goal;
+            CHECK_MESSAGE(simulation.shuttling(mover) == (shuttles && has_goal),
+                          "Scenario repeat mode not applied");
         }
+        CHECK_MESSAGE(sent == scenario->goals.size(), "Scenario goals were not sent");
     }
 }
 
@@ -1985,7 +1989,7 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
         const char *name;
         SteeringProfile profile;
         void (*enable)(MotionSettings &);
-        /// One goal per mover, in blueprint order.
+        /// One goal per mover, in blueprint order; the movers after the last goal stay parked.
         std::vector<Vec2> goals;
     };
     const auto passing = [](MotionSettings &m) {
@@ -2016,6 +2020,14 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
              m.horizon = 16;
          },
          {{1323.75f, 843.75f}, {1323.75f, 116.25f}, {116.25f, 843.75f}, {116.25f, 116.25f}}},
+        // Only the through mover drives; the parked mover yields on every leg.
+        {"make-way",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) {
+             m.make_way = true;
+             m.heatmap = false;
+         },
+         {{1100, 300}}},
     };
     // Long enough for the shuttling scenes to turn at least once.
     constexpr std::uint64_t ticks = 6000;
@@ -2154,10 +2166,14 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
         s.run();
         // A leg runs from one turn to the next; count the legs in which traffic coordination
         // stepped in, which is the situation a scene with a coordination feature exists to
-        // show. A scene without one (the H) shows steering alone.
+        // show. A scene without one (the H) shows steering alone. A parked mover that makes
+        // way counts as coordination too.
         const auto &motion = scenario->motion;
-        const bool coordinates =
-            motion.junction_traffic || motion.corridor_traffic || motion.predictive_passing;
+        const bool coordinates = motion.junction_traffic || motion.corridor_traffic ||
+                                 motion.predictive_passing || motion.make_way;
+        std::vector<bool> shuttling;
+        for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
+            shuttling.push_back(s.shuttling(mover));
         constexpr int wanted_legs = 4;
         int legs = 0, coordinated_legs = 0;
         bool coordinated = false, under_way = true;
@@ -2166,7 +2182,7 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
             for (const auto &m : s.movers()) {
                 const auto &c = m.coordination;
                 coordinated = coordinated || c.junction_waiting || c.exit_waiting || c.corridor_waiting ||
-                              c.corridor_retreating || c.passing;
+                              c.corridor_retreating || c.passing || m.goal == GoalKind::making_way;
             }
             const bool idle = std::all_of(s.movers().begin(), s.movers().end(),
                                           [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
@@ -2182,7 +2198,7 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
                       "A leg did not show the traffic situation again");
         CHECK(s.collisions() == 0);
         for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
-            CHECK(s.shuttling(mover));
+            CHECK(s.shuttling(mover) == shuttling[mover]);
     }
 }
 
