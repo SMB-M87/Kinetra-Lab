@@ -13,6 +13,7 @@ One design document per Lab branch, written before the code and kept after mergi
 | Date | Document | Status |
 | --- | --- | --- |
 | 2026-11-27 | [i4sim make way](2026-11-27-i4sim-make-way.md) | implemented |
+| 2026-11-27 | [Shared passing mechanism](2026-11-27-shared-passing-mechanism.md): Kinetra's `PassingCoordinator` runs head-on passing for Demo's agents and Dotio's enemies, off by default, with pressure scenarios per application | accepted |
 | 2026-11-26 | [i4sim stall detection](2026-11-26-i4sim-stall-detection.md) | implemented |
 | 2026-11-24 | [Ubuntu as the Linux CI reference](2026-11-24-ubuntu-ci.md) | implemented |
 | 2026-11-24 | [Drop the i4sim loadscreen clip](2026-11-24-drop-i4sim-loadscreen-clip.md): the root README's loadscreen GIF and its sentence go, and with them the clip's scene, script, GIF and every page that names it | implemented |

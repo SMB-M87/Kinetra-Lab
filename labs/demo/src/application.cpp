@@ -79,6 +79,7 @@ void Application::advance(double elapsed, const FrameCommands &commands, kinetra
     if (!std::isfinite(commands.time_scale) || commands.time_scale < 0)
         throw std::invalid_argument("Time scale must be finite and not negative");
     scene_.set_reciprocal_avoidance(commands.reciprocal_avoidance);
+    scene_.set_passing(commands.passing);
     apply_actions(commands);
     scene_.set_following(!(commands.debug && commands.ghost));
     update_camera(elapsed, commands, camera);

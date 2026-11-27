@@ -14,6 +14,8 @@ if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_demo_crowd_characterization_tests PREFIX kinetra_demo_crowd_characterization
         SOURCES tests/crowd_characterization_tests.cpp
         LIBRARIES kinetra_demo_logic kinetra_lab_testing)
+    kinetra_add_doctest(kinetra_demo_passing_tests PREFIX kinetra_demo_passing
+        SOURCES tests/passing_tests.cpp LIBRARIES kinetra_demo_logic)
     kinetra_add_doctest(kinetra_demo_terrain_tests PREFIX kinetra_demo_terrain
         SOURCES tests/terrain_tests.cpp LIBRARIES kinetra_demo_logic)
     kinetra_add_doctest(kinetra_demo_tests PREFIX kinetra_demo

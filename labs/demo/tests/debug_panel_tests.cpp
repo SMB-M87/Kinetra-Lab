@@ -163,7 +163,7 @@ TEST_CASE("the agents section chooses the wander mode and lists the steering row
     f.open("AGENTS");
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AGENTS", "WANDER",
                                                  "HOME RANGE", "WANDER REACH", "WANDER JITTER",
-                                                 "CLICK SETS GOAL", "ZOOM", "GHOST CAMERA",
+                                                 "CLICK SETS GOAL", "PASSING", "ZOOM", "GHOST CAMERA",
                                                  "RESET PARAMETERS", "SCENARIOS"});
     CHECK(f.row("WANDER").value() == "STEERING");
     f.row("WANDER").action();
@@ -171,8 +171,26 @@ TEST_CASE("the agents section chooses the wander mode and lists the steering row
     CHECK(f.application.tuning().wander.mode == demo::WanderMode::route);
     CHECK(f.row("WANDER").value() == "ROUTE");
     CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "AGENTS", "WANDER",
-                                                 "HOME RANGE", "CLICK SETS GOAL", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS", "SCENARIOS"});
+                                                 "HOME RANGE", "CLICK SETS GOAL", "PASSING", "ZOOM",
+                                                 "GHOST CAMERA", "RESET PARAMETERS", "SCENARIOS"});
+}
+
+TEST_CASE("PASSING starts off, reaches the scene through the commands and is reset by RESET PARAMETERS") {
+    Fixture f;
+    f.open("AGENTS");
+    const auto passing = f.row("PASSING");
+    CHECK((passing.kind == DebugEntryKind::check && passing.depth == 1 && !passing.active()));
+    CHECK_FALSE(applied(f.panel).passing);
+    passing.action();
+    CHECK(f.panel.passing());
+    const auto commands = applied(f.panel);
+    CHECK(commands.passing);
+    kinetra::Camera2D camera;
+    f.application.advance(0, commands, camera);
+    CHECK(f.application.scene().passing());
+    f.row("RESET PARAMETERS").action();
+    CHECK_FALSE(f.panel.passing());
+    CHECK_FALSE(applied(f.panel).passing);
 }
 
 TEST_CASE("every tuning row changes its value and stops at a value the scene can run with") {
