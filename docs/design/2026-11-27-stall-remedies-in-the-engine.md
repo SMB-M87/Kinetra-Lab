@@ -275,6 +275,15 @@ With MAKE WAY on, RIGHT OF WAY off → on, both with the same binary:
 
 Products rise in all four cells. Reciprocal waits less (harness −18%, 50,000 ticks −10%) without a contact, and over 50,000 ticks it has 12 stuck movers instead of 23. Improved's contacts fall by a third over 50,000 ticks, while it waits 30% more there. Every right of way lasts at most its 480 ticks, and none goes to a pusher against its own holder.
 
+**On Kinetra `main` `fa28e77`, with Kinetra#74's round-3 fix (`5725801`).** That fix widened the pusher rule: a holder's pusher never holds a right of way itself. Measured again with this branch's binary, MAKE WAY on, RIGHT OF WAY off → on:
+
+| Run | Products | Contacts | Waiting ticks | Stuck movers | Runs stuck at end | Rights of way granted |
+| --- | --- | --- | --- | --- | --- | --- |
+| 50,000 ticks, Reciprocal | 344 → 340 | 0 → 0 | 104,020 → 120,305 | 23 → 23 | 0 → 1 | 551 |
+| 50,000 ticks, Improved | 352 → 351 | 835 → 2,276 | 7,323 → 10,427 | 5 → 12 | 0 → 1 | 522 |
+
+With the final rule the fallback no longer pays off over 50,000 ticks: products fall in both profiles, Reciprocal waits 16% more, and Improved has almost three times the contacts. The harness was not run again. The table above, on `404199c`, is the version the user chose the fallback on; whether to keep it, tune the window or the pusher rule, or drop it is open (*Open points*).
+
 The base column was first taken from step 1's measurement on Kinetra `da98dfa`, before Kinetra #69. The pointers of every step now bring in #69, so the base is measured again with this branch's binary and RIGHT OF WAY off: Reciprocal's long runs are the same, and Improved's moved (it was 348 / 836 / 7,638).
 
 The long cells vary between versions of the fallback, so only their direction is a finding:
@@ -481,6 +490,8 @@ These cells vary by several products and hundreds of contacts between versions o
 **Follow-up.** Step 5.
 
 ## Open points
+
+- **RIGHT OF WAY on the final engine rule.** Measured on Kinetra `fa28e77`, the fallback lowers products under both profiles and nearly triples Improved's contacts over 50,000 ticks (*Verification*). It is off by default, so no default run changes. The user decides whether to keep it as is, tune its window or the pusher rule in Kinetra, or remove it.
 
 - The *refine* variant without the wait cut Improved contacts as well as the gate, but raised Reciprocal waiting with MAKE WAY on (104,020 → 111,295). The gate was chosen; the data stay here.
 - Found by step 1's review in existing MAKE WAY code, for step 5, which moves it:
