@@ -149,7 +149,8 @@ TEST_CASE("picking works at resized viewports") {
             // The scenarios fill two pages; NEXT shows the second.
             const auto page_size = kinetra::MenuLayout::page_size;
             if (scenario >= page_size) {
-                input.mouse = menu.layout(viewport).footer_center(250);
+                input.mouse =
+                    menu.layout(viewport).footer_center(*menu.footer_x(kinetra::FooterButton::next));
                 CHECK_FALSE(menu.update(input, viewport));
             }
             input.mouse = menu.layout(viewport).row_center(scenario % page_size);
