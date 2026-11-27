@@ -49,11 +49,13 @@ Non-goals:
 | The loadscreens | Both take the style: the menu's error and the load-error screen | The user's choice |
 | An error on the blueprint menu, where one HUD line fits below the menu | An error panel over the menu, at the bottom, as high as it needs up to the whole window, with an X | The user's choice, after seeing the one-line version cut the parse error off. The panel takes the pointer where it covers the menu; keys still reach the menu |
 | The panel and the menu's footer (LAUNCHER, EXIT) | The panel ends above the footer when the whole message fits there; only a longer message grows over it. The footer stays clickable for short messages, such as a rejected goal's four-second message after BLUEPRINTS | The user's choice in review round 1, of three: above the footer, the panel only for load errors, or covering the footer. At 1280 × 720 and the default 1280 × 800 a one- or two-line panel at the bottom covered the footer |
+| A message longer than the whole window, in the panel | The panel scrolls with the wheel instead of cutting, with the inspector's scroll bar; a new message starts at its first line | An earlier agent review on Kinetra#73 (blocking): at 320 × 240 a long blueprint path filled the panel and pushed the parse error past the cut. Scrolling keeps every part reachable at any window size; the HUD's four-line message keeps its cut, as decided above |
+| Punctuation in diagnostics | The bitmap font gets glyphs for `{ } ( ) ' " ;` | The same review: nlohmann's *expected '[', '{', or a literal;* showed blanks where the token should be. No capture shows these characters, so none goes stale |
 | Where the message sits when STATISTICS is off | Still on line 3 | The user asked for "above the statistics placeholder": the message does not jump when the statistics toggle |
 
 ## Design
 
-**Kinetra.** [hud_text.h](../../external/Kinetra/include/kinetra/runtime/hud_text.h) is header-only: `text_scale` 1.5, `line_height` 20, `margin` 10, `statistics_color` yellow and `error_color` red; `line_top` and `lines_below` count lines from the bottom; `wrap` breaks at the last space that fits and cuts a longer word; `error_lines` caps the lines and ends a cut message with `...`; `draw_line` and `draw_error` draw. [error_view.h](../../external/Kinetra/include/kinetra/runtime/error_view.h) adds `error_panel::bounds`, `close_bounds`, `lines`, `update` and `draw`: the panel is as wide as the window less the margins, sits at the bottom, and uses the inspector's title bar (24 pixels) and close button (18 pixels). Every `error_panel` function takes an optional region to keep clear: when the panel would cover it at the bottom, it sits directly above it, a margin away, if the whole message fits there; a longer message keeps the bottom. `LaunchMenu::update(input, viewport, error)` asks the panel first, with the footer (`MenuLayout::footer_bounds()`) as that region: over the panel the menu sees no pointer and no click, and a click on the X sets `error_closed()`. Whether the pointer moved is decided from the real pointer, so the panel coming or going does not hover a row. `LaunchMenu::draw(runtime, error)` draws the panel last.
+**Kinetra.** [hud_text.h](../../external/Kinetra/include/kinetra/runtime/hud_text.h) is header-only: `text_scale` 1.5, `line_height` 20, `margin` 10, `statistics_color` yellow and `error_color` red; `line_top` and `lines_below` count lines from the bottom; `wrap` breaks at the last space that fits and cuts a longer word; `error_lines` caps the lines and ends a cut message with `...`; `draw_line` and `draw_error` draw. [error_view.h](../../external/Kinetra/include/kinetra/runtime/error_view.h) adds `error_panel::bounds`, `close_bounds`, `lines`, `update` and `draw`: the panel is as wide as the window less the margins, sits at the bottom, and uses the inspector's title bar (24 pixels) and close button (18 pixels). The panel shows every line of the message as far as the window allows, and the wheel scrolls the rest: `error_panel::update` returns the first line to show, which the caller keeps per message, and `draw` shows the lines from there with a scroll bar. Every `error_panel` function takes an optional region to keep clear: when the panel would cover it at the bottom, it sits directly above it, a margin away, if the whole message fits there; a longer message keeps the bottom. `LaunchMenu::update(input, viewport, error)` asks the panel first, with the footer (`MenuLayout::footer_bounds()`) as that region: over the panel the menu sees no pointer and no click, and a click on the X sets `error_closed()`. Whether the pointer moved is decided from the real pointer, so the panel coming or going does not hover a row. `LaunchMenu::draw(runtime, error)` draws the panel last.
 
 **i4sim.** `draw_hud` draws the statistics on lines 1 and 2, the message from line 3 up (at most four lines), then the inspection and, one line higher, the description; `hud_lines(message_lines)` computes those lines. `BlueprintScreen::update` passes the message to the menu and returns `ScreenAction::dismiss` for a click on the X, on which the session clears the message. The load-error screen without a catalog draws its two headings at the HUD scale and the error on its bottom lines.
 
@@ -76,7 +78,9 @@ Non-goals:
 | The panel moves above a region it would cover when its message fits there | `kinetra_launcher:the error panel moves above a region it would cover when its message fits there` | Full |
 | The panel coming or going is no pointer move | `kinetra_launcher:the error panel coming or going is no pointer move, so keyboard navigation holds` | Full |
 | What the panel and a HUD error draw: title bar, red lines in order, the lit X | `kinetra_engine_graphics:the error panel draws its title bar, red lines in order and a lit close button`, `a HUD error puts its first line on the higher HUD line` | Full (graphics) |
-| Spaces at a wrap | `kinetra_presentation:error text wraps at spaces and cuts words longer than a line` | Full |
+| Spaces at a wrap, on both sides of a break and before the first word | `kinetra_presentation:error text wraps at spaces and cuts words longer than a line` | Full |
+| Every character of a real nlohmann diagnostic has a glyph | `kinetra_presentation:a parser diagnostic's punctuation has glyphs` | Full |
+| A long path scrolls to its reason at 320 × 240; a new message starts at line one | `kinetra_launcher:the wheel scrolls an error longer than a small window to its end` | Full |
 | i4sim's HUD lines with and without a message | `kinetra_i4sim_graphics:the HUD message sits directly above the statistics and pushes the text above it up` | Full (graphics) |
 | A load error on the blueprint menu, above the footer, and its X | `kinetra_i4sim_graphics:a load error shows in a panel over the blueprint menu that its X closes` | Full (graphics) |
 | Demo, Dotio and i4sim render as before | The existing graphics suites and smoke tests | Full (graphics) |
@@ -90,7 +94,7 @@ The HUD at 480 × 540: a rejected goal's message in red, wrapped over two lines 
 
 ![The i4sim HUD with a wrapped error above the statistics](assets/2026-11-27-hud-error-style-hud.png)
 
-The blueprint menu at 1280 × 720 with a parse error: the panel ends above LAUNCHER and EXIT.
+The blueprint menu at 1280 × 720 with a parse error: the panel ends above LAUNCHER and EXIT, and the expected tokens `'['` and `'{'` show.
 
 ![The blueprint menu with the error panel above its footer](assets/2026-11-27-hud-error-style-menu.png)
 
@@ -117,6 +121,8 @@ Lab `main` moved its Kinetra pointer while the pull requests were open: Kinetra 
 
 After review round 1: Kinetra `dev` 322 of 322, Kinetra `graphics` 25 of 25 (with the two new drawing cases), Lab `graphics` 35 of 35, Lab targeted 270 of 270, no warnings. Swapping the line order in `hud::draw_error` fails the new HUD case, so it catches what it is meant to. After merging both mains again (Kinetra #69, Lab #142 and #155): Kinetra `dev` 324 of 324, Lab `graphics` 35 of 35, Lab targeted 270 of 270.
 
+After the rounds 2 and 3 fixes: Kinetra `dev` 326 of 326, Kinetra `graphics` 25 of 25, Lab `graphics` 35 of 35, Lab targeted 270 of 270, no warnings. Without the footer region in `LaunchMenu::update`, the short-error case fails.
+
 The pull requests' CI completes the Full level.
 
 ## Review
@@ -139,6 +145,19 @@ Agent review round 1 (Fix first on both pull requests):
 | Nit: the Tests table of the launcher contract; `draw()`'s comment; Dotio's wording; the message line taken from `hud_lines`; a test folder per run | Done | Kinetra and Lab review commits |
 | Nit: the no-catalog screen's headings do not wrap below about 320 pixels | Left: a window that narrow cannot show the menu either, and the message below them wraps | — |
 | Lessons | Added to each repository's `review-lessons.md` | `docs(lessons): …` |
+
+Agent review rounds 2 and 3 (Ready to merge on both) and the earlier agent review on Kinetra#73:
+
+| Finding | Resolution | Commit |
+| --- | --- | --- |
+| Earlier review, blocking: at small windows the parse error falls past the panel's cut | The panel scrolls with the wheel; test at 320 × 240 | Kinetra `feat(runtime): address review: scroll an error longer than the window` |
+| Earlier review: the font drew `{ } ' "` blank | Glyphs for `{ } ( ) ' " ;`; test over a real diagnostic; the [menu screenshot](#screenshots) shows the tokens | Kinetra `fix(runtime): address review: show parser punctuation and trim spaces at a wrap` |
+| Nit: `wrap` kept a space before a break in a run of spaces, and a blank first line for leading spaces | Trimmed; a break before the first word counts as no break | same |
+| Nit: the window-free short-error case would pass without the footer region | Runs at 640 × 480, where a panel at the bottom covers EXIT; it fails without the region | Kinetra `feat(runtime): …` |
+| Nit: "above the footer" is not exact in a tall window | "Keeps clear of the footer" in the contract, `LaunchMenu`'s comment and i4sim's README | Kinetra and Lab review commits |
+| Nit: the i4sim case's click on the panel's center hits no control | A comment says it only checks a click off the X | Lab review commit |
+| Nit: an accessor for the panel's place, so the i4sim case need not rebuild the menu layout | Left: the case's copy is one line, and the accessor would serve only tests | — |
+| Nit: a failed `REQUIRE` leaves the test folder behind | Left: the folder is unique per run, in the system's temporary directory | — |
 
 ## Pull request
 
