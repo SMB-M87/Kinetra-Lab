@@ -41,6 +41,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **When a commit adds or removes test cases, update the case count and the description in the module README's test table in the same commit** · added 2026-11-27 · source: [#151](https://github.com/SMB-M87/Kinetra-Lab/pull/151)
+  1542c94 added two showcase cases, and Demo's README still counted 8 and described neither.
+
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
   A slot that a kill empties after the passing step and a spawn refills before the next one never looks empty, so the new enemy inherited the old plan.
 
