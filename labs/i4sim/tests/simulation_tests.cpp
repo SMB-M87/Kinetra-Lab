@@ -31,6 +31,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -3273,7 +3274,9 @@ TEST_CASE("a force so small that braking never ends still lets stalls be observe
     Simulation simulation(fixture());
     simulation.set_workload(false);
     auto settings = simulation.motion_settings();
-    settings.force = 1e-39f;
+    // The smallest normal float: at the default speed of 2 the braking distance, 4 / force,
+    // is 2^128 and overflows, without a denormal that flush-to-zero would read as 0.
+    settings.force = std::numeric_limits<float>::min();
     REQUIRE_NOTHROW(simulation.configure_motion(settings));
     REQUIRE(simulation.move_to(0, {1900, 750}));
     simulation.run();
