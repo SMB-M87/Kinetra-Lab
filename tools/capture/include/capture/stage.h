@@ -48,7 +48,7 @@ enum class SettingsRow : std::size_t {
 /// same call the launcher makes once per frame, so a capture shows the real session. The
 /// pointer stays where the last click or point_at() put it; at the start it rests in the
 /// bottom-right corner, away from every menu. Not copyable; borrows the Runtime, which must
-/// outlive the stage.
+/// outlive the stage, and switches on its frame read-back, from which it writes the pictures.
 class Stage {
   public:
     /// Time one step advances a session, in seconds: a 60 Hz display, so the rate counters

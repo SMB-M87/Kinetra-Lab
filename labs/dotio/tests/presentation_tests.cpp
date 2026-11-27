@@ -124,52 +124,32 @@ TEST_CASE("Dotio inspector allows world fire and Ghost teleport and consumes clo
 }
 
 namespace {
-// Inspect the statistics area in both swap buffers, including offscreen SDL backends.
-int statistics_pixels(std::vector<bool> *rows = nullptr) {
-    glFinish();
-    int viewport[4]{};
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    const int width = viewport[2] / 4, height = viewport[3];
+// Yellow statistics pixels in the right quarter of the frame that the last end() read back,
+// and with `rows`, which of its rows hold one.
+int statistics_pixels(const Runtime &runtime, std::vector<bool> *rows = nullptr) {
+    const auto &frame = runtime.frame();
     if (rows)
-        rows->assign(height, false);
-    std::vector<unsigned char> pixels(width * height * 4);
+        rows->assign(std::size_t(frame.height), false);
     int count = 0;
-    for (const auto buffer : {GL_FRONT, GL_BACK}) {
-        glReadBuffer(buffer);
-        glReadPixels(viewport[2] - width, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-        for (std::size_t i = 0; i < pixels.size(); i += 4)
-            if (pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] < 80) {
+    for (int y = 0; y < frame.height; ++y)
+        for (int x = frame.width - frame.width / 4; x < frame.width; ++x)
+            if (const auto pixel = frame.pixel(x, y); pixel[0] > 200 && pixel[1] > 200 && pixel[2] < 80) {
                 ++count;
                 if (rows)
-                    (*rows)[i / (width * 4)] = true;
+                    (*rows)[std::size_t(y)] = true;
             }
-    }
     return count;
 }
-// Count player-colored pixels at the camera center in both swap buffers.
-int ghost_marker_pixels() {
-    glFinish();
-    int viewport[4]{};
-    glGetIntegerv(GL_VIEWPORT, viewport);
+// Player-colored pixels in the 32 x 32 square at the center of the last read-back frame.
+int ghost_marker_pixels(const Runtime &runtime) {
+    const auto &frame = runtime.frame();
     int count = 0;
-    std::vector<unsigned char> pixels(32 * 32 * 4);
-    for (const auto buffer : {GL_FRONT, GL_BACK}) {
-        glReadBuffer(buffer);
-        glReadPixels(viewport[2] / 2 - 16, viewport[3] / 2 - 16, 32, 32, GL_RGBA, GL_UNSIGNED_BYTE,
-                     pixels.data());
-        for (std::size_t i = 0; i < pixels.size(); i += 4)
-            count += pixels[i] > 80 && pixels[i] < 125 && pixels[i + 1] < 20 && pixels[i + 2] > 240;
-    }
+    for (int y = frame.height / 2 - 16; y < frame.height / 2 + 16; ++y)
+        for (int x = frame.width / 2 - 16; x < frame.width / 2 + 16; ++x) {
+            const auto pixel = frame.pixel(x, y);
+            count += pixel[0] > 80 && pixel[0] < 125 && pixel[1] < 20 && pixel[2] > 240;
+        }
     return count;
-}
-std::vector<unsigned char> frame_pixels() {
-    glFinish();
-    int viewport[4]{};
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    std::vector<unsigned char> pixels(viewport[2] * viewport[3] * 4);
-    glReadBuffer(GL_BACK);
-    glReadPixels(0, 0, viewport[2], viewport[3], GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-    return pixels;
 }
 // Toggles AI labels on an enemy at the camera center and checks the changed pixels: a
 // centered label of fixed screen size with fixed clearance above the body, at every zoom.
@@ -189,17 +169,15 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
                 enemy.set_state(enemy.get_wander_state());
             application.ai = false;
             dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
-            dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
-            const auto without_label = frame_pixels();
+            const auto without_label = runtime.frame().rgba;
             application.ai = true;
             dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
-            dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
-            const auto with_label = frame_pixels();
+            const auto with_label = runtime.frame().rgba;
             const int width = int(runtime.camera.viewport.x), height = int(runtime.camera.viewport.y);
             int left = width, right = -1, top = height, bottom = -1;
             for (int y = 0; y < height; ++y)
                 for (int x = 0; x < width; ++x) {
-                    const int offset = ((height - 1 - y) * width + x) * 4;
+                    const int offset = (y * width + x) * 4;
                     if (with_label[offset] != without_label[offset] ||
                         with_label[offset + 1] != without_label[offset + 1] ||
                         with_label[offset + 2] != without_label[offset + 2]) {
@@ -223,9 +201,9 @@ void ai_label_placement(Runtime &runtime, dotio::Application &application) {
     application.debug = application.ai = false;
     runtime.camera.pixels_per_unit = 25;
 }
-int statistics_bands() {
+int statistics_bands(const Runtime &runtime) {
     std::vector<bool> rows;
-    statistics_pixels(&rows);
+    statistics_pixels(runtime, &rows);
     int bands = 0;
     bool previous = false;
     for (const bool row : rows) {
@@ -291,6 +269,7 @@ TEST_CASE("wall colors vary across the map without seams or low contrast") {
 
 TEST_CASE("input culling statistics AI labels and the Ghost marker render as specified") {
     Runtime reopened("Dotio presentation", 320, 240);
+    reopened.read_back(true);
     Input controls;
     controls.pressed[std::size_t(Key::space)] = true;
     controls.held[std::size_t(Key::shift)] = true;
@@ -307,7 +286,7 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     dotio::Application application(42);
     application.advance(0, {}, reopened.camera);
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE(statistics_pixels() == 0, "Disabled statistics rendered outside debug mode");
+    CHECK_MESSAGE(statistics_pixels(reopened) == 0, "Disabled statistics rendered outside debug mode");
     // Submitted geometry must stay independent of the offscreen resident population.
     const auto geometry_bytes = [&]() {
         dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
@@ -337,18 +316,17 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
 
     application.statistics = true;
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE((!application.debug && statistics_pixels() > 0),
+    CHECK_MESSAGE((!application.debug && statistics_pixels(reopened) > 0),
                   "Enabled statistics are hidden outside debug mode");
-    CHECK_MESSAGE(statistics_bands() == 1, "Normal statistics is not a single row");
+    CHECK_MESSAGE(statistics_bands(reopened) == 1, "Normal statistics is not a single row");
     application.debug = true;
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE(statistics_bands() == 2, "Agent counts are not on a separate row above timing statistics");
+    CHECK_MESSAGE(statistics_bands(reopened) == 2,
+                  "Agent counts are not on a separate row above timing statistics");
     application.debug = false;
     application.statistics = false;
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE(statistics_pixels() == 0, "Statistics toggle did not hide the overlay");
+    CHECK_MESSAGE(statistics_pixels(reopened) == 0, "Statistics toggle did not hide the overlay");
     application.debug = application.vectors = application.collisions = application.ai = true;
     application.probes = application.statistics = true;
     application.paths.fill(true);
@@ -359,6 +337,5 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     application.world().get_ghost().position.x += 1000;
     reopened.camera.position = dotio::to_world(application.world().get_ghost().position);
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
-    CHECK_MESSAGE(ghost_marker_pixels() == 0, "Ghost camera still draws a purple player marker");
+    CHECK_MESSAGE(ghost_marker_pixels(reopened) == 0, "Ghost camera still draws a purple player marker");
 }

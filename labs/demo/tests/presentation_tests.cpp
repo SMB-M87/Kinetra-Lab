@@ -5,7 +5,6 @@
 
 #include <kinetra/runtime/engine.h>
 
-#include <SDL2/SDL.h>
 #include <doctest/doctest.h>
 #include <glad/glad.h>
 
@@ -67,6 +66,7 @@ TEST_CASE("Demo inspector coexists with group goals, Ghost teleport and debug pa
 
 TEST_CASE("routes and steering probes render at different camera zoom levels") {
     Runtime runtime("Demo graphics", 160, 120);
+    runtime.read_back(true);
     runtime.camera.pixels_per_unit = 73;
     demo::Application application(0, 42);
     application.advance(0, {}, runtime.camera);
@@ -89,19 +89,9 @@ TEST_CASE("routes and steering probes render at different camera zoom levels") {
         runtime.camera.pixels_per_unit = zoom;
         runtime.camera.position = player.position + rotated(Vec2{3, 0}, player.angle);
         demo::render(runtime, application);
-        glFinish();
-        unsigned char pixel[4]{};
-        int width, height;
-        SDL_GL_GetDrawableSize(SDL_GL_GetCurrentWindow(), &width, &height);
-        auto read_probe = [&] {
-            glReadPixels(width / 2, height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-        };
-        glReadBuffer(GL_FRONT);
-        read_probe();
-        if (pixel[0] < 240 || pixel[1] < 150 || pixel[1] > 180) {
-            glReadBuffer(GL_BACK);
-            read_probe();
-        }
+        // The pixel just above the window's center, as OpenGL's bottom-up row height / 2 was.
+        const auto &frame = runtime.frame();
+        const auto pixel = frame.pixel(frame.width / 2, frame.height - 1 - frame.height / 2);
         CHECK_MESSAGE((pixel[0] > 240 && pixel[1] >= 150 && pixel[1] <= 180),
                       "Steering probe disappeared at camera zoom");
     }
