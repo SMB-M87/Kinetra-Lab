@@ -5,6 +5,7 @@
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/route.h"
+#include "kinetra_lab/under_bodies.h"
 #include <kinetra/runtime/help_view.h>
 
 namespace dotio {
@@ -66,6 +67,10 @@ Color color_of_state(dotio::Enemy &enemy) {
            : enemy.is_attacking()  ? state_color::attack
                                    : state_color::wander;
 }
+/// Seconds of motion the velocity vector of an enemy or the player shows.
+constexpr float velocity_vector_scale = 0.3f;
+/// The velocity vectors of the crates.
+constexpr Color prop_vector_color{1, 0.8f, 0.2f};
 void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
     runtime.box(runtime.camera.screen_to_world(center), half / runtime.camera.pixels_per_unit, 0, color);
 }
@@ -128,8 +133,25 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (application.debug && application.collisions)
                 draw_debug_box(runtime, center, {2, 2}, 0, {0.6f, 0.8f, 1});
         }
-    // The steering probes go under the bodies, as the routes below do, so no feeler or wall
-    // contact hides the player, a crate or an enemy.
+    // The velocity vectors and the steering probes go under the bodies, as the routes below do,
+    // so no arrow, feeler or wall contact hides the player, a crate or an enemy. The start of a
+    // body's own vector is drawn again over that body alone, right after it.
+    const bool vectors = application.debug && application.vectors;
+    const auto enemy_vector = [](const dotio::Enemy &enemy) {
+        return to_world(enemy.velocity) * velocity_vector_scale;
+    };
+    const auto player_vector = to_world(world.get_player().velocity) * velocity_vector_scale;
+    if (vectors) {
+        for (const auto &prop : world.get_objects())
+            draw_debug_vector(runtime, to_world(prop.body.position), to_world(prop.body.velocity),
+                              prop_vector_color);
+        for (auto &enemy : world.get_enemies())
+            if (enemy.is_active)
+                draw_debug_vector(runtime, to_world(enemy.position), enemy_vector(enemy),
+                                  layer_color::vectors);
+        draw_debug_vector(runtime, to_world(world.get_player().position), player_vector,
+                          layer_color::vectors);
+    }
     if (application.debug && application.probes)
         for (auto &enemy : world.get_enemies()) {
             if (!enemy.is_active)
@@ -177,16 +199,24 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     for (const auto &prop : world.get_objects()) {
         const auto center = to_world(prop.body.position);
         renderer.draw_circle(prop.body.position, prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
-        if (application.debug && application.vectors)
-            draw_debug_vector(runtime, center, to_world(prop.body.velocity), {1, 0.8f, 0.2f});
+        if (vectors)
+            kinetra_lab::draw_vector_start(runtime, center, to_world(prop.body.velocity),
+                                           prop.body.radius / 25, prop_vector_color);
         if (application.debug && application.collisions)
             draw_debug_circle(runtime, center, prop.body.radius / 25, {1, 0.8f, 0.2f});
     }
     world.draw(renderer, [&](dotio::Enemy &enemy) {
+        if (vectors)
+            kinetra_lab::draw_vector_start(runtime, to_world(enemy.position), enemy_vector(enemy),
+                                           enemy.radius / 25, layer_color::vectors);
         if (shows_path(enemy))
             draw_points(kinetra_lab::route_start(enemy.position, enemy.path.remaining(), enemy.radius),
                         color_of_state(enemy));
     });
+    // World::draw draws the player last.
+    if (vectors)
+        kinetra_lab::draw_vector_start(runtime, to_world(world.get_player().position), player_vector,
+                                       world.get_player().radius / 25, layer_color::vectors);
     if (const auto *enemy = application.selected_enemy())
         draw_debug_circle(runtime, to_world(enemy->position), enemy->radius / 25 + 0.1f, {1, 1, 0});
     if (application.debug) {
@@ -196,8 +226,6 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const auto position = to_world(enemy.position);
             if (application.active_agents && !enemy.frozen)
                 runtime.circle(position, 0.18f, {1, 1, 0});
-            if (application.vectors)
-                draw_debug_vector(runtime, position, to_world(enemy.velocity) * 0.3f, layer_color::vectors);
             if (application.collisions)
                 draw_debug_circle(runtime, position, enemy.radius / 25, layer_color::collisions);
             if (application.ai) {
@@ -217,9 +245,6 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 }
             }
         }
-        if (application.vectors)
-            draw_debug_vector(runtime, to_world(world.get_player().position),
-                              to_world(world.get_player().velocity) * 0.3f, layer_color::vectors);
     }
     if (application.debug && application.collisions) {
         draw_debug_circle(runtime, to_world(world.get_player().position), world.get_player().radius / 25,

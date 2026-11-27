@@ -1,8 +1,8 @@
 // Tests for the Dotio presentation: the wall palette without a window, then input
 // mapping, culling, statistics, AI labels and the Ghost marker, read back from a real
 // OpenGL context. Those context checks share one Runtime, because only one may exist at a
-// time, so they form one case. The last cases check that enemy paths and probes pass under
-// the player. CTest labels the suite `graphics`.
+// time, so they form one case. The last cases check that enemy paths and probes pass under the
+// player, and the player's vector under the enemies. CTest labels the suite `graphics`.
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/presentation/presentation.h"
 #include "dotio/presentation/session.h"
@@ -449,4 +449,78 @@ TEST_CASE("an enemy's probes pass under the player they cross") {
     const auto at = camera.world_to_screen(*crossing);
     CHECK_MESSAGE(player_color(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
                   "An enemy's probe covers the player");
+}
+
+TEST_CASE("the player's velocity vector passes under the enemies it crosses") {
+    Runtime runtime("Dotio vectors under bodies", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.vectors = true;
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto vector_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The vectors, {0.8, 1, 0.3}.
+        return std::abs(pixel[0] - 204) < 25 && pixel[1] > 230 && std::abs(pixel[2] - 77) < 25;
+    };
+    // The shaft of a vector as draw_debug_vector draws it: 0.3 s of motion, at least 1.5 world
+    // units long; world space.
+    const auto shaft = [&](Vec2 position, Vec2 velocity) {
+        const auto start = dotio::to_world(position);
+        const auto shown = dotio::to_world(velocity) * 0.3f;
+        const float size = std::max({length(shown), 1.5f, 24.f / runtime.camera.pixels_per_unit});
+        return std::pair{start, length(shown) > 0 ? start + normalized(shown) * size : start};
+    };
+    // The player walks to the nearest enemy until its vector crosses the middle of an enemy,
+    // clear of that enemy's own vector and of the player, over which each starts; as drawn this
+    // frame.
+    std::optional<Vec2> crossing;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !crossing; ++frame) {
+        dotio::Commands walk;
+        const dotio::Enemy *nearest = nullptr;
+        for (auto &enemy : world.get_enemies())
+            if (enemy.is_active && (!nearest || length(enemy.position - world.get_player().position) <
+                                                    length(nearest->position - world.get_player().position)))
+                nearest = &enemy;
+        if (nearest)
+            walk.direction =
+                normalized(dotio::to_world(nearest->position) - dotio::to_world(world.get_player().position));
+        application.advance(1.0 / 60, walk, runtime.camera);
+        const auto &player = world.get_player();
+        const auto simulated = dotio::to_world(player.position);
+        const dotio::PresentedPositions presented(application);
+        shift = dotio::to_world(player.position) - simulated;
+        const auto [start, end] = shaft(player.position, player.velocity);
+        if (start == end)
+            continue;
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active)
+                continue;
+            const auto center = dotio::to_world(enemy.position);
+            const float radius = enemy.radius / 25;
+            const auto segment = end - start;
+            const auto point =
+                start + segment * std::clamp(dot(center - start, segment) / dot(segment, segment), 0.f, 1.f);
+            const auto [own_start, own_end] = shaft(enemy.position, enemy.velocity);
+            if (length(point - center) < 0.6f * radius &&
+                distance_to_segment(point, own_start, own_end) > 0.3f * radius &&
+                length(point - start) > 1.5f * player.radius / 25) {
+                crossing = point;
+                break;
+            }
+        }
+    }
+    REQUIRE_MESSAGE(crossing, "The player's vector crossed no enemy");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*crossing);
+    // The two-pixel shaft may miss the computed pixel by one or two.
+    bool covered = false;
+    for (int dy = -2; dy <= 2; ++dy)
+        for (int dx = -2; dx <= 2; ++dx)
+            covered = covered || vector_color(runtime.frame().pixel(int(std::lround(at.x)) + dx,
+                                                                    int(std::lround(at.y)) + dy));
+    CHECK_MESSAGE(!covered, "The player's vector covers an enemy it crosses");
 }
