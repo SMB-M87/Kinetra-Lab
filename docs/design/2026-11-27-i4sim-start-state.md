@@ -105,6 +105,7 @@ Agent review round 1 on f22df81 (conclusion *Fix first*):
 | Nit: the hint ran out of a narrowed button | The hint is left out when it does not fit | `3564dc6` |
 | Nit: the button lit under the inspector | Lit only when neither the debug menu nor the inspector captures the pointer | `3564dc6` |
 | Nit: the blocked-exit steps listed the goals after the second Space | Reordered in `labs/i4sim/tests/README.md` | `3ccb744` |
+| Lesson: the #147 lesson (search a moved label with `git grep`) came back here | At the user's request a rule in `AGENTS.md` (*Verification in Lab*): search each key word a change makes stale with `git grep -n -i`, not only with `check_copies.py`; the lesson notes it | `68d4e19` |
 
 ## Verification
 
