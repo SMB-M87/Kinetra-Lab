@@ -75,9 +75,8 @@ int main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 #ifndef _WIN32
-    // Offscreen software rendering, unless the caller chose otherwise: the frames are read
-    // from the front buffer, which is only reliable offscreen, and software Mesa gives the
-    // same pixels on every machine.
+    // Offscreen software rendering, unless the caller chose otherwise: no window opens, and
+    // software Mesa gives the same pixels on every machine.
     setenv("SDL_VIDEODRIVER", "offscreen", 0);
     setenv("LIBGL_ALWAYS_SOFTWARE", "1", 0);
 #endif

@@ -18,6 +18,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -113,6 +115,7 @@ TEST_CASE("a rejected goal expires on the blueprint screen") {
 
 TEST_CASE("the mover inspector and debug pause work together") {
     Runtime runtime("i4sim inspector", 1280, 800);
+    runtime.read_back(true);
     auto session = i4sim::create_session(42, i4sim::default_blueprint_directory(),
                                          i4sim::test::showcase_blueprint("corridor-passing"));
     session->render(runtime);
@@ -128,17 +131,10 @@ TEST_CASE("the mover inspector and debug pause work together") {
     };
     const auto title_visible = [&] {
         session->render(runtime);
-        glFinish();
-        for (auto buffer : {GL_FRONT, GL_BACK}) {
-            unsigned char rgb[4]{};
-            glReadBuffer(buffer);
-            glReadPixels(1238, 779, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgb);
-            const auto title = overlay::title_color;
-            if (std::abs(float(rgb[0]) - title.r * 255) < 2 && std::abs(float(rgb[1]) - title.g * 255) < 2 &&
-                std::abs(float(rgb[2]) - title.b * 255) < 2)
-                return true;
-        }
-        return false;
+        const auto rgb = runtime.frame().pixel(1238, 20);
+        const auto title = overlay::title_color;
+        return std::abs(float(rgb[0]) - title.r * 255) < 2 && std::abs(float(rgb[1]) - title.g * 255) < 2 &&
+               std::abs(float(rgb[2]) - title.b * 255) < 2;
     };
     click(runtime.camera.world_to_screen({300, -700}));
     CHECK(title_visible());
@@ -166,6 +162,7 @@ TEST_CASE("the mover inspector and debug pause work together") {
 
 TEST_CASE("the inspector and frame graph fit alongside debug in a narrow window") {
     Runtime runtime("Narrow inspector", 320, 240);
+    runtime.read_back(true);
     DebugMenu menu;
     menu.visible = true;
     menu.screen_origin = {8, 32};
@@ -188,15 +185,8 @@ TEST_CASE("the inspector and frame graph fit alongside debug in a narrow window"
     kinetra_lab::draw_inspector(runtime, menu, &view, &snapshot, &times);
     runtime.end();
     const float green_y = box.max.y + 12 + (FrameTimeGraph::height - 4) * scale;
-    const int row = static_cast<int>(viewport.y - 1 - green_y);
-    bool green_bar = false;
-    for (const auto buffer : {GL_FRONT, GL_BACK}) {
-        std::array<unsigned char, 4> pixel{};
-        glReadBuffer(buffer);
-        glReadPixels(295, row, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
-        green_bar = green_bar || (pixel[0] < 120 && pixel[1] > 180 && pixel[2] < 140);
-    }
-    CHECK(green_bar);
+    const auto pixel = runtime.frame().pixel(295, static_cast<int>(std::ceil(green_y)));
+    CHECK((pixel[0] < 120 && pixel[1] > 180 && pixel[2] < 140));
     Input click;
     click.clicked = true;
     click.mouse = menu.screen_origin + Vec2{16, DebugMenu::row_top(0) + 8} * DebugMenu::scale(viewport);
@@ -209,6 +199,7 @@ TEST_CASE("the inspector and frame graph fit alongside debug in a narrow window"
 
 TEST_CASE("the session renders its overlays and handles input and catalog recovery") {
     Runtime runtime("i4sim presentation", 640, 480);
+    runtime.read_back(true);
     auto session = i4sim::create_session();
     session->advance(0, {}, runtime.camera);
     session->render(runtime);
@@ -252,18 +243,14 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     // Pixels inside the debug menu panel that match `color`, in the 16 rows below its heading.
     auto menu_pixels = [&](auto color) {
         session->render(runtime);
-        glFinish();
-        std::vector<unsigned char> pixels(640 * 480 * 3);
-        glReadBuffer(GL_FRONT);
-        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-        glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        const auto &frame = runtime.frame();
         const float scale = DebugMenu::scale(runtime.camera.viewport);
         const int right = int(8 + DebugMenu::panel_width * scale),
                   bottom = int(32 + DebugMenu::row_top(16) * scale);
         unsigned count = 0;
         for (int y = 32; y < bottom; ++y)
             for (int x = 8; x < right; ++x) {
-                const auto *pixel = &pixels[std::size_t(((479 - y) * 640 + x) * 3)];
+                const auto pixel = frame.pixel(x, y);
                 count += color(pixel[0], pixel[1], pixel[2]);
             }
         return count;
@@ -282,14 +269,11 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     click_row(menu_row::layers);
     click_row(menu_row::simulation);
     click_row(menu_row::motion_below_simulation);
+    // The bottom 40 rows, where the statistics lines are.
     auto statistics_pixels = [&] {
         session->render(runtime);
-        glFinish();
-        std::vector<unsigned char> pixels(640 * 40 * 3);
-        glReadBuffer(GL_FRONT);
-        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-        glReadPixels(0, 0, 640, 40, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-        return pixels;
+        const auto &rgba = runtime.frame().rgba;
+        return std::vector<std::uint8_t>(rgba.end() - 640 * 40 * 4, rgba.end());
     };
     const auto before_motion = statistics_pixels();
     click_step(menu_row::speed); // Speed + must apply while running.
@@ -350,16 +334,11 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     CHECK_MESSAGE((SDL_PushEvent(&event) == 1 && runtime.poll(false) && !runtime.input().right_mouse_down),
                   "Right button did not release");
     if (const char *capture = std::getenv("I4SIM_CAPTURE")) {
-        int width, height;
-        SDL_GL_GetDrawableSize(SDL_GL_GetCurrentWindow(), &width, &height);
-        std::vector<unsigned char> pixels(width * height * 3);
-        glReadBuffer(GL_FRONT);
-        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-        glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        const auto &frame = runtime.frame();
         std::ofstream file(capture, std::ios::binary);
-        file << "P6\n" << width << " " << height << "\n255\n";
-        for (int y = height - 1; y >= 0; --y)
-            file.write(reinterpret_cast<const char *>(pixels.data() + y * width * 3), width * 3);
+        file << "P6\n" << frame.width << " " << frame.height << "\n255\n";
+        for (std::size_t pixel = 0; pixel < frame.rgba.size(); pixel += 4)
+            file.write(reinterpret_cast<const char *>(frame.rgba.data() + pixel), 3);
     }
     CHECK_MESSAGE(glGetError() == GL_NO_ERROR, "i4sim rendering produced OpenGL error");
     Input panel;
@@ -443,12 +422,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
         session->advance(0.02, {}, runtime.camera);
         session->render(runtime);
     }
-    glFinish();
-    std::vector<unsigned char> crossing_pixels(640 * 480 * 3);
-    glReadBuffer(GL_FRONT);
-    glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+    auto crossing_pixels = runtime.frame().rgba;
     unsigned cyan = 0, lime = 0;
-    for (std::size_t i = 0; i < crossing_pixels.size(); i += 3) {
+    for (std::size_t i = 0; i < crossing_pixels.size(); i += 4) {
         if (crossing_pixels[i] < 30 && crossing_pixels[i + 1] > 180 && crossing_pixels[i + 2] > 240)
             ++cyan;
         if (crossing_pixels[i] > 120 && crossing_pixels[i] < 180 && crossing_pixels[i + 1] > 235 &&
@@ -483,11 +459,10 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
         session->advance(0.02, {}, runtime.camera);
         session->render(runtime);
     }
-    glFinish();
-    glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+    crossing_pixels = runtime.frame().rgba;
     unsigned blue = 0;
     lime = 0;
-    for (std::size_t i = 0; i < crossing_pixels.size(); i += 3) {
+    for (std::size_t i = 0; i < crossing_pixels.size(); i += 4) {
         if (crossing_pixels[i] > 30 && crossing_pixels[i] < 80 && crossing_pixels[i + 1] > 90 &&
             crossing_pixels[i + 1] < 160 && crossing_pixels[i + 2] > 240)
             ++blue;
@@ -522,10 +497,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
         session->advance(0.02, {}, runtime.camera);
         session->render(runtime);
     }
-    glFinish();
-    glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+    crossing_pixels = runtime.frame().rgba;
     unsigned retreat_pixels = 0;
-    for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
+    for (std::size_t i = 0; i < crossing_pixels.size(); i += 4)
         if (crossing_pixels[i] > 230 && crossing_pixels[i + 1] > 50 && crossing_pixels[i + 1] < 100 &&
             crossing_pixels[i + 2] > 150 && crossing_pixels[i + 2] < 210)
             ++retreat_pixels;
@@ -558,10 +532,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     for (int frame = 0; frame < 180 && passing_pixels <= 20; ++frame) {
         session->advance(0.02, {}, runtime.camera);
         session->render(runtime);
-        glFinish();
-        glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+        crossing_pixels = runtime.frame().rgba;
         passing_pixels = 0;
-        for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
+        for (std::size_t i = 0; i < crossing_pixels.size(); i += 4)
             if (crossing_pixels[i] > 60 && crossing_pixels[i] < 100 && crossing_pixels[i + 1] > 240 &&
                 crossing_pixels[i + 2] > 160 && crossing_pixels[i + 2] < 200)
                 ++passing_pixels;
@@ -582,15 +555,11 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->advance(0, choose, runtime.camera); // first scene, alphabetically corridor-passing
     CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "Showcase scene did not load paused");
     // The world area between the toolbar and the statistics lines; without a workload, only
-    // the scenario's goals can move anything there.
+    // the scenario's goals can move anything there: rows 80 to 359.
     auto world_pixels = [&] {
         session->render(runtime);
-        glFinish();
-        std::vector<unsigned char> pixels(640 * 280 * 3);
-        glReadBuffer(GL_FRONT);
-        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-        glReadPixels(0, 120, 640, 280, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-        return pixels;
+        const auto &rgba = runtime.frame().rgba;
+        return std::vector<std::uint8_t>(rgba.begin() + 80 * 640 * 4, rgba.begin() + 360 * 640 * 4);
     };
     auto run_frames = [&](int frames) {
         for (int frame = 0; frame < frames; ++frame) {
@@ -603,10 +572,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     run_frames(30);
     CHECK_MESSAGE(world_pixels() != before, "Showcase scene movers did not move to their goals");
     run_frames(30);
-    glFinish();
-    glReadPixels(0, 0, 640, 480, GL_RGB, GL_UNSIGNED_BYTE, crossing_pixels.data());
+    crossing_pixels = runtime.frame().rgba;
     blue = 0;
-    for (std::size_t i = 0; i < crossing_pixels.size(); i += 3)
+    for (std::size_t i = 0; i < crossing_pixels.size(); i += 4)
         if (crossing_pixels[i] > 30 && crossing_pixels[i] < 80 && crossing_pixels[i + 1] > 90 &&
             crossing_pixels[i + 1] < 160 && crossing_pixels[i + 2] > 240)
             ++blue;

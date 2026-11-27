@@ -66,7 +66,7 @@ flowchart LR
     Player -->|reads| World[Dotio Application and World]
     Stage -->|launcher::applications, create_session| Sessions[kinetra_sessions: Demo, Dotio, i4sim]
     Stage -->|dotio::Session::application| World
-    Stage -->|glReadPixels| Png[png.cpp: write_png]
+    Stage -->|Runtime::frame| Png[png.cpp: write_png]
     Png --> Zlib[zlib]
 ```
 
@@ -108,7 +108,7 @@ sequenceDiagram
         T->>St: new Runtime at the scene's size
         St->>S: create as the launcher does (seed 42)
         St->>S: advance(1/60 s, scripted Input) ...
-        St->>S: render, then glReadPixels and write_png
+        St->>S: render, then Runtime::frame and write_png
     end
     Sh->>F: frames to GIF (one palette, no dithering, changed rectangles only)
     Sh->>Sh: copy PNGs and GIFs into docs/media
@@ -124,7 +124,7 @@ sequenceDiagram
 - **Showcase scenes.** Each loads its file from the catalog's `showcase/` directory and keeps Debug Mode and every layer on, with the debug menu closed. Before recording, `showcase_cycle_steps` runs the same scene in a `FactoryController`, the headless half of the i4sim session, with the stage's seed, rate (`i4sim_updates_per_second`) and step, Space first, and counts the steps until a mover sets off again after the last standstill of the cycle. The clip records that many steps, rounded down to whole clip frames, so its last frame is in the final pause and the GIF loops like the application.
 - **Clicks and keys.** A settings row is found through a mirror `SettingsOverlay` with the same Lab rows (`row_y`, `half_extent`), and a debug-menu row through `DebugMenu::row_top` and `label_left`, the same public layout the graphics tests use. The panel opens on a tap of Ctrl and the debug menu on Shift+Ctrl; the stage sends both as a press that is not held, which the overlay treats as complete. Presses, clicks and the wheel apply to the first step of a clip frame; held keys and buttons to all four.
 - **Frame pacing.** The tool switches the runtime's frame limit off: its frames go to files, so nothing has to wait for a display. It also fixes the frame time the runtime records at one 60 Hz step (`Runtime::fix_frame_times`), so a frame-time graph reads 16.7 ms in every capture instead of the time software rendering took.
-- **Frames.** `Runtime::end()` presents the frame, so the stage reads the front buffer, as the graphics tests do, flips the rows and writes the PNG.
+- **Frames.** The stage switches on the Runtime's read-back, so `Runtime::end()` copies each frame before it presents it, with rows from the top as PNG stores them, in the same way offscreen and in a window ([runtime contract](../../external/Kinetra/docs/engine/runtime.md#input-and-drawing)): the launcher screenshot comes out byte-identical with SDL's offscreen driver and in an X11 window under Xvfb, and a composited desktop or Windows, where the tool renders in a real window, is not yet checked. The stage drops alpha, which is always 255, and writes the PNG. The tour copies the frame into its canvas of the window's logical size, so it needs a drawable of that size, without display scaling, and stops otherwise.
 - **GIFs.** One palette per clip (`palettegen`), no dithering, because the applications draw flat colors, and only the changed rectangle per frame (`diff_mode=rectangle`). The six GIFs of the normal and debug views are about 5.0 MB together, the three Demo scenario GIFs about 0.8 MB, the five showcase GIFs about 2.5 MB, the five shared-UI GIFs about 2.6 MB.
 - **Tour clips.** Each script in `ui_clips.cpp` builds a `Tour` on the stage's window, at clip size, with a `ClipRecorder` as its frame sink, so the GIF shows the tour's pointer, click rings and keycaps, without captions. It first goes through the launcher to its Demo scenario unrecorded, by clicks on DEMO and the scenario, and checks that the scenario runs; then it starts the recorder, which keeps every fourth frame of the tour's 60 per second, the 15 of a clip. Doorway, with six agents on a calm background, keeps the launcher, settings, debug-menu and inspector GIFs small; the layers clip runs in Terrain with agents that wander by planned routes, and the player stands still, so the camera does not move. The inspector clip finds its X button through the inspector's own layout (`kinetra_lab::inspector_area`, `InspectorView::bounds`). The launcher clip ends with SCENARIOS in Demo's debug menu and checks that the launcher shows Demo's page with DOORWAY selected.
 
@@ -142,7 +142,7 @@ sequenceDiagram
         Sc->>T: move_to, click_row("MOTION"), hold({W}, 0.8), caption(...)
         loop every 1/60 s
             T->>H: advance or menu update with the pointer, buttons and keys
-            T->>H: render, then glReadPixels
+            T->>H: render, then Runtime::frame
             T->>T: draw click rings, caption, keycaps and pointer on the frame
             T->>F: raw RGB frame through the pipe
         end
@@ -203,7 +203,6 @@ cmake --build --preset graphics --target kinetra_capture && ctest --preset graph
 
 ## Open points
 
-- A frame read-back helper on Kinetra's `Runtime` would replace the `glReadPixels` code here and in the graphics tests.
 - The tour is only checked in full by looking at it: its smoke test plays seven seconds, and a wrong click later on shows as a scene that does not match its caption. A missing row stops it.
 - Dotio's part of the tour differs per run, like its captures.
 - The thumbnail's moments are fixed times. When a tour change moves a chapter, a tile can show another scene than intended; only a look at the thumbnail catches that.
