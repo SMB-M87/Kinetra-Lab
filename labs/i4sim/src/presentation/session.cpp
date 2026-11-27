@@ -59,7 +59,6 @@ class FactorySession final : public kinetra_lab::Session {
         const bool captured = settings_.update_debug(input, camera.viewport, menu_, entries);
         if (modal)
             return;
-        start_lit_ = !captured && start_button(camera.viewport).overlaps({input.mouse, input.mouse});
         const auto before = controller_.selected_mover();
         InspectorInput inspection;
         if (before && !captured) {
@@ -68,6 +67,9 @@ class FactorySession final : public kinetra_lab::Session {
             if (inspection.close)
                 controller_.clear_selected_mover();
         }
+        // Lit only where a click would reach it: not under the debug menu or the inspector.
+        start_lit_ = !captured && !inspection.captured &&
+                     start_button(camera.viewport).overlaps({input.mouse, input.mouse});
         controller_.handle_input(elapsed, input, camera, {captured || inspection.captured, debug_});
         if (before != controller_.selected_mover())
             inspector_.reset();

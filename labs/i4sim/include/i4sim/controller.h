@@ -37,9 +37,10 @@ struct PanelState {
 
 /// The RUN button that a blueprint shows while it awaits its start
 /// (FactoryController::awaiting_start()): a box in screen pixels, 200 by 40, centered across
-/// `viewport` 30 pixels from its top, below the toolbar and above the fitted floor, and
-/// narrower when the viewport leaves less than 16 pixels on each side. It stays off the
-/// middle of the floor, where movers are selected and given goals before the start.
+/// `viewport` 30 pixels from its top, below the toolbar, and narrower when the viewport
+/// leaves less than 16 pixels on each side. It stays off the middle of the floor, where
+/// movers are selected and given goals before the start: the fitted floor starts below it
+/// in a viewport at least 320 pixels high, and covers its band in a lower one.
 kinetra::Aabb start_button(Vec2 viewport);
 
 /// Owns the simulation of the loaded blueprint and applies the operator's commands to it.

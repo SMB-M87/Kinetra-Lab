@@ -6,6 +6,7 @@
 #include <array>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace i4sim {
 namespace {
@@ -92,7 +93,11 @@ void draw_start_button(Runtime &runtime, Aabb box, bool lit) {
     // RUN at scale 2 (14 pixels high) and the hint at scale 1 beside it, both centered on the
     // mark.
     draw_text(runtime, "RUN", snapped(box.min + Vec2{36, size.y / 2 - 7}), 2, mark);
-    draw_text(runtime, "CLICK OR SPACE", snapped(box.min + Vec2{82, size.y / 2 - 3.5f}), 1,
-              lit ? panel_color : text_color);
+    // The hint ends 35 pixels inside the full width; a box narrowed for a small viewport
+    // shows RUN alone.
+    constexpr std::string_view hint = "CLICK OR SPACE";
+    if (82 + text_width(hint) <= size.x)
+        draw_text(runtime, hint, snapped(box.min + Vec2{82, size.y / 2 - 3.5f}), 1,
+                  lit ? panel_color : text_color);
 }
 } // namespace i4sim
