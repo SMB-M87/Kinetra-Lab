@@ -73,7 +73,7 @@ The takeaway: only the step marked *never* is new. Mover 18's side at 100,000 ti
 ## Affected areas
 
 - Kinetra: `src/simulation/priority_steering.cpp` (the horizon), `include/kinetra/simulation/steering.h` (contract of `constrain_borders`), `docs/engine/navigation.md`, `tests/weighted_navigation_tests.cpp` (two cases).
-- Lab: the `external/Kinetra` pointer, this document and the index, `docs/roadmap.md` (item removed), the phase 7 open point that named the corner failure.
+- Lab: the `external/Kinetra` pointer, this document and the index, `docs/roadmap.md` (item removed). The phase 7 design document keeps its open point as history.
 - Consumers: only i4sim calls `priority_steer` and `constrain_borders`.
 
 ## Test plan
@@ -134,6 +134,7 @@ The three runs that now end with a stuck mover were replayed: mover 0 on `MAS-de
 | Lab: `cmake --build --preset release` for the i4sim targets, `ctest --preset release -R '^kinetra_i4sim'` | Every simulation, golden, pressure and controller case passes; golden and pressure lines unchanged; again after merging `main` with Kinetra-Lab#140 (160 of 160) |
 | Lab: `python3 external/Kinetra/tools/check_docs.py`, `check_copies.py` with the terms above | All links resolve; hits judged in [Review](#review) |
 | Both pull requests' CI | Full level; recorded on the pull requests |
+| Lab after merging `main` (pointer at Kinetra `9841a50`): `cmake --build --preset release`, `ctest --preset release -LE soak` | 352 of 352 passed; Kinetra#70 changes only the runtime settings panel, which i4sim's logic does not use |
 
 ## Pull request
 
@@ -143,7 +144,7 @@ Summary: records Kinetra#69, which lets a body at rest beside a wall's end move 
 
 Changes: the `external/Kinetra` pointer; this design document and its index row; the roadmap item removed.
 
-Dependencies and merge order: Kinetra#69 merges first, with a merge commit; this pull request then merges with its pointer at the Kinetra branch commit it was verified with, and Kinetra's `lab-pointer` workflow opens the pointer-only pull request to the merge commit.
+Dependencies and merge order: Kinetra#69 merged first, with a merge commit (`9841a50`). Lab `main` then recorded Kinetra#70's branch commit, so merging `main` here conflicted on the pointer. Its resolution is Kinetra `main` at `9841a50`, which holds both, and this pull request was verified again with it. The pointer is then on Kinetra `main`, so no pointer-only pull request follows unless Kinetra moves on.
 
 Follow-up: none new; the remaining stuck runs belong to *Stall detection and remedies in i4sim*.
 
