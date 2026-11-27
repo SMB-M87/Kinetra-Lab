@@ -94,7 +94,7 @@ All in the authored field of 44 × 28 units, with the player out of the way.
 | MAZE | 11 × 7 cells of 4 units with walls 1 unit thick, a constant-seed labyrinth with five extra openings for loops | 6, between cells whose routes are at most 56 units, within the 20-second command limit | Alone, 1 s |
 | DOORWAY | As before | 6 | Together, 2 s |
 | CORRIDOR | A corridor 7 units wide and 28 long | 6 per side | Together, 2 s |
-| CROSSING | Two streets 7 units wide cross between four blocks | 6 per street | Together, 2 s |
+| CROSSING | Two streets 9 units wide cross between four blocks | 6 per street | Together, 2 s |
 | CIRCLE | Open field | 16 on a circle, each to its opposite point | Together, 2 s |
 | BOTTLENECK | A room with one exit 2.4 units wide | 16, out of the room and back | Together, 2 s |
 | CHAOS | Open field with five pillars | 40, to random points | Roam, 0.5 s |
@@ -140,6 +140,16 @@ The branch changes `presentation/`-adjacent code only through the catalog, and t
 | A NaN step looped forever in `along` | `update` rejects a negative or non-finite step; tested |
 | The Demo README still said Debug Mode gates layers "in Terrain, Maze and Doorway" | Reworded to cover every scenario from Maze on |
 
+Agent review, round 1 on `ad083a3` (conclusion *Fix first*):
+
+| Finding | Resolution | Commit |
+| --- | --- | --- |
+| Blocking: a group that turns together waited for an agent a user had sent away, against this design | The shared turn waits only for the agents the script owns and turns only when it owns one; three new cases (a release in a shared turn, CLICK SETS GOAL, a turn alone). The first fails without the fix | `886fc9b` |
+| The test plan promised that Fleet and Swarm stay near their lures, and named the wrong file | The scenario run bounds the mean distance to the slots (Fleet 2, Swarm 3 units; measured 1.3 and 2.0); the row is corrected | `e56219e` |
+| Merge conflict in the design index after #142 | `main` merged, with its Kinetra pointer | `2242e49` |
+| Nits: Crossing's street width, the media guide's showcase clip sentence, the README's test count, `footer_x(next)` in the menu test, the dormant agent in a shared turn, PASSING in Fleet and Swarm, the follow-ups as a roadmap item | All carried out | this round |
+| Lesson: update the module README's test table with the cases a commit adds | Added to `docs/review-lessons.md` | this round |
+
 ## Verification
 
 - `cmake --build --preset dev` and `ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing)|^kinetra_menu:|^kinetra_lab:' -LE soak`: 105 tests passed, the crowd characterization lines unchanged (Terrain behaves as before).
@@ -163,5 +173,5 @@ Follow-up: the open points below.
 
 ## Open points
 
-- Showcase scripts are not drawn (stops, lures, slots); Fleet's formations are loose, because agents are sent to their slots only every quarter second ([Demo open points](../../labs/demo/README.md#open-points)).
+- Showcase scripts are not drawn (stops, lures, slots); Fleet's formations are loose, because agents are sent to their slots only every quarter second: the roadmap item *Showcase drawing and tighter formations in Demo* ([Demo open points](../../labs/demo/README.md#open-points)).
 - The Kinetra README's shared-UI GIFs play in Doorway, whose agents now shuttle; they follow with the next Kinetra change that makes them stale ([Kinetra's media rule](../../external/Kinetra/docs/media/README.md#which-gifs-a-change-makes-stale)).
