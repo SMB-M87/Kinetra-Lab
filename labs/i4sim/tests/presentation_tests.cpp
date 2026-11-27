@@ -1,6 +1,7 @@
 // Session tests for blueprint-screen messages, the mover inspector, and the rendered
 // controls and traffic overlays, and world-view tests for routes, detection ranges and
-// seek arrows drawn under the movers they cross. CTest labels the suite `graphics`.
+// seek arrows drawn under the movers they cross, and for a route that starts over its
+// mover. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "i4sim/blueprint/blueprint.h"
@@ -913,4 +914,54 @@ TEST_CASE("a mover's seek arrow passes under the movers it crosses") {
                 covered = covered || seek_color(runtime.frame().pixel(320 + dx, 240 + dy));
         CHECK_MESSAGE(!covered, "A seek arrow covers a mover it crosses");
     }
+}
+
+TEST_CASE("a mover's route starts over the mover itself") {
+    Runtime runtime("i4sim route start", 640, 480);
+    runtime.read_back(true);
+    i4sim::Simulation simulation(
+        i4sim::load_blueprint(i4sim::default_blueprint_directory() / "4320x2400.json"), 42);
+    simulation.run();
+    auto layers = i4sim::ViewLayers::none();
+    layers.toggle(i4sim::Layer::paths);
+    layers.toggle(i4sim::Layer::routes);
+    const auto &movers = simulation.movers();
+    const float inner = std::min(movers.front().body.half_extents.x, movers.front().body.half_extents.y);
+    // The smaller half extent of a mover spans 50 screen pixels.
+    runtime.camera.pixels_per_unit = 50 / inner;
+    const auto shown = [&](const i4sim::Mover &mover) {
+        return lerp(mover.previous_position, mover.body.position, float(simulation.interpolation()));
+    };
+    const auto route_color = [](std::array<std::uint8_t, 4> pixel) {
+        return std::abs(pixel[0] - 179) < 30 && std::abs(pixel[1] - 102) < 30 && pixel[2] > 225;
+    };
+    // A point (factory space) halfway out along the first leg of a mover's route, inside that
+    // mover and clear of every other mover.
+    std::optional<Vec2> start;
+    for (int batch = 0; batch < 200 && !start; ++batch) {
+        for (int tick = 0; tick < 50; ++tick)
+            simulation.tick();
+        for (const auto &mover : movers) {
+            if (mover.route.empty() || length(mover.route.front() - shown(mover)) < inner)
+                continue;
+            const auto point = shown(mover) + normalized(mover.route.front() - shown(mover)) * (0.5f * inner);
+            bool clear = true;
+            for (const auto &other : movers)
+                clear = clear && (&other == &mover || length(shown(other) - shown(mover)) > 4 * inner);
+            if (clear) {
+                start = point;
+                break;
+            }
+        }
+    }
+    REQUIRE_MESSAGE(start, "No mover with a route stood clear of the others");
+    runtime.camera.position = i4sim::flip_y(*start);
+    runtime.begin(i4sim::world_background);
+    i4sim::draw_world(runtime, simulation, layers, std::nullopt);
+    runtime.end();
+    bool shown_start = false;
+    for (int dy = -2; dy <= 2; ++dy)
+        for (int dx = -2; dx <= 2; ++dx)
+            shown_start = shown_start || route_color(runtime.frame().pixel(320 + dx, 240 + dy));
+    CHECK_MESSAGE(shown_start, "A mover's route does not start over the mover");
 }
