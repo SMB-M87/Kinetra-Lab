@@ -77,7 +77,7 @@ A blueprint may carry one optional `scenario` object. `load_blueprint` ignores i
 | `motion.profile` | `improved` (default), `original`, `experimentalRvo` (or `experimental_rvo`), `reciprocal` | Steering profile |
 | `motion.pathPlanning` | boolean, `true` | A* routes over the grid cells; `false` sends each mover straight at its goal, as PLANNER → OFF does |
 | `motion.heatmap` | boolean, `true` | Congestion costs in route planning |
-| `motion.recovery`, `parkingTraffic`, `junctionTraffic`, `corridorTraffic`, `predictivePassing`, `makeWay`, `departureCheck` | boolean, `false` | Coordination features, as in DEBUG → MOTION and TRAFFIC |
+| `motion.recovery`, `parkingTraffic`, `junctionTraffic`, `corridorTraffic`, `predictivePassing`, `makeWay`, `departureCheck`, `rightOfWay` | boolean, `false` | Coordination features, as in DEBUG → MOTION and TRAFFIC |
 | `motion.speed`, `motion.force`, `motion.horizon` | positive numbers, `2`, `0.6`, `32` | Top speed in millimeters per tick, acceleration in millimeters per tick squared, prediction horizon in ticks (at most 64) |
 | `workload` | boolean, `true` | Automatic product workload |
 | `repeat` | `none` (default), `shuttle`, `restart` | How the scene repeats once its movers have arrived; see [Showcase scenes](#showcase-scenes) |

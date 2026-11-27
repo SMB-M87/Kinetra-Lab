@@ -99,7 +99,7 @@ flowchart TD
 2. Open a random product while the workload is on and fewer products than movers are open.
 3. Refresh the heatmap on the first tick of every ten.
 4. Run the parking interlock (`Goals::coordinate_parking`).
-5. Move (`MotionStep::run`): prepare routes, snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
+5. Move (`MotionStep::run`): prepare routes, grant and end rights of way (RIGHT OF WAY), snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
 6. Advance production and drop completed products.
 7. Turn the shuttle: once every shuttling mover has stood still for `shuttle_pause_ticks` (400), send each one to its other end through the checks of `move_to`.
 8. Observe stall episodes, then advance MAKE WAY trips.
@@ -119,7 +119,7 @@ stateDiagram-v2
     moving --> moving: new goal with a route
 ```
 
-The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival), `parking_staging` (waiting outside another mover's route), or `making_way` (temporarily leaving a parking place and returning on a checked route). Both temporary goal kinds survive arrival at their refuge. The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls). MAKE WAY also uses active episodes to decide when to check a route.
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival), `parking_staging` (waiting outside another mover's route), or `making_way` (temporarily leaving a parking place and returning on a checked route). Both temporary goal kinds survive arrival at their refuge. The operator hold (`held`) is independent of both. `Coordination` holds what traffic, passing and the right of way decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls). MAKE WAY also uses active episodes to decide when to check a route.
 
 ## Execution
 

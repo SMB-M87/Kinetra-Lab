@@ -33,7 +33,9 @@ StallMoverState state(const Mover &mover) {
     return StallMoverState::observed;
 }
 
-StallObservation observation(const MotionSettings &motion) {
+} // namespace
+
+StallObservation stall_observation(const MotionSettings &motion) {
     return {.threshold_steps = stall_ticks,
             .excursion = excursion_distance_mm,
             .oscillation_reversals = oscillation_reversals,
@@ -48,7 +50,6 @@ StallObservation observation(const MotionSettings &motion) {
             .pushing_reach = pushing_reach,
             .ahead_cosine = ahead_cosine};
 }
-} // namespace
 
 void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
                             EventLog &log) {
@@ -59,7 +60,7 @@ void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, st
         movers.push_back({m.body, m.route.empty() ? m.body.position : m.route.front(), m.destination,
                           fleet.progress[i].no_progress, state(m)});
     }
-    for (const auto &event : detector_.observe(movers, observation(motion), tick))
+    for (const auto &event : detector_.observe(movers, stall_observation(motion), tick))
         if (log.recording())
             log.add({.tick = tick,
                      .kind = event.kind == StallEvent::Kind::started ? EventKind::stall_started
