@@ -30,7 +30,7 @@ Directory guides: [docs](docs/README.md), [external](external/README.md), [labs]
 
 The video can be older than the code; the clips below are refreshed whenever what they show changes ([media guide](docs/media/README.md)). The launcher's menu and the overlays every lab shares, the settings panel, the debug menu and the agent inspector, are shown in [Kinetra's README](https://github.com/SMB-M87/Kinetra#shared-ui).
 
-Demo and i4sim start with Debug Mode and all visual layers on; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every lab and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with change while it runs. The settings panel returns to the lab's own choice, in Debug Mode or not: SCENARIOS in Demo and DIFFICULTY in Dotio go back to the launcher's page for them, BLUEPRINTS in i4sim to its loadscreen, and each of those pages has a LAUNCHER button.
+Demo and i4sim start in Debug Mode with their default layers on: VECTORS and PATHS in Demo, every layer but HEATMAP and CONTACT SHAPES in i4sim; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every lab and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with change while it runs. The settings panel returns to the lab's own choice, in Debug Mode or not: SCENARIOS in Demo and DIFFICULTY in Dotio go back to the launcher's page for them, BLUEPRINTS in i4sim to its loadscreen, and each of those pages has a LAUNCHER button.
 
 ### Demo
 
@@ -38,7 +38,7 @@ The reference for Kinetra's mechanisms: physics and contacts, A* navigation, ste
 
 | Normal view | Debug view |
 | --- | --- |
-| ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with steering probes, vectors and collision shapes: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
+| ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with vectors and paths: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
 
 The other three scenarios each show one mechanism, from its start, in Debug Mode:
 

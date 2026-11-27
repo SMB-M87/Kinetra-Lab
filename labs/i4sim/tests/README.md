@@ -25,7 +25,7 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 flowchart TD
     Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (74)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
-    Logic --> Controller["kinetra_i4sim_controller (44)<br/>controller_tests.cpp"]
+    Logic --> Controller["kinetra_i4sim_controller (45)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (10)<br/>session input and rendering"]
     Logic --> Presentation
@@ -38,7 +38,7 @@ flowchart TD
 | `simulation_tests.cpp` | `kinetra_i4sim` (74) | Required behavior of the loaders and the simulation |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
-| `controller_tests.cpp` | `kinetra_i4sim_controller` (44) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (45) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (10, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL; routes, detection ranges and seek arrows under the movers they cross, and a route that starts over its own mover |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 

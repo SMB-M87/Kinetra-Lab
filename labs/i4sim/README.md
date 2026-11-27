@@ -74,7 +74,7 @@ It prints the ticks it ran, the completed products and the ticks per second of t
 
 ## Controls
 
-Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. BLUEPRINTS and EXIT are in that panel: BLUEPRINTS closes the blueprint and returns to the blueprint screen, in Debug Mode or not. Debug Mode, the statistics and every debug layer start on. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
+Ctrl or the SETTINGS button opens the modal settings panel, which pauses the simulation and takes all input; closing it restores the earlier run state. BLUEPRINTS and EXIT are in that panel: BLUEPRINTS closes the blueprint and returns to the blueprint screen, in Debug Mode or not. Debug Mode, the statistics and every debug layer with all its parts start on, except HEATMAP and CONTACT SHAPES. Shift+Ctrl, or the DEBUG button next to SETTINGS, opens the debug menu.
 
 | Input | Action |
 | --- | --- |

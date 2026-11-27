@@ -234,17 +234,28 @@ TEST_CASE("g toggles the workload") {
     CHECK(controller.simulation().workload());
 }
 
+TEST_CASE("a session starts with every layer and part but the heatmap and contact shapes") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    const auto &layers = controller.layers();
+    for (std::size_t i = 0; i < i4sim::layer_count; ++i) {
+        const auto layer = static_cast<Layer>(i);
+        CAPTURE(i);
+        const bool off = layer == Layer::heatmap || layer == Layer::contact_shapes;
+        CHECK(layers.selected(layer) == !off);
+        CHECK(layers.shows(layer) == !off);
+    }
+}
+
 TEST_CASE("the keys one to six toggle their layers") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     const auto &layers = controller.layers();
-    for (auto layer : top_layers)
-        CHECK(layers.selected(layer));
     frame(controller, camera, key(Key::one));
     CHECK_FALSE(layers.selected(Layer::grid));
     frame(controller, camera, key(Key::two));
-    CHECK_FALSE(layers.selected(Layer::heatmap));
+    CHECK_MESSAGE(layers.selected(Layer::heatmap), "key two turns on the heatmap, which starts off");
     frame(controller, camera, key(Key::three));
     CHECK_FALSE(layers.selected(Layer::paths));
     frame(controller, camera, key(Key::four));
@@ -253,7 +264,8 @@ TEST_CASE("the keys one to six toggle their layers") {
     CHECK_FALSE(layers.selected(Layer::borders));
     frame(controller, camera, key(Key::six));
     CHECK_FALSE(layers.selected(Layer::detection));
-    CHECK_MESSAGE(layers.selected(Layer::contact_shapes), "contact shapes have a menu entry only");
+    CHECK_FALSE_MESSAGE(layers.selected(Layer::contact_shapes),
+                        "contact shapes have a menu entry only, so no key turned them on");
     frame(controller, camera, key(Key::one));
     CHECK(layers.selected(Layer::grid));
 }
@@ -702,12 +714,15 @@ TEST_CASE("the layer entries are check boxes on the layers") {
     const auto &layers = controller.layers();
     for (const char *label : {"GRID", "HEATMAP", "PATHS", "FORCES", "BORDERS", "DETECTION", "CONTACT SHAPES"})
         choose(controller, label);
-    for (auto layer : top_layers)
-        CHECK_FALSE(layers.selected(layer));
-    CHECK_FALSE(entry(controller, "CONTACT SHAPES").active());
-    choose(controller, "CONTACT SHAPES");
-    CHECK(layers.selected(Layer::contact_shapes));
+    for (auto layer : top_layers) {
+        CAPTURE(static_cast<int>(layer));
+        // HEATMAP and CONTACT SHAPES start off, so the click turned them on.
+        CHECK(layers.selected(layer) == (layer == Layer::heatmap || layer == Layer::contact_shapes));
+    }
     CHECK(entry(controller, "CONTACT SHAPES").active());
+    choose(controller, "CONTACT SHAPES");
+    CHECK_FALSE(layers.selected(Layer::contact_shapes));
+    CHECK_FALSE(entry(controller, "CONTACT SHAPES").active());
     CHECK_MESSAGE(entry(controller, "FRAME SCENE").kind == kinetra::DebugEntryKind::button,
                   "a command is a button, not a check box");
 }

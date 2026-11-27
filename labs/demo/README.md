@@ -55,7 +55,7 @@ Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launche
 
 Settings shows the help lines of SIM CONTROLS and DEBUG CONTROLS only after a click on their heading, and consumes all gameplay input. Resume or Ctrl closes settings and resumes the run. Space and M have no gameplay action. F/P/R/G/Tab/C have no gameplay shortcuts.
 
-Demo starts with Debug Mode, statistics and the layers VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES and ACTIVE AGENTS on. Gravity starts on in its own scenario. Ghost Camera, HOME RANGE and CLICK SETS GOAL start off, and the debug menu starts closed.
+Demo starts with Debug Mode, statistics and the layers VECTORS and PATHS on, in every scenario. Gravity starts on in its own scenario. Ghost Camera, the layers STEERING PROBES, COLLISION SHAPES, ACTIVE AGENTS and HOME RANGE, and CLICK SETS GOAL start off, and the debug menu starts closed.
 
 ### Debug menu
 

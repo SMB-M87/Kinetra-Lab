@@ -40,8 +40,8 @@ constexpr float rest_x = .8f, rest_y = .78f;
 /// Distance from the inspector's top-right corner to the middle of its X button, in logical
 /// pixels: the button's margin and half its side (Kinetra's inspector_view.cpp).
 constexpr float inspector_close_inset = 12;
-/// The layers the layers clip turns off and on again, in the menu's order; HOME RANGE, which
-/// starts off, comes after them.
+/// The layers the layers clip toggles and toggles back, in the menu's order: VECTORS and PATHS
+/// start on, the others off. HOME RANGE, which starts off too, comes after them.
 constexpr std::string_view demo_layers[]{"VECTORS", "STEERING PROBES", "PATHS", "COLLISION SHAPES",
                                          "ACTIVE AGENTS"};
 
