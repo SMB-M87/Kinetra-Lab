@@ -273,6 +273,15 @@ On `8640x4800`, a run took about 9–10.5 s with passing off and 13–14.5 s wit
 - Improved has no contact in a plan any more; on `8640x4800` it touches less than without passing (350 and 355 against 384 and 726). Its contacts elsewhere come in episodes of one pair beside a parked mover, which also occur without passing, so Improved stays mixed.
 - About half of the plans on `8640x4800` end without completing, mostly as `obstructed`: the guard gives up a maneuver that traffic around it no longer allows.
 
+**After Kinetra#69** (border face horizon), measured on 2026-11-27 with the same runs. With passing off, two rows of the table above change and every other row is equal tick for tick. The passing-on cells were measured again only for these two rows. Each cell shows passing **off / on**:
+
+| Profile | Blueprint | Seed | Completed | Contacts (episodes) | Waiting ticks | Stuck movers | Plans (cancelled) | Contacts in a plan |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Improved | 3840x2400 | 42 | 59 / 59 | 3 (2) / 3 (2) | 634 / 700 | 0 / 0 | 6 (1) | 0 |
+| Improved | 3840x2400 | 915839214 | 59 / 59 | 0 (0) / 4 (4) | 962 / 1056 | 1 (0) / 1 (0) | 6 (2) | 0 |
+
+With passing off, both rows match the 2026-11-19 baseline again. Why they move, and what changes with RECOVERY on, is in the [design document](../../../docs/design/2026-11-27-i4sim-recovery-corner.md#verification).
+
 **Parking traffic**, Reciprocal, the same 50000-tick runs, parking traffic **off / on**:
 
 | Blueprint | Seed | Completed products | Contacts |
