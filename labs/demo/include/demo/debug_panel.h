@@ -19,18 +19,19 @@ inline constexpr kinetra::Color vectors{0.8f, 0.95f, 0.4f}, probes{1, 0.65f, 0.2
     collisions{1, 0.4f, 0.4f}, active_agents{1, 1, 0}, home_range{0.75f, 0.5f, 1};
 } // namespace layer_color
 
-/// Which debug layers the Demo draws. A session starts with the first five on.
+/// Which debug layers the Demo draws. A session starts with VECTORS and PATHS on, so a
+/// scenario opens on motion and routes without the clutter of the other layers.
 struct DebugLayers {
     /// Velocity arrows of the movers.
     bool vectors{true};
     /// The three feelers ahead of and behind every mover.
-    bool probes{true};
+    bool probes{};
     /// The planned routes of the player and of agents that follow one.
     bool paths{true};
     /// Outlines of the collision shapes.
-    bool collisions{true};
+    bool collisions{};
     /// A dot on every agent that is awake.
-    bool active_agents{true};
+    bool active_agents{};
     /// A line from every awake agent to its home, and the home range of the selected agent.
     bool home_range{};
     /// No layer: what the Demo draws outside Debug Mode.

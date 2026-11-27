@@ -39,7 +39,19 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
+- **Merge Lab `main` before review when it changed captures or text that the branch changes too, and render those captures again on the merged head** · added 2026-11-27 · source: [#144](https://github.com/SMB-M87/Kinetra-Lab/pull/144)
+  #143 and #142 refreshed the Demo and i4sim debug captures and added a showcase clip after #144 forked. Neither side of the binary conflicts was right (one showed the old menu, the other the old layers), and #144's green CI covered neither. This widens #78's lesson from the pointer to captures.
+- **When a merge moves the Kinetra pointer after the measurements, record the new pointer and the engine changes its range brings in, and measure again what CI does not run** · added 2026-11-27 · source: #146, #150
+  Lab `main` moved the stack's pointer across Kinetra #69's steering change after steps 1 to 3 had measured. Step 3's "gives the base's numbers exactly" then described a pointer the pull request did not record, and measured again, step 1's gate went from a product gain to a product loss under Improved, which the user's decision rested on. This follows the #147 lesson on results recorded later.
+
 ## Applications
+
+- **When a new panel takes the pointer over an existing screen, list the controls it covers at the window sizes the applications open with (the default 1280 × 800, and 1280 × 720) in the design document's decision** · added 2026-11-27 · source: [#152](https://github.com/SMB-M87/Kinetra-Lab/pull/152)
+  At 1280 × 720 a one-line error panel covered the blueprint menu's LAUNCHER and EXIT, which the decision did not mention, so a four-second message blocked them.
+- **When a commit adds or removes test cases, update the case count and the description in the module README's test table in the same commit** · added 2026-11-27 · source: [#151](https://github.com/SMB-M87/Kinetra-Lab/pull/151)
+  1542c94 added two showcase cases, and Demo's README still counted 8 and described neither.
+- **When a pull request applies one rule in several applications, give each application its own test for each goal, not one application per goal** · added 2026-11-27 · source: [#145](https://github.com/SMB-M87/Kinetra-Lab/pull/145)
+  The start of a route over its own body was tested in Demo only, while Dotio (a hook in logic) and i4sim (a call in the view) reach it by other code paths that a later change could break unseen.
 
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
   A slot that a kill empties after the passing step and a spawn refills before the next one never looks empty, so the new enemy inherited the old plan.
@@ -55,6 +67,12 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 - **Test a temporary departure while its product is still in a producer queue** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Checking only the product's optional producer can miss a lost reservation. Verify the actual queue, including order, and exercise the product reaching the front while the mover is away.
+
+- **When a policy gates a transition, gate every code path that performs that transition, not only the one the replay showed** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  DEPARTURE CHECK gated the head-of-queue departure in `approach`, but `schedule()` performs the same departure for a rescheduled product that heads an empty queue at once. Search for every caller that sets the goal (`goals.set`) before choosing where the gate goes.
+
+- **Check a grid id before indexing per-cell data with it** · added 2026-11-27 · source: [#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146)
+  `WeightedGrid::cell` returns `-1` off the grid, and `FloorPlan::processing_cell` indexes without a check. New code that computes an id from a mover's position must check it, as the constructor does, or use an accessor that does.
 
 - **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
   Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
@@ -84,11 +102,17 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Media and tools
 
+- **After merging `main` into a pull request that commits captures, render them again when the merge moved the Kinetra pointer past engine or runtime sources** · added 2026-11-27 · source: [#153](https://github.com/SMB-M87/Kinetra-Lab/pull/153)
+  A capture shows the pointer it was rendered with. #153's `demo-preview` and `i4sim-preview` were rendered at `da98dfa`; #142 then moved `main` to `9841a50`, which changes steering and the settings panel. Re-render the pull request's captures after the merge, and commit what changed or record that they came out byte-identical.
+
 - **When a label moves, search for the label alone with `git grep -n -i` as well as the phrases given to `check_copies.py`, which reads only Markdown and YAML** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
-  #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order.
+  #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order. Since 2026-11-27 a rule in [Verification in Lab](../AGENTS.md#verification-in-lab), after it came back in #148 for a key (Space) that a behavior no longer needs.
 
 - **When a change moves an action out of a menu, run every script that clicked it to its end, the tour included** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
   The tour opened i4sim's debug menu to click BLUEPRINTS and relied on it staying open for the next floor's MOTION rows. With BLUEPRINTS in the settings panel the menu stayed closed and the tour stopped there; CI runs only the clips, not the tour, so only a full local run showed it.
+
+- **When a change flips a default that a script toggles, re-read every click on that row in every script, the clips and the tour, against the new start state** · added 2026-11-27 · source: [#144](https://github.com/SMB-M87/Kinetra-Lab/pull/144)
+  A toggle click means the opposite once the default flips: #144's new layer defaults made the tour turn i4sim's HEATMAP on where it meant to hide it, and dropped Demo's ACTIVE AGENTS from its later chapters. Neither CI nor the clips play the tour.
 
 - **Rebuild after changing an embedded image before capturing scenes that display it** · added 2026-11-24 · source: [#110](https://github.com/SMB-M87/Kinetra-Lab/pull/110)
   A combined capture can otherwise publish a fresh lab screenshot beside a launcher image rendered with the old still. Verify the combined command with a deliberately stale embedded image.

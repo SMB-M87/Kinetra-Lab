@@ -6,6 +6,7 @@
 #include "dotio/ai/fuzzy.h"
 #include "dotio/ai/wander.h"
 #include "dotio/application.h"
+#include "dotio/renderer.h"
 #include "kinetra_lab/inspector_trace.h"
 
 // The header-only panel, to click the rows the way the session does; it needs no window.
@@ -1745,4 +1746,28 @@ TEST_CASE("fixed-cadence Dotio snapshots for the inspector trace") {
         kinetra_lab::write_inspector_tick(std::cout, tick, "ENEMY 0-1", snapshot ? &*snapshot : nullptr);
     }
     CHECK(spawned);
+}
+
+TEST_CASE("the world's draw hook runs right after each active enemy, before the next") {
+    auto world = walled_world();
+    for (int index = 0; index < 3; ++index)
+        wanderer(*world, cell_center(150, 150) + kinetra::Vec2{float(index) * 10, 0}, 0, index * 2);
+    // Records what is drawn, in order: an enemy's or the player's circle by its center, and
+    // each run of the hook by the center of the enemy it was given.
+    struct Recorder final : dotio::Renderer {
+        std::vector<std::pair<char, kinetra::Vec2>> calls;
+        void draw_circle(kinetra::Vec2 center, float, kinetra::Color) override {
+            calls.emplace_back('c', center);
+        }
+        void draw_segment(kinetra::Segment, kinetra::Color) override {}
+    } recorder;
+    world->draw(recorder, [&](dotio::Enemy &enemy) { recorder.calls.emplace_back('h', enemy.position); });
+    std::vector<std::pair<char, kinetra::Vec2>> expected;
+    for (int index = 0; index < 3; ++index) {
+        const auto center = cell_center(150, 150) + kinetra::Vec2{float(index) * 10, 0};
+        expected.emplace_back('c', center);
+        expected.emplace_back('h', center);
+    }
+    expected.emplace_back('c', world->get_player().position);
+    CHECK(recorder.calls == expected);
 }

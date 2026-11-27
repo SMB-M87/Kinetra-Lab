@@ -110,6 +110,10 @@ void demo_chapter(Tour &tour) {
     tour.caption("LAYERS: WHAT DEBUG MODE DRAWS, EACH IN ITS COLOR");
     tour.click_row("LAYERS");
     tour.pause();
+    // STEERING PROBES, COLLISION SHAPES and ACTIVE AGENTS start off: all five layers on for a
+    // look, then three off, so HOME RANGE shows on PATHS and ACTIVE AGENTS, as before.
+    click_rows(tour, {"STEERING PROBES", "COLLISION SHAPES", "ACTIVE AGENTS"});
+    tour.wait(0.8);
     click_rows(tour, {"STEERING PROBES", "VECTORS", "COLLISION SHAPES"});
     tour.wait(0.8);
     tour.caption("HOME RANGE: AGENTS STAY AROUND THE PLACE THEY STARTED");
@@ -371,8 +375,8 @@ void i4sim_chapter(Tour &tour) {
     tour.pause(0.7, 1.0);
     tour.click_menu_page_row(row_of(scenes, showcase_scene, 0), scenes.size());
     tour.wait(1.2);
+    // A scene loads running.
     tour.caption("H CROSSING: FOUR MOVERS SWAP CORNERS WITHOUT PATH PLANNING");
-    tour.tap({Key::space});
     tour.wait(11.0);
     tour.caption("BLUEPRINTS IN THE SETTINGS RETURNS TO THE CATALOG");
     tour.open_settings(i4sim_sim_lines, i4sim_debug_lines);
@@ -388,7 +392,8 @@ void i4sim_chapter(Tour &tour) {
     tour.toggle_debug_menu();
     tour.wait(0.6);
     tour.caption("A CLICK INSPECTS A MOVER, SHIFT + CLICK GIVES IT A GOAL");
-    // The floor loads paused, so its movers still stand where the blueprint puts them.
+    // The floor loads paused behind its RUN button, so its movers still stand where the
+    // blueprint puts them.
     const auto blueprint = i4sim::load_blueprint(directory / floor_blueprint);
     if (blueprint.movers.empty())
         throw std::runtime_error("The tour's i4sim floor has no movers");
@@ -429,9 +434,10 @@ void i4sim_chapter(Tour &tour) {
     tour.caption("LAYERS: ROUTES, FORCES, BORDERS AND DETECTION, PART BY PART");
     tour.click_row("LAYERS");
     tour.pause();
-    click_rows(tour, {"DETECTION", "FORCES", "HEATMAP"});
+    // HEATMAP starts off, so hiding DETECTION and FORCES leaves routes and borders.
+    click_rows(tour, {"DETECTION", "FORCES"});
     tour.wait(2.2);
-    click_rows(tour, {"HEATMAP", "FORCES", "DETECTION"});
+    click_rows(tour, {"FORCES", "DETECTION"});
     tour.wait(1.0);
     tour.caption("TRAFFIC: JUNCTIONS AND CORRIDORS ADMIT ONE DIRECTION AT A TIME");
     tour.click_row("TRAFFIC");

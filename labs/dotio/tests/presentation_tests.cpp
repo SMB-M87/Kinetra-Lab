@@ -1,7 +1,9 @@
 // Tests for the Dotio presentation: the wall palette without a window, then input
 // mapping, culling, statistics, AI labels and the Ghost marker, read back from a real
-// OpenGL context. The context checks share one Runtime, because only one may exist at a
-// time, so they form one case. CTest labels the suite `graphics`.
+// OpenGL context. Those context checks share one Runtime, because only one may exist at a
+// time, so they form one case. The last cases check that enemy paths and probes pass under the
+// player, the player's vector under the enemies, that an enemy's vector starts over the enemy,
+// and the width of a path. CTest labels the suite `graphics`.
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/presentation/presentation.h"
 #include "dotio/presentation/session.h"
@@ -16,6 +18,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace {
@@ -336,4 +340,308 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     reopened.camera.position = dotio::to_world(application.world().get_ghost().position);
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(ghost_marker_pixels(reopened) == 0, "Ghost camera still draws a purple player marker");
+}
+
+TEST_CASE("an enemy's path passes under the player it crosses") {
+    Runtime runtime("Dotio paths under bodies", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.paths.fill(true);
+    application.world().enemy_tuning().wander = dotio::WanderMode::path;
+    // Zoomed in, so the player is large; the application keeps the zoom within its limits.
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto player_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The player, {0.4, 0, 1}.
+        return std::abs(pixel[0] - 102) < 30 && pixel[1] < 30 && pixel[2] > 225;
+    };
+    // A point of an enemy's path inside the player, both as drawn this frame. The player has
+    // no path of its own.
+    std::optional<Vec2> crossing;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !crossing; ++frame) {
+        application.advance(1.0 / 60, {}, runtime.camera);
+        const auto &player = world.get_player();
+        const auto simulated = dotio::to_world(player.position);
+        const dotio::PresentedPositions presented(application);
+        // The renderer moves the camera onto the drawn player for the frame.
+        shift = dotio::to_world(player.position) - simulated;
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active || enemy.frozen || enemy.path.remaining().empty())
+                continue;
+            Vec2 from = enemy.position;
+            for (const auto waypoint : enemy.path.remaining()) {
+                const auto segment = waypoint - from;
+                const float squared = dot(segment, segment);
+                const auto point =
+                    from + segment * (squared > 0 ? std::clamp(dot(player.position - from, segment) / squared,
+                                                               0.f, 1.f)
+                                                  : 0.f);
+                if (length(point - player.position) < 0.6f * player.radius) {
+                    crossing = dotio::to_world(point);
+                    break;
+                }
+                from = waypoint;
+            }
+            if (crossing)
+                break;
+        }
+    }
+    REQUIRE_MESSAGE(crossing, "No enemy path crossed the player");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*crossing);
+    CHECK_MESSAGE(player_color(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
+                  "An enemy's path covers the player");
+}
+
+TEST_CASE("an enemy's probes pass under the player they cross") {
+    Runtime runtime("Dotio probes under bodies", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.probes = true;
+    // Path wander, so every enemy shows the original probes: forward and two to the rear.
+    application.world().enemy_tuning().wander = dotio::WanderMode::path;
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto player_color = [](std::array<std::uint8_t, 4> pixel) {
+        return std::abs(pixel[0] - 102) < 30 && pixel[1] < 30 && pixel[2] > 225;
+    };
+    // A point (world space) of an enemy's probe inside the player, both as drawn this frame.
+    std::optional<Vec2> crossing;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !crossing; ++frame) {
+        application.advance(1.0 / 60, {}, runtime.camera);
+        const auto &player = world.get_player();
+        const auto simulated = dotio::to_world(player.position);
+        const dotio::PresentedPositions presented(application);
+        shift = dotio::to_world(player.position) - simulated;
+        const auto center = dotio::to_world(player.position);
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active)
+                continue;
+            const auto start = dotio::to_world(enemy.position);
+            const auto heading = normalized(dotio::to_world(enemy.velocity));
+            for (const float angle : {0.f, 2.35619449f, -2.35619449f}) {
+                const auto segment = rotated(heading, angle) * (angle == 0 ? 4.f : 1.2f);
+                const float squared = dot(segment, segment);
+                if (squared == 0)
+                    continue;
+                const auto point =
+                    start + segment * std::clamp(dot(center - start, segment) / squared, 0.f, 1.f);
+                if (length(point - center) < 0.6f * player.radius / 25) {
+                    crossing = point;
+                    break;
+                }
+            }
+            if (crossing)
+                break;
+        }
+    }
+    REQUIRE_MESSAGE(crossing, "No enemy probe crossed the player");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*crossing);
+    CHECK_MESSAGE(player_color(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
+                  "An enemy's probe covers the player");
+}
+
+TEST_CASE("the player's velocity vector passes under the enemies it crosses") {
+    Runtime runtime("Dotio vectors under bodies", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.vectors = true;
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto vector_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The vectors, {0.8, 1, 0.3}.
+        return std::abs(pixel[0] - 204) < 25 && pixel[1] > 230 && std::abs(pixel[2] - 77) < 25;
+    };
+    // The shaft of a vector as draw_debug_vector draws it: 0.3 s of motion, at least 1.5 world
+    // units long; world space.
+    const auto shaft = [&](Vec2 position, Vec2 velocity) {
+        const auto start = dotio::to_world(position);
+        const auto shown = dotio::to_world(velocity) * 0.3f;
+        const float size = std::max({length(shown), 1.5f, 24.f / runtime.camera.pixels_per_unit});
+        return std::pair{start, length(shown) > 0 ? start + normalized(shown) * size : start};
+    };
+    // The player walks to the nearest enemy until its vector crosses the middle of an enemy,
+    // clear of that enemy's own vector and of the player, over which each starts; as drawn this
+    // frame.
+    std::optional<Vec2> crossing;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !crossing; ++frame) {
+        dotio::Commands walk;
+        const dotio::Enemy *nearest = nullptr;
+        for (auto &enemy : world.get_enemies())
+            if (enemy.is_active && (!nearest || length(enemy.position - world.get_player().position) <
+                                                    length(nearest->position - world.get_player().position)))
+                nearest = &enemy;
+        if (nearest)
+            walk.direction =
+                normalized(dotio::to_world(nearest->position) - dotio::to_world(world.get_player().position));
+        application.advance(1.0 / 60, walk, runtime.camera);
+        const auto &player = world.get_player();
+        const auto simulated = dotio::to_world(player.position);
+        const dotio::PresentedPositions presented(application);
+        shift = dotio::to_world(player.position) - simulated;
+        const auto [start, end] = shaft(player.position, player.velocity);
+        if (start == end)
+            continue;
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active)
+                continue;
+            const auto center = dotio::to_world(enemy.position);
+            const float radius = enemy.radius / 25;
+            const auto segment = end - start;
+            const auto point =
+                start + segment * std::clamp(dot(center - start, segment) / dot(segment, segment), 0.f, 1.f);
+            const auto [own_start, own_end] = shaft(enemy.position, enemy.velocity);
+            if (length(point - center) < 0.6f * radius &&
+                distance_to_segment(point, own_start, own_end) > 0.3f * radius &&
+                length(point - start) > 1.5f * player.radius / 25) {
+                crossing = point;
+                break;
+            }
+        }
+    }
+    REQUIRE_MESSAGE(crossing, "The player's vector crossed no enemy");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*crossing);
+    // The two-pixel shaft may miss the computed pixel by one or two.
+    bool covered = false;
+    for (int dy = -2; dy <= 2; ++dy)
+        for (int dx = -2; dx <= 2; ++dx)
+            covered = covered || vector_color(runtime.frame().pixel(int(std::lround(at.x)) + dx,
+                                                                    int(std::lround(at.y)) + dy));
+    CHECK_MESSAGE(!covered, "The player's vector covers an enemy it crosses");
+}
+
+TEST_CASE("an enemy's velocity vector starts over the enemy itself") {
+    Runtime runtime("Dotio vector start", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.vectors = true;
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto vector_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The vectors, {0.8, 1, 0.3}.
+        return std::abs(pixel[0] - 204) < 25 && pixel[1] > 230 && std::abs(pixel[2] - 77) < 25;
+    };
+    // A point (world space) halfway out along a moving enemy's vector, inside that enemy and
+    // clear of every other body, as drawn this frame.
+    std::optional<Vec2> start;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !start; ++frame) {
+        application.advance(1.0 / 60, {}, runtime.camera);
+        const auto simulated = dotio::to_world(world.get_player().position);
+        const dotio::PresentedPositions presented(application);
+        shift = dotio::to_world(world.get_player().position) - simulated;
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active || length(enemy.velocity) == 0)
+                continue;
+            const auto center = dotio::to_world(enemy.position);
+            const float radius = enemy.radius / 25;
+            const auto point = center + normalized(dotio::to_world(enemy.velocity)) * (0.5f * radius);
+            bool clear = length(dotio::to_world(world.get_player().position) - center) > 3 * radius;
+            for (auto &other : world.get_enemies())
+                clear = clear && (&other == &enemy || !other.is_active ||
+                                  length(dotio::to_world(other.position) - center) > 3 * radius);
+            // In the middle of the view, clear of the HUD: the renderer moves the camera by `shift`.
+            const auto at = runtime.camera.world_to_screen(point - shift);
+            if (clear && at.x > 100 && at.y > 60 && at.x < 540 && at.y < 300) {
+                start = point;
+                break;
+            }
+        }
+    }
+    REQUIRE_MESSAGE(start, "No moving enemy stood clear of the others in view");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*start);
+    bool shown = false;
+    for (int dy = -2; dy <= 2; ++dy)
+        for (int dx = -2; dx <= 2; ++dx)
+            shown = shown || vector_color(runtime.frame().pixel(int(std::lround(at.x)) + dx,
+                                                                int(std::lround(at.y)) + dy));
+    CHECK_MESSAGE(shown, "An enemy's vector does not start over the enemy");
+}
+
+TEST_CASE("an enemy's path is about 2.5 screen pixels wide at every zoom") {
+    for (const float zoom : {5.f, 50.f}) {
+        CAPTURE(zoom);
+        Runtime runtime("Dotio path width", 640, 480);
+        runtime.read_back(true);
+        dotio::Application application(42);
+        application.debug = true;
+        application.paths.fill(true);
+        application.world().enemy_tuning().wander = dotio::WanderMode::path;
+        auto &world = application.world();
+        // The middle of a straight, axis-aligned path segment on screen, away from every body
+        // and every other path, with the direction across it; as drawn this frame.
+        std::optional<std::pair<Vec2, Vec2>> sample;
+        Color color{};
+        Vec2 shift;
+        for (int frame = 0; frame < 3000 && !sample; ++frame) {
+            runtime.camera.pixels_per_unit = zoom;
+            application.advance(1.0 / 60, {}, runtime.camera);
+            const auto simulated = dotio::to_world(world.get_player().position);
+            const dotio::PresentedPositions presented(application);
+            shift = dotio::to_world(world.get_player().position) - simulated;
+            for (auto &enemy : world.get_enemies()) {
+                const auto route = enemy.path.remaining();
+                if (!enemy.is_active || enemy.frozen || route.size() < 2)
+                    continue;
+                for (std::size_t i = 1; i < route.size() && !sample; ++i) {
+                    const auto a = dotio::to_world(route[i - 1]), b = dotio::to_world(route[i]);
+                    const bool straight = std::abs(a.x - b.x) < 0.01f || std::abs(a.y - b.y) < 0.01f;
+                    const auto middle = (a + b) / 2;
+                    const auto at = runtime.camera.world_to_screen(middle - shift);
+                    bool clear = length(dotio::to_world(world.get_player().position) - middle) > 2;
+                    for (auto &other : world.get_enemies())
+                        clear = clear &&
+                                (!other.is_active || length(dotio::to_world(other.position) - middle) > 2);
+                    if (straight && clear && length(b - a) > 0 && at.x > 20 && at.y > 20 && at.x < 620 &&
+                        at.y < 460 && !(at.x < 400 && at.y > 330)) {
+                        sample = std::pair{middle, perpendicular(normalized(b - a))};
+                        color = enemy.is_kamikazing()   ? dotio::state_color::kamikaze
+                                : enemy.is_recovering() ? dotio::state_color::recover
+                                : enemy.is_pursueing()  ? dotio::state_color::pursue
+                                                        : dotio::state_color::wander;
+                    }
+                }
+                if (sample)
+                    break;
+            }
+        }
+        REQUIRE_MESSAGE(sample, "No straight path segment stood clear in view");
+        REQUIRE(runtime.camera.pixels_per_unit == zoom);
+        dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+        auto camera = runtime.camera;
+        camera.position += shift;
+        // Count the path-colored pixels on a short line across the segment.
+        const auto matches = [&](std::array<std::uint8_t, 4> pixel) {
+            return std::abs(pixel[0] - int(color.r * 255)) < 30 &&
+                   std::abs(pixel[1] - int(color.g * 255)) < 30 &&
+                   std::abs(pixel[2] - int(color.b * 255)) < 30;
+        };
+        const auto center = camera.world_to_screen(sample->first);
+        const Vec2 across{sample->second.x, -sample->second.y};
+        int pixels = 0;
+        for (int step = -8; step <= 8; ++step) {
+            const auto at = center + across * float(step);
+            pixels += matches(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y))));
+        }
+        CHECK(pixels >= 2);
+        CHECK(pixels <= 3);
+    }
 }

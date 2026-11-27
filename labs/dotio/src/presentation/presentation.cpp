@@ -4,7 +4,10 @@
 #include "kinetra_lab/camera.h"
 #include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
+#include "kinetra_lab/route.h"
+#include "kinetra_lab/under_bodies.h"
 #include <kinetra/runtime/help_view.h>
+#include <kinetra/runtime/hud_text.h>
 
 namespace dotio {
 using namespace kinetra;
@@ -65,6 +68,10 @@ Color color_of_state(dotio::Enemy &enemy) {
            : enemy.is_attacking()  ? state_color::attack
                                    : state_color::wander;
 }
+/// Seconds of motion the velocity vector of an enemy or the player shows.
+constexpr float velocity_vector_scale = 0.3f;
+/// The velocity vectors of the crates.
+constexpr Color prop_vector_color{1, 0.8f, 0.2f};
 void panel(Runtime &runtime, Vec2 center, Vec2 half, Color color) {
     runtime.box(runtime.camera.screen_to_world(center), half / runtime.camera.pixels_per_unit, 0, color);
 }
@@ -127,15 +134,93 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (application.debug && application.collisions)
                 draw_debug_box(runtime, center, {2, 2}, 0, {0.6f, 0.8f, 1});
         }
+    // The velocity vectors and the steering probes go under the bodies, as the routes below do,
+    // so no arrow, feeler or wall contact hides the player, a crate or an enemy. The start of a
+    // body's own vector is drawn again over that body alone, right after it.
+    const bool vectors = application.debug && application.vectors;
+    const auto enemy_vector = [](const dotio::Enemy &enemy) {
+        return to_world(enemy.velocity) * velocity_vector_scale;
+    };
+    const auto player_vector = to_world(world.get_player().velocity) * velocity_vector_scale;
+    if (vectors) {
+        for (const auto &prop : world.get_objects())
+            draw_debug_vector(runtime, to_world(prop.body.position), to_world(prop.body.velocity),
+                              prop_vector_color);
+        for (auto &enemy : world.get_enemies())
+            if (enemy.is_active)
+                draw_debug_vector(runtime, to_world(enemy.position), enemy_vector(enemy),
+                                  layer_color::vectors);
+        draw_debug_vector(runtime, to_world(world.get_player().position), player_vector,
+                          layer_color::vectors);
+    }
+    if (application.debug && application.probes)
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active)
+                continue;
+            const Vec2 position = to_world(enemy.position);
+            const Vec2 heading = normalized(to_world(enemy.velocity));
+            // A feeler and, where it meets a wall, the point of contact.
+            const auto draw_probe = [&](kinetra::Segment probe) {
+                runtime.line(to_world(probe.start), to_world(probe.end), 0.04f, color_of_state(enemy));
+                kinetra::Vec2 hit{};
+                if (application.world().grid().is_intersecting_any_cell(probe, hit))
+                    runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
+            };
+            // An enemy that wanders by steering shows the three feelers its steering
+            // tests; every other one the original probes: forward and two to the rear.
+            if (!enemy.frozen && enemy.is_wandering() &&
+                world.enemy_tuning().wander == dotio::WanderMode::steering)
+                for (const auto &feeler : dotio::wander_feelers(enemy))
+                    draw_probe(feeler);
+            else
+                for (const float angle : {0.f, 2.35619449f, -2.35619449f})
+                    draw_probe({enemy.position,
+                                from_world(position + rotated(heading, angle) * (angle == 0 ? 4.f : 1.2f))});
+        }
+    // Every enemy's route goes under the bodies, so it never hides the player, a crate or
+    // another enemy; the start of an enemy's own route is drawn over that enemy alone, right
+    // after it, so the enemies drawn later cover it again where they overlap.
+    const auto shows_path = [&](dotio::Enemy &enemy) {
+        const auto &p = application.paths;
+        return application.debug && enemy.is_active && p[0] && !enemy.frozen &&
+               ((p[1] && enemy.is_wandering()) || (p[2] && enemy.is_pursueing()) ||
+                (p[3] && enemy.is_kamikazing()) || (p[4] && enemy.is_recovering()));
+    };
+    const float path_width = kinetra_lab::route_line_pixels / runtime.camera.pixels_per_unit;
+    // Lines from `start` through `route`, in legacy pixels.
+    const auto draw_path = [&](Vec2 start, std::span<const Vec2> route, Color color) {
+        for (const auto waypoint : route) {
+            runtime.line(to_world(start), to_world(waypoint), path_width, color);
+            start = waypoint;
+        }
+    };
+    for (auto &enemy : world.get_enemies())
+        if (shows_path(enemy))
+            draw_path(enemy.position, enemy.path.remaining(), color_of_state(enemy));
     for (const auto &prop : world.get_objects()) {
         const auto center = to_world(prop.body.position);
         renderer.draw_circle(prop.body.position, prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
-        if (application.debug && application.vectors)
-            draw_debug_vector(runtime, center, to_world(prop.body.velocity), {1, 0.8f, 0.2f});
+        if (vectors)
+            kinetra_lab::draw_vector_start(runtime, center, to_world(prop.body.velocity),
+                                           prop.body.radius / 25, prop_vector_color);
         if (application.debug && application.collisions)
             draw_debug_circle(runtime, center, prop.body.radius / 25, {1, 0.8f, 0.2f});
     }
-    world.draw(renderer);
+    world.draw(renderer, [&](dotio::Enemy &enemy) {
+        if (vectors)
+            kinetra_lab::draw_vector_start(runtime, to_world(enemy.position), enemy_vector(enemy),
+                                           enemy.radius / 25, layer_color::vectors);
+        if (shows_path(enemy)) {
+            // Less half the line's width, in legacy pixels, so the line's edge stays on the enemy.
+            const auto start = kinetra_lab::route_start(enemy.position, enemy.path.remaining(),
+                                                        enemy.radius - from_world({path_width / 2, 0}).x);
+            draw_path(start.front(), std::span(start).subspan(1), color_of_state(enemy));
+        }
+    });
+    // World::draw draws the player last.
+    if (vectors)
+        kinetra_lab::draw_vector_start(runtime, to_world(world.get_player().position), player_vector,
+                                       world.get_player().radius / 25, layer_color::vectors);
     if (const auto *enemy = application.selected_enemy())
         draw_debug_circle(runtime, to_world(enemy->position), enemy->radius / 25 + 0.1f, {1, 1, 0});
     if (application.debug) {
@@ -145,8 +230,6 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             const auto position = to_world(enemy.position);
             if (application.active_agents && !enemy.frozen)
                 runtime.circle(position, 0.18f, {1, 1, 0});
-            if (application.vectors)
-                draw_debug_vector(runtime, position, to_world(enemy.velocity) * 0.3f, layer_color::vectors);
             if (application.collisions)
                 draw_debug_circle(runtime, position, enemy.radius / 25, layer_color::collisions);
             if (application.ai) {
@@ -166,9 +249,6 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                 }
             }
         }
-        if (application.vectors)
-            draw_debug_vector(runtime, to_world(world.get_player().position),
-                              to_world(world.get_player().velocity) * 0.3f, layer_color::vectors);
     }
     if (application.debug && application.collisions) {
         draw_debug_circle(runtime, to_world(world.get_player().position), world.get_player().radius / 25,
@@ -182,37 +262,6 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             if (!enemy.is_active)
                 continue;
             const auto &p = application.paths;
-            if (p[0] && !enemy.frozen &&
-                ((p[1] && enemy.is_wandering()) || (p[2] && enemy.is_pursueing()) ||
-                 (p[3] && enemy.is_kamikazing()) || (p[4] && enemy.is_recovering()))) {
-                auto start = to_world(enemy.position);
-                for (const auto waypoint : enemy.path.remaining()) {
-                    const auto end = to_world(waypoint);
-                    runtime.line(start, end, 0.05f, color_of_state(enemy));
-                    start = end;
-                }
-            }
-            const Vec2 position = to_world(enemy.position);
-            const Vec2 heading = normalized(to_world(enemy.velocity));
-            // A feeler and, where it meets a wall, the point of contact.
-            const auto draw_probe = [&](kinetra::Segment probe) {
-                runtime.line(to_world(probe.start), to_world(probe.end), 0.04f, color_of_state(enemy));
-                kinetra::Vec2 hit{};
-                if (application.world().grid().is_intersecting_any_cell(probe, hit))
-                    runtime.circle(to_world(hit), 0.12f, {1, 1, 0});
-            };
-            if (application.probes) {
-                // An enemy that wanders by steering shows the three feelers its steering
-                // tests; every other one the original probes: forward and two to the rear.
-                if (!enemy.frozen && enemy.is_wandering() &&
-                    world.enemy_tuning().wander == dotio::WanderMode::steering)
-                    for (const auto &feeler : dotio::wander_feelers(enemy))
-                        draw_probe(feeler);
-                else
-                    for (const float angle : {0.f, 2.35619449f, -2.35619449f})
-                        draw_probe({enemy.position, from_world(position + rotated(heading, angle) *
-                                                                              (angle == 0 ? 4.f : 1.2f))});
-            }
             if (p[5] && enemy.is_recovering()) {
                 kinetra::Vec2 hit{};
                 if (application.world().grid().is_intersecting_any_cell({enemy.position, enemy.target},
@@ -258,7 +307,7 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
             draw_text(
                 runtime, text,
                 {runtime.camera.viewport.x - static_cast<float>(text.size() * 6 + 8) * statistics_scale, y},
-                statistics_scale, {1, 1, 0});
+                statistics_scale, hud::statistics_color);
         };
         if (!population.empty())
             draw_row(population, baseline - 12 * statistics_scale);

@@ -43,7 +43,7 @@ flowchart TD
     Presentation --> Runtime[Kinetra Runtime]
 ```
 
-Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The controller reads the engine's right-button input state, and the blueprint screen draws its list with the optional heading and status text of `LaunchMenu`.
+Kinetra never imports factory models or Lab headers. Priority steering is a separate engine mode next to `steer` and `Navigation`, so Demo keeps its own tuning. The controller reads the engine's right-button input state, and the blueprint screen draws its list with `LaunchMenu`'s optional heading, and its message in `LaunchMenu`'s error panel.
 
 ## Simulation structure
 
@@ -55,14 +55,14 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Fleet` | [fleet.h](../labs/i4sim/include/i4sim/simulation/detail/fleet.h) | Movers, progress counters, per-tick controls and stop lines | Shared mover data that the components pass to each other |
 | Routing | [routing.h](../labs/i4sim/include/i4sim/simulation/detail/routing.h) | Nothing | Grid routes refined around stationary movers; Navigation recovery routes |
 | `Traffic` | [traffic.h](../labs/i4sim/include/i4sim/simulation/detail/traffic.h) | Gates, exit reservations, corridor recoveries | Junction and corridor admission, exit pockets, corridor recovery |
-| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/include/i4sim/simulation/detail/predictive_passing.h) | Plans, retry ticks, plan ids | [Predictive passing](#predictive-passing) |
+| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/include/i4sim/simulation/detail/predictive_passing.h) | Kinetra's `PassingCoordinator`, which holds plans, retry ticks and plan ids | [Predictive passing](#predictive-passing) |
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
 | `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Active refuge and return trips | Checked parking relief after stall observation, including outward withdrawal from newly protected space |
 | `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall and make-way events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
-| `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Per-mover observations and the active episode's onset diagnosis | Observe route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
+| `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Kinetra's [`StallDetector`](../external/Kinetra/docs/engine/navigation.md#stall-detection), which holds the observations and the active episode's onset diagnosis | Tell the detector each mover's state and route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
 
 ```mermaid
 flowchart TD
@@ -99,7 +99,7 @@ flowchart TD
 2. Open a random product while the workload is on and fewer products than movers are open.
 3. Refresh the heatmap on the first tick of every ten.
 4. Run the parking interlock (`Goals::coordinate_parking`).
-5. Move (`MotionStep::run`): prepare routes, snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
+5. Move (`MotionStep::run`): prepare routes, grant and end rights of way (RIGHT OF WAY), snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
 6. Advance production and drop completed products.
 7. Turn the shuttle: once every shuttling mover has stood still for `shuttle_pause_ticks` (400), send each one to its other end through the checks of `move_to`.
 8. Observe stall episodes, then advance MAKE WAY trips.
@@ -119,7 +119,7 @@ stateDiagram-v2
     moving --> moving: new goal with a route
 ```
 
-The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival), `parking_staging` (waiting outside another mover's route), or `making_way` (temporarily leaving a parking place and returning on a checked route). Both temporary goal kinds survive arrival at their refuge. The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls). MAKE WAY also uses active episodes to decide when to check a route.
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival), `parking_staging` (waiting outside another mover's route), or `making_way` (temporarily leaving a parking place and returning on a checked route). Both temporary goal kinds survive arrival at their refuge. The operator hold (`held`) is independent of both. `Coordination` holds what traffic, passing and the right of way decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls). MAKE WAY also uses active episodes to decide when to check a route.
 
 ## Execution
 
@@ -246,8 +246,11 @@ Initial transport allocation requires a clear departure route around stationary 
 stalled bodies. If refinement finds no connection or exceeds its 256-node budget,
 allocation skips that mover. Ordinary routing can use the weighted route in those
 cases. When a product already has a mover and reaches the front of the producer's
-queue, dispatch uses ordinary routing. The [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem)
-shows how that can leave a mover with an obstructed first leg. Other moving
+queue, dispatch uses ordinary routing by default. The [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem)
+shows how that can leave a mover with an obstructed first leg. With DEPARTURE CHECK on, that
+departure needs the same refined route as an allocation; without one the mover keeps
+waiting at its holding place for at most 1,200 ticks, then departs as before
+([departure check](../labs/i4sim/README.md#departure-check)). Other moving
 traffic still uses local avoidance. Optional geometric recovery is a separate policy.
 
 Route recovery converts millimeter geometry into units of one planner resolution (a quarter of the smaller factory cell dimension), then converts the route back to millimeters. This keeps long factory routes within the planner's spatial query budget while retaining the configured resolution and mover clearance.
@@ -260,9 +263,12 @@ The [application guide](../labs/i4sim/README.md#provenance-and-differences) is a
 
 ## Predictive passing
 
-Kinetra supplies the [conflict prediction, lane candidates and guard](../external/Kinetra/docs/engine/navigation.md#predictive-passing).
-i4sim checks candidates against its floor, movers, traffic zones and reservations. It
-owns plan state, priority, waiting, retries and route restoration.
+Kinetra supplies the [conflict prediction, lane candidates and guard](../external/Kinetra/docs/engine/navigation.md#predictive-passing)
+and the `PassingCoordinator` that owns plan state, priority, waiting and retries
+([ADR 0018](../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md)).
+i4sim tells it what each mover is (free, under another control, or standing), checks
+each lane against its floor and traffic zones, restores routes after a plan, and logs
+the plan's events with the factory's end reasons.
 
 [Lab coordination](../labs/i4sim/src/simulation/predictive_passing.cpp) is an opt-in policy
 for Improved and Reciprocal. It predicts conflicting, approximately opposite route
@@ -297,7 +303,8 @@ plans, and ignore movers behind them.
 Disabling the feature, blocking a participant or issuing a new goal releases the
 pair and rebuilds the original routes. A pair also releases after 240 ticks without
 measurable progress. After a plan that did not complete, both participants wait 120
-ticks before retrying; after a completed one they may pair again at once. Body positions
+ticks before retrying; after a completed one, or one that a new goal or switching the
+feature off ended, they may pair again from the next tick. Body positions
 are never snapped by this policy. Existing local avoidance and contact correction
 remain active. The guard predicts along current velocities; this is not a general
 collision-free or starvation-free scheduler.

@@ -31,6 +31,10 @@ constexpr double longest_pan_frame = 0.1;
 /// Factor of one SPEED or FORCE step, and the shortest horizon in ticks; the longest is
 /// `longest_motion_horizon`.
 constexpr float parameter_step = 1.25f, shortest_horizon = 1;
+/// Size of the RUN button in screen pixels, the margin it keeps from the viewport's sides, and
+/// its top: below the 24-pixel toolbar, in the band the camera fit keeps free above the floor.
+constexpr Vec2 start_button_size{200, 40};
+constexpr float start_button_margin = 16, start_button_top = 30;
 
 /// The choices of the PLANNER list, in menu order: two settings of MotionSettings shown as
 /// one list, because the heatmap only matters while routes are planned.
@@ -90,6 +94,12 @@ constexpr std::pair<std::string_view, Layer> layer_rows[]{{"GRID", Layer::grid},
                                                           {"CONTACT SHAPES", Layer::contact_shapes}};
 } // namespace
 
+kinetra::Aabb start_button(Vec2 viewport) {
+    const float width = std::max(0.f, std::min(start_button_size.x, viewport.x - 2 * start_button_margin));
+    const Vec2 corner{(viewport.x - width) / 2, start_button_top};
+    return {corner, corner + Vec2{width, start_button_size.y}};
+}
+
 FactoryController::FactoryController(std::uint32_t seed, bool running, unsigned updates_per_second)
     : seed_(seed), start_running_(running), updates_per_second_(updates_per_second) {
     if (updates_per_second < slowest_update_rate || updates_per_second > fastest_update_rate)
@@ -106,8 +116,10 @@ bool FactoryController::load(const std::filesystem::path &path) {
         simulation_ = std::move(next);
         scenario_ = std::move(scenario);
         restart_timer_ = {};
-        if (start_running_)
+        // A scene's goals are set to be watched, so it plays at once; a floor waits for RUN.
+        if (start_running_ || scenario_)
             simulation_->run();
+        awaiting_start_ = !simulation_->running();
         simulation_->updates_per_second(updates_per_second_);
         selected_mover_.reset();
         selected_producer_.reset();
@@ -176,6 +188,8 @@ void FactoryController::toggle_pause() {
         simulation_->pause();
     else
         simulation_->run();
+    if (simulation_->running())
+        awaiting_start_ = false;
 }
 
 void FactoryController::change_motion(const std::function<void(MotionSettings &)> &change) {
@@ -195,7 +209,7 @@ void FactoryController::change_update_rate(bool faster) {
                                            : std::max(slowest_update_rate, rate / 2));
 }
 
-void FactoryController::restart() {
+void FactoryController::restart(bool running) {
     const auto motion = simulation_->motion_settings();
     Simulation fresh(simulation_->blueprint(), seed_);
     fresh.updates_per_second(simulation_->updates_per_second());
@@ -218,6 +232,11 @@ void FactoryController::restart() {
         }
     } else
         simulation_->configure_motion(motion);
+    if (running)
+        simulation_->run();
+    // Only R makes a paused restart wait for RUN (handle_keys); a scheduled replay of a
+    // paused scene keeps the pause the operator chose.
+    awaiting_start_ = false;
     selected_mover_.reset();
     selected_producer_.reset();
 }
@@ -225,11 +244,8 @@ void FactoryController::restart() {
 void FactoryController::restart_when_due() {
     if (!scenario_ || scenario_->repeat != ScenarioRepeat::restart || !restart_timer_.due(*simulation_))
         return;
-    // A scheduled replay resumes a running show. A manual restart starts paused.
-    const bool was_running = simulation_->running();
-    restart();
-    if (loaded() && was_running)
-        simulation_->run();
+    // A scheduled replay keeps the show's run state.
+    restart(simulation_->running());
 }
 
 void FactoryController::fit(Camera2D &camera) {
@@ -250,9 +266,11 @@ void FactoryController::handle_keys(const Input &input, Camera2D &camera) {
     if (input.hit(Key::p) || input.hit(Key::space))
         toggle_pause();
     if (input.hit(Key::r)) {
-        restart();
+        // A scene restarts as it loads: running. A floor waits for RUN again.
+        restart(scenario_.has_value());
         if (!loaded())
             return;
+        awaiting_start_ = !simulation_->running();
     }
     if (input.hit(Key::g))
         simulation_->set_workload(!simulation_->workload());
@@ -296,6 +314,11 @@ void FactoryController::pick(Vec2 point, bool toggle) {
 void FactoryController::handle_pointer(const Input &input, const Camera2D &camera) {
     if (!input.clicked && !input.right_clicked)
         return;
+    if (awaiting_start() && start_button(camera.viewport).overlaps({input.mouse, input.mouse})) {
+        if (input.clicked)
+            toggle_pause();
+        return;
+    }
     const auto point = flip_y(camera.screen_to_world(input.mouse));
     const bool shift = input.down(Key::shift);
     if (shift && input.clicked && selected_mover_) {
@@ -458,6 +481,11 @@ void FactoryController::add_traffic_entries(std::vector<kinetra::DebugEntry> &en
         passing.value = [] { return std::string("LEGACY"); };
     entries.push_back(std::move(passing));
     entries.push_back(motion_check("MAKE WAY", &MotionSettings::make_way));
+    entries.push_back(motion_check("DEPARTURE CHECK", &MotionSettings::departure_check));
+    auto right_of_way = motion_check("RIGHT OF WAY", &MotionSettings::right_of_way);
+    if (!supports_right_of_way(simulation_->motion_settings().profile))
+        right_of_way.value = [] { return std::string("LEGACY"); };
+    entries.push_back(std::move(right_of_way));
 }
 
 std::vector<kinetra::DebugEntry> FactoryController::menu(const LayerColors &colors) {

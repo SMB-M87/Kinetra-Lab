@@ -54,7 +54,7 @@ Each session owns a `kinetra::SettingsOverlay` built by `kinetra_lab::settings_r
 
 | Row | Effect |
 | --- | --- |
-| STATISTICS | The application's statistics line |
+| STATISTICS | The application's statistics lines, in the yellow of Kinetra's [HUD style](../external/Kinetra/docs/engine/launcher-overlays.md#hud-text-and-errors); Demo and i4sim also use its scale and lines, while Dotio keeps its own window-fitted scale and right alignment. An error message uses the same style in red, directly above them; i4sim is the only application that shows one so far |
 | DEBUG MODE | The debug layers, the DEBUG toolbar button and the debug zoom range. Shift+Ctrl switches it on as well |
 | FRAME TIMES | Off by default. Draws Kinetra's frame-time graph in the top-right corner: the time between the last 240 presented frames and what paces them, to tell a stalled frame from uneven presentation by the compositor ([runtime guide](../external/Kinetra/docs/engine/runtime.md#sessions-and-timing)) |
 
@@ -75,7 +75,7 @@ Ctrl opens and closes the panel when the key is released. Movement keys come fro
 
 ## Debug menu
 
-Shift+Ctrl opens and closes the application's `kinetra::DebugMenu` at screen pixels (8, 32), and switches Debug Mode on when it was off. With Debug Mode on, the toolbar also shows a DEBUG button next to SETTINGS. The menu captures pointer input inside its panel, including held shooting and the wheel; the session drops captured pointer commands before they reach the application. Demo and i4sim start with Debug Mode and every debug layer on; Dotio starts with them off.
+Shift+Ctrl opens and closes the application's `kinetra::DebugMenu` at screen pixels (8, 32), and switches Debug Mode on when it was off. With Debug Mode on, the toolbar also shows a DEBUG button next to SETTINGS. The menu captures pointer input inside its panel, including held shooting and the wheel; the session drops captured pointer commands before they reach the application. Demo and i4sim start with Debug Mode and their default layers on (VECTORS and PATHS in Demo, every layer but HEATMAP and CONTACT SHAPES in i4sim); Dotio starts with them off.
 
 Every application builds its rows in its logic layer, as `kinetra::DebugEntry` values, so the menu is tested without a window. All three menus have the same shape:
 

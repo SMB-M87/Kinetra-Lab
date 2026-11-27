@@ -37,6 +37,12 @@ const char *profile_name(SteeringProfile profile);
 constexpr bool supports_predictive_passing(SteeringProfile profile) {
     return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
 }
+/// Whether `profile` can run RIGHT OF WAY. Only Improved's steering and Reciprocal's avoidance
+/// read the fixed body a right of way marks, so the other profiles ignore
+/// `MotionSettings::right_of_way`.
+constexpr bool supports_right_of_way(SteeringProfile profile) {
+    return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
+}
 /// Most ticks per second Simulation::updates_per_second accepts.
 inline constexpr unsigned most_updates_per_second = 1000000;
 /// Most ticks one Simulation::advance runs unless it is given another limit: the backlog cap
@@ -71,6 +77,19 @@ struct MotionSettings {
     float speed{2}, force{0.6f}, horizon{32};
     /// Gives a parked blocker a temporary refuge if that opens a checked route.
     bool make_way{};
+    /// A mover that already carries a product, stands at its holding place, and whose product
+    /// heads its producer queue, leaves only along a route checked against stationary movers,
+    /// as a newly allocated mover does. This holds for a queued product and for one
+    /// rescheduled away from a processing place. Without such a route it stays and tries
+    /// again every tick, for at most `departure_wait_ticks`; then it departs as without the
+    /// check. A mover still driving to its holding place, or leaving a processing place,
+    /// departs as without the check.
+    bool departure_check{};
+    /// A mover that stalls because a neighbor drives it back from its goal gets the right of
+    /// way for 480 ticks: it keeps steering at its goal and the others no longer count on it
+    /// to make room. See `Coordination::right_of_way`. Only under the profiles of
+    /// `supports_right_of_way`.
+    bool right_of_way{};
 };
 /// Whether a simulation advances. Every simulation starts `paused`.
 enum class RunState {
@@ -136,6 +155,8 @@ struct Coordination {
     bool corridor_retreating{};
     /// Following the temporary targets of a predictive passing plan.
     bool passing{};
+    /// Holding the right of way after a neighbor pushed it back from its goal (RIGHT OF WAY).
+    bool right_of_way{};
 };
 /// One transport mover: its definition, physical state, goal and statistics. Positions are
 /// in millimeters, velocities in millimeters per tick. Only Simulation changes a mover.

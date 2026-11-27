@@ -35,7 +35,10 @@ std::optional<kinetra::InspectorSnapshot> inspect_agent(const Scene &scene, kine
     return kinetra::InspectorSnapshot{
         "AGENT " + selector,
         {{"STATE",
-          {{"ACTIVITY", !agent->active() ? "DORMANT" : (agent->wandering() ? "WANDERING" : "COMMANDED")},
+          {{"ACTIVITY", !agent->active()     ? "DORMANT"
+                        : agent->holding()   ? "HOLDING"
+                        : agent->wandering() ? "WANDERING"
+                                             : "COMMANDED"},
            {"HOME", inspector_vector(home, " UNIT")},
            {"CLI SELECTOR", selector}}},
          {"MOTION",

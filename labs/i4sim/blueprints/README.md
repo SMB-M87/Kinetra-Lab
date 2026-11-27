@@ -28,7 +28,7 @@ flowchart LR
 
 ## Contents and use
 
-Five JSON files are copied unchanged from the C# reference: `1680x960+`, `1680x960-`, `3840x2400`, `4320x2400` and `8640x4800`. The reference's `MAS-demonstrator` is not in the catalog; the tests keep it, unchanged, as a [fixture](../tests/README.md#suites) in `labs/i4sim/tests/`. The reference's `H` layout became the [h-crossing](#showcase-scenes) showcase scene, without its stations, and its seven city aliases of these layouts are not bundled. CMake copies these resources to `i4sim-blueprints/` beside the application and launcher executables. Keep that directory with a relocated executable. Pass `--blueprints DIR` for a custom catalog or `--blueprint FILE` for a direct load.
+Five JSON files are copied unchanged from the C# reference: `1680x960+`, `1680x960-`, `3840x2400`, `4320x2400` and `8640x4800`. The reference's `MAS-demonstrator` is not in the catalog; the tests keep it as the [fixture](../tests/README.md#suites) `test-environment` in `labs/i4sim/tests/`, unchanged apart from its file name and its `name`. The reference's `H` layout became the [h-crossing](#showcase-scenes) showcase scene, without its stations, and its seven city aliases of these layouts are not bundled. CMake copies these resources to `i4sim-blueprints/` beside the application and launcher executables. Keep that directory with a relocated executable. Pass `--blueprints DIR` for a custom catalog or `--blueprint FILE` for a direct load.
 
 The five originals are the top-level files; discovery does not descend into subdirectories, so the catalog test finds exactly five.
 
@@ -56,7 +56,7 @@ The two-mover scenes before make way are the setups the [presentation test](../t
 
 ### Scenario section format
 
-A blueprint may carry one optional `scenario` object. `load_blueprint` ignores it; `load_scenario` in [scenario.h](../include/i4sim/blueprint/scenario.h) reads it and `apply_scenario` configures a `Simulation` with it and leaves its pause state unchanged; a new simulation starts paused. Property names are case-insensitive like the rest of the blueprint, but unknown names anywhere inside the section are rejected, so a misspelled setting fails instead of being ignored.
+A blueprint may carry one optional `scenario` object. `load_blueprint` ignores it; `load_scenario` in [scenario.h](../include/i4sim/blueprint/scenario.h) reads it and `apply_scenario` configures a `Simulation` with it and leaves its pause state unchanged; a new simulation starts paused, and the graphical session runs a blueprint with a scenario as soon as it loads it. Property names are case-insensitive like the rest of the blueprint, but unknown names anywhere inside the section are rejected, so a misspelled setting fails instead of being ignored.
 
 ```json
 "scenario": {
@@ -77,7 +77,7 @@ A blueprint may carry one optional `scenario` object. `load_blueprint` ignores i
 | `motion.profile` | `improved` (default), `original`, `experimentalRvo` (or `experimental_rvo`), `reciprocal` | Steering profile |
 | `motion.pathPlanning` | boolean, `true` | A* routes over the grid cells; `false` sends each mover straight at its goal, as PLANNER → OFF does |
 | `motion.heatmap` | boolean, `true` | Congestion costs in route planning |
-| `motion.recovery`, `parkingTraffic`, `junctionTraffic`, `corridorTraffic`, `predictivePassing`, `makeWay` | boolean, `false` | Coordination features, as in DEBUG → MOTION and TRAFFIC |
+| `motion.recovery`, `parkingTraffic`, `junctionTraffic`, `corridorTraffic`, `predictivePassing`, `makeWay`, `departureCheck`, `rightOfWay` | boolean, `false` | Coordination features, as in DEBUG → MOTION and TRAFFIC |
 | `motion.speed`, `motion.force`, `motion.horizon` | positive numbers, `2`, `0.6`, `32` | Top speed in millimeters per tick, acceleration in millimeters per tick squared, prediction horizon in ticks (at most 64) |
 | `workload` | boolean, `true` | Automatic product workload |
 | `repeat` | `none` (default), `shuttle`, `restart` | How the scene repeats once its movers have arrived; see [Showcase scenes](#showcase-scenes) |
