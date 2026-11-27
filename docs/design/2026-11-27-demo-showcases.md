@@ -1,6 +1,6 @@
 # Demo showcases
 
-Status: accepted · Branch: `ccr-7a5a80b7-9dw7ja` · Related: [Demo](../../labs/demo/README.md#scenarios), [i4sim showcase scenes](../../labs/i4sim/blueprints/README.md#showcase-scenes), roadmap idea *Motion lab*
+Status: implemented · Branch: `ccr-7a5a80b7-9dw7ja` · Related: [Demo](../../labs/demo/README.md#scenarios), [i4sim showcase scenes](../../labs/i4sim/blueprints/README.md#showcase-scenes), roadmap idea *Motion lab*
 
 Demo's authored scenarios become showcases that repeat on their own, as i4sim's showcase scenes do: Doorway's two groups shuttle through the opening, Maze becomes a real labyrinth with a few agents travelling through it, and seven new scenarios show what Kinetra's steering, avoidance and route planning do with many movers.
 
@@ -55,6 +55,8 @@ Non-goals:
 | A stuck agent | The agent's existing 20-second command limit ends its leg where it stands | A shared turn then never waits longer than that limit |
 | Layout seed | Every layout is fixed; only CHAOS draws its goals from the scene's seed | Authored scenes keep fixed layouts, as before; the maze uses a constant seed |
 | One pull request | One pull request on the session branch, with a commit per step | The session may push only this branch |
+| A showcase's command and passing | A new leg cancels the agent's passing plan, as a user's command does | Found in review: the coordinator would otherwise steer the agent along lanes agreed for the old goal |
+| Holding agents and terrain | A holding agent avoids nearby terrain, as a steering wanderer does | Found in review: it has no route back when a neighbor pushes it around a wall end |
 
 ## Design
 
@@ -89,9 +91,9 @@ All in the authored field of 44 × 28 units, with the player out of the way.
 
 | Scenario | Layout | Agents | Turn |
 | --- | --- | --- | --- |
-| MAZE | 11 × 7 cells of 4 units, a constant-seed labyrinth with extra openings for loops | 6, between far cells | Alone, 1 s |
+| MAZE | 11 × 7 cells of 4 units with walls 1 unit thick, a constant-seed labyrinth with five extra openings for loops | 6, between cells whose routes are at most 56 units, within the 20-second command limit | Alone, 1 s |
 | DOORWAY | As before | 6 | Together, 2 s |
-| CORRIDOR | A corridor 5.5 units wide and 28 long | 8 per side | Together, 2 s |
+| CORRIDOR | A corridor 7 units wide and 28 long | 6 per side | Together, 2 s |
 | CROSSING | Two streets 7 units wide cross between four blocks | 6 per street | Together, 2 s |
 | CIRCLE | Open field | 16 on a circle, each to its opposite point | Together, 2 s |
 | BOTTLENECK | A room with one exit 2.4 units wide | 16, out of the room and back | Together, 2 s |
@@ -100,6 +102,8 @@ All in the authored field of 44 × 28 units, with the player out of the way.
 | SWARM | Open field, a pillar where the figure eight crosses | 30 around one lure | Follow |
 
 The launcher's scenario page has room for six rows, so it shows the eleven scenarios on two pages.
+
+Mirrored stops swap the rows of a group: the agent in front, which arrives first, holds at the far end, so it does not stand in the way of the agents behind it. A measurement with eight agents per side in a corridor 5.5 units wide left agents at the 20-second limit; six per side in 7 units finish every leg in about 11.5 seconds.
 
 ## Affected areas
 
@@ -112,7 +116,7 @@ The launcher's scenario page has room for six rows, so it shows the eleven scena
 
 | Behavior | Test | Level |
 | --- | --- | --- |
-| A holding agent stays at its goal, holds where it stands after the command limit, and `retarget` ends the hold; without the flag it wanders as before | `scenario_tests.cpp` (agent cases), crowd characterization lines unchanged | Targeted |
+| A holding agent stays at its goal, holds where it stands after the command limit, and `retarget` ends the hold; without the flag it wanders as before | `showcase_tests.cpp`, crowd characterization lines unchanged | Targeted |
 | Shuttle together: the first agent waits for the last, then both turn in the same tick after the pause | `showcase_tests.cpp` | Targeted |
 | Shuttle alone, roam: each agent turns after its own pause; roam goals repeat with the seed and stay in the area | `showcase_tests.cpp` | Targeted |
 | Follow: agents keep near their rotating slots; a released agent travels the user's goal and is taken back after it holds | `showcase_tests.cpp` | Targeted |
@@ -124,16 +128,40 @@ The branch changes `presentation/`-adjacent code only through the catalog, and t
 
 ## Review
 
-To be filled after review.
+`/code-review` at medium effort on `39cb628..HEAD` reported seven findings; all were fixed in `fix(demo): showcase commands end passing plans; review findings`:
+
+| Finding | Resolution |
+| --- | --- |
+| A showcase's `retarget` did not cancel the agent's passing plan, so with PASSING on an agent could follow lanes agreed for its old goal | `Showcase::update` returns the agents it commanded; `Scene::advance_showcase` cancels their plans. Test *a showcase command ends the passing plan agreed for the old goal*, which fails without the fix (9 stale plans) |
+| A dormant agent ignored the command but its stop advanced | `send` skips a dormant agent; test with a dormant, then woken agent |
+| `set_showcase` in Terrain would throw later, when streaming changes the agents | `set_showcase` refuses Terrain; tested |
+| A holding agent pushed around a wall end had no terrain avoidance | Holding agents steer with terrain avoidance |
+| The lures' elapsed time grew without bound and lost precision | Each lure keeps its distance within one lap |
+| A NaN step looped forever in `along` | `update` rejects a negative or non-finite step; tested |
+| The Demo README still said Debug Mode gates layers "in Terrain, Maze and Doorway" | Reworded to cover every scenario from Maze on |
 
 ## Verification
 
-To be filled.
+- `cmake --build --preset dev` and `ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing)|^kinetra_menu:|^kinetra_lab:' -LE soak`: 105 tests passed, the crowd characterization lines unchanged (Terrain behaves as before).
+- `ctest --test-dir build-release -R '^kinetra_demo(:|_crowd)'`, the five soak cases included: 51 tests passed.
+- `cmake --build --preset graphics` and `ctest --preset graphics -R 'kinetra_demo_inspector|kinetra_demo_graphics|kinetra_smoke:demo|kinetra_menu:|kinetra_capture'`: 50 tests passed, the capture smoke and the Doorway inspector trace among them.
+- `tools/capture/capture_media.sh build-graphics launcher launcher-demo-scenarios demo-<scenario>-clip…`: every refreshed capture looked at. A measurement confirms that the shared-turn clips last until the groups turn back (Doorway 8.07 s, Corridor 13.46 s, Crossing 10.81 s, Circle 9.54 s, Bottleneck 13.54 s).
+- `clang-format` on every changed source; `python3 external/Kinetra/tools/check_docs.py`; `python3 external/Kinetra/tools/check_copies.py` with the old scenario list, `beyond the last wall`, `alternating`, `0.8 MB` and `twenty (300)` as terms: no copy left.
+- Full level: the pull request's CI.
 
 ## Pull request
 
-To be filled.
+Title: `feat(demo): showcase scenarios that repeat on their own`
+
+Summary: Demo's authored scenarios become showcases, as i4sim's showcase scenes are. Doorway's two groups shuttle through the opening and turn together; Maze becomes a labyrinth with six agents that shuttle between far cells; seven new scenarios show what Kinetra's route planning, steering and reciprocal avoidance do with many movers: Corridor, Crossing, Circle, Bottleneck, Chaos, Fleet and Swarm.
+
+Changes: `Agent::hold_on_arrival` and `holding()`; a `Showcase` script (shuttle, roam, follow) that `Scene::update` advances; the scenario catalog and layouts; the launcher's description and usage; seven new clips and refreshed captures; READMEs, media guide, capture README and the roadmap's *Motion lab* idea.
+
+Dependencies and merge order: none; no Kinetra change.
+
+Follow-up: the open points below.
 
 ## Open points
 
-- None yet.
+- Showcase scripts are not drawn (stops, lures, slots); Fleet's formations are loose, because agents are sent to their slots only every quarter second ([Demo open points](../../labs/demo/README.md#open-points)).
+- The Kinetra README's shared-UI GIFs play in Doorway, whose agents now shuttle; they follow with the next Kinetra change that makes them stale ([Kinetra's media rule](../../external/Kinetra/docs/media/README.md#which-gifs-a-change-makes-stale)).
