@@ -8,12 +8,15 @@
 #include "dotio/entities/player.h"
 #include "dotio/navigation/grid.h"
 
+#include <kinetra/simulation/passing_coordinator.h>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <random>
+#include <span>
 #include <unordered_set>
 #include <vector>
 
@@ -52,7 +55,16 @@ class World {
         kinetra::Body body;
     };
     std::vector<Prop> props_;
+    bool passing_{};
+    kinetra::PassingCoordinator passing_coordinator_;
+    std::vector<kinetra::PassingEvent> passing_events_;
     void populate_objects();
+    /// One passing step before the enemies move: sets every enemy's passing_target, and
+    /// replans the route of every enemy whose plan ended.
+    void coordinate_passing();
+    /// Ends every passing plan and clears the enemies' passing targets; `replan` plans the
+    /// routes of the participants again.
+    void end_passing(bool replan);
     std::optional<std::pair<std::size_t, float>> first_object_hit(kinetra::Segment segment,
                                                                   float radius) const;
 
@@ -170,9 +182,23 @@ class World {
 
     void add_bolt(const kinetra::Vec2 position, const kinetra::Vec2 velocity);
 
-    /// One update of every simulated enemy: target, movement, wall collision. `debug` is the
-    /// invulnerable debug mode.
+    /// One update of every simulated enemy: target, passing, movement, wall collision.
+    /// `debug` is the invulnerable debug mode.
     void update_enemies(const float delta, const bool debug);
+
+    /// Whether enemies that follow a route (pursue, recover, path wander) pass each other
+    /// head-on in agreed side lanes (kinetra::PassingCoordinator). Off in a new world;
+    /// the player's death keeps it.
+    bool passing() const { return passing_; }
+    /// Turns passing on or off from the next update. Turning it off ends every plan, and its
+    /// participants plan their routes again.
+    void set_passing(bool passing);
+    /// The active passing plans. Mover indices are pool slots; the player is the index
+    /// after the last slot.
+    std::vector<kinetra::PassingPlanState> passing_plans() const { return passing_coordinator_.plans(); }
+    /// What happened to passing plans in the last update, in order, with the indices of
+    /// passing_plans().
+    std::span<const kinetra::PassingEvent> passing_events() const { return passing_events_; }
 
     /// Moves the arrows and stops each at the first wall, crate or player hit; a player hit
     /// costs 10 health (none in `debug`), and resets the world at zero.

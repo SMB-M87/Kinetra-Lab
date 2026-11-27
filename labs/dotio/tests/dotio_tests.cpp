@@ -925,17 +925,22 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
     const auto preset = world.difficulty_settings();
     menu_row(application, "ENEMIES").action();
     CHECK(menu_labels(application) ==
-          std::vector<std::string>{"SIMULATION",     "LAYERS",        "ENEMIES",          "WANDER",
-                                   "MOVE SPEED",     "FIRE INTERVAL", "ARROW SPEED",      "PREDICTION",
-                                   "PURSUIT CYCLES", "HITS",          "WANDER FORCE",     "ATTACK FORCE",
-                                   "PURSUE FORCE",   "RECOVER FORCE", "KAMIKAZE FORCE",   "SPAWNING",
-                                   "ZOOM",           "GHOST CAMERA",  "RESET PARAMETERS", "DIFFICULTY"});
+          std::vector<std::string>{"SIMULATION",     "LAYERS",        "ENEMIES",        "WANDER",
+                                   "MOVE SPEED",     "FIRE INTERVAL", "ARROW SPEED",    "PREDICTION",
+                                   "PURSUIT CYCLES", "HITS",          "WANDER FORCE",   "ATTACK FORCE",
+                                   "PURSUE FORCE",   "RECOVER FORCE", "KAMIKAZE FORCE", "PASSING",
+                                   "SPAWNING",       "ZOOM",          "GHOST CAMERA",   "RESET PARAMETERS",
+                                   "DIFFICULTY"});
     CHECK(menu_row(application, "WANDER").value() == "STEERING");
     menu_row(application, "WANDER").action();
     menu_row(application, "PATH").action();
     CHECK(world.enemy_tuning().wander == dotio::WanderMode::path);
     CHECK(menu_row(application, "WANDER").value() == "PATH");
-    CHECK_MESSAGE(menu_labels(application).size() == 20, "choosing a value closes the list");
+    CHECK_MESSAGE(menu_labels(application).size() == 21, "choosing a value closes the list");
+    const auto passing = menu_row(application, "PASSING");
+    CHECK((passing.kind == kinetra::DebugEntryKind::check && passing.depth == 1 && !passing.active()));
+    passing.action();
+    CHECK(world.passing());
 
     menu_row(application, "MOVE SPEED").increase();
     CHECK(world.difficulty_settings().movement_multiplier ==
@@ -970,6 +975,7 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
     menu_row(application, "RESET PARAMETERS").action();
     CHECK(world.difficulty_settings() == preset);
     CHECK(world.enemy_tuning() == dotio::EnemyTuning{});
+    CHECK_FALSE(world.passing());
     CHECK(application.time_scale == 1);
     open_map(application.world().grid());
 }
