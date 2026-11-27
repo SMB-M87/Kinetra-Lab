@@ -62,7 +62,7 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Active refuge and return trips | Checked parking relief after stall observation, including outward withdrawal from newly protected space |
 | `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall and make-way events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
-| `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Per-mover observations and the active episode's onset diagnosis | Observe route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
+| `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Kinetra's [`StallDetector`](../external/Kinetra/docs/engine/navigation.md#stall-detection), which holds the observations and the active episode's onset diagnosis | Tell the detector each mover's state and route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
 
 ```mermaid
 flowchart TD

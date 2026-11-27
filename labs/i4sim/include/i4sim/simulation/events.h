@@ -1,5 +1,6 @@
 #pragma once
 #include <kinetra/simulation/math.h>
+#include <kinetra/simulation/stall_detector.h>
 
 #include <array>
 #include <cstddef>
@@ -30,22 +31,15 @@ enum class EventKind {
     make_way_ended,
 };
 
-/// Evidence available when the detector observed the start of a stall.
-enum class StallReason {
-    stationary_blocker,
-    opposing_mover,
-    oscillating,
-    unknown,
-};
+/// Evidence available when the detector observed the start of a stall: Kinetra's reasons
+/// (a stationary blocker, an opposing mover, a neighbor pushing the mover back, oscillation,
+/// or none found).
+using StallReason = kinetra::StallReason;
 
-/// Diagnosis at the onset of one observed stall episode.
-struct StallDetails {
-    /// Tick at which sustained lack of progress was first reported.
-    std::uint64_t detected_at{};
-    StallReason reason{StallReason::unknown};
-    /// Index into Simulation::movers() for a stationary blocker or opposing mover.
-    std::optional<std::size_t> blocker{};
-};
+/// Diagnosis at the onset of one observed stall episode: the tick at which sustained lack of
+/// progress was first reported, the reason, and the index into Simulation::movers() of a
+/// stationary blocker, an opposing mover or a pushing neighbor.
+using StallDetails = kinetra::StallDiagnosis;
 
 /// Why a passing plan was removed. When several reasons apply in the same tick, the
 /// simulation records the first it finds: `disabled`; then for each participant in
@@ -168,6 +162,8 @@ constexpr std::string_view name(StallReason reason) {
         return "stationary_blocker";
     case StallReason::opposing_mover:
         return "opposing_mover";
+    case StallReason::pushed_back:
+        return "pushed_back";
     case StallReason::oscillating:
         return "oscillating";
     case StallReason::unknown:

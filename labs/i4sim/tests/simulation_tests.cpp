@@ -3075,6 +3075,24 @@ TEST_CASE("predictive passing leaves a checked make way route under its existing
     CHECK_FALSE(fleet.movers[0].coordination.passing);
 }
 
+TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back") {
+    // Seed 7 under Reciprocal with MAKE WAY: from tick 10615 mover 8, bound north, pushes
+    // mover 7 away from its processing goal 30 mm south of it for over a thousand ticks.
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), 7);
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = true;
+    simulation.configure_motion(settings);
+    simulation.run();
+    while (simulation.ticks() < 10615)
+        simulation.tick();
+    const auto stall = simulation.stall_details(7);
+    REQUIRE(stall);
+    CHECK(stall->detected_at == 10615);
+    CHECK(stall->reason == StallReason::pushed_back);
+    CHECK(stall->blocker == 8u);
+}
+
 TEST_CASE("make way clears the recorded 4320x2400 departures") {
     for (const auto seed : {2026u, 915839214u}) {
         CAPTURE(seed);
