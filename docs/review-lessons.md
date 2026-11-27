@@ -39,6 +39,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **When Lab `main` moves its Kinetra pointer while a Lab pull request records its own, merge Kinetra `main` into the Kinetra branch, follow it, and merge Lab `main` before review** · added 2026-11-23 · source: #78
   The inspector stack merged after #78's CI ran. #78's pointer then lacked Kinetra #31, its green CI covered a `main` that no longer existed, and either side of the pointer conflict broke the build.
 
+- **Merge Lab `main` before review when it changed captures or text that the branch changes too, and render those captures again on the merged head** · added 2026-11-27 · source: [#144](https://github.com/SMB-M87/Kinetra-Lab/pull/144)
+  #143 and #142 refreshed the Demo and i4sim debug captures and added a showcase clip after #144 forked. Neither side of the binary conflicts was right (one showed the old menu, the other the old layers), and #144's green CI covered neither. This widens #78's lesson from the pointer to captures.
 - **When a merge moves the Kinetra pointer after the measurements, record the new pointer and the engine changes its range brings in, and measure again what CI does not run** · added 2026-11-27 · source: #146, #150
   Lab `main` moved the stack's pointer across Kinetra #69's steering change after steps 1 to 3 had measured. Step 3's "gives the base's numbers exactly" then described a pointer the pull request did not record, and measured again, step 1's gate went from a product gain to a product loss under Improved, which the user's decision rested on. This follows the #147 lesson on results recorded later.
 
@@ -46,6 +48,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 - **When a commit adds or removes test cases, update the case count and the description in the module README's test table in the same commit** · added 2026-11-27 · source: [#151](https://github.com/SMB-M87/Kinetra-Lab/pull/151)
   1542c94 added two showcase cases, and Demo's README still counted 8 and described neither.
+- **When a pull request applies one rule in several applications, give each application its own test for each goal, not one application per goal** · added 2026-11-27 · source: [#145](https://github.com/SMB-M87/Kinetra-Lab/pull/145)
+  The start of a route over its own body was tested in Demo only, while Dotio (a hook in logic) and i4sim (a call in the view) reach it by other code paths that a later change could break unseen.
 
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
   A slot that a kill empties after the passing step and a spawn refills before the next one never looks empty, so the new enemy inherited the old plan.
@@ -104,6 +108,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 - **When a change moves an action out of a menu, run every script that clicked it to its end, the tour included** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
   The tour opened i4sim's debug menu to click BLUEPRINTS and relied on it staying open for the next floor's MOTION rows. With BLUEPRINTS in the settings panel the menu stayed closed and the tour stopped there; CI runs only the clips, not the tour, so only a full local run showed it.
+
+- **When a change flips a default that a script toggles, re-read every click on that row in every script, the clips and the tour, against the new start state** · added 2026-11-27 · source: [#144](https://github.com/SMB-M87/Kinetra-Lab/pull/144)
+  A toggle click means the opposite once the default flips: #144's new layer defaults made the tour turn i4sim's HEATMAP on where it meant to hide it, and dropped Demo's ACTIVE AGENTS from its later chapters. Neither CI nor the clips play the tour.
 
 - **Rebuild after changing an embedded image before capturing scenes that display it** · added 2026-11-24 · source: [#110](https://github.com/SMB-M87/Kinetra-Lab/pull/110)
   A combined capture can otherwise publish a fresh lab screenshot beside a launcher image rendered with the old still. Verify the combined command with a deliberately stale embedded image.

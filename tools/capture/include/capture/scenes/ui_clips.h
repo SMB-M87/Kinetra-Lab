@@ -17,7 +17,8 @@ void ui_debug_menu(Stage &stage);
 /// In Doorway: a click on an agent opens the inspector, FRAME TIMES in the settings panel
 /// puts the frame-time graph below it, a click selects another agent, and X closes it.
 void ui_inspector(Stage &stage);
-/// In Terrain, with agents that wander by planned routes: every layer of the debug menu off
-/// and on again, HOME RANGE, and the wheel zooming out.
+/// In Terrain, with agents that wander by planned routes: the first five layers of the debug
+/// menu toggled and back again (VECTORS and PATHS off, the others on), HOME RANGE, and the
+/// wheel zooming out.
 void ui_debug_layers(Stage &stage);
 } // namespace capture

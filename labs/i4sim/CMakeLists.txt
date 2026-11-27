@@ -82,7 +82,7 @@ if(BUILD_TESTING)
     add_library(kinetra_i4sim_testing INTERFACE)
     target_include_directories(kinetra_i4sim_testing INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/tests/include)
     target_link_libraries(kinetra_i4sim_testing INTERFACE kinetra_i4sim_logic kinetra_lab_testing)
-    # The catalog, and the fixtures in tests/ that the catalog does not ship (MAS-demonstrator).
+    # The catalog, and the fixtures in tests/ that the catalog does not ship (test-environment).
     target_compile_definitions(kinetra_i4sim_testing
         INTERFACE KINETRA_I4SIM_BLUEPRINT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/blueprints"
                   KINETRA_I4SIM_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
@@ -92,7 +92,7 @@ if(BUILD_TESTING)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
     add_test(NAME kinetra_i4sim_benchmark_duplicate_blueprint_stems COMMAND ${CMAKE_COMMAND}
         "-DBENCHMARK=$<TARGET_FILE:kinetra_i4sim_motion_benchmark>"
-        "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/MAS-demonstrator.json"
+        "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/test-environment.json"
         "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/benchmark-same-stem"
         -DFIRST_STEM=floor -DSECOND_STEM=floor
         -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_log_names.cmake")
@@ -104,7 +104,7 @@ if(BUILD_TESTING)
         # Exercise UTF-8 arguments on hosts where the CLI accepts them directly.
         add_test(NAME kinetra_i4sim_benchmark_unicode_log_names COMMAND ${CMAKE_COMMAND}
             "-DBENCHMARK=$<TARGET_FILE:kinetra_i4sim_motion_benchmark>"
-            "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/MAS-demonstrator.json"
+            "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/test-environment.json"
             "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/benchmark-unicode"
             -DFIRST_STEM=Étage -DSECOND_STEM=étage
             -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_log_names.cmake")
