@@ -70,6 +70,7 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 | Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
 | Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
 | Steering | Every profile runs; invalid horizons are rejected; head-on and crossing encounters end without contact under Improved and Reciprocal; a mover does not stall on its own heatmap footprint; a valid detour never reports a stall; a contact cannot displace a parked mover |
+| Stall diagnostics | Head-on stalls report both participants. The detector distinguishes a stationary blocker, a change of axis followed by reversals, and minor jitter. Goal changes, renewed progress and controlled waits reset observation. |
 | Reciprocal | Results do not depend on the ticks per second; acceleration stays bounded; a mover leaves through a rectangular gap whose enclosing circles overlap; parked neighbors do not move |
 | Parking | Leaving and returning beside a wall, in a corner and between parked neighbors, under Improved, Original and Reciprocal: no contact, bounded acceleration, the exact parking place and no drift afterwards. Allocation skips a mover trapped behind held neighbors |
 | Parking traffic | MAS with seed 42 completes at least 15 products in 50000 ticks without contact; waiting and release, blocked departures, a manual goal replacing a deferral, and switching the policy off without moving a body |
@@ -211,7 +212,7 @@ The `MAS-demonstrator` fixture and the catalog's `3840x2400` and `8640x4800` run
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
 `--ticks` accepts 1 through 1000000. Repeat `--blueprint <file>` or `--seed <unsigned 32-bit integer>` to select floors and seeds. Each selected floor runs with every selected seed. Omit either option to keep its default set. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
 
-`--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv`. For a stall event, `first` is the affected mover's index and `stall_reason`, `stall_blocker` and `stall_detected_at` carry the onset diagnosis. Use separate output directories for passing on and off to keep both logs. The benchmark's `stuck_movers` and `stuck_at_end` still count sustained lack of progress toward the goal by straight-line distance. The shorter route-progress stall episodes support inspection and replay.
+`--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv`. An invocation with event logging requires distinct blueprint stems and distinct seeds. Blueprint stems that differ only in ASCII case also collide. For a stall event, `first` is the affected mover's index and `stall_reason`, `stall_blocker` and `stall_detected_at` carry the onset diagnosis. Use separate output directories for passing on and off to keep both logs. The benchmark's `stuck_movers` and `stuck_at_end` count sustained lack of progress toward the goal by straight-line distance. The shorter route-progress stall episodes support inspection and replay.
 The CSV has one line per blueprint and seed:
 
 | Column | Meaning |

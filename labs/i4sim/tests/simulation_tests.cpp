@@ -601,11 +601,17 @@ TEST_CASE("stall diagnosis uses stationary obstacles and meaningful direction re
 
     StallReason expected = StallReason::stationary_blocker;
     bool coordinated = false;
+    bool change_axis = false;
     SUBCASE("a neighbor blocks the swept next leg") {
     }
     SUBCASE("repeated excursions without progress") {
         neighbor.body.position.y = 300;
         expected = StallReason::oscillating;
+    }
+    SUBCASE("oscillation begins on a different axis after an initial drift") {
+        neighbor.body.position.y = 300;
+        expected = StallReason::oscillating;
+        change_axis = true;
     }
     SUBCASE("a controlled hold is not a stall") {
         mover.coordination.exit_waiting = true;
@@ -617,7 +623,9 @@ TEST_CASE("stall diagnosis uses stationary obstacles and meaningful direction re
     }
     for (unsigned tick = 1; tick <= stall_ticks; ++tick) {
         fleet.progress[0].no_progress = tick;
-        if (expected == StallReason::oscillating)
+        if (change_axis && tick > 1)
+            mover.body.position = {103, tick % 2 ? 105.f : 100.f};
+        else if (expected == StallReason::oscillating)
             mover.body.position.x = tick % 2 ? 100.f : 105.f;
         else if (expected == StallReason::unknown)
             mover.body.position.x = tick % 2 ? 100.f : 101.f;

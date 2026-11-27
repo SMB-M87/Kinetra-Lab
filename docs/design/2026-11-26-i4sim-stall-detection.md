@@ -42,7 +42,7 @@ The phase 7 replay on `4320x2400`, seed 2026, also left an open question about m
 
 ## Design
 
-Observe the completed tick after motion, production and shuttle updates. Reset the episode when the route progress counter restarts, the destination changes or the mover becomes ineligible. Within a no-progress interval, track direction reversals with a two-millimeter deadband to ignore small position adjustments. At the stall threshold, examine the forward route leg within steering reach. A stationary mover on that leg supplies a blocker. Two active movers whose swept route legs are blocked by each other count as a standoff when their headings oppose and each moves at most 0.05 mm/tick along its leg. Two meaningful reversals supply evidence of oscillation. When none applies, report unknown.
+Observe the completed tick after motion, production and shuttle updates. Reset the episode when the route progress counter restarts, the destination changes or the mover becomes ineligible. Compare successive excursions of at least two millimeters. A change of more than 120 degrees counts as a reversal, even if the mover started out along another axis. At the stall threshold, examine the forward route leg within steering reach. A stationary mover on that leg supplies a blocker. Two active movers whose swept route legs are blocked by each other count as a standoff when their headings oppose and each moves at most 0.05 mm/tick along its leg. Two meaningful reversals supply evidence of oscillation. When none applies, report unknown.
 
 The detector owns its observation state. The inspector reads the latest completed tick and the opt-in event log receives episode transitions. Events include the onset information even if logging began after the episode started. The existing route flag and benchmark criteria continue to use their respective route and straight-line thresholds.
 
@@ -54,6 +54,8 @@ i4sim simulation, inspector snapshots and motion benchmark. The engine submodule
 
 - Verify that a head-on fixture reports both participants, a parked blocker identifies the parked mover, and oscillation requires two meaningful reversals.
 - Verify start and end events, inspector fields, suppression for deliberate holds and traffic, and a fresh episode when the goal changes.
+- Verify oscillation after an initial perpendicular drift and reject same-stem blueprints and repeated seeds before writing logs.
+- Parse the benchmark summary with a CSV reader to verify a blueprint stem containing a comma and quotes.
 - Run the i4sim test, golden, pressure and controller suites and the headless inspector trace; compare the existing golden and pressure results to the base.
 - Run paired benchmark seeds and report the distinct stuck movers and the number still stuck at the end. Run the documentation and whitespace checks.
 
@@ -62,8 +64,12 @@ i4sim simulation, inspector snapshots and motion benchmark. The engine submodule
 Local checks on Lab base `87f7a1a` with Kinetra `2f85f15`:
 
 - `cmake --build --preset dev --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark -j 3` with the runtime enabled and developer warnings.
-- `ctest --preset dev -R '^kinetra_i4sim' -j 3 --output-on-failure` passed all 149 cases. The pressure and golden lines retain their recorded values.
+- `ctest --preset dev -R '^kinetra_i4sim' -j 3 --output-on-failure` passed all 151 cases. The pressure and golden lines retain their recorded values.
 - `python3 external/Kinetra/tools/check_docs.py`, `check_copies.py`, `clang-format --dry-run --Werror` on changed C++ files, and `git diff --check`.
+
+The [software OpenGL capture](assets/2026-11-26-i4sim-stall-inspector.png) uses the i4sim session in the corridor fixture with corridor traffic disabled. The west mover's inspector identifies the east mover and shows tick 576 as the onset. The headless inspector also reports those fields.
+
+The benchmark round-trips a stem with a comma and quotes through a CSV reader. The same-stem check returned an error before emitting summary rows and preserved an existing log in the output directory.
 
 ### Paired measurement
 
@@ -98,19 +104,21 @@ The `4320x2400` seed-2026 replay also reports `stationary_blocker` on mover 25 a
 
 The head-on test showed that Reciprocal can move each body sideways while making almost no forward progress. The classifier now checks velocity projected onto both route legs. A route reset can also occur between completed ticks while preserving the destination. Tests cover a counter reset as well as a changed goal, which prevents stale episodes from being carried across either boundary.
 
+[Round 1](https://github.com/SMB-M87/Kinetra-Lab/pull/135#pullrequestreview-6081888053) found three gaps. The detector now compares successive excursions and the regression starts along one axis before oscillating on another. The benchmark rejects duplicate event targets before running and quotes CSV punctuation in the blueprint name. The design includes the actual inspector capture. The module guide and architecture now describe the new events and their position in the tick.
+
 ## Pull request
 
 Title `feat(i4sim): diagnose mover stalls without changing motion`.
 
 **Summary.** Step 1 of Stall detection and remedies in i4sim. The inspector and event log report stall episodes and the evidence available when they start. The current traffic and motion paths do not consume the diagnostics.
 
-**Changes.** Observe the existing route progress counter after each tick. Report stationary blockers, opposing movers, oscillation or unknown. Accept repeatable benchmark seeds and blueprints and record the diagnosis in event CSVs.
+**Changes.** Observe the existing route progress counter after each tick. Report stationary blockers, opposing movers, oscillation or unknown. Accept repeatable benchmark seeds and blueprints, reject duplicate event targets and record the diagnosis in event CSVs.
 
 **Design.** [i4sim stall detection](2026-11-26-i4sim-stall-detection.md).
 
-**Verification.** All 149 i4sim checks passed, including the original golden and pressure lines, the inspector trace and the new detector tests. Eight 50,000-tick pairs reproduced phase 7's results for its two seeds and measured six additional seeds. Documentation links, format and whitespace passed.
+**Verification.** All 151 i4sim checks passed, including the original golden and pressure lines, the inspector trace and regressions for axis changes and duplicate event targets. Eight 50,000-tick pairs reproduced phase 7's results for its two seeds and measured six additional seeds. Documentation links, format and whitespace passed.
 
-**Review notes.** Check that controlled holds end observations, that same-destination route resets begin a new observation, and that the diagnosis refers to onset rather than to the current position of a neighbor.
+**Review notes.** Controlled holds end observations. Same-destination route resets begin a new observation. The diagnosis refers to onset. The review fixes also cover axis changes and duplicate filenames. [Inspector capture](assets/2026-11-26-i4sim-stall-inspector.png)
 
 **Dependencies and merge order.** Lab only, based on `main`. This merges before any remedy branch.
 

@@ -13,12 +13,47 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
+void prepare_event_directory(const std::filesystem::path &directory,
+                             const std::vector<std::filesystem::path> &blueprints,
+                             const std::vector<std::uint32_t> &seeds) {
+    std::set<std::string> names;
+    for (const auto &blueprint : blueprints) {
+        auto stem = blueprint.stem().string();
+        // Case variants can refer to the same output on Windows and on
+        // case-insensitive volumes. Compare ASCII names consistently.
+        for (char &letter : stem)
+            if (letter >= 'A' && letter <= 'Z')
+                letter = static_cast<char>(letter - 'A' + 'a');
+        if (!names.insert(stem).second)
+            throw std::invalid_argument("Duplicate blueprint stem for event logs: " + blueprint.string());
+    }
+    if (std::set<std::uint32_t>(seeds.begin(), seeds.end()).size() != seeds.size())
+        throw std::invalid_argument("Duplicate seed for event logs");
+    std::filesystem::create_directories(directory);
+}
+
+void write_csv_field(std::ostream &out, std::string_view field) {
+    if (field.find_first_of(",\"\r\n") == std::string_view::npos) {
+        out << field;
+        return;
+    }
+    out << '"';
+    for (char character : field) {
+        if (character == '"')
+            out << '"';
+        out << character;
+    }
+    out << '"';
+}
+
 /// Writes every recorded event of one run as CSV, so a contact or a passing plan can be
 /// replayed from its blueprint, seed and tick.
 void write_events(const std::filesystem::path &file, std::span<const i4sim::SimulationEvent> events) {
@@ -95,7 +130,6 @@ int main(int argc, char **argv) {
                     throw std::invalid_argument("Unknown steering profile: " + value);
             } else if (option == "--events") {
                 event_directory = value;
-                std::filesystem::create_directories(*event_directory);
             } else if (option == "--blueprint") {
                 blueprints.emplace_back(value);
             } else if (option == "--seed") {
@@ -120,10 +154,6 @@ int main(int argc, char **argv) {
                                             "[--events DIRECTORY] [--blueprint FILE ...] [--seed N ...]");
             }
         }
-        std::cout
-            << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
-               "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,contact_episodes,"
-               "elapsed_ms\n";
         // MAS is a test fixture since it left the catalog; the CSV keeps its name, so runs
         // stay comparable with the recorded baselines.
         if (blueprints.empty())
@@ -132,6 +162,12 @@ int main(int argc, char **argv) {
                           default_blueprint_directory() / "8640x4800.json"};
         if (seeds.empty())
             seeds = {42u, 915839214u};
+        if (event_directory)
+            prepare_event_directory(*event_directory, blueprints, seeds);
+        std::cout
+            << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
+               "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,contact_episodes,"
+               "elapsed_ms\n";
         for (const auto &file : blueprints) {
             const auto name = file.stem().string();
             for (auto seed : seeds) {
@@ -165,12 +201,13 @@ int main(int argc, char **argv) {
                 const auto events = simulation.events();
                 if (event_directory)
                     write_events(*event_directory / (name + '-' + std::to_string(seed) + ".csv"), events);
-                std::cout << name << ',' << seed << ',' << simulation.completed() << ','
-                          << simulation.collisions() << ',' << simulation.contact_ticks() << ','
-                          << acceleration_change << ',' << flow.waiting_ticks() << ',' << flow.stuck_movers()
-                          << ',' << flow.stuck_now() << ',' << test::count(events, EventKind::passing_formed)
-                          << ',' << test::cancelled_plans(events) << ',' << test::passing_contacts(events)
-                          << ',' << test::contact_episodes(events) << ',' << elapsed << std::endl;
+                write_csv_field(std::cout, name);
+                std::cout << ',' << seed << ',' << simulation.completed() << ',' << simulation.collisions()
+                          << ',' << simulation.contact_ticks() << ',' << acceleration_change << ','
+                          << flow.waiting_ticks() << ',' << flow.stuck_movers() << ',' << flow.stuck_now()
+                          << ',' << test::count(events, EventKind::passing_formed) << ','
+                          << test::cancelled_plans(events) << ',' << test::passing_contacts(events) << ','
+                          << test::contact_episodes(events) << ',' << elapsed << std::endl;
             }
         }
     } catch (const std::exception &error) {

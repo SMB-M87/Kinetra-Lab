@@ -8,6 +8,8 @@ using namespace kinetra;
 namespace {
 /// A larger excursion than the small adjustments of stationary steering.
 constexpr float reversal_distance_mm = 2;
+/// Require an angle greater than 120 degrees between successive excursions.
+constexpr float reversal_cosine = -0.5f;
 constexpr unsigned oscillation_reversals = 2;
 constexpr float opposing_cosine = -0.8f;
 
@@ -69,24 +71,16 @@ void record(EventLog &log, EventKind kind, std::size_t mover, std::uint64_t tick
 } // namespace
 
 void StallDetector::Track::observe_position(Vec2 position) {
-    const auto delta = position - farthest;
-    if (direction == Vec2{}) {
-        if (length(delta) >= reversal_distance_mm) {
-            direction = normalized(delta);
-            farthest = position;
-        }
+    const auto delta = position - anchor;
+    if (dot(delta, delta) < reversal_distance_mm * reversal_distance_mm)
         return;
-    }
-    // Keep the farthest position in the current direction. A reversal must
-    // travel back past the deadband rather than merely change velocity sign.
-    const float along = dot(delta, direction);
-    if (along > 0) {
-        farthest = position;
-    } else if (along <= -reversal_distance_mm) {
-        direction = -direction;
-        farthest = position;
+    // Compare successive excursions so the detected axis follows the mover's
+    // motion even when it starts oscillating perpendicular to its initial drift.
+    const auto excursion = normalized(delta);
+    if (dot(direction, excursion) < reversal_cosine)
         ++reversals;
-    }
+    direction = excursion;
+    anchor = position;
 }
 
 void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
@@ -101,7 +95,7 @@ void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, st
         if (!watching || track.goal != mover.destination || no_progress <= track.last_no_progress) {
             if (track.stall)
                 record(log, EventKind::stall_ended, i, tick, *track.stall);
-            track = {.goal = mover.destination, .farthest = mover.body.position};
+            track = {.goal = mover.destination, .anchor = mover.body.position};
         }
         track.last_no_progress = no_progress;
         if (!watching || track.stall)

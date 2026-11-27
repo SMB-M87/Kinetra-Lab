@@ -126,7 +126,7 @@ The current wait counts consecutive ticks in which the mover has a goal, is free
 | Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
 | Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch, mover goals and a repeat mode; a showcase scene is a small blueprint with one |
 | Shuttle | Movers that drive back and forth between their start and a goal and turn together after `shuttle_pause_ticks` (`Simulation::shuttle`); how most showcase scenes repeat |
-| Event log, flow metrics | Opt-in observation: passing and contact events ([events.h](include/i4sim/simulation/events.h)), and waiting and stuck movers ([flow_metrics.h](include/i4sim/simulation/flow_metrics.h)). Neither changes a run |
+| Event log, flow metrics | Opt-in passing, contact and stall events ([events.h](include/i4sim/simulation/events.h)). Waiting and stuck movers are measured through [FlowMetrics](include/i4sim/simulation/flow_metrics.h). |
 
 ## Structure
 
@@ -246,7 +246,7 @@ sequenceDiagram
 
 ### A tick of the simulation
 
-`Simulation` forwards every call to a private `SimulationCore`, which owns one instance of each component and runs the tick: open a product when the workload allows it, refresh the heatmap every ten ticks, run the parking interlock, move, advance production, then turn the shuttling movers once all of them have stood still for the pause. Moving means: prepare routes, take one snapshot of all bodies, run corridor recovery, predictive passing and zone admission against that snapshot, steer and integrate every mover, and finally count and resolve contacts. The component table, their dependency diagram, the exact tick order and the mover's state diagram are in the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure).
+`Simulation` forwards every call to a private `SimulationCore`. Each tick opens a product when the workload allows it, refreshes the heatmap every ten ticks, runs the parking interlock, moves, advances production and turns shuttling movers whose pause has ended. It then observes stalls and updates waiting counters. During movement, the simulation prepares routes, takes one snapshot of all bodies, runs corridor recovery, predictive passing and zone admission against that snapshot, steers and integrates every mover, and counts and resolves contacts. See the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) for the component diagram, tick order and mover state.
 
 Two design choices explain most of the code:
 

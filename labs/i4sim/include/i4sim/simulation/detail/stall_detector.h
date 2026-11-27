@@ -21,7 +21,7 @@ class StallDetector {
   private:
     struct Track {
         Vec2 goal{};
-        Vec2 farthest{};
+        Vec2 anchor{};
         Vec2 direction{};
         unsigned observations{};
         unsigned last_no_progress{};
