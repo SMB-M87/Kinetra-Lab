@@ -1,7 +1,8 @@
 // Tests for the Dotio presentation: the wall palette without a window, then input
 // mapping, culling, statistics, AI labels and the Ghost marker, read back from a real
-// OpenGL context. The context checks share one Runtime, because only one may exist at a
-// time, so they form one case. CTest labels the suite `graphics`.
+// OpenGL context. Those context checks share one Runtime, because only one may exist at a
+// time, so they form one case. A last case checks that enemy paths pass under the player.
+// CTest labels the suite `graphics`.
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/presentation/presentation.h"
 #include "dotio/presentation/session.h"
@@ -16,6 +17,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace {
@@ -338,4 +341,60 @@ TEST_CASE("input culling statistics AI labels and the Ghost marker render as spe
     reopened.camera.position = dotio::to_world(application.world().get_ghost().position);
     dotio::render(reopened, application, settings_for(application), kinetra::DebugMenu{});
     CHECK_MESSAGE(ghost_marker_pixels(reopened) == 0, "Ghost camera still draws a purple player marker");
+}
+
+TEST_CASE("an enemy's path passes under the player it crosses") {
+    Runtime runtime("Dotio paths under bodies", 640, 480);
+    runtime.read_back(true);
+    dotio::Application application(42);
+    application.debug = true;
+    application.paths.fill(true);
+    application.world().enemy_tuning().wander = dotio::WanderMode::path;
+    // Zoomed in, so a path, 0.05 world units wide, covers whole pixels; the application keeps
+    // the zoom within its limits.
+    runtime.camera.pixels_per_unit = 100;
+    auto &world = application.world();
+    const auto player_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The player, {0.4, 0, 1}.
+        return std::abs(pixel[0] - 102) < 30 && pixel[1] < 30 && pixel[2] > 225;
+    };
+    // A point of an enemy's path inside the player, both as drawn this frame. The player has
+    // no path of its own.
+    std::optional<Vec2> crossing;
+    Vec2 shift;
+    for (int frame = 0; frame < 3000 && !crossing; ++frame) {
+        application.advance(1.0 / 60, {}, runtime.camera);
+        const auto &player = world.get_player();
+        const auto simulated = dotio::to_world(player.position);
+        const dotio::PresentedPositions presented(application);
+        // The renderer moves the camera onto the drawn player for the frame.
+        shift = dotio::to_world(player.position) - simulated;
+        for (auto &enemy : world.get_enemies()) {
+            if (!enemy.is_active || enemy.frozen || enemy.path.remaining().empty())
+                continue;
+            Vec2 from = enemy.position;
+            for (const auto waypoint : enemy.path.remaining()) {
+                const auto segment = waypoint - from;
+                const float squared = dot(segment, segment);
+                const auto point =
+                    from + segment * (squared > 0 ? std::clamp(dot(player.position - from, segment) / squared,
+                                                               0.f, 1.f)
+                                                  : 0.f);
+                if (length(point - player.position) < 0.6f * player.radius) {
+                    crossing = dotio::to_world(point);
+                    break;
+                }
+                from = waypoint;
+            }
+            if (crossing)
+                break;
+        }
+    }
+    REQUIRE_MESSAGE(crossing, "No enemy path crossed the player");
+    dotio::render(runtime, application, settings_for(application), kinetra::DebugMenu{});
+    auto camera = runtime.camera;
+    camera.position += shift;
+    const auto at = camera.world_to_screen(*crossing);
+    CHECK_MESSAGE(player_color(runtime.frame().pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
+                  "An enemy's path covers the player");
 }
