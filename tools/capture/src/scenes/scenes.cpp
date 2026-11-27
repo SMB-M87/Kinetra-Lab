@@ -45,12 +45,21 @@ using launcher::Variant;
 /// Window size of a screenshot, and of a clip: clips are rendered at their final size, so
 /// the bitmap font stays sharp in the GIF.
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
+/// Window size of a launcher preview: three times the 320 x 180 still that capture_media.sh
+/// scales it down to, so the still keeps sharp edges, and a view small enough that the
+/// shapes are larger than in the 1920 x 1080 screenshots.
+constexpr int preview_width = 960, preview_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
 /// Lengths of the Demo scenario clips from their start: Gravity until its shapes rest (8 s),
-/// Maze until the player has walked the route and stands at its goal (20 s), Doorway until
-/// both groups are through the opening (8 s).
-constexpr int demo_gravity_frames = 120, demo_maze_frames = 300, demo_doorway_frames = 120;
+/// Maze until the player has walked the route and stands at its goal (32 s). A scenario whose
+/// groups turn together lasts its first leg and the pause, until the groups turn back, so
+/// the GIF loops as the scenario repeats: Doorway 8 s, Corridor 13.6 s, Crossing 11 s, Circle
+/// 9.6 s, Bottleneck 13.6 s. Chaos, Fleet and Swarm run 12 s: Fleet's formations meet once
+/// and Swarm's lure crosses its pillar.
+constexpr int demo_gravity_frames = 120, demo_maze_frames = 480, demo_doorway_frames = 120,
+              demo_corridor_frames = 204, demo_crossing_frames = 165, demo_circle_frames = 144,
+              demo_bottleneck_frames = 204, demo_free_frames = 180;
 /// Length of the Dotio debug clip and the i4sim clips: twelve seconds. Long enough for a
 /// Dotio enemy to run for shelter, reload and come back, and for an i4sim mover to cross
 /// its floor at the session's own speed.
@@ -156,9 +165,35 @@ void demo_debug(Stage &stage) {
     stage.shot();
 }
 
-/// Where the Maze clip clicks, in world units: the open floor beyond the last wall, so the
-/// route winds through every gap.
-constexpr Vec2 demo_maze_goal{17, 8};
+/// Seconds of Doorway the Demo preview runs from its start: the two groups meet in the
+/// opening and squeeze past each other.
+constexpr double demo_preview_seconds = 2.3;
+/// Wheel notches the Demo preview zooms in, from Demo's starting zoom of 17 to 33 pixels per
+/// unit: the opening and both groups fill the window, where the agents would stay small.
+constexpr float demo_preview_zoom_in = 7;
+
+/// One step with the wheel turned `notches` notches (negative zooms out) and the pointer
+/// where it rests.
+void turn_wheel(Stage &stage, float notches) {
+    Input input;
+    input.wheel = notches;
+    stage.step(input);
+}
+
+/// The launcher's Demo still: Doorway at the moment its groups cross, in Debug Mode as the
+/// session starts, so their routes and velocity vectors show, without the statistics line. Debug
+/// Mode also lets the wheel zoom.
+void demo_preview(Stage &stage) {
+    stage.start(Variant::demo, static_cast<std::size_t>(demo::Scenario::doorway));
+    turn_wheel(stage, demo_preview_zoom_in);
+    stage.toggle_setting(SettingsRow::statistics);
+    stage.wait(demo_preview_seconds);
+    stage.shot();
+}
+
+/// Where the Maze clip clicks, in world units: a cell across the labyrinth from the player,
+/// so the route winds through it.
+constexpr Vec2 demo_maze_goal{16, 8};
 
 /// Records `frames` of Demo's `scenario` from its start, in Debug Mode as it starts. The
 /// Maze clip clicks demo_maze_goal in its first frame, so the player walks the route, and
@@ -315,14 +350,15 @@ void dotio_debug_clip(Stage &stage) {
     });
 }
 
-// i4sim: the captured blueprint (i4sim_capture_blueprint) with the Reciprocal profile and
-// plain A*, running at the session's own rate; Debug Mode is on at the start.
+// i4sim: the screenshots and clips show the captured blueprint (i4sim_capture_blueprint), the
+// launcher preview i4sim_preview_blueprint; all with the Reciprocal profile and plain A*,
+// running at the session's own rate. Debug Mode is on at the start.
 
 /// What an i4sim capture shows around the floor.
 enum class I4simView {
     /// Debug Mode off: the floor, the labels and the statistics.
     normal,
-    /// Debug Mode with every layer, the debug menu closed.
+    /// Debug Mode with the default layers, the debug menu closed.
     debug,
     /// Debug Mode with the debug menu open on LAYERS: every part and its swatch.
     debug_with_layers,
@@ -337,11 +373,11 @@ int i4sim_busy_start() {
     return busiest_window_start(driving, long_clip_steps, steps_per_second);
 }
 
-/// Loads the captured blueprint, chooses its motion settings and runs it to `into` steps
-/// into its busiest stretch. The settings are rows of the debug menu, which only Debug Mode
-/// shows, so the normal view turns Debug Mode off after them.
-void i4sim_start(Stage &stage, I4simView view, int into) {
-    stage.start_i4sim(i4sim_capture_blueprint);
+/// Loads `blueprint` paused and chooses its motion settings. The settings are rows of the
+/// debug menu, which only Debug Mode shows, so the normal view turns Debug Mode off after
+/// them.
+void i4sim_load(Stage &stage, std::string_view blueprint, I4simView view) {
+    stage.start_i4sim(blueprint);
     stage.toggle_debug_menu();
     for (const auto &click : i4sim_motion_clicks)
         stage.click_debug_row(click.row);
@@ -352,6 +388,12 @@ void i4sim_start(Stage &stage, I4simView view, int into) {
     stage.point_at(stage.viewport() - Vec2{2, 2});
     if (view == I4simView::normal)
         stage.toggle_setting(SettingsRow::debug_mode);
+}
+
+/// Loads the captured blueprint with its motion settings and runs it to `into` steps into
+/// its busiest stretch.
+void i4sim_start(Stage &stage, I4simView view, int into) {
+    i4sim_load(stage, i4sim_capture_blueprint, view);
     stage.press(Key::space);
     stage.steps(i4sim_busy_start() + into);
 }
@@ -370,6 +412,36 @@ void i4sim_debug(Stage &stage) {
     stage.shot();
 }
 
+/// Wheel notches the i4sim preview zooms in from the session's fit, which keeps room for HUD
+/// lines that the preview does not show. The floor then fills most of the window and leaves
+/// the SETTINGS button in the top-left corner beside it.
+constexpr float i4sim_preview_zoom_in = 2;
+
+/// The step after Space at which most movers of the preview floor drive, the earliest when
+/// several are equal; measured headless as i4sim_busy_start() is.
+int i4sim_preview_start() {
+    const auto driving = driving_movers(i4sim::default_blueprint_directory() / i4sim_preview_blueprint,
+                                        i4sim_preview_search_seconds * steps_per_second);
+    const int busiest = busiest_window_start(driving, 1, 1);
+    if (driving[std::size_t(busiest)] == 0)
+        std::cerr << "kinetra_capture: no i4sim mover drove within " << i4sim_preview_search_seconds
+                  << " s; i4sim-preview shows the floor at rest\n";
+    return busiest + 1;
+}
+
+/// The launcher's i4sim still: the small preview floor whole, at the moment most of its
+/// movers drive, with Debug Mode off and without the statistics lines. Only Debug Mode lets
+/// the wheel zoom, so the zoom comes before it goes off.
+void i4sim_preview(Stage &stage) {
+    i4sim_load(stage, i4sim_preview_blueprint, I4simView::debug);
+    turn_wheel(stage, i4sim_preview_zoom_in);
+    stage.toggle_setting(SettingsRow::debug_mode);
+    stage.toggle_setting(SettingsRow::statistics);
+    stage.press(Key::space);
+    stage.steps(i4sim_preview_start());
+    stage.shot();
+}
+
 Input no_input(int) {
     return {};
 }
@@ -385,7 +457,7 @@ void i4sim_debug_clip(Stage &stage) {
     stage.record(long_clip_frames, no_input);
 }
 
-// i4sim showcase scenes: Debug Mode and every visual layer on, as the session starts, the
+// i4sim showcase scenes: Debug Mode and the default layers on, as the session starts, the
 // debug menu closed, at the session's own rate.
 
 /// Records one cycle of the showcase scene in `showcase/<scene>.json`. The clip ends in the
@@ -396,7 +468,8 @@ void i4sim_showcase(Stage &stage, std::string_view scene) {
     stage.start_i4sim(file.string());
     const int frames =
         showcase_cycle_steps(i4sim::default_blueprint_directory() / file) / Stage::steps_per_frame;
-    stage.press(Key::space);
+    // A scene loads running; this step is the one in which the measurement starts.
+    stage.step();
     stage.record(frames, no_input);
 }
 
@@ -406,6 +479,11 @@ Scene shot(std::string_view name, void (*script)(Stage &)) {
 
 Scene clip(std::string_view name, void (*script)(Stage &)) {
     return {name, SceneKind::clip, clip_width, clip_height, script};
+}
+
+/// A launcher preview, which capture_media.sh also scales down to the launcher's still.
+Scene preview(std::string_view name, void (*script)(Stage &)) {
+    return {name, SceneKind::screenshot, preview_width, preview_height, script};
 }
 
 /// A clip of the shared UI for Kinetra's README, at the size of the other clips.
@@ -421,6 +499,7 @@ const std::vector<Scene> &scenes() {
         shot("launcher-difficulty", launcher_difficulty),
         shot("demo", demo),
         shot("demo-debug", demo_debug),
+        preview("demo-preview", demo_preview),
         clip("demo-clip", demo_clip),
         clip("demo-debug-clip", demo_debug_clip),
         clip("demo-gravity-clip",
@@ -429,6 +508,22 @@ const std::vector<Scene> &scenes() {
              [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::maze, demo_maze_frames); }),
         clip("demo-doorway-clip",
              [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::doorway, demo_doorway_frames); }),
+        clip("demo-corridor-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::corridor, demo_corridor_frames); }),
+        clip("demo-crossing-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::crossing, demo_crossing_frames); }),
+        clip("demo-circle-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::circle, demo_circle_frames); }),
+        clip("demo-bottleneck-clip",
+             [](Stage &stage) {
+                 demo_scenario_clip(stage, demo::Scenario::bottleneck, demo_bottleneck_frames);
+             }),
+        clip("demo-chaos-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::chaos, demo_free_frames); }),
+        clip("demo-fleet-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::fleet, demo_free_frames); }),
+        clip("demo-swarm-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::swarm, demo_free_frames); }),
         shot("dotio", dotio),
         shot("dotio-debug", dotio_debug),
         shot("dotio-settings", dotio_settings),
@@ -436,6 +531,7 @@ const std::vector<Scene> &scenes() {
         clip("dotio-debug-clip", dotio_debug_clip),
         shot("i4sim", i4sim),
         shot("i4sim-debug", i4sim_debug),
+        preview("i4sim-preview", i4sim_preview),
         clip("i4sim-clip", i4sim_clip),
         clip("i4sim-debug-clip", i4sim_debug_clip),
         clip("i4sim-showcase-junction-crossing-clip",

@@ -66,8 +66,9 @@ int main(int argc, char **argv) {
                 scenario = demo::parse_scenario(value);
             else
                 throw std::invalid_argument(
-                    "Usage: kinetra_demo [--seed N] [--scenario terrain|gravity|maze|doorway] "
-                    "[--frames N | --ticks N --inspect X,Y]");
+                    "Usage: kinetra_demo [--seed N] [--scenario "
+                    "terrain|gravity|maze|doorway|corridor|crossing|"
+                    "circle|bottleneck|chaos|fleet|swarm] [--frames N | --ticks N --inspect X,Y]");
         }
         if (inspect || ticks) {
             if (!inspect || ticks == 0 || !seed || frames)

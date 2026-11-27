@@ -29,7 +29,7 @@ std::vector<kinetra::ApplicationRegistration> applications(const Options &option
         std::make_shared<const RgbaImage>(preview_width, preview_height, detail::i4sim_preview);
     std::vector<kinetra::ApplicationRegistration> result;
     result.push_back(
-        {{"DEMO", "Explore physics, navigation and crowd steering across four interactive scenarios.",
+        {{"DEMO", "Explore physics, navigation and crowd steering in eleven scenarios and showcases.",
           demo::scenario_labels(), options.demo_scenario, demo_preview},
          [options](kinetra::Camera2D &camera, std::size_t index) -> std::unique_ptr<kinetra::Session> {
              reset(camera, demo::initial_zoom);

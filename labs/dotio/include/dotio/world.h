@@ -14,6 +14,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <random>
 #include <span>
@@ -210,8 +211,10 @@ class World {
     /// enemies' own movement since the last update; a lethal hit rewards the player.
     void update_bolts(const float delta);
 
-    /// Draws enemies, arrows, bolts and the player.
-    void draw(dotio::Renderer &renderer);
+    /// Draws enemies, arrows, bolts and the player. `after_enemy`, when set, runs right after
+    /// each active enemy is drawn and before the next one, so a presentation can draw over
+    /// that enemy alone.
+    void draw(dotio::Renderer &renderer, const std::function<void(Enemy &)> &after_enemy = {});
 
     [[nodiscard]] Tracker<Enemy> &get_enemies();
 

@@ -47,9 +47,11 @@ int main(int argc, char **argv) {
             else if (option == "--frames" && i + 1 < argc)
                 frame_limit = argument(argv[++i], 1, 100000);
             else
-                throw std::invalid_argument("Usage: kinetra [--variant demo|dotio|i4sim] [--difficulty "
-                                            "easy|medium|hard] [--scenario terrain|gravity|maze|doorway] "
-                                            "[--agents 0..300] [--frames 1..100000]");
+                throw std::invalid_argument(
+                    "Usage: kinetra [--variant demo|dotio|i4sim] [--difficulty "
+                    "easy|medium|hard] [--scenario terrain|gravity|maze|doorway|corridor|"
+                    "crossing|circle|bottleneck|chaos|fleet|swarm] [--agents 0..300] "
+                    "[--frames 1..100000]");
         }
         if (demo_scenario) {
             if (initial_variant && *initial_variant != launcher::Variant::demo)

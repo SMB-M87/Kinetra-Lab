@@ -70,9 +70,9 @@ jobs:
               exit 0
             fi
             # A Lab pull request that follows a Kinetra pull request in review can hold only
-            # the pointer. It is not pointer-only: it needs a review and merges after Kinetra.
+            # the pointer. It still runs full CI and merges after Kinetra.
             if ! git -C "$kinetra" merge-base --is-ancestor "$new" origin/main; then
-              echo "::warning title=Pointer not on Kinetra main::$new is not on Kinetra main, so this is not a pointer-only pull request: it needs an agent review and merges after its Kinetra pull request. The full CI runs."
+              echo "::warning title=Pointer not on Kinetra main::$new is not on Kinetra main, so this is not a pointer-only pull request: it merges after its Kinetra pull request. The full CI runs."
               exit 0
             fi
           fi

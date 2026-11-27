@@ -70,7 +70,8 @@ SteeringProfile profile(const Json &value) {
 MotionSettings motion(const Json &object) {
     only_keys(object,
               {"profile", "pathplanning", "heatmap", "recovery", "parkingtraffic", "junctiontraffic",
-               "corridortraffic", "predictivepassing", "makeway", "speed", "force", "horizon"},
+               "corridortraffic", "predictivepassing", "makeway", "departurecheck", "rightofway", "speed",
+               "force", "horizon"},
               "scenario.motion");
     MotionSettings settings;
     if (object.contains("profile"))
@@ -83,6 +84,8 @@ MotionSettings motion(const Json &object) {
     settings.corridor_traffic = flag(object, "corridortraffic", settings.corridor_traffic);
     settings.predictive_passing = flag(object, "predictivepassing", settings.predictive_passing);
     settings.make_way = flag(object, "makeway", settings.make_way);
+    settings.departure_check = flag(object, "departurecheck", settings.departure_check);
+    settings.right_of_way = flag(object, "rightofway", settings.right_of_way);
     const float unbounded = std::numeric_limits<float>::max();
     settings.speed = parameter(object, "speed", settings.speed, unbounded);
     settings.force = parameter(object, "force", settings.force, unbounded);
