@@ -71,7 +71,7 @@ Run time per layout in the baseline, both seeds, three runs:
 
 | Layout | Movers | Default | Predictive passing |
 | --- | --- | --- | --- |
-| `MAS-demonstrator` | 11 | 0.36–0.38 s | 0.41–0.43 s |
+| `test-environment` | 11 | 0.36–0.38 s | 0.41–0.43 s |
 | `3840x2400` | 25 | 1.1–1.3 s | 1.3–1.4 s |
 | `8640x4800` | 106 | 12.2–13.1 s | 17.8–18.9 s |
 
