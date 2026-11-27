@@ -85,7 +85,7 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 ## Media and tools
 
 - **When a label moves, search for the label alone with `git grep -n -i` as well as the phrases given to `check_copies.py`, which reads only Markdown and YAML** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
-  #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order.
+  #147's phrases missed two code and CMake comments (`smoke.cmake`, i4sim's `main.cpp`) and three README sentences that name SCENARIOS in another word order. Since 2026-11-27 a rule in [Verification in Lab](../AGENTS.md#verification-in-lab), after it came back in #148 for a key (Space) that a behavior no longer needs.
 
 - **When a change moves an action out of a menu, run every script that clicked it to its end, the tour included** · added 2026-11-27 · source: [#147](https://github.com/SMB-M87/Kinetra-Lab/pull/147)
   The tour opened i4sim's debug menu to click BLUEPRINTS and relied on it staying open for the next floor's MOTION rows. With BLUEPRINTS in the settings panel the menu stayed closed and the tour stopped there; CI runs only the clips, not the tour, so only a full local run showed it.
