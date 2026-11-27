@@ -56,7 +56,7 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Departure check | *Gate*, opt-in as DEPARTURE CHECK: the refined route when one exists, otherwise wait at the holding place | Over 50,000 ticks: products +1 to 4% in every configuration; Reciprocal waiting 152,001 → 92,401 (MAKE WAY off) and 104,020 → 79,381 (on); Improved contacts 836 → 233 with MAKE WAY. *Refine* alone raised Reciprocal waiting with MAKE WAY on |
+| Departure check | *Gate*, opt-in as DEPARTURE CHECK: the refined route when one exists, otherwise wait at the holding place | The prototype, over 50,000 ticks: products +1 to 4% in every configuration; Reciprocal waiting 152,001 → 92,401 (MAKE WAY off) and 104,020 → 79,381 (on); Improved contacts 836 → 233 with MAKE WAY. *Refine* alone raised Reciprocal waiting with MAKE WAY on. The branch after review is in *Verification* |
 | Wait limit of the gate | 1,200 ticks (`10 × stall_ticks`), then depart as without the check | Agent's choice. Without a limit a mover sealed in for good never moves, so no stall starts and MAKE WAY never acts. The longest measured wait was 672 ticks, so the limit changes no measured run |
 | Gate on a processing-place departure | No | A mover held at a processing place blocks its producer |
 | Gate on a mover still driving to its holding place | No: only a mover that stands there is held back; review round 1 of #146 | Held back in the aisle, it would drive on into its parking row and could seal itself in, and its wait would count its drive |
@@ -199,7 +199,7 @@ ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 172 of 1
 
 The first version of the branch reproduced the measured gate exactly: on the harness with `--make-way --departure-check`, Reciprocal had 111 products, 0 contacts and 19,812 waiting ticks; Improved 104 products, 5 contacts and 2,786 waiting ticks. A mover held by the gate stands idle, so `FlowMetrics` does not count it as waiting. Gated ticks summed to at most 2,016 in a harness profile and 143 over the 50,000-tick benchmark, so the reductions in waiting are not an artifact of that.
 
-Review round 1 narrowed the gate to a standing mover and added the rescheduling path. Measured again with the branch, *base → departure check*, as products / waiting ticks / contacts / runs with a stuck mover at the end:
+Review rounds 1 and 2 narrowed the gate to a standing mover, added the rescheduling path and staged a rescheduled mover near its new producer. Measured again with the branch, *base → departure check*, as products / waiting ticks / contacts / runs with a stuck mover at the end:
 
 | Run | MAKE WAY off | MAKE WAY on |
 | --- | --- | --- |
@@ -208,7 +208,16 @@ Review round 1 narrowed the gate to a standing mover and added the rescheduling 
 | Harness, Reciprocal | 110 / 20,383 / 0 / 2 → 113 / 20,874 / 0 / 0 | 110 / 17,449 / 0 / 0 → 113 / 20,874 / 0 / 0 |
 | Harness, Improved | 103 / 3,487 / 170 / 0 → 104 / 2,426 / 5 / 0 | 103 / 3,833 / 167 / 1 → 104 / 2,700 / 4 / 1 |
 
-Over 50,000 ticks products rise in every configuration (by 1 to 4%), Reciprocal waiting falls by 40 to 44%, and Improved's contacts halve. In the shorter harness Reciprocal waits a little more than its base with MAKE WAY (17,449 → 20,874), while its runs with a stuck mover at the end fall from 2 to 0 without MAKE WAY.
+Over 50,000 ticks products rise in every configuration (by 1 to 4%), Reciprocal waiting falls by 40 to 44%, and Improved's contacts halve. In the shorter harness Reciprocal waits more than its base: without MAKE WAY a little (20,383 → 20,874), with it by a fifth (17,449 → 20,874). Its runs with a stuck mover at the end fall from 2 to 0 without MAKE WAY.
+
+The two Reciprocal harness cells with the check are identical run for run because MAKE WAY never starts there. The parked-blocker departures it cleared on `4320x2400` now leave along checked routes, so no episode needs it. With the check, MAKE WAY starts in 2 harness runs under Improved and 3 and 6 times over the 50,000-tick benchmark.
+
+The gate's figures for the branch after review rounds 1 and 2, from an instrumented copy that logged every held tick:
+
+- The longest wait is 672 consecutive ticks, the one recurring `4320x2400` mover under Reciprocal on the harness. No run reaches the 1,200-tick limit.
+- Held ticks sum to 2,016 (Reciprocal) and 186 (Improved) on the harness, and to at most 79 and 7 over the 50,000-tick benchmark.
+
+These are the first version's figures, and round 2's staging of a rescheduled mover near its new producer changed no measured run.
 
 Step 2, on step 1's branch with Kinetra `e81fab3` (`refactor/i4sim-passing-coordinator`, ADR only), the same Release build: 171 of 171 i4sim cases pass.
 
@@ -266,6 +275,19 @@ With MAKE WAY on, RIGHT OF WAY off → on. The integrated version gives the prot
 - *Question:* was a mover still driving to its holding place meant to be held back? No: only a standing mover is now.
 - Of the nits, the make-way trip is the same early return as the hold, which a case pins. A retry interval for the gated planning would bound a cost the measurements show is small (at most 2,016 gated ticks per harness profile). The roadmap's *Where* follows each merge.
 - The proposed lesson is added to `docs/review-lessons.md`.
+
+**Step 1, agent review round 2** ([#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146), *Fix first*; the four threads of round 1 accepted):
+
+- *Should fix:* `schedule()` indexed `processing_cell` with an unchecked cell id, which is `-1` off the grid. The id is now checked (`ff2f133`), and the proposed lesson is added.
+- *Should fix:* two behaviors had no case.
+  - A mover finishing at a processing place leaves at once: a new case covers it, and fails with the processing test inverted.
+  - A moving mover is not held back: no case. Through the public API it needs a mover with a product that drives inside a sealed corner when its product heads the queue. An operator goal is refused for a mover with a product, and every other path makes the mover stand before `approach()` runs. The condition is one comparison, and the contract names it.
+- *Question:* a rescheduled product that does not head its new queue kept its mover at the old producer's holding place. It is now sent to a holding place near the new producer, as a queued product is.
+- *Question:* the figures.
+  - The identical harness cells are real: MAKE WAY never starts there with the check.
+  - The summary sentence now names both harness rises.
+  - The gate's figures were measured again for this version.
+- Nits: the `///` of `approach()` and `departure_route()` name the rescheduled product and a mover that is not idle (still driving or unreachable), and the decision row marks its figures as the prototype's.
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
 

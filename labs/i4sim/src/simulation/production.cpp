@@ -101,9 +101,18 @@ void Production::schedule(Product &product, Goals &goals) {
     // place after a blocked producer for example, leaves the way a queued one does: approach()
     // sends it once the product heads the queue, through DEPARTURE CHECK. A mover that just
     // finished at a processing place leaves at once, or it would block that producer.
-    if (departure.empty() && goals.motion.departure_check &&
-        !floor.processing_cell(floor.grid().cell(m.body.position))) {
+    // A position off the grid (the strip a blueprint whose dimension is no multiple of its
+    // cells leaves) is no processing place.
+    const int cell = floor.grid().cell(m.body.position);
+    if (departure.empty() && goals.motion.departure_check && (cell < 0 || !floor.processing_cell(cell))) {
         product.state = ProductState::transporting;
+        // Not yet at the head, it waits near its new producer, as a queued product does.
+        const auto &queue = producers_[*product.producer].queue;
+        if (queue.front() != product.id) {
+            const auto hold = goals.holding_position(m, goal);
+            if (distance(hold, m.destination) > same_point_mm)
+                goals.set(m, hold);
+        }
         return;
     }
     goals.set(m, goal);
