@@ -176,7 +176,7 @@ void turn_wheel(Stage &stage, float notches) {
 }
 
 /// The launcher's Demo still: Doorway at the moment its groups cross, in Debug Mode as the
-/// session starts, so their routes and steering show, without the statistics line. Debug
+/// session starts, so their routes and velocity vectors show, without the statistics line. Debug
 /// Mode also lets the wheel zoom.
 void demo_preview(Stage &stage) {
     stage.start(Variant::demo, static_cast<std::size_t>(demo::Scenario::doorway));
