@@ -246,8 +246,11 @@ Initial transport allocation requires a clear departure route around stationary 
 stalled bodies. If refinement finds no connection or exceeds its 256-node budget,
 allocation skips that mover. Ordinary routing can use the weighted route in those
 cases. When a product already has a mover and reaches the front of the producer's
-queue, dispatch uses ordinary routing. The [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem)
-shows how that can leave a mover with an obstructed first leg. Other moving
+queue, dispatch uses ordinary routing by default. The [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem)
+shows how that can leave a mover with an obstructed first leg. With DEPARTURE CHECK on, that
+departure needs the same refined route as an allocation; without one the mover keeps
+waiting at its holding place for at most 1,200 ticks, then departs as before
+([departure check](../labs/i4sim/README.md#departure-check)). Other moving
 traffic still uses local avoidance. Optional geometric recovery is a separate policy.
 
 Route recovery converts millimeter geometry into units of one planner resolution (a quarter of the smaller factory cell dimension), then converts the route back to millimeters. This keeps long factory routes within the planner's spatial query budget while retaining the configured resolution and mover clearance.

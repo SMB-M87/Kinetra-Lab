@@ -1838,6 +1838,172 @@ TEST_CASE("allocation skips a mover trapped behind blocked neighbors") {
                   "Factory assigned a mover trapped behind parked neighbors");
 }
 
+namespace {
+/// One Kuka near the northwest corner. `waiting` gets the second of two products and waits
+/// for it in its own parking place in that corner, while `front` and `side` drive in and
+/// park beside it, so no checked route leaves the corner. Returns at the tick at which the
+/// second product heads the queue.
+Simulation start_sealed_departure(bool departure_check) {
+    auto b = fixture();
+    b.producers = {{"Kuka", Model::Kuka, {2300, 100}, {300, 250}}};
+    b.movers = {{"waiting", Model::APM4220, {5, 5}},
+                {"first", Model::APM4220, {800, 500}},
+                {"front", Model::APM4220, {1200, 900}},
+                {"side", Model::APM4220, {1500, 900}}};
+    Simulation simulation(b);
+    simulation.set_workload(false);
+    auto settings = simulation.motion_settings();
+    settings.departure_check = departure_check;
+    simulation.configure_motion(settings);
+    simulation.run();
+    // Held, `waiting` is passed over for the first product, which `first` takes.
+    simulation.toggle_mover(0);
+    simulation.add_product(ProductKind::trimmer);
+    simulation.tick();
+    simulation.toggle_mover(0);
+    simulation.add_product(ProductKind::trimmer);
+    simulation.tick();
+    REQUIRE(simulation.movers()[0].product == 2u);
+    const auto corner = simulation.movers()[0].body.position;
+    const auto size = simulation.movers()[0].body.half_extents * 2 + Vec2{6, 6};
+    REQUIRE(simulation.move_to(2, {corner.x, corner.y + size.y}));
+    REQUIRE(simulation.move_to(3, {corner.x + size.x, corner.y}));
+    const auto &queue = simulation.producers()[0].queue;
+    for (int tick = 0; tick < 6000 && queue.front() != 2u; ++tick)
+        simulation.tick();
+    REQUIRE(queue.front() == 2u);
+    REQUIRE_FALSE(simulation.movers()[2].moving());
+    REQUIRE_FALSE(simulation.movers()[3].moving());
+    return simulation;
+}
+} // namespace
+
+TEST_CASE("departure check lets a mover leave a processing place at once for its next producer") {
+    // Leaving a processing place is never held back: a mover waiting there blocks the producer.
+    Simulation simulation(fixture());
+    simulation.set_workload(false);
+    auto settings = simulation.motion_settings();
+    settings.departure_check = true;
+    simulation.configure_motion(settings);
+    simulation.run();
+    simulation.add_product(ProductKind::trimmer);
+    const auto &kuka = simulation.producers()[0];
+    for (int tick = 0; tick < 10000 && !kuka.product; ++tick)
+        simulation.tick();
+    REQUIRE(kuka.product);
+    for (int tick = 0; tick < 10000 && kuka.product; ++tick)
+        simulation.tick();
+    REQUIRE_FALSE(kuka.product);
+    // In the tick its last step there ended, it already heads for the next producer.
+    const auto &mover = simulation.movers()[0];
+    CHECK(mover.moving());
+    CHECK(kinetra::distance(mover.destination, mover.body.position) > 100);
+}
+
+TEST_CASE("without departure check a sealed queued mover leaves at once") {
+    auto simulation = start_sealed_departure(false);
+    CHECK(simulation.movers()[0].moving());
+}
+
+TEST_CASE("departure check keeps a sealed queued mover waiting until a checked route opens") {
+    auto simulation = start_sealed_departure(true);
+    const auto &waiting = simulation.movers()[0];
+    const auto parked = waiting.body.position;
+    for (int tick = 0; tick < 200; ++tick) {
+        simulation.tick();
+        REQUIRE_FALSE(waiting.moving());
+    }
+    CHECK(waiting.body.position == parked);
+    CHECK(waiting.product == 2u);
+    CHECK_FALSE(simulation.producers()[0].product);
+    // `front` drives away; the corner opens and the waiting mover departs long before the
+    // wait limit.
+    REQUIRE(simulation.move_to(2, {1300, 1000}));
+    std::uint64_t opened = simulation.ticks();
+    for (int tick = 0; tick < 1000 && !waiting.moving(); ++tick)
+        simulation.tick();
+    CHECK(waiting.moving());
+    CHECK(simulation.ticks() - opened < detail::departure_wait_ticks / 2);
+    for (int tick = 0; tick < 3000 && waiting.moving(); ++tick)
+        simulation.tick();
+    CHECK(simulation.producers()[0].product == 2u);
+    CHECK(simulation.collisions() == 0);
+}
+
+TEST_CASE("departure check lets a mover sealed in for good depart after the wait limit") {
+    auto simulation = start_sealed_departure(true);
+    const auto head = simulation.ticks();
+    while (!simulation.movers()[0].moving() && simulation.ticks() < head + 2 * detail::departure_wait_ticks)
+        simulation.tick();
+    CHECK(simulation.ticks() - head == detail::departure_wait_ticks);
+    CHECK(simulation.movers()[0].moving());
+}
+
+TEST_CASE("departure check also holds back a product rescheduled after a blocked producer") {
+    // Blocking the producer sends the head product's mover back to its parking place; when the
+    // producer opens again, the product heads the empty queue at once, from the sealed corner.
+    auto simulation = start_sealed_departure(true);
+    const auto &queue = simulation.producers()[0].queue;
+    simulation.toggle_producer(0);
+    for (int tick = 0; tick < 50; ++tick)
+        simulation.tick();
+    REQUIRE(queue.empty());
+    REQUIRE_FALSE(simulation.movers()[0].moving());
+    simulation.toggle_producer(0);
+    for (int tick = 0; tick < 200; ++tick) {
+        simulation.tick();
+        REQUIRE_FALSE(simulation.movers()[0].moving());
+    }
+    REQUIRE_FALSE(queue.empty());
+    CHECK(queue.front() == 2u);
+    CHECK(simulation.movers()[0].product == 2u);
+}
+
+TEST_CASE("a hold during a departure wait starts the wait again") {
+    auto simulation = start_sealed_departure(true);
+    for (int tick = 0; tick < 100; ++tick)
+        simulation.tick();
+    simulation.toggle_mover(0);
+    for (std::uint64_t tick = 0; tick < detail::departure_wait_ticks; ++tick)
+        simulation.tick();
+    simulation.toggle_mover(0);
+    const auto released = simulation.ticks();
+    while (!simulation.movers()[0].moving() &&
+           simulation.ticks() < released + 2 * detail::departure_wait_ticks)
+        simulation.tick();
+    // The wait begins at the first approach after the release; without the restart the
+    // mover would leave in that tick.
+    CHECK(simulation.ticks() - released >= detail::departure_wait_ticks);
+}
+
+TEST_CASE("turning departure check off releases a waiting mover") {
+    auto simulation = start_sealed_departure(true);
+    for (int tick = 0; tick < 100; ++tick)
+        simulation.tick();
+    REQUIRE_FALSE(simulation.movers()[0].moving());
+    auto settings = simulation.motion_settings();
+    settings.departure_check = false;
+    simulation.configure_motion(settings);
+    simulation.tick();
+    CHECK(simulation.movers()[0].moving());
+}
+
+TEST_CASE("departure check routes a queued Improved departure around its parked neighbors") {
+    // Recorded on 1680x960+, seed 42: at tick 4847 mover 5's product heads its queue, and the
+    // plain grid route squeezes it between parked movers 2 and 6 (contacts from tick 4890).
+    for (const bool check : {false, true}) {
+        CAPTURE(check);
+        Simulation simulation(load_blueprint(default_blueprint_directory() / "1680x960+.json"), 42);
+        auto settings = simulation.motion_settings();
+        settings.departure_check = check;
+        simulation.configure_motion(settings);
+        simulation.run();
+        for (int tick = 0; tick < 5200; ++tick)
+            simulation.tick();
+        CHECK((simulation.collisions() == 0) == check);
+    }
+}
+
 TEST_CASE("a persistent contact pair counts once and accumulates its duration") {
     auto b = fixture();
     b.producers.clear();
@@ -2327,6 +2493,7 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     CHECK(restarting->repeat == ScenarioRepeat::restart);
     CHECK(loaded->motion.path_planning);
     CHECK_FALSE(loaded->motion.make_way);
+    CHECK_FALSE(loaded->motion.departure_check);
     CHECK(loaded->motion.speed == MotionSettings{}.speed);
     CHECK(load_error(with_scenario(R"({"motion": {"pathPlanning": "no"}})"))
               .find("pathplanning must be true or false") != std::string::npos);
@@ -2337,15 +2504,20 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     CHECK(load_error(with_scenario(R"({"motion": {"horizon": 65}})"))
               .find("horizon must be a positive number of at most 64") != std::string::npos);
     const auto tuned = load_scenario(with_scenario(
-        R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64, "MakeWay": true}})"));
+        R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64, "MakeWay": true,
+                       "DepartureCheck": true}})"));
     REQUIRE(tuned);
     CHECK_FALSE(tuned->motion.path_planning);
     CHECK(tuned->motion.make_way);
+    CHECK(tuned->motion.departure_check);
     Simulation with_policy(crossing_fixture());
     apply_scenario(*tuned, with_policy);
     CHECK(with_policy.motion_settings().make_way);
+    CHECK(with_policy.motion_settings().departure_check);
     CHECK(load_error(with_scenario(R"({"motion": {"makeWay": 1}})")).find("makeway must be true or false") !=
           std::string::npos);
+    CHECK(load_error(with_scenario(R"({"motion": {"departureCheck": "yes"}})"))
+              .find("departurecheck must be true or false") != std::string::npos);
     CHECK(tuned->motion.speed == 2.5f);
     CHECK(tuned->motion.force == 0.25f);
     CHECK(tuned->motion.horizon == 64);
