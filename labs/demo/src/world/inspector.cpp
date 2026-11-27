@@ -16,9 +16,8 @@ std::optional<kinetra::InspectorSnapshot> inspect_agent(const Scene &scene, kine
     using kinetra::inspector_number;
     using kinetra::inspector_vector;
     const auto agents = scene.agents();
-    const auto agent = std::find_if(agents.begin(), agents.end(), [&](const Agent &candidate) {
-        return candidate.home().x == home.x && candidate.home().y == home.y;
-    });
+    const auto agent = std::find_if(agents.begin(), agents.end(),
+                                    [&](const Agent &candidate) { return candidate.home() == home; });
     if (agent == agents.end())
         return std::nullopt;
     const auto &body = scene.world().body(agent->body_id());
