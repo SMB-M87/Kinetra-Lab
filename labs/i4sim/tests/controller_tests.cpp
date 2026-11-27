@@ -128,8 +128,10 @@ TEST_CASE("a blueprint loads paused at the session's update rate with a camera f
     camera.position = {-5, 7};
     controller.update_camera(camera);
     const auto floor = simulation.blueprint().dimension;
-    CHECK(camera.position.x == floor.x / 2);
-    CHECK(camera.position.y == -floor.y / 2);
+    const Vec2 expected{floor.x / 2, -floor.y / 2};
+    CHECK_MESSAGE(camera.position == expected,
+                  "Camera position (" << camera.position.x << ", " << camera.position.y << ") expected ("
+                                      << expected.x << ", " << expected.y << ")");
     // 2160 by 1200 mm in 1280 by 800 pixels, of which 120 stay free for the toolbar and the
     // HUD: the height decides, with a tenth as margin.
     CHECK(camera.pixels_per_unit == doctest::Approx((800.0 - 120) / 1200 * 0.9));
@@ -590,8 +592,9 @@ TEST_CASE("f and the frame scene entry fit the camera again") {
     camera.position = {0, 0};
     choose(controller, "FRAME SCENE");
     frame(controller, camera);
-    CHECK(camera.position.x == fitted.position.x);
-    CHECK(camera.position.y == fitted.position.y);
+    CHECK_MESSAGE(camera.position == fitted.position,
+                  "Camera position (" << camera.position.x << ", " << camera.position.y << ") expected ("
+                                      << fitted.position.x << ", " << fitted.position.y << ")");
 }
 
 TEST_CASE("an open panel pauses a running blueprint and restores it afterwards") {
@@ -620,7 +623,7 @@ TEST_CASE("the menu starts with the simulation section open") {
     REQUIRE(controller.load(factory));
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS",
                                                          "WORKLOAD", "LAYERS", "MOTION", "TRAFFIC", "ZOOM",
-                                                         "FRAME SCENE", "BLUEPRINTS"});
+                                                         "FRAME SCENE"});
     const auto menu = controller.menu();
     CHECK((menu[0].kind == kinetra::DebugEntryKind::group && menu[0].active() && menu[0].depth == 0));
     CHECK_FALSE(menu[5].active());
@@ -637,10 +640,10 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC",
                                                          "CORRIDOR TRAFFIC", "JUNCTION TRAFFIC",
                                                          "PARKING TRAFFIC", "PREDICTIVE PASS", "MAKE WAY",
-                                                         "ZOOM", "FRAME SCENE", "BLUEPRINTS"});
+                                                         "ZOOM", "FRAME SCENE"});
     choose(controller, "TRAFFIC");
-    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "ZOOM",
-                                                         "FRAME SCENE", "BLUEPRINTS"});
+    CHECK(labels(controller) ==
+          std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "ZOOM", "FRAME SCENE"});
 }
 
 TEST_CASE("the layers section lists every layer as a check box, each with its parts") {
@@ -652,8 +655,7 @@ TEST_CASE("the layers section lists every layer as a check box, each with its pa
               "SIMULATION",      "LAYERS",          "GRID",         "HEATMAP", "PATHS",     "ROUTES",
               "RETREAT TARGETS", "PASSING TARGETS", "FORCES",       "SEEK",    "COLLISION", "BORDER",
               "PREDICTIVE",      "VELOCITY",        "ACCELERATION", "BORDERS", "WALLS",     "TRAFFIC ZONES",
-              "DETECTION",       "CONTACT SHAPES",  "MOTION",       "TRAFFIC", "ZOOM",      "FRAME SCENE",
-              "BLUEPRINTS"});
+              "DETECTION",       "CONTACT SHAPES",  "MOTION",       "TRAFFIC", "ZOOM",      "FRAME SCENE"});
     const auto paths = entry(controller, "PATHS");
     CHECK((paths.kind == kinetra::DebugEntryKind::check && paths.depth == 1));
     const auto routes = entry(controller, "ROUTES");
@@ -746,8 +748,8 @@ TEST_CASE("the motion section lists the profile, the planner and the parameters"
     open_section(controller, "MOTION");
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "PROFILE",
                                                          "PLANNER", "RECOVERY", "SPEED", "FORCE", "HORIZON",
-                                                         "RESET PARAMETERS", "TRAFFIC", "ZOOM", "FRAME SCENE",
-                                                         "BLUEPRINTS"});
+                                                         "RESET PARAMETERS", "TRAFFIC", "ZOOM",
+                                                         "FRAME SCENE"});
     CHECK_MESSAGE(!entry(controller, "SPEED").action, "a number row changes only with its buttons");
 }
 
@@ -818,7 +820,7 @@ TEST_CASE("the profile list shows the four profiles and closes on a choice") {
     CHECK(controller.simulation().motion_settings().profile == i4sim::SteeringProfile::reciprocal);
     CHECK(entry(controller, "PROFILE").value() == "RECIPROCAL");
     CHECK_MESSAGE(!entry(controller, "PROFILE").active(), "choosing a value closes the list");
-    CHECK(labels(controller).size() == 14);
+    CHECK(labels(controller).size() == 13);
 }
 
 TEST_CASE("choosing the current value only closes the list") {
@@ -957,14 +959,14 @@ TEST_CASE("a motion setting the simulation rejects shows its reason and changes 
     CHECK_MESSAGE(controller.message().empty(), "the reason expires like a rejected goal");
 }
 
-TEST_CASE("the blueprints entry closes the blueprint at the next frame") {
+TEST_CASE("close_later closes the blueprint at the next frame") {
     FactoryController controller(42, true, 200);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     frame(controller, camera, click(camera, mover_position(controller, 0)));
     controller.suspend(true);
-    choose(controller, "BLUEPRINTS");
-    CHECK_MESSAGE(controller.loaded(), "the frame that chose the entry keeps its simulation");
+    controller.close_later();
+    CHECK_MESSAGE(controller.loaded(), "the frame that asked keeps its simulation");
     CHECK_FALSE(controller.begin_frame(0));
     CHECK_FALSE(controller.loaded());
     CHECK_FALSE(controller.selected_mover());
@@ -974,7 +976,7 @@ TEST_CASE("the blueprints entry closes the blueprint at the next frame") {
     CHECK_MESSAGE(controller.simulation().running(), "the next blueprint does not inherit the old pause");
     CHECK(controller.begin_frame(0));
 
-    choose(controller, "BLUEPRINTS");
+    controller.close_later();
     REQUIRE(controller.load(open_floor));
     CHECK_MESSAGE(controller.begin_frame(0), "a load drops the close requested for the old blueprint");
     CHECK(controller.simulation().blueprint().name == "Predictive passing");

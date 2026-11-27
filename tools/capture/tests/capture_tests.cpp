@@ -215,6 +215,7 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "i4sim-showcase-corridor-recovery-clip",
                                          "i4sim-showcase-predictive-passing-clip",
                                          "i4sim-showcase-h-crossing-clip",
+                                         "i4sim-showcase-make-way-clip",
                                          "ui-launcher",
                                          "ui-settings",
                                          "ui-debug-menu",
@@ -245,11 +246,9 @@ TEST_CASE("a showcase cycle holds the scene's pauses and is the same on every ru
                                         capture::i4sim_updates_per_second / capture::Stage::step_seconds);
     // Shuttles stand twice per cycle, at the goal and back at the start; corridor recovery
     // stands once, before it restarts.
-    const std::pair<const char *, int> scenes[]{{"junction-crossing", 2},
-                                                {"corridor-passing", 2},
-                                                {"corridor-recovery", 1},
-                                                {"predictive-passing", 2},
-                                                {"h-crossing", 2}};
+    const std::pair<const char *, int> scenes[]{{"junction-crossing", 2}, {"corridor-passing", 2},
+                                                {"corridor-recovery", 1}, {"predictive-passing", 2},
+                                                {"h-crossing", 2},        {"make-way", 2}};
     for (const auto &[name, pauses] : scenes) {
         CAPTURE(name);
         const int steps = capture::showcase_cycle_steps(showcase_file(name));
@@ -662,11 +661,10 @@ TEST_CASE("a pointer path starts and ends on its points and stays near the strai
     std::mt19937 random(7);
     const kinetra::Vec2 from{100, 100}, to{900, 500};
     const auto path = capture::plan_pointer_path(from, to, random);
-    const auto same = [](kinetra::Vec2 a, kinetra::Vec2 b) { return a.x == b.x && a.y == b.y; };
-    CHECK(same(path.at(0), from));
-    CHECK(same(path.at(-1), from));
-    CHECK(same(path.at(path.duration), to));
-    CHECK(same(path.at(path.duration + 5), to));
+    CHECK(path.at(0) == from);
+    CHECK(path.at(-1) == from);
+    CHECK(path.at(path.duration) == to);
+    CHECK(path.at(path.duration + 5) == to);
     const float distance = kinetra::length(to - from);
     const kinetra::Vec2 along = (to - from) / distance;
     float covered = 0;
@@ -703,8 +701,8 @@ TEST_CASE("pointer paths repeat for a seed and bend otherwise for another") {
     const auto a = capture::plan_pointer_path({0, 0}, {800, 300}, first);
     const auto b = capture::plan_pointer_path({0, 0}, {800, 300}, again);
     const auto c = capture::plan_pointer_path({0, 0}, {800, 300}, other);
-    CHECK((a.control.x == b.control.x && a.control.y == b.control.y));
-    CHECK((a.control.x != c.control.x || a.control.y != c.control.y));
+    CHECK(a.control == b.control);
+    CHECK(a.control != c.control);
     CHECK(a.duration == c.duration);
 }
 

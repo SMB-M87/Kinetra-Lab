@@ -287,8 +287,7 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
     start_crossing(reference, false);
     start_crossing(trial, true);
     start_crossing(replay, true);
-    CHECK_MESSAGE((trial.junction_count() == 1 && trial.junction_center(0).x == 700 &&
-                   trial.junction_center(0).y == 700),
+    CHECK_MESSAGE((trial.junction_count() == 1 && trial.junction_center(0) == Vec2{700, 700}),
                   "Isolated crossing detection failed");
     bool waited = false, checked_block = false, checked_late_cancel = false;
     for (int tick = 0; tick < 1000; ++tick) {
@@ -301,9 +300,8 @@ TEST_CASE("junction admission resolves the narrow crossing exclusively and deter
                           "Junction traffic was nondeterministic");
             CHECK_MESSAGE(kinetra::length(m.body.acceleration) <= trial.motion_settings().force + 0.00001f,
                           "Junction stopping exceeded acceleration bounds");
-            CHECK_MESSAGE(
-                (m.destination.x == (i == 0 ? 1100 : 700) && m.destination.y == (i == 0 ? 700 : 1100)),
-                "Junction admission changed a manual goal");
+            const auto goal = i == 0 ? Vec2{1100, 700} : Vec2{700, 1100};
+            CHECK_MESSAGE(m.destination == goal, "Junction admission changed a manual goal");
             const auto delta = m.body.position - Vec2{700, 700};
             if (std::abs(delta.x) < 102 + m.body.half_extents.x &&
                 std::abs(delta.y) < 102 + m.body.half_extents.y)
@@ -1717,7 +1715,7 @@ TEST_CASE("without path planning a mover steers straight at its goal and still n
     motion.path_planning = false;
     s.configure_motion(motion);
     REQUIRE(s.movers()[0].route.size() == 1);
-    CHECK((s.movers()[0].route.front().x == goal.x && s.movers()[0].route.front().y == goal.y));
+    CHECK(s.movers()[0].route.front() == goal);
     // (720, 120) lies in the forbidden top bar of the H: no route, so no goal.
     CHECK_FALSE(s.move_to(1, {720, 120}));
     CHECK(s.movers()[1].lifecycle == MoverLifecycle::idle);
@@ -1725,7 +1723,7 @@ TEST_CASE("without path planning a mover steers straight at its goal and still n
     for (int tick = 0; tick < 3000 && s.movers()[0].moving(); ++tick)
         s.tick();
     CHECK_MESSAGE(s.movers()[0].lifecycle == MoverLifecycle::idle, "The mover stuck on the way");
-    CHECK((s.movers()[0].body.position.x == goal.x && s.movers()[0].body.position.y == goal.y));
+    CHECK(s.movers()[0].body.position == goal);
     CHECK(s.collisions() == 0);
 }
 
@@ -1942,14 +1940,14 @@ TEST_CASE("the bundled catalog holds five blueprints that all load") {
         load_blueprint(file);
 }
 
-TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply") {
+TEST_CASE("the bundled showcase holds six scenes whose scenarios load and apply") {
     const auto files = discover_blueprints(default_blueprint_directory() / "showcase");
-    REQUIRE_MESSAGE(files.size() == 5, "Showcase bundle is incomplete");
+    REQUIRE_MESSAGE(files.size() == 6, "Showcase bundle is incomplete");
     for (const auto &file : files) {
         CAPTURE(file);
         const auto scenario = load_scenario(file);
         REQUIRE_MESSAGE(scenario, "Showcase blueprint has no scenario");
-        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && scenario->goals.size() >= 2),
+        CHECK_MESSAGE((!scenario->description.empty() && !scenario->workload && !scenario->goals.empty()),
                       "Showcase scenario lacks a description, disables no workload or misses goals");
         Simulation simulation(load_blueprint(file));
         apply_scenario(*scenario, simulation);
@@ -1960,13 +1958,17 @@ TEST_CASE("the bundled showcase holds five scenes whose scenarios load and apply
         apply_scenario(*scenario, running);
         CHECK_MESSAGE(running.running(), "Applying a scenario must keep a running simulation running");
         CHECK_MESSAGE(!simulation.workload(), "Scenario workload not applied");
+        // A mover without a goal stays parked, as the blocker in the make-way scene does.
         const bool shuttles = scenario->repeat == ScenarioRepeat::shuttle;
+        std::size_t sent = 0;
         for (std::size_t mover = 0; mover < simulation.movers().size(); ++mover) {
             CAPTURE(mover);
-            CHECK_MESSAGE(simulation.movers()[mover].goal == GoalKind::manual,
-                          "Scenario goals were not sent");
-            CHECK_MESSAGE(simulation.shuttling(mover) == shuttles, "Scenario repeat mode not applied");
+            const bool has_goal = simulation.movers()[mover].goal == GoalKind::manual;
+            sent += has_goal;
+            CHECK_MESSAGE(simulation.shuttling(mover) == (shuttles && has_goal),
+                          "Scenario repeat mode not applied");
         }
+        CHECK_MESSAGE(sent == scenario->goals.size(), "Scenario goals were not sent");
     }
 }
 
@@ -1985,7 +1987,7 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
         const char *name;
         SteeringProfile profile;
         void (*enable)(MotionSettings &);
-        /// One goal per mover, in blueprint order.
+        /// One goal per mover, in blueprint order; the movers after the last goal stay parked.
         std::vector<Vec2> goals;
     };
     const auto passing = [](MotionSettings &m) {
@@ -2016,6 +2018,14 @@ TEST_CASE("each showcase scene runs exactly like its hand-configured setup") {
              m.horizon = 16;
          },
          {{1323.75f, 843.75f}, {1323.75f, 116.25f}, {116.25f, 843.75f}, {116.25f, 116.25f}}},
+        // Only the through mover drives; the parked mover yields on every leg.
+        {"make-way",
+         SteeringProfile::reciprocal,
+         [](MotionSettings &m) {
+             m.make_way = true;
+             m.heatmap = false;
+         },
+         {{1100, 300}}},
     };
     // Long enough for the shuttling scenes to turn at least once.
     constexpr std::uint64_t ticks = 6000;
@@ -2095,11 +2105,11 @@ TEST_CASE("shuttling movers turn together after the pause") {
     CHECK_MESSAGE(s.ticks() == last_arrival + shuttle_pause_ticks, "Pause counted from the wrong tick");
     REQUIRE_MESSAGE((s.movers()[0].moving() && s.movers()[1].moving()),
                     "Shuttling movers did not turn together");
-    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
-    CHECK((s.movers()[1].destination.x == north_start.x && s.movers()[1].destination.y == north_start.y));
+    CHECK(s.movers()[0].destination == west_start);
+    CHECK(s.movers()[1].destination == north_start);
     CHECK_MESSAGE(drive_leg(), "The return leg did not meet at the junction again");
-    CHECK((s.movers()[0].body.position.x == west_start.x && s.movers()[0].body.position.y == west_start.y));
-    CHECK((s.movers()[1].body.position.x == north_start.x && s.movers()[1].body.position.y == north_start.y));
+    CHECK(s.movers()[0].body.position == west_start);
+    CHECK(s.movers()[1].body.position == north_start);
     CHECK((s.shuttling(0) && s.shuttling(1)));
     CHECK(s.collisions() == 0);
 }
@@ -2134,7 +2144,7 @@ TEST_CASE("a manual goal ends shuttling for that mover only") {
     for (std::uint64_t tick = 0; tick < shuttle_pause_ticks; ++tick)
         s.tick();
     CHECK_MESSAGE(s.movers()[0].moving(), "The remaining shuttling mover did not turn on its own");
-    CHECK((s.movers()[0].destination.x == west_start.x && s.movers()[0].destination.y == west_start.y));
+    CHECK(s.movers()[0].destination == west_start);
     run_until_idle(1);
     for (std::uint64_t tick = 0; tick <= shuttle_pause_ticks; ++tick)
         s.tick();
@@ -2154,10 +2164,14 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
         s.run();
         // A leg runs from one turn to the next; count the legs in which traffic coordination
         // stepped in, which is the situation a scene with a coordination feature exists to
-        // show. A scene without one (the H) shows steering alone.
+        // show. A scene without one (the H) shows steering alone. A parked mover that makes
+        // way counts as coordination too.
         const auto &motion = scenario->motion;
-        const bool coordinates =
-            motion.junction_traffic || motion.corridor_traffic || motion.predictive_passing;
+        const bool coordinates = motion.junction_traffic || motion.corridor_traffic ||
+                                 motion.predictive_passing || motion.make_way;
+        std::vector<bool> shuttling;
+        for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
+            shuttling.push_back(s.shuttling(mover));
         constexpr int wanted_legs = 4;
         int legs = 0, coordinated_legs = 0;
         bool coordinated = false, under_way = true;
@@ -2166,7 +2180,7 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
             for (const auto &m : s.movers()) {
                 const auto &c = m.coordination;
                 coordinated = coordinated || c.junction_waiting || c.exit_waiting || c.corridor_waiting ||
-                              c.corridor_retreating || c.passing;
+                              c.corridor_retreating || c.passing || m.goal == GoalKind::making_way;
             }
             const bool idle = std::all_of(s.movers().begin(), s.movers().end(),
                                           [](const Mover &m) { return m.lifecycle == MoverLifecycle::idle; });
@@ -2182,7 +2196,7 @@ TEST_CASE("every shuttling showcase scene repeats its traffic situation") {
                       "A leg did not show the traffic situation again");
         CHECK(s.collisions() == 0);
         for (std::size_t mover = 0; mover < s.movers().size(); ++mover)
-            CHECK(s.shuttling(mover));
+            CHECK(s.shuttling(mover) == shuttling[mover]);
     }
 }
 

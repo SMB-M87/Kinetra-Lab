@@ -448,6 +448,7 @@ const std::vector<Scene> &scenes() {
         clip("i4sim-showcase-predictive-passing-clip",
              [](Stage &stage) { i4sim_showcase(stage, "predictive-passing"); }),
         clip("i4sim-showcase-h-crossing-clip", [](Stage &stage) { i4sim_showcase(stage, "h-crossing"); }),
+        clip("i4sim-showcase-make-way-clip", [](Stage &stage) { i4sim_showcase(stage, "make-way"); }),
         ui_clip("ui-launcher", ui_launcher),
         ui_clip("ui-settings", ui_settings),
         ui_clip("ui-debug-menu", ui_debug_menu),
