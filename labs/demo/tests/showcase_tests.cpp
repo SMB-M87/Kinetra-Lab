@@ -372,22 +372,28 @@ TEST_CASE("every showcase scenario repeats without contact") {
         std::size_t agents;
         /// Legs (holds after the start) every agent completes within the run.
         int legs;
+        /// For following agents: the largest mean distance to their slots after the first
+        /// five seconds, in world units; zero for the other scripts.
+        float slot_distance{};
     };
     // Shuttles that turn together complete a leg in 6 to 14 seconds, Maze's agents in up
-    // to 18, roaming agents in about 5; following agents hold whenever they catch up.
-    for (const auto [scenario, agents, legs] :
+    // to 18, roaming agents in about 5; following agents hold whenever they catch up, and
+    // keep near their slots even where pillars split a formation or a swarm: Fleet's mean
+    // distance is about 1.3 units, Swarm's, packed more densely, about 2.
+    for (const auto [scenario, agents, legs, slot_distance] :
          {Expectation{Scenario::maze, 6, 2}, Expectation{Scenario::doorway, 6, 3},
           Expectation{Scenario::corridor, 12, 2}, Expectation{Scenario::crossing, 12, 2},
           Expectation{Scenario::circle, 16, 3}, Expectation{Scenario::bottleneck, 16, 2},
-          Expectation{Scenario::chaos, 40, 3}, Expectation{Scenario::fleet, 12, 2},
-          Expectation{Scenario::swarm, 30, 2}}) {
+          Expectation{Scenario::chaos, 40, 3}, Expectation{Scenario::fleet, 12, 2, 2},
+          Expectation{Scenario::swarm, 30, 2, 3}}) {
         CAPTURE(demo::scenario_label(scenario));
         Scene scene(0, 42, scenario);
         REQUIRE(scene.agents().size() == agents);
         REQUIRE(scene.showcase());
         std::vector<int> holds(agents);
         std::vector<bool> holding(agents);
-        float deepest = 0, farthest_from_stop = 0;
+        float deepest = 0, farthest_from_stop = 0, from_slots = 0;
+        int slot_samples = 0;
         bool active = true;
         for (int t = 0; t < 120 * 40; ++t) {
             scene.update(tick, {});
@@ -402,6 +408,10 @@ TEST_CASE("every showcase scenario repeats without contact") {
                             std::max(farthest_from_stop, kinetra::length(position(scene, i) - *stop));
                 }
                 holding[i] = agent.holding();
+                if (slot_distance > 0 && t >= 120 * 5) {
+                    from_slots += kinetra::length(position(scene, i) - scene.showcase()->slot_target(i));
+                    ++slot_samples;
+                }
             }
             deepest = std::max(deepest, deepest_overlap(scene));
         }
@@ -409,5 +419,8 @@ TEST_CASE("every showcase scenario repeats without contact") {
         CHECK(*std::ranges::min_element(holds) >= legs);
         CHECK(farthest_from_stop < at_stop);
         CHECK(deepest <= max_penetration);
+        if (slot_distance > 0) {
+            CHECK(from_slots / float(slot_samples) < slot_distance);
+        }
     }
 }

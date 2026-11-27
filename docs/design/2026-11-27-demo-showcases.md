@@ -120,7 +120,7 @@ Mirrored stops swap the rows of a group: the agent in front, which arrives first
 | Shuttle together: the first agent waits for the last, then both turn in the same tick after the pause | `showcase_tests.cpp` | Targeted |
 | Shuttle alone, roam: each agent turns after its own pause; roam goals repeat with the seed and stay in the area | `showcase_tests.cpp` | Targeted |
 | Follow: agents keep near their rotating slots; a released agent travels the user's goal and is taken back after it holds | `showcase_tests.cpp` | Targeted |
-| Every scenario builds, its agents are awake, and its motion repeats: Doorway's agents cross and come back; Maze's agents and player reach far cells; Circle, Corridor, Crossing and Bottleneck streams reach the other side and return; Chaos goals change; Fleet and Swarm stay near their lures; no deep overlaps between moving bodies | `scenario_tests.cpp` | Targeted |
+| Every scenario builds, its agents are awake, and its motion repeats: Doorway's agents cross and come back, and the player's route through the maze arrives (`scenario_tests.cpp`); in every showcase scenario each agent completes its legs, a shuttle's legs end at their stops, Fleet's and Swarm's agents keep a mean distance to their slots below 2 and 3 units, and no two moving bodies overlap by more than 0.01 units (`showcase_tests.cpp`, *every showcase scenario repeats without contact*) | `scenario_tests.cpp`, `showcase_tests.cpp` | Targeted |
 | Catalog: eleven labels, names and CLI parsing | `scenario_tests.cpp`, `kinetra_menu` | Targeted |
 | Clips render and the scene list matches the media guide and README | `kinetra_capture_tests`, CI's graphics smoke | Full |
 
