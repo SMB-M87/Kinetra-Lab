@@ -36,11 +36,12 @@ Goals:
 - No route of the PATHS layer hides a player, an agent, an enemy, a mover or a prop, in all three applications.
 - The start of a body's own route is drawn over that body, so it stays visible whose route it is; a neighbor drawn later covers it again.
 - Routes still cross the terrain (Demo's fixed bodies, Dotio's walls, i4sim's floor and producers) as before.
+- One route line width for all three applications: 2.5 screen pixels at every zoom. The user found Demo's routes (3 pixels) too thick, and i4sim's (2 pixels) and Dotio's (0.05 world units: 1.25 pixels at the normal zoom, a fraction of a pixel zoomed out in Debug Mode) too thin.
 
 Non-goals:
 
 - The other debug layers (vectors, steering probes, forces, i4sim's retreat and passing target arrows, labels) keep their place over the bodies. The user asked about paths only.
-- No change to which routes are shown, their colors or their widths.
+- No change to which routes are shown or their colors, nor to the width of other debug lines.
 
 ## Decisions
 
@@ -51,6 +52,7 @@ Non-goals:
 | Where the clipping lives | `kinetra_lab::route_start` in `labs/shared/include/kinetra_lab/route.h`, header-only and headless | Three applications need it, and it is Lab drawing policy. It is a candidate for Kinetra ([scope](../../AGENTS.md#scope)), but a pure clip of a polyline to a circle is too small to justify an engine pull request now. |
 | The body's extent for the start | A circle: the body's radius; for a box the smaller half extent; for a Demo polygon the distance to its nearest edge | The largest circle around the position that stays inside the body, so the start never reaches past the body's edge. |
 | How Dotio draws over one enemy at a time | An optional `after_enemy` callback on `World::draw` | `World::draw` draws all enemies through the logic's `Renderer`; the presentation needs to draw between two enemies without copying the draw order of enemies, arrows, bolts and the player. |
+| Route line width | `kinetra_lab::route_line_pixels` = 2.5 screen pixels, divided by the camera's zoom in each application | The user asked for thinner lines in Demo and thicker ones in i4sim and Dotio; one value between Demo's 3 and i4sim's 2 pixels makes the three alike. Dotio's width no longer depends on the zoom, so its paths stay visible zoomed out. |
 | Which bodies go above the routes | Every body that moves (Demo's player, agents and props; Dotio's player, enemies and props; i4sim's movers) | The rule is about what the layer hides; a prop is as much a body in the crowd as an agent. Fixed terrain stays below, because routes go around it. |
 
 ## Design

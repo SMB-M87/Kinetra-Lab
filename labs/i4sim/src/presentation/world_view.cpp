@@ -155,7 +155,8 @@ Vec2 shown_position(const Mover &mover, float blend) {
 /// Lines through `points` (factory space) in the route color.
 void draw_route_points(Runtime &runtime, std::span<const Vec2> points) {
     for (std::size_t i = 1; i < points.size(); ++i)
-        runtime.line(flip_y(points[i - 1]), flip_y(points[i]), screen_pixels(runtime, 2), route_color);
+        runtime.line(flip_y(points[i - 1]), flip_y(points[i]),
+                     screen_pixels(runtime, kinetra_lab::route_line_pixels), route_color);
 }
 
 void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,

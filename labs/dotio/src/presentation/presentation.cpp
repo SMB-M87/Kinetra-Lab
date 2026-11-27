@@ -139,7 +139,8 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
     };
     const auto draw_points = [&](std::span<const Vec2> points, Color color) {
         for (std::size_t i = 1; i < points.size(); ++i)
-            runtime.line(to_world(points[i - 1]), to_world(points[i]), 0.05f, color);
+            runtime.line(to_world(points[i - 1]), to_world(points[i]),
+                         kinetra_lab::route_line_pixels / runtime.camera.pixels_per_unit, color);
     };
     for (auto &enemy : world.get_enemies())
         if (shows_path(enemy)) {

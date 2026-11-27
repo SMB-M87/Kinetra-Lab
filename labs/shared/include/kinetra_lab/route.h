@@ -16,6 +16,10 @@
 /// covers it again where the two bodies overlap.
 namespace kinetra_lab {
 
+/// Width in screen pixels of a route line of a PATHS layer, the same in every Lab
+/// application and at every zoom. Divide by the camera's pixels per unit for a world width.
+inline constexpr float route_line_pixels = 2.5f;
+
 /// The part of the polyline from `start` through `route` that stays within `radius` of
 /// `start`: `start`, then every waypoint while the route is still inside, then the point
 /// where the route first leaves the circle. A route that comes back into the circle later

@@ -16,12 +16,13 @@ constexpr Color player_route_color{0.6f, 1, 0.3f};
 
 void draw_polyline(Runtime &runtime, std::span<const Vec2> points, Color color) {
     for (std::size_t i = 1; i < points.size(); ++i)
-        runtime.line(points[i - 1], points[i], 3.f / runtime.camera.pixels_per_unit, color);
+        runtime.line(points[i - 1], points[i],
+                     kinetra_lab::route_line_pixels / runtime.camera.pixels_per_unit, color);
 }
 
 void draw_route(Runtime &runtime, Vec2 start, std::span<const Vec2> route, Color color) {
     for (const auto waypoint : route) {
-        runtime.line(start, waypoint, 3.f / runtime.camera.pixels_per_unit, color);
+        runtime.line(start, waypoint, kinetra_lab::route_line_pixels / runtime.camera.pixels_per_unit, color);
         start = waypoint;
     }
     if (!route.empty())

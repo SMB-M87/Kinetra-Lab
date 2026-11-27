@@ -350,8 +350,7 @@ TEST_CASE("an enemy's path passes under the player it crosses") {
     application.debug = true;
     application.paths.fill(true);
     application.world().enemy_tuning().wander = dotio::WanderMode::path;
-    // Zoomed in, so a path, 0.05 world units wide, covers whole pixels; the application keeps
-    // the zoom within its limits.
+    // Zoomed in, so the player is large; the application keeps the zoom within its limits.
     runtime.camera.pixels_per_unit = 100;
     auto &world = application.world();
     const auto player_color = [](std::array<std::uint8_t, 4> pixel) {
