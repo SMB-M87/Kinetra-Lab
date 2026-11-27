@@ -13,6 +13,7 @@ One design document per Lab branch, written before the code and kept after mergi
 | Date | Document | Status |
 | --- | --- | --- |
 | 2026-11-27 | [i4sim start state](2026-11-27-i4sim-start-state.md): showcase scenes start running; a blueprint that starts paused shows a RUN button until it first runs | implemented |
+| 2026-11-27 | [RECOVERY detour past a corner](2026-11-27-i4sim-recovery-corner.md): mover 18 stuck 3 mm beside a cell; Kinetra's `constrain_borders` gives its face choice a time horizon | implemented |
 | 2026-11-27 | [Vec2 equality in place of component comparisons](2026-11-27-vec2-component-comparisons.md) | implemented |
 | 2026-11-27 | [Configuration button in the settings panel](2026-11-27-settings-configuration-button.md): SCENARIOS, DIFFICULTY and BLUEPRINTS move from the debug menu to the settings panel in place of LAUNCHER, and the pages they open get a LAUNCHER button | implemented |
 | 2026-11-27 | [i4sim make-way showcase scene](2026-11-27-i4sim-make-way-showcase.md): the parked-blocker scene of MAKE WAY as the sixth showcase scene, with its clip | implemented |
