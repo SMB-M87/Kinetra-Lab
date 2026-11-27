@@ -3141,6 +3141,8 @@ TEST_CASE(
          PassingEnd::participant_stopped},
         {"held", [](detail::Fleet &f) { f.movers[1].held = true; }, PassingEnd::participant_held},
         {"control", [&](detail::Fleet &f) { control(f, 1); }, PassingEnd::traffic_control},
+        {"retreating", [](detail::Fleet &f) { f.movers[1].coordination.corridor_retreating = true; },
+         PassingEnd::traffic_control},
         // The first participant decides: its control before the second one's stop, and the
         // other way round.
         {"control first",
