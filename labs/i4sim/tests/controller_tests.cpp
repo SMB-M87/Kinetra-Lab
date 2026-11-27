@@ -127,8 +127,10 @@ TEST_CASE("a blueprint loads paused at the session's update rate with a camera f
     camera.position = {-5, 7};
     controller.update_camera(camera);
     const auto floor = simulation.blueprint().dimension;
-    CHECK(camera.position.x == floor.x / 2);
-    CHECK(camera.position.y == -floor.y / 2);
+    const Vec2 expected{floor.x / 2, -floor.y / 2};
+    CHECK_MESSAGE(camera.position == expected,
+                  "Camera position (" << camera.position.x << ", " << camera.position.y << ") expected ("
+                                      << expected.x << ", " << expected.y << ")");
     // 2160 by 1200 mm in 1280 by 800 pixels, of which 120 stay free for the toolbar and the
     // HUD: the height decides, with a tenth as margin.
     CHECK(camera.pixels_per_unit == doctest::Approx((800.0 - 120) / 1200 * 0.9));
@@ -519,8 +521,9 @@ TEST_CASE("f and the frame scene entry fit the camera again") {
     camera.position = {0, 0};
     choose(controller, "FRAME SCENE");
     frame(controller, camera);
-    CHECK(camera.position.x == fitted.position.x);
-    CHECK(camera.position.y == fitted.position.y);
+    CHECK_MESSAGE(camera.position == fitted.position,
+                  "Camera position (" << camera.position.x << ", " << camera.position.y << ") expected ("
+                                      << fitted.position.x << ", " << fitted.position.y << ")");
 }
 
 TEST_CASE("an open panel pauses a running blueprint and restores it afterwards") {
