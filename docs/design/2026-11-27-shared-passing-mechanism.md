@@ -157,7 +157,7 @@ ctest --preset dev -R '^kinetra_dotio' -j 8        # 58 of 58 passed at 9ba5b6a,
 ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing)' -LE soak -j 8
 ```
 
-The fingerprint case is unchanged. The five Dotio pressure cases report: the head-on pair one plan completed and no touching update, against 33 touching updates without passing; the column one plan obstructed after its crossing; the frozen enemy one plan obstructed; the corridor no plan. Every enemy arrived within 70 pixels, which a path wanderer always comes within before it takes its next route.
+The fingerprint case is unchanged. The six Dotio pressure cases report: the head-on path wanderers one plan completed and no touching update, against 33 touching updates without passing; the recovering enemy against the pursuer one plan completed and no touching update, both in their states throughout; the column one plan obstructed after its crossing; the frozen enemy one plan obstructed; the corridor no plan. The refilled slot ends its plan as cancelled, which it did not without the generation check. Every enemy arrived within 70 pixels, which a path wanderer always comes within before it takes its next route.
 
 ## Pull request
 
