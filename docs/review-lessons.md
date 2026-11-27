@@ -44,6 +44,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 - **Recheck how an existing coordinator restores a new temporary route** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
   Passing could restore an ordinary route for a mover with a checked parking detour. Waypoint pruning could also skip a checked corner. The remedy now rechecks shortcuts and current reservations before steering.
 
+- **Test a temporary departure while its product is still in a producer queue** · added 2026-11-27 · source: [#140](https://github.com/SMB-M87/Kinetra-Lab/pull/140)
+  Checking only the product's optional producer can miss a lost reservation. Verify the actual queue, including order, and exercise the product reaching the front while the mover is away.
+
 - **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
   Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
 
