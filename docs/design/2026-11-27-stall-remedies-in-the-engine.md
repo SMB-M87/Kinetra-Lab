@@ -259,7 +259,7 @@ Step 3, with Kinetra `b6a8e34` (`feat/stall-detector` after review round 1 of Ki
 
 The first measurement ran on Kinetra `24fb31d`, before Kinetra #69 came in through the merge of Kinetra `main`. Reciprocal's figures are the same on `b6a8e34`. Improved's move with #69: before it, the base had 348 products, 7,638 waiting ticks and 836 contacts, and 322 of 763 episodes were `pushed_back`.
 
-Step 4, with Kinetra `feat/right-of-way` after review round 1 of Kinetra#74 (`404199c`; `0bbcb7e` adds only Kinetra#72's open point):
+Step 4, with Kinetra `feat/right-of-way` after review round 1 of Kinetra#74 (`404199c`; the later commits up to `4047cca` change only documentation: Kinetra#72's open point and Kinetra `main`'s docs pull requests):
 
 - Kinetra: 342 of 342 tests pass, and the consumer runs.
 - Lab: 182 of 182 i4sim cases pass, the golden and pressure lines unchanged.
