@@ -45,6 +45,7 @@ Non-goals:
 | Where the buttons go | In place of LAUNCHER in the settings panel's action row, per application | The user's choice: the row stays three buttons, and the launcher moves one level down to the page the button opens |
 | Labels | SCENARIOS, DIFFICULTY, BLUEPRINTS, as in the debug menu | The user's choice |
 | What a click does | The panel closes and the action runs | The user's choice; for i4sim it keeps the panel from staying over the blueprint screen |
+| Direct executables (`kinetra_demo`, `kinetra_dotio`) | The button keeps the application's label and ends the program, as `run_session` does for every request | The panel looks the same in every way of starting a lab. LAUNCHER ended these programs too, and neither label has a page to go to without a launcher; Kinetra's runtime README keeps this as an open point. A flag through `create_session` would buy a different label for the same exit. Decided in review round 1 |
 | A way back to the launcher | A clickable LAUNCHER button on the launcher's configuration page and on both pages of i4sim's blueprint screen | The user's choice: without it the launcher is reachable only by keyboard |
 | Mechanism in Kinetra | `SettingsOverlay` takes an optional `LeaveAction {label, request}` for its first button, default `{"LAUNCHER", SessionRequest::menu}`; `request` is `menu` or `configurations` | Demo and Dotio already ask for `configurations`; with the request in the overlay their sessions just return `settings_.request()`. A callback would have kept a flag in every session |
 | i4sim's request | i4sim serves `configurations` itself: it closes its blueprint and calls the new `SettingsOverlay::clear_request()` | i4sim's configuration page is its own blueprint screen, and the overlay outlives the blueprint; without a reset the next blueprint would close at once |
@@ -80,7 +81,7 @@ flowchart LR
 ## Affected areas
 
 - Kinetra: `include/kinetra/runtime/settings_view.h`, `src/runtime/settings_view.cpp`, `include/kinetra/runtime/launcher.h`, `src/runtime/launcher.cpp`, `tests/settings_view_tests.cpp`, `tests/launcher_tests.cpp`, `tests/runtime_tests.cpp`, `tests/consumer/main.cpp`, `docs/engine/launcher-overlays.md`, the README's shared UI and its GIFs `ui-launcher`, `ui-settings`, `ui-inspector`.
-- Lab: Demo (`debug_panel`, presentation session, tests), Dotio (`application.h`, presentation session, tests), i4sim (`controller`, presentation session, blueprint screen, tests), `launcher/tests/runtime_tests.cpp`, the capture tool's tour and UI clips, `docs/launcher-overlays.md`, the three module READMEs, the roadmap, the captures that show the debug menus, the settings panel and the configuration pages.
+- Lab: Demo (`debug_panel`, presentation session, tests), Dotio (`application.h`, presentation session, tests), i4sim (`controller`, presentation session, blueprint screen, tests), `launcher/tests/runtime_tests.cpp`, `kinetra_lab/session.h` and `launcher/applications.h` (comments), the capture tool's tour, UI clips, `smoke.cmake` and README, `docs/launcher-overlays.md`, `docs/architecture.md`, `README.md`, the launcher README, the three module READMEs and i4sim's test README, `docs/review-lessons.md`, the roadmap, the captures that show the debug menus, the settings panel and the configuration pages.
 
 ## Test plan
 
@@ -92,7 +93,8 @@ flowchart LR
 | Demo's, Dotio's and i4sim's debug menus no longer have the row | `kinetra_demo`, `kinetra_dotio`, `kinetra_i4sim_controller` row-list cases | Lab targeted |
 | Each settings panel's first button leaves for the configuration page (Demo, Dotio) or the blueprint screen (i4sim) with the debug mode off, and the next blueprint does not close | `kinetra_runtime_tests` and `kinetra_i4sim_presentation_tests` graphics cases | Lab full (CI) |
 | i4sim's blueprint screen LAUNCHER leaves on both pages | `kinetra_i4sim_presentation_tests` | Lab full (CI) |
-| The tour and the UI clips run to their end | `kinetra_capture_tests`, `kinetra_capture_smoke` | Lab full (CI) |
+| The UI clips run to their end, and the tour's first seconds | `kinetra_capture_tests`, `kinetra_capture_smoke` | Lab full (CI) |
+| The whole tour runs to its end | `kinetra_capture --tour /dev/null`, which CI does not run | Local |
 
 ## Review
 
@@ -108,6 +110,13 @@ The full tour run, which CI does not run, then found one more: it had opened i4s
 
 The copies check (`check_copies.py` with the old wordings `launcher_x`, `settings LAUNCHER`, `LAUNCHER gives`, `debug menu's SCENARIOS` and `DIFFICULTY`, `BLUEPRINTS entry`, `scenarios_requested`, `difficulty_requested`, `LAUNCHER / RESUME / EXIT`, `Launcher / Exit`, `LAUNCHER and EXIT`, `click_menu_page_exit`, `SCENARIOS row`, `last row`, `Escape or M`, `SessionRequest::menu` and others) found the launcher README's test table and its *last row* sentence, a duplicate row in [launcher and overlays](../launcher-overlays.md) and the i4sim test README; all changed. The hits left are this change's own new text, the dated design index and ADR 0013's context, which describes the panel as it was.
 
+Agent review, round 1 (Kinetra#70 *Ready to merge*, Kinetra-Lab#147 *Fix first*, on 9bf793a):
+- The tour's result was still "to follow": recorded in 3f4a218, which came after the reviewed head, and the test plan now credits CI only with the tour's first seconds and the full run to a local run.
+- Five places still named the old debug-menu rows, outside Markdown or in another word order than the copies terms: the launcher README's *Add an application*, the architecture takeaway, the capture README, `smoke.cmake` and i4sim's `main.cpp`; fixed in eec9095. Both proposed lessons are in [review lessons](../review-lessons.md) (63b7ab1).
+- Question on the direct executables: settled in *Decisions*.
+- Nits: the i4sim case clicks EXIT on the page it tests (4e18850); *Affected areas* lists every changed file. In Kinetra, `SettingsOverlay::request()`'s comment and the contract page say a request stays set until the host acts on it or the session clears it (Kinetra da98dfa, which the pointer follows).
+- Left for later: `MenuLayout::footer_center()` keeps 150, the EXIT of a page without LAUNCHER, as its default, which is the gap between LAUNCHER and EXIT on a page with it. A Kinetra roadmap item drops the default in favor of `LaunchMenu::footer_x()`.
+
 ## Verification
 
 Kinetra (`external/Kinetra`, branch `feat/settings-configuration-button`):
@@ -121,6 +130,7 @@ Lab:
 - `cmake --build --preset graphics` and `ctest --preset graphics -L graphics`: 33 of 33 passed, among them the new `kinetra_i4sim_graphics` cases, the settings-panel case of `kinetra_graphics`, every `kinetra_smoke` run and `kinetra_capture_smoke`, which renders `ui-launcher` through the new path.
 - The label check of the `kinetra_graphics` case fails when Demo's button is labeled LAUNCHER, so it tells the labels apart.
 - `kinetra_capture --tour /dev/null`, which plays the whole tour with the changed script, and which CI does not run: the first run stopped in i4sim with "The debug menu has no row 'PROFILE'" (see *Review*); after the fix it plays to its end, 19117 frames, 318 s.
+- After review round 1, with the pointer on Kinetra da98dfa: `cmake --build --preset dev` and `--preset graphics` without errors or new warnings, `ctest --preset graphics -L graphics` 33 of 33, `check_docs.py` in both repositories, and `git grep -n -i` on SCENARIOS, DIFFICULTY and BLUEPRINTS, every hit read.
 - After merging `main` (the make-way showcase scene): `ctest --preset dev -LE soak -R '^kinetra_(demo:|dotio:|i4sim_controller|lab:|menu:|capture)'` 183 of 183 and `ctest --preset graphics -L graphics` 33 of 33 again. The pull request's CI (`changes`, `linux`, `windows`, `checks`) passed on the merge.
 - `tools/capture/capture_media.sh` for the stale rows of both media tables. Changed and committed: `demo-debug`, `dotio-debug`, `i4sim-debug`, `demo-debug-clip`, `i4sim-debug-clip` (the debug menu's last row), `dotio-settings` (DIFFICULTY), `launcher-demo-scenarios`, `launcher-difficulty` (LAUNCHER beside EXIT), and Kinetra's `ui-launcher`, `ui-settings` and `ui-inspector`. `dotio-debug-clip` rendered identical. Every refreshed file was looked at.
 - `python3 external/Kinetra/tools/check_docs.py`: all links resolve.
