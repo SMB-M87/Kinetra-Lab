@@ -180,7 +180,9 @@ TEST_CASE("a route passes under the agents it crosses and starts over its own bo
     CHECK_MESSAGE(!player_color(frame.pixel(x, y)), "The player's route covers an agent it crosses");
     // The route starts over the player itself: a pixel on its first segment, inside its body.
     const auto first = scene.player_path().front() - player;
-    const auto [px, py] = screen(player + normalized(first) * (0.6f * world.body(scene.player()).radius));
+    // The player is a box; its route start reaches the smaller half extent.
+    const auto half = world.body(scene.player()).half_extents;
+    const auto [px, py] = screen(player + normalized(first) * (0.6f * std::min(half.x, half.y)));
     CHECK_MESSAGE(player_color(frame.pixel(px, py)), "The start of the player's route is hidden");
 }
 

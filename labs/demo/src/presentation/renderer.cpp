@@ -12,6 +12,9 @@ namespace demo {
 using namespace kinetra;
 namespace {
 
+/// The bodies render() draws in one pass: the fixed terrain, or whatever moves.
+enum class Bodies { fixed, moving };
+
 /// Seconds of motion a velocity vector shows.
 constexpr float velocity_vector_scale = 0.3f;
 
@@ -151,7 +154,8 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     const auto route_color = [&](std::size_t body) {
         return body == scene.player() ? player_route_color : layer_color::paths;
     };
-    const auto draw_bodies = [&](bool moving) {
+    const auto draw_bodies = [&](Bodies which) {
+        const bool moving = which == Bodies::moving;
         for (std::size_t id = 0; id < scene.world().bodies().size(); ++id) {
             const auto &simulated = scene.world().body(id);
             if ((simulated.motion != Motion::fixed) != moving || !scene.view().overlaps(bounds(simulated)))
@@ -166,15 +170,18 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
                 kinetra_lab::draw_vector_start(runtime, body.position, body.velocity * velocity_vector_scale,
                                                inner_radius(body), layer_color::vectors);
             if (id < routes.size() && !routes[id].empty())
-                draw_polyline(runtime,
-                              kinetra_lab::route_start(body.position, routes[id], inner_radius(body)),
-                              route_color(id));
+                draw_polyline(
+                    runtime,
+                    kinetra_lab::route_start(body.position, routes[id],
+                                             inner_radius(body) - kinetra_lab::route_line_pixels / 2 /
+                                                                      runtime.camera.pixels_per_unit),
+                    route_color(id));
         }
     };
     // Terrain first, then the velocity vectors, the steering probes and every route, then
     // whatever moves, so none of them hides a player or an agent while they still cross the
     // terrain they pass.
-    draw_bodies(false);
+    draw_bodies(Bodies::fixed);
     if (options.vectors)
         for (std::size_t id = 0; id < scene.world().bodies().size(); ++id) {
             const auto &simulated = scene.world().body(id);
@@ -199,7 +206,7 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
     for (std::size_t body = 0; body < routes.size(); ++body)
         if (!routes[body].empty())
             draw_route(runtime, position(body), routes[body], route_color(body));
-    draw_bodies(true);
+    draw_bodies(Bodies::moving);
     if (layers.home_range) {
         // Every awake agent is tied to its home; the range itself would clutter the view for
         // a whole crowd, so only the selected agent shows it.

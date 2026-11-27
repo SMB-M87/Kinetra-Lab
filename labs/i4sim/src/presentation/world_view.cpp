@@ -160,11 +160,13 @@ Vec2 shown_position(const Mover &mover, float blend) {
     return lerp(mover.previous_position, mover.body.position, blend);
 }
 
-/// Lines through `points` (factory space) in the route color.
-void draw_route_points(Runtime &runtime, std::span<const Vec2> points) {
-    for (std::size_t i = 1; i < points.size(); ++i)
-        runtime.line(flip_y(points[i - 1]), flip_y(points[i]),
-                     screen_pixels(runtime, kinetra_lab::route_line_pixels), route_color);
+/// Lines from `start` through `route` (factory space) in the route color.
+void draw_route(Runtime &runtime, Vec2 start, std::span<const Vec2> route) {
+    for (const auto waypoint : route) {
+        runtime.line(flip_y(start), flip_y(waypoint), screen_pixels(runtime, kinetra_lab::route_line_pixels),
+                     route_color);
+        start = waypoint;
+    }
 }
 
 void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,
@@ -181,11 +183,8 @@ void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayer
     }
     const bool routes = layers.shows(Layer::routes);
     if (routes)
-        for (const auto &mover : simulation.movers()) {
-            std::vector<Vec2> route{shown_position(mover, blend)};
-            route.insert(route.end(), mover.route.begin(), mover.route.end());
-            draw_route_points(runtime, route);
-        }
+        for (const auto &mover : simulation.movers())
+            draw_route(runtime, shown_position(mover, blend), mover.route);
     for (std::size_t i = 0; i < simulation.movers().size(); ++i)
         draw_mover_arrows(runtime, simulation, i, shown_position(simulation.movers()[i], blend), layers,
                           std::nullopt);
@@ -195,8 +194,12 @@ void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayer
         runtime.box(flip_y(position), mover.body.half_extents, 0,
                     (mover.held || mover.contacting) ? mover_alert_color : mover_color);
         const float inner = std::min(mover.body.half_extents.x, mover.body.half_extents.y);
-        if (routes)
-            draw_route_points(runtime, kinetra_lab::route_start(position, mover.route, inner));
+        if (routes) {
+            // Less half the line's width, so the line's edge stays on the mover.
+            const auto start = kinetra_lab::route_start(
+                position, mover.route, inner - screen_pixels(runtime, kinetra_lab::route_line_pixels / 2));
+            draw_route(runtime, start.front(), std::span(start).subspan(1));
+        }
         draw_mover_arrows(runtime, simulation, i, position, layers, inner);
         if (selected == i)
             runtime.circle(flip_y(position), screen_pixels(runtime, 6), selection_color);

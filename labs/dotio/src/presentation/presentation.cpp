@@ -185,17 +185,17 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
                ((p[1] && enemy.is_wandering()) || (p[2] && enemy.is_pursueing()) ||
                 (p[3] && enemy.is_kamikazing()) || (p[4] && enemy.is_recovering()));
     };
-    const auto draw_points = [&](std::span<const Vec2> points, Color color) {
-        for (std::size_t i = 1; i < points.size(); ++i)
-            runtime.line(to_world(points[i - 1]), to_world(points[i]),
-                         kinetra_lab::route_line_pixels / runtime.camera.pixels_per_unit, color);
+    const float path_width = kinetra_lab::route_line_pixels / runtime.camera.pixels_per_unit;
+    // Lines from `start` through `route`, in legacy pixels.
+    const auto draw_path = [&](Vec2 start, std::span<const Vec2> route, Color color) {
+        for (const auto waypoint : route) {
+            runtime.line(to_world(start), to_world(waypoint), path_width, color);
+            start = waypoint;
+        }
     };
     for (auto &enemy : world.get_enemies())
-        if (shows_path(enemy)) {
-            std::vector<Vec2> route{enemy.position};
-            route.insert(route.end(), enemy.path.remaining().begin(), enemy.path.remaining().end());
-            draw_points(route, color_of_state(enemy));
-        }
+        if (shows_path(enemy))
+            draw_path(enemy.position, enemy.path.remaining(), color_of_state(enemy));
     for (const auto &prop : world.get_objects()) {
         const auto center = to_world(prop.body.position);
         renderer.draw_circle(prop.body.position, prop.body.radius, {0.65f, 0.45f, 0.2f, 1});
@@ -209,9 +209,12 @@ void render(Runtime &runtime, Application &application, const SettingsOverlay &s
         if (vectors)
             kinetra_lab::draw_vector_start(runtime, to_world(enemy.position), enemy_vector(enemy),
                                            enemy.radius / 25, layer_color::vectors);
-        if (shows_path(enemy))
-            draw_points(kinetra_lab::route_start(enemy.position, enemy.path.remaining(), enemy.radius),
-                        color_of_state(enemy));
+        if (shows_path(enemy)) {
+            // Less half the line's width, in legacy pixels, so the line's edge stays on the enemy.
+            const auto start = kinetra_lab::route_start(enemy.position, enemy.path.remaining(),
+                                                        enemy.radius - from_world({path_width / 2, 0}).x);
+            draw_path(start.front(), std::span(start).subspan(1), color_of_state(enemy));
+        }
     });
     // World::draw draws the player last.
     if (vectors)
