@@ -421,8 +421,19 @@ void World::coordinate_passing() {
     // the player after them as a mover that never joins a plan.
     auto &enemies = get_enemies();
     const std::size_t slots = enemies.get_size();
-    std::vector<kinetra::PassingMover> movers(slots + 1);
+    // A kill empties a slot after one passing step and a spawn can refill it before the next,
+    // so the coordinator never sees it empty: a new lifetime in a slot ends the slot's plan.
+    std::vector<kinetra::PassingEvent> events;
     std::size_t slot = 0;
+    for (auto &enemy : enemies) {
+        if (enemy.is_active && passing_generations_[slot] != enemy.generation()) {
+            const auto cancelled = passing_coordinator_.cancel(slot);
+            events.insert(events.end(), cancelled.begin(), cancelled.end());
+        }
+        passing_generations_[slot++] = enemy.generation();
+    }
+    std::vector<kinetra::PassingMover> movers(slots + 1);
+    slot = 0;
     for (auto &enemy : enemies) {
         auto &mover = movers[slot++];
         if (!enemy.is_active) {
@@ -442,10 +453,12 @@ void World::coordinate_passing() {
     player.body = physics_body(player_);
     player.available = false;
     player.stationary = kinetra::length(player_.velocity) < coordination.stop_speed;
-    passing_events_ = passing_coordinator_.step(
+    const auto stepped = passing_coordinator_.step(
         movers, coordination, [this](std::size_t, kinetra::Vec2 from, kinetra::Vec2 to, kinetra::Vec2 half) {
             return grid_.navigation().clear(from, to, half);
         });
+    events.insert(events.end(), stepped.begin(), stepped.end());
+    passing_events_ = std::move(events);
     slot = 0;
     for (auto &enemy : enemies) {
         // An enemy whose plan ended resumes its trip on a route from where it stands.
@@ -461,6 +474,7 @@ void World::coordinate_passing() {
 
 void World::update_enemies(const float delta, const bool debug) {
     enemies_moved_ = true;
+    passing_events_.clear();
     std::size_t index = 0;
     // Snapshot the entire population first: neighbor separation may move another
     // enemy before its own update, and that displacement also belongs to the sweep.

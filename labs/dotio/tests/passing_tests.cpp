@@ -221,3 +221,57 @@ TEST_CASE("PASSING runs at the debug menu's extreme movement tuning") {
             CHECK_NOTHROW(arena.run(600));
         }
 }
+
+TEST_CASE("a recovering enemy and a pursuer head-on pass in agreed lanes and both arrive without contact") {
+    Arena arena({{23, 14, 23, 46}, {23, 46, 23, 14}}, true);
+    arena.carve(20, 10, 26, 50);
+    arena.wake();
+    // Cooldowns that outlast the run keep both in their states: the recovering enemy does not
+    // finish reloading, and the pursuer counts no pursuit cycle. The sealed player is out of
+    // reach, so the pursuer's replanning fails and it keeps its route, as the original did.
+    arena.world->settings().fire_interval_multiplier = 1000;
+    auto &recovering = arena.world->get_enemies()[0];
+    for (int arrow = 0; arrow < 9; ++arrow)
+        recovering.ammo_fired();
+    recovering.set_state(recovering.get_recover_state());
+    auto &pursuer = arena.world->get_enemies()[1];
+    pursuer.set_state(pursuer.get_pursue_state());
+    bool states_held = true;
+    const auto run = arena.run(2400, [&](dotio::World &world, const Run &) {
+        states_held =
+            states_held && world.get_enemies()[0].is_recovering() && world.get_enemies()[1].is_pursueing();
+    });
+    report(run);
+    CHECK(states_held);
+    CHECK(run.formed == 1);
+    CHECK(run.completed == 1);
+    CHECK(run.all_arrived());
+    CHECK(run.contact_updates == 0);
+}
+
+TEST_CASE("a slot refilled between two updates ends the plan of the enemy it held") {
+    Arena arena({{23, 14, 23, 46}, {23, 46, 23, 14}}, true);
+    arena.carve(20, 10, 26, 50);
+    arena.wake();
+    for (int update = 0; update < 1200 && arena.world->passing_plans().empty(); ++update)
+        arena.world->update_enemies(1, false);
+    REQUIRE(arena.world->passing_plans().size() == 1);
+    // A kill empties the first participant's slot after the passing step, and a spawn fills
+    // it again before the next one, as streaming does in the next frame.
+    auto &slot = arena.world->get_enemies()[0];
+    slot.is_active = false;
+    slot.reset();
+    slot.position = cell_center(21, 30);
+    slot.velocity = {};
+    slot.frozen = false;
+    slot.path = dotio::plan_route(arena.world->grid(), slot.position, cell_center(21, 31));
+    arena.world->update_enemies(1, false);
+    const auto events = arena.world->passing_events();
+    CHECK(std::ranges::any_of(events, [](const kinetra::PassingEvent &event) {
+        return event.kind == PassingEventKind::ended && event.outcome == PassingOutcome::cancelled &&
+               event.movers[0] == 0;
+    }));
+    CHECK(arena.world->passing_plans().empty());
+    CHECK_FALSE(slot.passing_target);
+    CHECK_FALSE(arena.world->get_enemies()[1].passing_target);
+}

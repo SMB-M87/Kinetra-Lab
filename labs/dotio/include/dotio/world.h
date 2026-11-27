@@ -57,6 +57,8 @@ class World {
     std::vector<Prop> props_;
     bool passing_{};
     kinetra::PassingCoordinator passing_coordinator_;
+    /// Per pool slot, the Enemy::generation() of its occupant at the last passing step.
+    std::array<std::uint64_t, 666> passing_generations_{};
     std::vector<kinetra::PassingEvent> passing_events_;
     void populate_objects();
     /// One passing step before the enemies move: sets every enemy's passing_target, and
