@@ -194,19 +194,21 @@ Step 2, on step 1's branch with Kinetra `9841a50` (Kinetra `main`, which holds #
   - The Reciprocal three-oncoming case waits 10 ticks instead of 9: its second plan forms a tick after the first completes.
   - The trajectory fingerprints differ.
 
-The flow with PASSING on, before and after:
+The flow with PASSING on, before and after, both on Kinetra `9841a50`:
 
 | Run, PASSING on | Products | Contacts (in plans) | Waiting ticks | Stuck movers | Runs stuck at end | Plans formed |
 | --- | --- | --- | --- | --- | --- | --- |
 | Harness, Reciprocal | 114 → 114 | 0 (0) → 0 (0) | 16,234 → 16,234 | 3 → 3 | 2 → 2 | 33 → 33 |
-| Harness, Improved | 106 → 106 | 168 (0) → 168 (0) | 6,326 → 6,326 | 0 → 0 | 0 → 0 | 38 → 38 |
+| Harness, Improved | 104 → 104 | 177 (0) → 177 (0) | 6,571 → 6,571 | 1 → 1 | 1 → 1 | 36 → 36 |
 | 50,000 ticks, Reciprocal | 353 → 354 | 0 (0) → 0 (0) | 112,588 → 94,404 | 24 → 14 | 3 → 3 | 474 → 455 |
-| 50,000 ticks, Improved | 347 → 349 | 1,045 (0) → 800 (0) | 38,347 → 35,563 | 9 → 12 | 0 → 0 | 426 → 446 |
+| 50,000 ticks, Improved | 351 → 353 | 1,049 (0) → 804 (0) | 37,659 → 34,875 | 7 → 10 | 0 → 0 | 426 → 446 |
 
 The harness is identical run for run. The long runs diverge the way any small change makes them diverge:
 
 - Products and plans stay level, and no contact happens in a plan.
 - Waiting falls under both profiles, and Improved's own contacts beside parked movers fall.
+
+The first measurement ran on Kinetra `482c072`. On `9841a50`, which brings in Kinetra #69's change to priority steering at rest, the Reciprocal rows are the same and the Improved rows move, with the same findings.
 
 ## Review
 
@@ -292,7 +294,7 @@ Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordina
 
 **Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md#design), step 2; Kinetra [ADR 0018](../../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md).
 
-**Verification.** 171 of 171 i4sim cases pass, and the golden lines are unchanged. The pressure lines keep every outcome; one wait grows by a tick and the trajectories differ. With PASSING on, the harness is identical. Over 50,000 ticks products stay level while waiting falls (Reciprocal −16%) and Improved's contacts fall from 1,045 to 800; the tables are in the design document.
+**Verification.** 171 of 171 i4sim cases pass, and the golden lines are unchanged. The pressure lines keep every outcome; one wait grows by a tick and the trajectories differ. With PASSING on, the harness is identical. Over 50,000 ticks products stay level while waiting falls (Reciprocal −16%) and Improved's contacts fall from 1,049 to 804, on Kinetra `9841a50`; the tables are in the design document.
 
 **Dependencies and merge order.** It sits on step 1 (#146) and merges after it. Kinetra's ADR pull request (Kinetra#71) has merged.
 
