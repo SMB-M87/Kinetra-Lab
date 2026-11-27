@@ -30,9 +30,6 @@ Nothing agreed next.
 
 ## Later
 
-- **RECOVERY detour past a corner** · i4sim · added 2026-11-21
-  Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
-  Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
 - **Golden tests on Windows** · tests, with Kinetra · added 2026-11-22
   Four Demo crowd characterization cases and i4sim's RVO case still differ on Windows after Kinetra's `atan2` and `asin`, so the Windows presets exclude them; Dotio's fingerprint and the rest hold there. Another function of Windows' C runtime rounds differently, among `sinf`, `cosf`, `expf`, `powf` and `hypot`. Routing it through Kinetra as well would also move the recorded lines on Linux, because glibc's `sinf` and `cosf` are not correctly rounded either, so the lines would be recorded again once.
   Next step: find the function by trying each on Windows CI with a correctly rounded replacement, then the user decides whether to re-record. Where: [Windows tests](windows.md#tests), [Linux beyond Arch, open points](design/2026-11-22-linux-beyond-arch.md#open-points).

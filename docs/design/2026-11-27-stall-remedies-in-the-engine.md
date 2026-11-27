@@ -221,7 +221,7 @@ The gate's figures for the branch after review rounds 1 and 2, from an instrumen
 
 These are the first version's figures, and round 2's staging of a rescheduled mover near its new producer changed no measured run.
 
-Step 2, on step 1's branch with Kinetra `482c072` (Kinetra `main`, which holds #71's ADR), the same Release build: 176 of 176 i4sim cases pass, after the review cases of round 1 and the merges of step 1.
+Step 2, on step 1's branch with Kinetra `9841a50` (Kinetra `main`, which holds #71's ADR and #69), the same Release build: 176 of 176 i4sim cases pass, after the review cases of round 1 and the merges of step 1, the last with Lab `main`'s #142.
 
 - The golden lines, those with PASSING on included, are unchanged.
 - Six of the ten pressure lines were recorded again:
