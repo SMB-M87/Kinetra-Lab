@@ -12,7 +12,8 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-27 | [Author review in the feature cycle](2026-11-27-inline-feature-review.md): Lab adopts scenario-based verification and the author’s final review | implemented |
+| 2026-11-27 | [Default debug layers](2026-11-27-default-debug-layers.md): Demo starts with VECTORS and PATHS, i4sim with every layer but HEATMAP and CONTACT SHAPES | implemented |
+| 2026-11-27 | [Debug layers under bodies](2026-11-27-paths-under-bodies.md): the routes, probes, vectors, forces and detection ranges of Demo, Dotio and i4sim are drawn under the moving bodies, with the start of a body's own route or arrow over it; one route width; i4sim's `MAS-demonstrator` fixture renamed `test-environment` | implemented |
 | 2026-11-27 | [Tick rates](2026-11-27-tick-rates.md): typed UPS and FPS rows in every lab, up to a million ticks per second, a budgeted clock in Kinetra, and runs of a million ticks that report ticks per second | accepted |
 | 2026-11-27 | [Launcher preview stills of their own](2026-11-27-launcher-preview-stills.md): Demo's still shows Doorway as its groups cross, i4sim's the small floor `1680x960+` whole, from capture scenes made for the still | implemented |
 | 2026-11-27 | [RECOVERY detour past a corner](2026-11-27-i4sim-recovery-corner.md): mover 18 stuck 3 mm beside a cell; Kinetra's `constrain_borders` gives its face choice a time horizon | implemented |
@@ -22,6 +23,7 @@ One design document per Lab branch, written before the code and kept after mergi
 | 2026-11-27 | [i4sim make-way showcase scene](2026-11-27-i4sim-make-way-showcase.md): the parked-blocker scene of MAKE WAY as the sixth showcase scene, with its clip | implemented |
 | 2026-11-27 | [Shared passing mechanism](2026-11-27-shared-passing-mechanism.md): Kinetra's `PassingCoordinator` runs head-on passing for Demo's agents and Dotio's enemies, off by default, with pressure scenarios per application | implemented |
 | 2026-11-27 | [i4sim make way](2026-11-27-i4sim-make-way.md) | implemented |
+| 2026-11-27 | [Author review in the feature cycle](2026-11-27-inline-feature-review.md): Lab adopts scenario-based verification and the author’s final review | implemented |
 | 2026-11-26 | [i4sim stall detection](2026-11-26-i4sim-stall-detection.md) | implemented |
 | 2026-11-24 | [Ubuntu as the Linux CI reference](2026-11-24-ubuntu-ci.md) | implemented |
 | 2026-11-24 | [Drop the i4sim loadscreen clip](2026-11-24-drop-i4sim-loadscreen-clip.md): the root README's loadscreen GIF and its sentence go, and with them the clip's scene, script, GIF and every page that names it | implemented |

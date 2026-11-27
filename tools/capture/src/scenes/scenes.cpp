@@ -176,7 +176,7 @@ void turn_wheel(Stage &stage, float notches) {
 }
 
 /// The launcher's Demo still: Doorway at the moment its groups cross, in Debug Mode as the
-/// session starts, so their routes and steering show, without the statistics line. Debug
+/// session starts, so their routes and velocity vectors show, without the statistics line. Debug
 /// Mode also lets the wheel zoom.
 void demo_preview(Stage &stage) {
     stage.start(Variant::demo, static_cast<std::size_t>(demo::Scenario::doorway));
@@ -353,7 +353,7 @@ void dotio_debug_clip(Stage &stage) {
 enum class I4simView {
     /// Debug Mode off: the floor, the labels and the statistics.
     normal,
-    /// Debug Mode with every layer, the debug menu closed.
+    /// Debug Mode with the default layers, the debug menu closed.
     debug,
     /// Debug Mode with the debug menu open on LAYERS: every part and its swatch.
     debug_with_layers,
@@ -452,7 +452,7 @@ void i4sim_debug_clip(Stage &stage) {
     stage.record(long_clip_frames, no_input);
 }
 
-// i4sim showcase scenes: Debug Mode and every visual layer on, as the session starts, the
+// i4sim showcase scenes: Debug Mode and the default layers on, as the session starts, the
 // debug menu closed, at the session's own rate.
 
 /// Records one cycle of the showcase scene in `showcase/<scene>.json`. The clip ends in the

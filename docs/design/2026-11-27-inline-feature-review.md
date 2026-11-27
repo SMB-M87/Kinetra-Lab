@@ -8,7 +8,7 @@ The [shared workflow](../../external/Kinetra/docs/workflow.md) has the implement
 
 Update the Lab guide, contributor README and pointer instructions to match the shared rules. The warning for a Lab PR that points to a Kinetra branch explains the existing merge order and full CI. Its condition and exit status are the same.
 
-Adopt the Kinetra workflow first through the regular submodule pointer update. Merge this Lab change after that update.
+Merge the shared Kinetra workflow first. Lab adopts it through the regular pointer update after open changes to the pointer have merged.
 
 ## Verification
 
