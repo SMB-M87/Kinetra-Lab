@@ -24,6 +24,9 @@ struct MenuClick {
 /// Blueprint of the i4sim screenshots and clips, relative to the catalog: the largest
 /// original floor that stays readable at clip size, with 29 movers and 18 producers.
 inline constexpr std::string_view i4sim_capture_blueprint = "4320x2400.json";
+/// Blueprint of the launcher's i4sim preview: the small original floor, with four producers
+/// and few enough movers that the whole floor stays calm and sharp at the still's size.
+inline constexpr std::string_view i4sim_preview_blueprint = "1680x960+.json";
 /// The clicks that give the i4sim captures their motion settings, starting from the menu of
 /// a newly loaded blueprint (SIMULATION open): the Reciprocal profile, which steers most
 /// evenly, and plain A*, whose routes are straight lines instead of detours around crowds.

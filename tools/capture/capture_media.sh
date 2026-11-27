@@ -2,7 +2,8 @@
 # Refreshes docs/media: renders every screenshot and clip with kinetra_capture, turns the
 # clips into looping GIFs with ffmpeg and copies the results into docs/media, and the
 # shared-UI clips of Kinetra's README into external/Kinetra/docs/media.
-# Refreshes embedded stills and rebuilds the capture tool before recording the launcher.
+# Refreshes the launcher's embedded stills from the lab scenes they come from (demo-preview,
+# dotio, i4sim-preview) and rebuilds the capture tool before recording the launcher.
 #
 # Usage: tools/capture/capture_media.sh [build-directory] [scene...]
 #   build-directory  a configured build with the runtime, relative to the current directory
@@ -52,9 +53,13 @@ else
     fi
 fi
 
-for lab in demo dotio i4sim; do
-    [[ -f $work/$lab.png ]] || continue
-    ffmpeg -loglevel error -y -i "$work/$lab.png" -vf scale=320:180:flags=area \
+# Each lab's launcher still and the scene it is scaled down from: Demo and i4sim have a
+# preview scene of their own, Dotio's still is its main screenshot.
+for still_scene in demo:demo-preview dotio:dotio i4sim:i4sim-preview; do
+    lab=${still_scene%%:*}
+    scene=${still_scene#*:}
+    [[ -f $work/$scene.png ]] || continue
+    ffmpeg -loglevel error -y -i "$work/$scene.png" -vf scale=320:180:flags=area \
         -frames:v 1 -c:v rawvideo -threads:v 1 -pix_fmt rgba -f rawvideo "$work/$lab.rgba"
     still="$repository/launcher/previews/$lab.rgba"
     if ! cmp -s "$work/$lab.rgba" "$still"; then
