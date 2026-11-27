@@ -64,7 +64,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | Section | Rows |
 | --- | --- |
 | SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 120 Hz tick per click), SPEED (time scale 0.125× to 4×), GRAVITY |
-| LAYERS | VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES, ACTIVE AGENTS, HOME RANGE, each with the color it is drawn in. HOME RANGE draws a line from every awake agent to its home, and the range circle of the selected agent |
+| LAYERS | VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES, ACTIVE AGENTS, HOME RANGE, each with the color it is drawn in. PATHS draws every route under the player, the agents and the props, and the start of each route over its own body. HOME RANGE draws a line from every awake agent to its home, and the range circle of the selected agent |
 | MOTION | AVOIDANCE (RECIPROCAL or LEGACY), MAX SPEED, ACCELERATION, RESPONSE, CLEARANCE; then HORIZON and PASSING BIAS for reciprocal avoidance, or LOOKAHEAD, SEPARATION and SEP WEIGHT for legacy steering |
 | AGENTS | WANDER (STEERING or ROUTE), HOME RANGE, then WANDER REACH and WANDER JITTER for steering wander, CLICK SETS GOAL and PASSING (off at the start) |
 | Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, PASSING off, speed 1×), SCENARIOS (back to the launcher's scenario page, with the running scenario selected) |
