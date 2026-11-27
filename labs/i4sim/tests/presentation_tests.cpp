@@ -1,6 +1,6 @@
 // Session tests for blueprint-screen messages, the mover inspector, and the rendered
-// controls and traffic overlays, and a world-view test for routes drawn under the movers
-// they cross. CTest labels the suite `graphics`.
+// controls and traffic overlays, and world-view tests for routes and detection ranges drawn
+// under the movers they cross. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
 #include "i4sim/blueprint/blueprint.h"
@@ -784,5 +784,63 @@ TEST_CASE("a mover's route passes under the movers it crosses") {
         runtime.end();
         // The crossing point sits at the center of the view.
         CHECK_MESSAGE(!route_color(runtime.frame().pixel(320, 240)), "A route covers a mover it crosses");
+    }
+}
+
+TEST_CASE("a mover's detection range passes under the movers it crosses") {
+    Runtime runtime("i4sim detection under movers", 640, 480);
+    runtime.read_back(true);
+    i4sim::Simulation simulation(
+        i4sim::load_blueprint(i4sim::default_blueprint_directory() / "4320x2400.json"), 42);
+    simulation.run();
+    auto layers = i4sim::ViewLayers::none();
+    layers.toggle(i4sim::Layer::detection);
+    const auto shown = [&](const i4sim::Mover &mover) {
+        return lerp(mover.previous_position, mover.body.position, float(simulation.interpolation()));
+    };
+    const auto detection_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The detection color, {0.25, 0.4, 0.6}.
+        return std::abs(pixel[0] - 64) < 20 && std::abs(pixel[1] - 102) < 20 && std::abs(pixel[2] - 153) < 20;
+    };
+    const auto &motion = simulation.motion_settings();
+    // Points (factory space) where the detection circle of a mover passes through the middle of
+    // a mover listed before it, which the old drawing order covered.
+    std::vector<Vec2> crossings;
+    const auto &movers = simulation.movers();
+    for (int batch = 0; batch < 200 && crossings.empty(); ++batch) {
+        for (int tick = 0; tick < 50; ++tick)
+            simulation.tick();
+        for (std::size_t index = 0; index < movers.size(); ++index) {
+            const auto center = shown(movers[index]);
+            const auto half = movers[index].body.half_extents;
+            for (std::size_t later = index + 1; later < movers.size(); ++later) {
+                const auto origin = shown(movers[later]);
+                const float range = length(movers[later].body.half_extents) + motion.speed * motion.horizon;
+                if (length(center - origin) == 0)
+                    continue;
+                const auto point = origin + normalized(center - origin) * range;
+                if (std::abs(point.x - center.x) < 0.6f * half.x &&
+                    std::abs(point.y - center.y) < 0.6f * half.y)
+                    crossings.push_back(point);
+            }
+        }
+    }
+    REQUIRE_MESSAGE(!crossings.empty(), "No detection range crossed another mover");
+    // The smaller half extent of a mover spans 50 screen pixels.
+    runtime.camera.pixels_per_unit =
+        50 / std::min(movers.front().body.half_extents.x, movers.front().body.half_extents.y);
+    for (const auto point : crossings) {
+        CAPTURE(point.x);
+        CAPTURE(point.y);
+        runtime.camera.position = i4sim::flip_y(point);
+        runtime.begin(i4sim::world_background);
+        i4sim::draw_world(runtime, simulation, layers, std::nullopt);
+        runtime.end();
+        // The crossing sits at the center of the view; the thin circle may miss that one pixel.
+        bool covered = false;
+        for (int dy = -2; dy <= 2; ++dy)
+            for (int dx = -2; dx <= 2; ++dx)
+                covered = covered || detection_color(runtime.frame().pixel(320 + dx, 240 + dy));
+        CHECK_MESSAGE(!covered, "A detection range covers a mover it crosses");
     }
 }

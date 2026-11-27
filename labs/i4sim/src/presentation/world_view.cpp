@@ -108,17 +108,14 @@ void draw_producers(Runtime &runtime, const Simulation &simulation) {
     }
 }
 
-/// The debug layers of one mover, drawn at `position` (factory space).
+/// The debug layers of one mover that lie over it, drawn at `position` (factory space);
+/// draw_movers() draws its detection range and route under every mover.
 void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size_t index, Vec2 position,
                        const ViewLayers &layers) {
     const auto &mover = simulation.movers()[index];
-    const auto &motion = simulation.motion_settings();
     const auto center = flip_y(position);
     if (layers.shows(Layer::contact_shapes))
         draw_debug_box(runtime, center, mover.body.half_extents, 0, mover_alert_color);
-    if (layers.shows(Layer::detection))
-        draw_debug_circle(runtime, center, length(mover.body.half_extents) + motion.speed * motion.horizon,
-                          detection_color);
     if (const auto target = simulation.corridor_retreat_target(index);
         target && layers.shows(Layer::retreat_targets))
         draw_debug_vector(runtime, center, flip_y(*target - position), retreat_target_color);
@@ -161,9 +158,16 @@ void draw_route_points(Runtime &runtime, std::span<const Vec2> points) {
 
 void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,
                  std::optional<std::size_t> selected, float blend) {
-    // Every route goes under the movers, so no route hides a mover; the start of a mover's
-    // own route is drawn over that mover alone, right after it, so the movers drawn later
-    // cover it again where they overlap.
+    // The detection ranges and every route go under the movers, so neither hides a mover; the
+    // start of a mover's own route is drawn over that mover alone, right after it, so the
+    // movers drawn later cover it again where they overlap.
+    if (layers.shows(Layer::detection)) {
+        const auto &motion = simulation.motion_settings();
+        for (const auto &mover : simulation.movers())
+            draw_debug_circle(runtime, flip_y(shown_position(mover, blend)),
+                              length(mover.body.half_extents) + motion.speed * motion.horizon,
+                              detection_color);
+    }
     const bool routes = layers.shows(Layer::routes);
     if (routes)
         for (const auto &mover : simulation.movers()) {
