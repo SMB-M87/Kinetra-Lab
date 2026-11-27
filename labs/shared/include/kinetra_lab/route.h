@@ -26,7 +26,8 @@ inline constexpr float route_line_pixels = 2.5f;
 /// is not followed further.
 ///
 /// Draw a line between each pair of consecutive points. One point (nothing to draw) when
-/// `route` is empty or `radius` is not positive.
+/// `route` is empty or `radius` is not positive. The points are a center line: pass the body's
+/// radius less half the line's width, or the line's edge reaches past the body by that much.
 inline std::vector<kinetra::Vec2> route_start(kinetra::Vec2 start, std::span<const kinetra::Vec2> route,
                                               float radius) {
     std::vector<kinetra::Vec2> points{start};
@@ -48,7 +49,9 @@ inline std::vector<kinetra::Vec2> route_start(kinetra::Vec2 start, std::span<con
         const float b = kinetra::dot(inside, step);
         const float c = kinetra::dot(inside, inside) - radius * radius;
         const float t = (-b + std::sqrt(std::max(0.f, b * b - a * c))) / a;
-        points.push_back(from + step * std::clamp(t, 0.f, 1.f));
+        // `from` on the circle itself leaves at once: no second point there.
+        if (t > 0)
+            points.push_back(from + step * std::min(t, 1.f));
         break;
     }
     return points;

@@ -19,11 +19,11 @@
 namespace kinetra_lab {
 
 /// Draws the part of `line` (a line `width` world units wide from `line[0]` to `line[1]`) that
-/// lies within `radius` of its start.
+/// lies within `radius` of its start, edges included.
 inline void draw_line_start(kinetra::Runtime &runtime, std::array<kinetra::Vec2, 2> line, float width,
                             float radius, kinetra::Color color) {
     const std::array<kinetra::Vec2, 1> end{line[1]};
-    const auto points = route_start(line[0], end, radius);
+    const auto points = route_start(line[0], end, radius - width / 2);
     for (std::size_t i = 1; i < points.size(); ++i)
         runtime.line(points[i - 1], points[i], width, color);
 }
@@ -38,12 +38,12 @@ inline void draw_vector_start(kinetra::Runtime &runtime, kinetra::Vec2 position,
         return;
     // The arrow's length as draw_debug_vector draws it.
     const float size = std::max({magnitude, 1.5f, 24.f / runtime.camera.pixels_per_unit});
-    if (size <= radius) {
+    const float width = 2.f / runtime.camera.pixels_per_unit;
+    if (size <= radius - width / 2) {
         kinetra::draw_debug_vector(runtime, position, vector, color);
         return;
     }
-    draw_line_start(runtime, {position, position + vector / magnitude * size}, 2.f / runtime.camera.pixels_per_unit,
-                    radius, color);
+    draw_line_start(runtime, {position, position + vector / magnitude * size}, width, radius, color);
 }
 
 } // namespace kinetra_lab

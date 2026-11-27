@@ -149,19 +149,31 @@ TEST_CASE("a route's start ends where the route first leaves its body") {
     CHECK(points[2].y == doctest::Approx(std::sqrt(1 - 0.0625f)));
 }
 
-TEST_CASE("a route's start keeps a route that never leaves the body and stops at the first exit") {
+TEST_CASE("a route's start keeps a route that stays inside its body") {
     using kinetra::Vec2;
-    const std::vector<Vec2> inside{{0.5f, 0}, {0, 0.5f}};
-    CHECK(kinetra_lab::route_start({2, 2}, std::vector<Vec2>{{2.5f, 2}, {2, 2.5f}}, 1).size() == 3);
-    CHECK(kinetra_lab::route_start({0, 0}, inside, 1).back().y == 0.5f);
-    // Out at x = 1 and back in: the start ends at the first crossing.
+    const std::vector<Vec2> inside{{2.5f, 2}, {2, 2.5f}};
+    const auto points = kinetra_lab::route_start({2, 2}, inside, 1);
+    REQUIRE(points.size() == 3);
+    CHECK(points.back().x == 2);
+    CHECK(points.back().y == 2.5f);
+}
+
+TEST_CASE("a route's start stops at the first exit of a route that comes back") {
+    using kinetra::Vec2;
     const std::vector<Vec2> out_and_back{{3, 0}, {0, 0.2f}};
     const auto points = kinetra_lab::route_start({0, 0}, out_and_back, 1);
     REQUIRE(points.size() == 2);
     CHECK(points[1].x == doctest::Approx(1));
     CHECK(points[1].y == doctest::Approx(0));
-    // A waypoint exactly on the circle counts as inside.
-    CHECK(kinetra_lab::route_start({0, 0}, std::vector<Vec2>{{0, -1}, {0, -4}}, 1).size() == 3);
+}
+
+TEST_CASE("a route's start ends at a waypoint on its body's edge without repeating it") {
+    using kinetra::Vec2;
+    const std::vector<Vec2> route{{0, -1}, {0, -4}};
+    const auto points = kinetra_lab::route_start({0, 0}, route, 1);
+    REQUIRE(points.size() == 2);
+    CHECK(points[1].x == 0);
+    CHECK(points[1].y == -1);
 }
 
 TEST_CASE("a route's start is only its first point without a route or a body") {
