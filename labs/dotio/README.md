@@ -28,7 +28,7 @@ Dotio is the survival game of Kinetra-Lab: the player walks a seeded, endless ma
 
 ## Purpose and scope
 
-Dotio owns its game rules: the maze, the population, the AI states, combat, difficulty and its debug menu. Reusable mechanisms come from Kinetra: route planning (`kinetra::WeightedGrid`), physics, collision and sweeps (`Kinetra::Simulation`), and the window, overlays and session hosting (`Kinetra::Runtime`). Dotio does not plan with `kinetra::Navigation` or steer with Kinetra's steering models; those work on body geometry, while Dotio's world is a raster of square cells.
+Dotio owns its game rules: the maze, the population, the AI states, combat, difficulty and its debug menu. Reusable mechanisms come from Kinetra: route planning (`kinetra::WeightedGrid`), physics, collision, sweeps and head-on passing (`kinetra::PassingCoordinator`), all in `Kinetra::Simulation`, and the window, overlays and session hosting (`Kinetra::Runtime`). Dotio does not plan with `kinetra::Navigation` or steer with Kinetra's steering models; those work on body geometry, while Dotio's world is a raster of square cells.
 
 The logic (`kinetra_dotio_logic`) is headless and builds without the runtime. The presentation (`kinetra_dotio_presentation`) maps input to commands and draws; it contains no game rules.
 
@@ -83,9 +83,9 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | --- | --- |
 | SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 60 Hz update per click), SPEED (time scale 0.125× to 4×), INVULNERABLE (no damage, no mana cost; starts off) |
 | LAYERS | VECTORS, STEERING PROBES, PATHS with its parts WANDER, PURSUE, KAMIKAZE and RECOVERY while it is on, COLLISION SHAPES, ACTIVE AGENTS, AI STATES, HIDING HITS. A row drawn in one color shows that color; the PATHS parts show the color of their AI state. All start off |
-| ENEMIES | WANDER (STEERING or PATH), MOVE SPEED, FIRE INTERVAL, ARROW SPEED, PREDICTION, PURSUIT CYCLES, HITS, and the force of each state: WANDER, ATTACK, PURSUE, RECOVER and KAMIKAZE FORCE |
+| ENEMIES | WANDER (STEERING or PATH), MOVE SPEED, FIRE INTERVAL, ARROW SPEED, PREDICTION, PURSUIT CYCLES, HITS, the force of each state: WANDER, ATTACK, PURSUE, RECOVER and KAMIKAZE FORCE, and PASSING ([passing](#passing); off at the start) |
 | SPAWNING | ACTIVE LIMIT, SPAWN RATE, CROWD LOAD, SPACING |
-| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the difficulty's preset, the default forces and wander mode, speed 1×), DIFFICULTY (back to the launcher's difficulty page, with the running difficulty selected; in `kinetra_dotio` it ends the program, as LAUNCHER does) |
+| Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the difficulty's preset, the default forces and wander mode, PASSING off, speed 1×), DIFFICULTY (back to the launcher's difficulty page, with the running difficulty selected; in `kinetra_dotio` it ends the program, as LAUNCHER does) |
 
 The ENEMIES and SPAWNING rows change the running world: its copy of the [difficulty preset](#difficulty) and its `EnemyTuning`. Movement, firing, pursuit and spawning follow at once; HITS applies to enemies that spawn afterwards. The rows stop at limits the world can run with (`tuning_step` in [application.h](include/dotio/application.h), within `dotio::validate`). A new session, and RESET PARAMETERS, start from the preset again; the player's death keeps the tuned values.
 
@@ -127,7 +127,7 @@ labs/dotio/
     presentation/  session.h presentation.h
   src/  world.cpp difficulty.cpp main.cpp
         entities/ ai/ navigation/ math/ presentation/
-  tests/  dotio_tests.cpp presentation_tests.cpp
+  tests/  dotio_tests.cpp passing_tests.cpp presentation_tests.cpp
 ```
 
 | Folder | Content |
@@ -308,6 +308,10 @@ Following: the enemy steers toward the next waypoint and passes it within 0.666 
 
 **Shelter search.** `plan_shelter` uses `kinetra::WeightedGrid::search`, which settles cells from the enemy's cell in order of route cost (Dijkstra) and returns the route to the first cell a predicate accepts. Dotio supplies the rules of the original game: a cell may be entered only on the enemy's side of the player (inclusive along one axis, strict along the other, per the original quadrant test) and more than one cell from the player; a cell counts as hidden when the line from its center to the player meets a wall; the search takes the first hidden cell whose count, the start's cell included, exceeds the enemy's fear. A more fearful enemy therefore runs further. The original search ordered cells by route cost plus their distance back to the start; this one by route cost alone ([design](../../docs/design/2026-11-21-dotio-restructuring.md#step-4-routes-on-the-weighted-grid)).
 
+### Passing
+
+With PASSING on, `World::update_enemies` first hands every pool slot and the player to Kinetra's [`PassingCoordinator`](../../external/Kinetra/include/kinetra/simulation/passing_coordinator.h) ([contract](../../external/Kinetra/docs/engine/navigation.md#predictive-passing)), in legacy pixels and updates. A slot without an active enemy is absent, so plans keep their indices while the pool fills and empties. A kill can empty a slot after one passing step and a spawn refill it before the next, so the world also keeps each slot's `Enemy::generation()` and cancels the slot's plan when a new lifetime starts in it. An enemy that follows a route (pursue, recover, path wander) and is not frozen is free, with the heading to its next waypoint and its route's end as destination; a frozen enemy is standing; attacking and kamikaze enemies are busy, and so is the player, which never joins a plan and is standing while slower than the stop speed. Two enemies whose headings will bring them into contact agree on side lanes, which `WeightedGrid::clear` checks with the enemy's footprint. While an enemy is in a plan, `Enemy::passing_target` replaces its state's movement: `steer_passing` accelerates toward the target with the state's force and slows down within reach of it, so the enemy stops there. When a plan ends, its enemies plan their routes again from where they stand, to the same destination. Streaming shifts, `reset` and `initialize` end every plan; a new world starts with PASSING off, the player's death keeps it. The tuning is in `world.cpp`: a 6-pixel gap, exits 12 pixels past the midpoint, 24 pixels of formation room, a one-second horizon, arrival within 15 pixels below a quarter of the top speed (four times the largest route force times MOVE SPEED), a 4-second timeout and a 1-second retry. Pursuers that converge on the player find no lanes, because an exit must leave room before the destination; passing matters for recovering enemies against pursuers, and for path wanderers. With PASSING off, which is the default, an update computes exactly what it did before.
+
 ### Steering wander
 
 [wander.h](include/dotio/ai/wander.h). Every decision tick an enemy's wander heading drifts by up to 0.35 rad, drawn from the world's wander stream. Every update a forward feeler of 0.9 cells and two side feelers of 0.6 cells at 0.6 rad are tested against the grid. A blocked forward feeler turns the heading to the first free direction of a fan (0.8, 1.6, 2.4 rad, to the enemy's preferred side first, then a half turn); a single blocked side feeler turns it away by 0.15 rad per update. The enemy accelerates along its heading with the WANDER force. No route is planned, so a wanderer needs none to exist; it leaves a dead end by turning around in it.
@@ -371,6 +375,7 @@ Both test programs are doctest suites: each `TEST_CASE` is one behavior, named a
 
 | Source | CTest suite (cases) | Coverage |
 | --- | --- | --- |
+| [passing_tests.cpp](tests/passing_tests.cpp) | `kinetra_dotio` (8) | PASSING runs at the menu's slowest and fastest MOVE SPEED and route forces; a slot refilled between two updates ends its plan; a recovering enemy against a pursuer completes its plan without touching. Passing under pressure with PASSING on, path wanderers on a grid of walls: a head-on pair in an open room completes its plan without touching, while without passing the same pair touches; one against a column; a frozen enemy on a lane exit (the plan ends as obstructed); a corridor one cell wide, where no plan fits. Each case checks that its situation occurs and that every enemy arrives. They assert outcomes, not recorded lines |
 | [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (46) | Routes clear of walls, pursuers that reach the player along one route, no enemy standing still, shelters out of sight, determinism per seed and a recorded fingerprint, independent worlds, geometry, streaming and the planner in step with it, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom. Needs no window |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (5) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`. Needs an OpenGL context (label `graphics`) |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:dotio` (1) | `kinetra_dotio --difficulty medium --seed 42 --frames 120` starts, draws and exits with 0. Needs an OpenGL context (label `graphics`) |
@@ -406,6 +411,7 @@ Not covered: gameplay balance and desktop feel (a playtest), recovery under real
 
 - Route following passes waypoints by distance; it does not skip waypoints that are already in sight, as Kinetra's `route_target` does for `Navigation`. A raster version would make pursuers cut corners less.
 - `Tracker::add_instance` overwrites the next slot whether it is in use or not.
+- Passing plans are not drawn: no debug layer shows the lanes or the waits. In a column, the trailing enemy drives into the first plan's lane, which the guard ends as obstructed; the enemies then pass by contact alone.
 - `GridEntry` keeps three aliases (`GridSize`, `GridPosition`, `GridCoordinates`) for one type; no change is planned.
 - `Enemy` keeps three independent flags (`line_of_sight`, `debug`, `frozen`): perception, debug mode and residency, not one lifecycle, so they are not an enum.
 - The shelter search may settle the whole resident window (24,025 cells) when no shelter exists, which takes milliseconds, and a recovering enemy near the player repeats it at every decision ([performance](../../docs/performance.md#dotio)).

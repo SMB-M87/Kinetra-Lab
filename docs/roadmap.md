@@ -20,9 +20,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Shared passing mechanism** · demo, dotio, with Kinetra · added 2026-11-21
-  Give Demo crowds and Dotio enemies the passing that i4sim uses, through Kinetra's new `PassingCoordinator`, and run pressure scenarios for each application. Started on 2026-11-27 before *Stall detection and remedies in i4sim*, at the user's request.
-  Where: [design](design/2026-11-27-shared-passing-mechanism.md); Kinetra `feat/passing-coordinator`, Lab `feat/shared-passing-demo` and `feat/shared-passing-dotio`.
+Nothing in progress.
 
 ## Next
 
@@ -86,7 +84,7 @@ Wishes of the user, not yet agreed or shaped. Each needs a design session (`gril
 
 - **Motion lab** · new application · added 2026-11-21
   For the future, no priority (the user's words): a fourth lab that shows motion and looks polished, for example crowd control. The agent's proposal: classic scenarios (a bottleneck or doorway evacuation, counter-flow in a corridor, crossing flows, agents that swap places across a circle), the steering models side by side in the same scenario, heat maps of density, speed and stalls, trails, and live measurements (throughput, contacts, time to goal). It would also show how shared passing targets and arrival intent feed each of Kinetra’s four steering solvers.
-  Depends on: *Shared passing mechanism*. Uses the [agent inspector](design/2026-11-22-agent-inspector-overlay.md).
+  Uses Kinetra's `PassingCoordinator` ([shared passing](design/2026-11-27-shared-passing-mechanism.md)) and the [agent inspector](design/2026-11-22-agent-inspector-overlay.md).
 - **Kinetra-Lab on Android** · launcher, release, with Kinetra · added 2026-11-21
   Run the launcher and the applications on an Android phone or tablet. Lab's part: touch-friendly menus and overlays, the blueprints of `i4sim-blueprints/` packaged as assets, and an APK build next to the Windows zip.
   Depends on: Kinetra's *Android runtime* idea (an OpenGL ES path, touch input, an NDK build).

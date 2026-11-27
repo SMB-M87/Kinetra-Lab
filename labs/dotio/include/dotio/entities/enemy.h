@@ -5,6 +5,7 @@
 #include "dotio/navigation/route.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace dotio {
 class World;
@@ -39,6 +40,9 @@ class Enemy final : public PhysicsObject {
 
     void player_bumped_into_enemy();
     void spatial_partitioning(const float delta);
+    /// Accelerates toward passing_target with the force of the current state, slowing down
+    /// near it so the enemy stops there.
+    void steer_passing(float delta);
 
   public:
     /// Range of `fear` for a spawned or reset enemy, drawn from World::behavior_random(). Fear
@@ -53,6 +57,9 @@ class Enemy final : public PhysicsObject {
     kinetra::Vec2 target_velocity{};
     /// The route the current state follows; empty while it needs none or found none.
     dotio::Route path;
+    /// Where the enemy heads in a passing plan, in legacy pixels; set by the World before
+    /// every update, empty outside a plan. While set, it replaces the state's movement.
+    std::optional<kinetra::Vec2> passing_target;
     /// How far the enemy keeps from the player when it attacks, in grid cells, scaled by the
     /// ammunition used; also the number of hidden cells it passes before taking a shelter.
     float fear{};
@@ -83,8 +90,9 @@ class Enemy final : public PhysicsObject {
     /// Velocity change applied by the AI state during the latest update, in legacy pixels/update.
     kinetra::Vec2 steering() const { return steering_; }
 
-    /// Movement of one update: the current state's execute(), then separation from the
-    /// neighbors in its partition cells. Does nothing while frozen.
+    /// Movement of one update: the current state's execute(), or the approach to
+    /// passing_target while that is set, then separation from the neighbors in its partition
+    /// cells. Does nothing while frozen.
     void update(float delta) override;
 
     /// The decision tick: counts the cooldown down, handles contact with the player (a

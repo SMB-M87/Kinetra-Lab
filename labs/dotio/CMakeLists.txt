@@ -22,7 +22,7 @@ target_include_directories(kinetra_dotio_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR
 target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation kinetra_lab)
 if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_dotio_tests PREFIX kinetra_dotio
-        SOURCES tests/dotio_tests.cpp LIBRARIES kinetra_dotio_logic nlohmann_json::nlohmann_json)
+        SOURCES tests/dotio_tests.cpp tests/passing_tests.cpp LIBRARIES kinetra_dotio_logic nlohmann_json::nlohmann_json)
     # Seeded statistics of enemy behavior; minutes per full run, so CTest runs only a smoke.
     add_executable(kinetra_dotio_behavior_benchmark tests/behavior_benchmark.cpp)
     target_link_libraries(kinetra_dotio_behavior_benchmark PRIVATE kinetra_dotio_logic)

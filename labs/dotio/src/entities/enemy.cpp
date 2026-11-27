@@ -25,9 +25,28 @@ void Enemy::update(const float delta) {
         return;
 
     const auto initial_velocity = velocity;
-    state_->execute(delta);
+    if (passing_target)
+        steer_passing(delta);
+    else
+        state_->execute(delta);
     steering_ = velocity - initial_velocity;
     spatial_partitioning(delta);
+}
+
+void Enemy::steer_passing(const float delta) {
+    const auto &tuning = world_->enemy_tuning();
+    const float force = (is_recovering()  ? tuning.recover_force
+                         : is_pursueing() ? tuning.pursue_force
+                                          : tuning.wander_force) *
+                        world_->difficulty_settings().movement_multiplier * delta;
+    const kinetra::Vec2 offset = *passing_target - position;
+    // Friction takes a fifth of the speed every update, so a constant push settles at four
+    // times its size. Within that reach the wanted speed shrinks with the distance, a fifth
+    // of it per update, so the enemy comes to rest at the target instead of circling it.
+    const float wanted = std::min(4 * force, kinetra::length(offset) / 5);
+    const kinetra::Vec2 change = kinetra::normalized(offset) * wanted - velocity;
+    apply_force(kinetra::length(change) > force ? kinetra::normalized(change) * force : change,
+                0.5f * get_mass());
 }
 
 void Enemy::tick() {
