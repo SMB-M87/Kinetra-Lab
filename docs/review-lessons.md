@@ -41,6 +41,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **When a pull request applies one rule in several applications, give each application its own test for each goal, not one application per goal** · added 2026-11-27 · source: [#145](https://github.com/SMB-M87/Kinetra-Lab/pull/145)
+  The start of a route over its own body was tested in Demo only, while Dotio (a hook in logic) and i4sim (a call in the view) reach it by other code paths that a later change could break unseen.
+
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
   A slot that a kill empties after the passing step and a spawn refills before the next one never looks empty, so the new enemy inherited the old plan.
 
