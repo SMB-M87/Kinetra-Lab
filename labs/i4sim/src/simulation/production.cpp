@@ -106,9 +106,10 @@ void Production::schedule(Product &product, Goals &goals) {
     const int cell = floor.grid().cell(m.body.position);
     if (departure.empty() && goals.motion.departure_check && (cell < 0 || !floor.processing_cell(cell))) {
         product.state = ProductState::transporting;
-        // Not yet at the head, it waits near its new producer, as a queued product does.
+        // Not yet at the head, it waits at a holding place for its new producer, as a queued
+        // product does.
         const auto &queue = producers_[*product.producer].queue;
-        if (queue.front() != product.id) {
+        if (!queue.empty() && queue.front() != product.id) {
             const auto hold = goals.holding_position(m, goal);
             if (distance(hold, m.destination) > same_point_mm)
                 goals.set(m, hold);
