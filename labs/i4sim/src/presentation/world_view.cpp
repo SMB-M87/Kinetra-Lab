@@ -1,5 +1,6 @@
 #include "i4sim/presentation/detail/world_view.h"
 #include "kinetra_lab/route.h"
+#include "kinetra_lab/under_bodies.h"
 
 #include <kinetra/runtime/bitmap_text.h>
 #include <kinetra/runtime/debug_view.h>
@@ -108,19 +109,31 @@ void draw_producers(Runtime &runtime, const Simulation &simulation) {
     }
 }
 
-/// The debug layers of one mover that lie over it, drawn at `position` (factory space);
-/// draw_movers() draws its detection range and route under every mover.
-void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size_t index, Vec2 position,
-                       const ViewLayers &layers) {
+/// The arrows and lines of one mover's debug layers, from `position` (factory space): the
+/// target arrows of PATHS and the parts of FORCES. With `start` set, only the part of each that
+/// lies within `start` of the mover's center, which draw_movers() draws again over the mover.
+void draw_mover_arrows(Runtime &runtime, const Simulation &simulation, std::size_t index, Vec2 position,
+                       const ViewLayers &layers, std::optional<float> start) {
     const auto &mover = simulation.movers()[index];
     const auto center = flip_y(position);
-    if (layers.shows(Layer::contact_shapes))
-        draw_debug_box(runtime, center, mover.body.half_extents, 0, mover_alert_color);
+    const auto arrow = [&](Vec2 vector, Color color) {
+        if (start)
+            kinetra_lab::draw_vector_start(runtime, center, vector, *start, color);
+        else
+            draw_debug_vector(runtime, center, vector, color);
+    };
+    const auto line = [&](Vec2 end, float pixels, Color color) {
+        if (start)
+            kinetra_lab::draw_line_start(runtime, {center, end}, screen_pixels(runtime, pixels), *start,
+                                         color);
+        else
+            runtime.line(center, end, screen_pixels(runtime, pixels), color);
+    };
     if (const auto target = simulation.corridor_retreat_target(index);
         target && layers.shows(Layer::retreat_targets))
-        draw_debug_vector(runtime, center, flip_y(*target - position), retreat_target_color);
+        arrow(flip_y(*target - position), retreat_target_color);
     if (const auto target = simulation.passing_target(index); target && layers.shows(Layer::passing_targets))
-        draw_debug_vector(runtime, center, flip_y(*target - position), passing_target_color);
+        arrow(flip_y(*target - position), passing_target_color);
     const auto &forces = mover.forces;
     struct SteeringArrow {
         Layer layer;
@@ -132,15 +145,13 @@ void draw_mover_layers(Runtime &runtime, const Simulation &simulation, std::size
         {Layer::collision_force, forces.collision, collision_force_color},
         {Layer::predictive_force, forces.predictive, predictive_force_color},
         {Layer::seek_force, forces.seek, seek_force_color}};
-    for (const auto &arrow : steering_arrows)
-        if (layers.shows(arrow.layer))
-            draw_debug_vector(runtime, center, flip_y(arrow.force * steering_arrow_scale), arrow.color);
+    for (const auto &steering : steering_arrows)
+        if (layers.shows(steering.layer))
+            arrow(flip_y(steering.force * steering_arrow_scale), steering.color);
     if (layers.shows(Layer::velocity))
-        runtime.line(center, flip_y(position + mover.body.velocity * velocity_line_scale),
-                     screen_pixels(runtime, 3), velocity_color);
+        line(flip_y(position + mover.body.velocity * velocity_line_scale), 3, velocity_color);
     if (layers.shows(Layer::acceleration))
-        runtime.line(center, flip_y(position + forces.acceleration * acceleration_line_scale),
-                     screen_pixels(runtime, 2), acceleration_color);
+        line(flip_y(position + forces.acceleration * acceleration_line_scale), 2, acceleration_color);
 }
 
 /// Where a mover is drawn: between its last two ticks, so motion stays even when a frame
@@ -158,9 +169,9 @@ void draw_route_points(Runtime &runtime, std::span<const Vec2> points) {
 
 void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayers &layers,
                  std::optional<std::size_t> selected, float blend) {
-    // The detection ranges and every route go under the movers, so neither hides a mover; the
-    // start of a mover's own route is drawn over that mover alone, right after it, so the
-    // movers drawn later cover it again where they overlap.
+    // The detection ranges, every route and every arrow go under the movers, so none hides a
+    // mover; the start of a mover's own route and arrows is drawn over that mover alone, right
+    // after it, so the movers drawn later cover it again where they overlap.
     if (layers.shows(Layer::detection)) {
         const auto &motion = simulation.motion_settings();
         for (const auto &mover : simulation.movers())
@@ -175,18 +186,22 @@ void draw_movers(Runtime &runtime, const Simulation &simulation, const ViewLayer
             route.insert(route.end(), mover.route.begin(), mover.route.end());
             draw_route_points(runtime, route);
         }
+    for (std::size_t i = 0; i < simulation.movers().size(); ++i)
+        draw_mover_arrows(runtime, simulation, i, shown_position(simulation.movers()[i], blend), layers,
+                          std::nullopt);
     for (std::size_t i = 0; i < simulation.movers().size(); ++i) {
         const auto &mover = simulation.movers()[i];
         const Vec2 position = shown_position(mover, blend);
         runtime.box(flip_y(position), mover.body.half_extents, 0,
                     (mover.held || mover.contacting) ? mover_alert_color : mover_color);
+        const float inner = std::min(mover.body.half_extents.x, mover.body.half_extents.y);
         if (routes)
-            draw_route_points(runtime, kinetra_lab::route_start(
-                                           position, mover.route,
-                                           std::min(mover.body.half_extents.x, mover.body.half_extents.y)));
+            draw_route_points(runtime, kinetra_lab::route_start(position, mover.route, inner));
+        draw_mover_arrows(runtime, simulation, i, position, layers, inner);
         if (selected == i)
             runtime.circle(flip_y(position), screen_pixels(runtime, 6), selection_color);
-        draw_mover_layers(runtime, simulation, i, position, layers);
+        if (layers.shows(Layer::contact_shapes))
+            draw_debug_box(runtime, flip_y(position), mover.body.half_extents, 0, mover_alert_color);
     }
 }
 
