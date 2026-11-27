@@ -12,7 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
-| 2026-11-27 | [Routes under bodies](2026-11-27-paths-under-bodies.md): the PATHS layer of Demo, Dotio and i4sim draws every route under the moving bodies, and the start of each over its own body | implemented |
+| 2026-11-27 | [Debug layers under bodies](2026-11-27-paths-under-bodies.md): the routes, probes, vectors, forces and detection ranges of Demo, Dotio and i4sim are drawn under the moving bodies, with the start of a body's own route or arrow over it; one route width; i4sim's `MAS-demonstrator` fixture renamed `test-environment` | implemented |
 | 2026-11-27 | [Vec2 equality in place of component comparisons](2026-11-27-vec2-component-comparisons.md) | implemented |
 | 2026-11-27 | [Configuration button in the settings panel](2026-11-27-settings-configuration-button.md): SCENARIOS, DIFFICULTY and BLUEPRINTS move from the debug menu to the settings panel in place of LAUNCHER, and the pages they open get a LAUNCHER button | implemented |
 | 2026-11-27 | [i4sim make-way showcase scene](2026-11-27-i4sim-make-way-showcase.md): the parked-blocker scene of MAKE WAY as the sixth showcase scene, with its clip | implemented |
