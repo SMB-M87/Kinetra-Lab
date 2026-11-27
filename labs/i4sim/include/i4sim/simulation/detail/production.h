@@ -54,12 +54,16 @@ class Production {
     void schedule(Product &product, Goals &goals);
     std::vector<Vec2> allocate_mover(Product &product, Vec2 goal, Goals &goals) const;
     void update_product(Product &product, Goals &goals);
-    /// Sends a queued product's mover to the processing goal once the product heads the
-    /// queue, or keeps it at its holding place; false while the product does not head it.
+    /// Sends the mover of a queued product, or of one rescheduled away from a processing
+    /// place, to the processing goal once the product heads the queue, or keeps it at its
+    /// holding place; false while the product does not head it or DEPARTURE CHECK holds the
+    /// mover back.
     bool approach(Product &product, Mover &mover, Producer &producer, Goals &goals);
-    /// The route a queued product's mover takes to `goal`: nothing while DEPARTURE CHECK
-    /// keeps it waiting, a route checked against stationary movers when one exists, and an
-    /// empty route, which the caller plans as usual, without the setting or after the wait.
+    /// The route a product's mover takes to `goal` when the product heads the queue: nothing
+    /// while DEPARTURE CHECK keeps it waiting, a route checked against stationary movers when
+    /// one exists, and an empty route, which the caller plans as usual, without the setting,
+    /// after the wait, or for a mover that is not idle (still driving, or unreachable). Only
+    /// an idle mover's wait is kept; any other drops it.
     std::optional<std::vector<Vec2>> departure_route(const Product &product, const Mover &mover, Vec2 goal,
                                                      const Goals &goals);
     void process(Product &product, Mover &mover, Producer &producer, Goals &goals);

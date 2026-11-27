@@ -1880,6 +1880,28 @@ Simulation start_sealed_departure(bool departure_check) {
 }
 } // namespace
 
+TEST_CASE("departure check lets a mover leave a processing place at once for its next producer") {
+    // Leaving a processing place is never held back: a mover waiting there blocks the producer.
+    Simulation simulation(fixture());
+    simulation.set_workload(false);
+    auto settings = simulation.motion_settings();
+    settings.departure_check = true;
+    simulation.configure_motion(settings);
+    simulation.run();
+    simulation.add_product(ProductKind::trimmer);
+    const auto &kuka = simulation.producers()[0];
+    for (int tick = 0; tick < 10000 && !kuka.product; ++tick)
+        simulation.tick();
+    REQUIRE(kuka.product);
+    for (int tick = 0; tick < 10000 && kuka.product; ++tick)
+        simulation.tick();
+    REQUIRE_FALSE(kuka.product);
+    // In the tick its last step there ended, it already heads for the next producer.
+    const auto &mover = simulation.movers()[0];
+    CHECK(mover.moving());
+    CHECK(kinetra::distance(mover.destination, mover.body.position) > 100);
+}
+
 TEST_CASE("without departure check a sealed queued mover leaves at once") {
     auto simulation = start_sealed_departure(false);
     CHECK(simulation.movers()[0].moving());
