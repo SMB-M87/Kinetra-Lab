@@ -1,7 +1,8 @@
 // Runs the MAS demonstrator fixture and two bundled large factories under one motion
 // configuration and prints one CSV line per blueprint and seed: throughput, contacts, flow
-// (waiting and stuck movers) and predictive passing outcomes; `--events` also writes each
-// run's event log. Outside CTest: comparisons are useful, but too slow for every test run.
+// (waiting and stuck movers), predictive passing outcomes and ticks per second; `--events`
+// also writes each run's event log. Outside CTest: comparisons are useful, but too slow for
+// every test run.
 #include "i4sim/simulation/flow_metrics.h"
 #include "i4sim/simulation/simulation.h"
 #include "i4sim/testing/event_counts.h"
@@ -9,6 +10,7 @@
 
 #include <charconv>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -21,6 +23,12 @@
 #include <vector>
 
 namespace {
+/// Ticks of a run without `--ticks`: long enough to show a factory's throughput over hours of
+/// simulated time, and the rate a long headless run reaches.
+constexpr std::uint64_t default_ticks = 1000000;
+/// Most ticks `--ticks` accepts.
+constexpr std::uint64_t most_ticks = 100000000;
+
 void write_csv_field(std::ostream &out, std::string_view field) {
     if (field.find_first_of(",\"\r\n") == std::string_view::npos) {
         out << field;
@@ -69,7 +77,7 @@ int main(int argc, char **argv) {
         bool recovery = false, parking_traffic = false, junction_traffic = false, corridor_traffic = false;
         bool predictive_passing = false, make_way = false, departure_check = false, right_of_way = false;
         auto profile = SteeringProfile::improved;
-        std::uint64_t ticks = 50000;
+        std::uint64_t ticks = default_ticks;
         std::optional<std::filesystem::path> event_directory;
         std::vector<std::uint32_t> seeds;
         std::vector<std::filesystem::path> blueprints;
@@ -137,12 +145,10 @@ int main(int argc, char **argv) {
                     throw std::invalid_argument("Invalid unsigned 32-bit seed: " + value);
                 seeds.push_back(seed);
             } else if (option == "--ticks") {
-                std::size_t used{};
-                if (value.empty() || value.front() == '-')
-                    throw std::invalid_argument("Ticks must be in 1..1000000");
-                ticks = std::stoull(value, &used);
-                if (used != value.size() || ticks == 0 || ticks > 1000000)
-                    throw std::invalid_argument("Ticks must be in 1..1000000");
+                const auto *end = value.data() + value.size();
+                const auto parsed = std::from_chars(value.data(), end, ticks);
+                if (parsed.ec != std::errc{} || parsed.ptr != end || ticks == 0 || ticks > most_ticks)
+                    throw std::invalid_argument("Ticks must be in 1.." + std::to_string(most_ticks));
             } else {
                 throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] "
                                             "[--parking-traffic] [--junction-traffic] [--corridor-traffic] "
@@ -169,7 +175,7 @@ int main(int argc, char **argv) {
         std::cout
             << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
                "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,contact_episodes,"
-               "elapsed_ms\n";
+               "elapsed_ms,ticks_per_second\n";
         for (std::size_t index = 0; index < blueprints.size(); ++index) {
             const auto &file = blueprints[index];
             const auto name = file.stem().string();
@@ -195,7 +201,9 @@ int main(int argc, char **argv) {
                 double acceleration_change = 0;
                 const auto started = std::chrono::steady_clock::now();
                 std::vector<Vec2> previous(simulation.movers().size());
-                for (std::uint64_t tick = 0; tick < ticks && simulation.running(); ++tick) {
+                // Counted, because a simulation that stops running ends the loop early.
+                std::uint64_t ran = 0;
+                for (; ran < ticks && simulation.running(); ++ran) {
                     simulation.tick();
                     flow.observe(simulation);
                     for (std::size_t i = 0; i < previous.size(); ++i) {
@@ -204,9 +212,9 @@ int main(int argc, char **argv) {
                         previous[i] = acceleration;
                     }
                 }
-                const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                         std::chrono::steady_clock::now() - started)
-                                         .count();
+                const std::chrono::duration<double> seconds = std::chrono::steady_clock::now() - started;
+                const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(seconds).count();
+                const auto rate = seconds.count() > 0 ? std::llround(double(ran) / seconds.count()) : 0;
                 const auto events = simulation.events();
                 if (event_directory)
                     write_events(*event_directory / (log_stem + '-' + std::to_string(seed) + ".csv"), events);
@@ -216,7 +224,7 @@ int main(int argc, char **argv) {
                           << flow.waiting_ticks() << ',' << flow.stuck_movers() << ',' << flow.stuck_now()
                           << ',' << test::count(events, EventKind::passing_formed) << ','
                           << test::cancelled_plans(events) << ',' << test::passing_contacts(events) << ','
-                          << test::contact_episodes(events) << ',' << elapsed << std::endl;
+                          << test::contact_episodes(events) << ',' << elapsed << ',' << rate << std::endl;
             }
         }
     } catch (const std::exception &error) {
