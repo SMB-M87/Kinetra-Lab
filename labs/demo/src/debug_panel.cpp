@@ -134,7 +134,6 @@ std::vector<DebugEntry> DebugPanel::entries() {
     auto ghost = kinetra::debug_check("GHOST CAMERA", ghost_, 0);
     entries.push_back(std::move(ghost));
     entries.push_back({.label = "RESET PARAMETERS", .action = [this] { reset_parameters(); }});
-    entries.push_back({.label = "SCENARIOS", .action = [this] { scenarios_requested_ = true; }});
     return entries;
 }
 

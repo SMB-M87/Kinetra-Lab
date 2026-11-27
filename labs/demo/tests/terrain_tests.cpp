@@ -24,13 +24,10 @@ bool same(const Body &a, const Body &b) {
     for (std::size_t i = 0; i < a.vertices.size(); ++i)
         if (length(a.vertices[i] - b.vertices[i]) != 0)
             return false;
-    return a.shape == b.shape && a.motion == b.motion && a.position.x == b.position.x &&
-           a.position.y == b.position.y && a.half_extents.x == b.half_extents.x &&
-           a.half_extents.y == b.half_extents.y && a.radius == b.radius && a.angle == b.angle &&
-           a.friction == b.friction && a.restitution == b.restitution && a.velocity.x == b.velocity.x &&
-           a.velocity.y == b.velocity.y && a.acceleration.x == b.acceleration.x &&
-           a.acceleration.y == b.acceleration.y && a.angular_velocity == b.angular_velocity &&
-           a.mass == b.mass;
+    return a.shape == b.shape && a.motion == b.motion && a.position == b.position &&
+           a.half_extents == b.half_extents && a.radius == b.radius && a.angle == b.angle &&
+           a.friction == b.friction && a.restitution == b.restitution && a.velocity == b.velocity &&
+           a.acceleration == b.acceleration && a.angular_velocity == b.angular_velocity && a.mass == b.mass;
 }
 bool same(const demo::Terrain::Chunks &a, const demo::Terrain::Chunks &b) {
     if (a.size() != b.size())
