@@ -38,6 +38,10 @@ inline constexpr unsigned stall_ticks = 120;
 inline constexpr unsigned recovery_backoff_ticks = 30;
 /// Number of earlier attempts after which the route recovery wait stops growing.
 inline constexpr unsigned recovery_backoff_limit = 10;
+/// Ticks DEPARTURE CHECK keeps a queued mover waiting for a checked route. Longer than any
+/// wait measured on the bundled floors (672 ticks), and as long as a make-way trip may
+/// last, so a mover sealed in for good still departs and its stall can be observed.
+inline constexpr std::uint64_t departure_wait_ticks = 10 * stall_ticks;
 /// Ticks a corridor waits after a recovery ended before it tries a new one.
 inline constexpr std::uint64_t corridor_retry_ticks = 120;
 /// Ticks a mover waits after its passing plan ended without completing before it may join

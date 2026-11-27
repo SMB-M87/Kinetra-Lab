@@ -66,6 +66,11 @@ struct MotionSettings {
     float speed{2}, force{0.6f}, horizon{32};
     /// Gives a parked blocker a temporary refuge if that opens a checked route.
     bool make_way{};
+    /// A mover that already carries a product and reaches the head of its producer queue
+    /// leaves only along a route checked against stationary movers, as a newly allocated
+    /// mover does. Without one it stays at its holding place and tries again every tick,
+    /// for at most `departure_wait_ticks`; then it departs as without the check.
+    bool departure_check{};
 };
 /// Whether a simulation advances. Every simulation starts `paused`.
 enum class RunState {

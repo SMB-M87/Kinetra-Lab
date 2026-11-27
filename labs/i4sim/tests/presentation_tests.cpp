@@ -70,7 +70,7 @@ constexpr unsigned motion = 2, profile = 3, planner = 4, speed = 6, force = 7, h
 constexpr unsigned improved = 4, original = 5, reciprocal = 7;
 /// The values of the open PLANNER list, below its row.
 constexpr unsigned plain_a_star = 6;
-/// TRAFFIC open: heading on row 3, then its four check boxes.
+/// TRAFFIC open: heading on row 3, then its check boxes, of which the cases use these four.
 constexpr unsigned corridor = 4, junction = 5, parking = 6, predictive = 7;
 } // namespace menu_row
 } // namespace

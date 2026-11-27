@@ -137,6 +137,7 @@ void Production::update_product(Product &p, Goals &goals) {
     if (m.held || m.goal == GoalKind::making_way)
         return;
     if (producer.blocked && p.state != ProductState::processing) {
+        departure_waits_.erase(p.id);
         std::erase(producer.queue, p.id);
         p.producer.reset();
         p.state = ProductState::waiting;
@@ -172,10 +173,36 @@ bool Production::approach(Product &p, Mover &m, Producer &producer, Goals &goals
         return false;
     }
     if (distance(m.destination, goal) > same_point_mm) {
+        auto route = departure_route(p, m, goal, goals);
+        if (!route)
+            return false;
         goals.set(m, goal);
+        if (!route->empty()) {
+            m.route = std::move(*route);
+            goals.fleet.progress[goals.fleet.index(m)].best_remaining =
+                route_remaining(m.body.position, m.route);
+        }
         p.state = ProductState::transporting;
     }
     return true;
+}
+
+std::optional<std::vector<Vec2>> Production::departure_route(const Product &p, const Mover &m, Vec2 goal,
+                                                             const Goals &goals) {
+    if (!goals.motion.departure_check) {
+        // A wait that the operator ended by turning the check off does not count later.
+        departure_waits_.erase(p.id);
+        return std::vector<Vec2>{};
+    }
+    // A queued mover waits at its holding place, often a parking row, where parked
+    // neighbors can stand on the plain grid route. Like a newly allocated mover it leaves
+    // only along a route refined around stationary footprints.
+    auto route = plan_route(goals.floor, goals.fleet, goals.motion, goals.fleet.index(m), goal, true);
+    const auto since = departure_waits_.try_emplace(p.id, goals.tick).first->second;
+    if (route.empty() && goals.tick - since < departure_wait_ticks)
+        return std::nullopt;
+    departure_waits_.erase(p.id);
+    return route;
 }
 
 void Production::process(Product &p, Mover &m, Producer &producer, Goals &goals) {
