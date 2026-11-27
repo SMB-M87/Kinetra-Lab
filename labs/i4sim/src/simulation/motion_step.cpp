@@ -16,7 +16,7 @@ namespace {
 /// Margin in millimeters beyond the steering reach within which borders are considered.
 constexpr float border_search_margin_mm = 10;
 /// Ticks a pushed-back mover keeps the right of way: four stall windows, the best of the
-/// windows measured (design: stall remedies in the engine).
+/// windows measured under the prototype's return rule (design: stall remedies in the engine).
 constexpr std::uint64_t right_of_way_ticks = 4 * stall_ticks;
 
 /// What a mover is to RIGHT OF WAY at the start of a tick, from the coordination of the last
@@ -52,7 +52,7 @@ void MotionStep::update_right_of_way(Goals &goals) {
         if (goals.log.recording())
             goals.log.add({.tick = goals.tick, .kind = kind, .movers = {mover, pusher}});
     };
-    if (!goals.motion.right_of_way) {
+    if (!goals.motion.right_of_way || !supports_right_of_way(goals.motion.profile)) {
         end_right_of_way(goals.fleet, goals.tick, goals.log);
         return;
     }

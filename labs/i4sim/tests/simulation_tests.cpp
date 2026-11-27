@@ -3410,6 +3410,61 @@ TEST_CASE("a mover with the right of way loses it when it gets a new goal") {
     }));
 }
 
+namespace {
+/// Runs pushed_mover_run(true) on until some mover holds the right of way, and returns it.
+std::optional<std::size_t> first_holder(Simulation &simulation) {
+    for (int tick = 0; tick < 20000; ++tick) {
+        simulation.tick();
+        for (std::size_t i = 0; i < simulation.movers().size(); ++i)
+            if (simulation.movers()[i].coordination.right_of_way)
+                return i;
+    }
+    return std::nullopt;
+}
+} // namespace
+
+TEST_CASE("a held mover loses the right of way in the next tick") {
+    auto [longest, simulation] = pushed_mover_run(true);
+    (void)longest;
+    const auto holder = first_holder(simulation);
+    REQUIRE(holder);
+    simulation.toggle_mover(*holder);
+    REQUIRE(simulation.movers()[*holder].held);
+    const auto before = simulation.events().size();
+    simulation.tick();
+    // A held mover stands, so it is no longer pushed from a route of its own.
+    CHECK_FALSE(simulation.movers()[*holder].coordination.right_of_way);
+    const auto events = simulation.events().subspan(before);
+    CHECK(std::any_of(events.begin(), events.end(), [&](const SimulationEvent &event) {
+        return event.kind == EventKind::right_of_way_ended && event.movers[0] == *holder;
+    }));
+}
+
+TEST_CASE("a profile that ignores the right of way ends every right of way and grants none") {
+    auto [longest, simulation] = pushed_mover_run(true);
+    (void)longest;
+    const auto holder = first_holder(simulation);
+    REQUIRE(holder);
+    // Original predicts every neighbor from its velocity, whatever its motion, so a fixed
+    // body changes nothing there: the right of way ends at once, without another tick.
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::original;
+    const auto before = simulation.events().size();
+    simulation.configure_motion(settings);
+    CHECK_FALSE(simulation.movers()[*holder].coordination.right_of_way);
+    for (int tick = 0; tick < 2000; ++tick)
+        simulation.tick();
+    const auto events = simulation.events().subspan(before);
+    CHECK(std::any_of(events.begin(), events.end(), [&](const SimulationEvent &event) {
+        return event.kind == EventKind::right_of_way_ended && event.movers[0] == *holder;
+    }));
+    CHECK(std::none_of(events.begin(), events.end(), [](const SimulationEvent &event) {
+        return event.kind == EventKind::right_of_way_granted;
+    }));
+    CHECK(std::none_of(simulation.movers().begin(), simulation.movers().end(),
+                       [](const Mover &mover) { return mover.coordination.right_of_way; }));
+}
+
 TEST_CASE("right of way runs from the first tick of a scene whose movers already have goals") {
     // The scenario's goals make movers move before the first tick, when no traffic control
     // has been sized yet.

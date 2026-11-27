@@ -32,7 +32,8 @@ class MotionStep {
     std::uint64_t contact_ticks() const { return contact_ticks_; }
     /// Movers whose reciprocal avoidance was infeasible or overridden in the last tick.
     std::size_t avoidance_limited() const { return avoidance_limited_; }
-    /// Ends every right of way at once, with an event per holder; for turning RIGHT OF WAY off.
+    /// Ends every right of way at once, with an event per holder; for turning RIGHT OF WAY off
+    /// or choosing a profile that ignores it.
     void end_right_of_way(Fleet &fleet, std::uint64_t tick, EventLog &log);
 
   private:

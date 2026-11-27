@@ -49,7 +49,10 @@ void SimulationCore::configure_motion(MotionSettings settings) {
     const bool heatmap_changes = settings.heatmap != motion_.heatmap;
     const bool routes_change = heatmap_changes || settings.path_planning != motion_.path_planning;
     const bool passing_ends = PredictivePassing::enabled(motion_) && !PredictivePassing::enabled(settings);
-    const bool right_of_way_ends = motion_.right_of_way && !settings.right_of_way;
+    const auto right_of_way_runs = [](const MotionSettings &motion) {
+        return motion.right_of_way && supports_right_of_way(motion.profile);
+    };
+    const bool right_of_way_ends = right_of_way_runs(motion_) && !right_of_way_runs(settings);
     traffic_.configure(floor_, settings);
     for (auto &m : fleet_.movers) {
         auto &coordination = m.coordination;

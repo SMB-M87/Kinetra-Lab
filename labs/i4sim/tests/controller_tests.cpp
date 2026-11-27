@@ -858,6 +858,7 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     CHECK((motion.corridor_traffic && motion.junction_traffic && motion.parking_traffic &&
            motion.predictive_passing && motion.make_way && motion.departure_check && motion.right_of_way));
     CHECK_FALSE(entry(controller, "PREDICTIVE PASS").value);
+    CHECK_FALSE(entry(controller, "RIGHT OF WAY").value);
 
     open_section(controller, "MOTION");
     CHECK_FALSE(entry(controller, "RECOVERY").active());
@@ -868,6 +869,8 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     open_section(controller, "TRAFFIC");
     CHECK(entry(controller, "PREDICTIVE PASS").value() == "LEGACY");
     CHECK_MESSAGE(entry(controller, "PREDICTIVE PASS").active(), "the legacy profile keeps the setting");
+    CHECK(entry(controller, "RIGHT OF WAY").value() == "LEGACY");
+    CHECK_MESSAGE(entry(controller, "RIGHT OF WAY").active(), "the legacy profile keeps the setting");
 }
 
 TEST_CASE("a motion setting the simulation rejects shows its reason and changes nothing") {
