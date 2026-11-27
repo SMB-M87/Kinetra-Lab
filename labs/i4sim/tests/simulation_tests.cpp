@@ -3167,14 +3167,31 @@ TEST_CASE("a mover with the right of way is marked, and turning the policy off e
     CHECK(inspection_value(snapshot, "COORDINATION") == "RIGHT OF WAY");
     auto settings = simulation.motion_settings();
     settings.right_of_way = false;
-    simulation.configure_motion(settings);
     const auto before = simulation.events().size();
-    simulation.tick();
+    simulation.configure_motion(settings);
+    // It ends at once, without another tick.
     CHECK_FALSE(simulation.movers()[*holder].coordination.right_of_way);
     const auto events = simulation.events().subspan(before);
     CHECK(std::any_of(events.begin(), events.end(), [&](const SimulationEvent &event) {
         return event.kind == EventKind::right_of_way_ended && event.movers[0] == *holder;
     }));
+}
+
+TEST_CASE("right of way runs from the first tick of a scene whose movers already have goals") {
+    // The scenario's goals make movers move before the first tick, when no traffic control
+    // has been sized yet.
+    const auto file = i4sim::test::showcase_blueprint("corridor-passing");
+    auto scenario = load_scenario(file);
+    REQUIRE(scenario);
+    scenario->motion.right_of_way = true;
+    Simulation simulation(load_blueprint(file));
+    apply_scenario(*scenario, simulation);
+    REQUIRE(simulation.motion_settings().right_of_way);
+    REQUIRE(std::any_of(simulation.movers().begin(), simulation.movers().end(),
+                        [](const Mover &mover) { return mover.moving(); }));
+    simulation.run();
+    for (int tick = 0; tick < 50; ++tick)
+        REQUIRE_NOTHROW(simulation.tick());
 }
 
 TEST_CASE("make way clears the recorded 4320x2400 departures") {

@@ -49,6 +49,7 @@ void SimulationCore::configure_motion(MotionSettings settings) {
     const bool heatmap_changes = settings.heatmap != motion_.heatmap;
     const bool routes_change = heatmap_changes || settings.path_planning != motion_.path_planning;
     const bool passing_ends = PredictivePassing::enabled(motion_) && !PredictivePassing::enabled(settings);
+    const bool right_of_way_ends = motion_.right_of_way && !settings.right_of_way;
     traffic_.configure(floor_, settings);
     for (auto &m : fleet_.movers) {
         auto &coordination = m.coordination;
@@ -67,6 +68,8 @@ void SimulationCore::configure_motion(MotionSettings settings) {
         floor_.update_heatmap(fleet_.movers, motion_.heatmap);
     if (passing_ends)
         passing_.disable(floor_, fleet_, motion_, ticks_, log_);
+    if (right_of_way_ends)
+        motion_step_.end_right_of_way(fleet_, ticks_, log_);
     for (auto &m : fleet_.movers) {
         m.body.velocity = limited(m.body.velocity, settings.speed);
         if (!settings.parking_traffic && m.goal == GoalKind::parking_staging)

@@ -112,7 +112,7 @@ i4sim marks a mover on its own route, outside every coordination, `observed`; on
 
 **Step 4: right of way.** `kinetra::RightOfWay` ([navigation contract](../../external/Kinetra/docs/engine/navigation.md#right-of-way)) takes the movers and tuning of the stall detector and a window in steps. An observed mover whose steps without progress reach the threshold, and that `pushing_neighbor()` (the push test, moved out of the detector) finds pushed back, gets the right of way for the window. It loses it early when it is no longer observed, and gets a new one at once when it is still stalled and pushed when the window passes.
 
-i4sim's `MotionSettings::right_of_way` (DEBUG → TRAFFIC → RIGHT OF WAY, `scenario.motion.rightOfWay`, `--right-of-way`) runs it at the start of `MotionStep::run`, from the state at the end of the last tick, with a window of 480 ticks (`4 × stall_ticks`). It counts a mover on its route as observed; a mover that stands or is held as standing; and a mover under a traffic control of the last tick or on a make-way trip as busy. That is the prototype's eligibility, so the measurement holds. A mover with the right of way is a fixed body in the tick's snapshot, keeping its velocity: Reciprocal's other agents do not count on it to cooperate. It still steers at its goal. `Coordination::right_of_way` marks it for the inspector, and the event log records `right_of_way_granted` (with the pusher) and `right_of_way_ended`.
+i4sim's `MotionSettings::right_of_way` (DEBUG → TRAFFIC → RIGHT OF WAY, `scenario.motion.rightOfWay`, `--right-of-way`) runs it at the start of `MotionStep::run`, from the state at the end of the last tick, with a window of 480 ticks (`4 × stall_ticks`). It counts a mover on its route as observed; a mover that stands or is held as standing; and as busy a mover under a traffic control of the last tick, waiting at a junction or corridor, retreating, in a passing plan or on a make-way trip. Without traffic policies and passing that is the prototype's eligibility, so the measurement holds. A mover with the right of way is a fixed body in the tick's snapshot: Reciprocal's other agents take the whole avoidance instead of half, and Improved's steering avoids it as a standing body. It still steers at its goal and avoids the others itself. Turning the policy off ends every right of way at once. `Coordination::right_of_way` marks it for the inspector, and the event log records `right_of_way_granted` (with the pusher) and `right_of_way_ended`.
 
 **Step 5** is designed on its branch and written here when it starts. The contracts the user accepted:
 
@@ -170,9 +170,10 @@ Step 4, Full level (a new public engine header):
 
 | Behavior | Test |
 | --- | --- |
-| The fallback's contract at two world scales: grant and window, a new window at once, no grant below the threshold, without a push or for a mover not observed, early end, a shorter span, the push test against the detector's reason, invalid input | Kinetra `kinetra_right_of_way_tests` (6 cases) |
+| The fallback's contract at two world scales: grant and window, a new window at once, no grant below the threshold, without a push or for a mover not observed, early end, a shorter span, the push test against the detector's reason and for every mover, a window past the clock's end, invalid input | Kinetra `kinetra_right_of_way_tests` (8 cases) |
 | The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) lasts over 1,000 ticks without the fallback and under 200 with it, mover 7 gets the right of way against mover 8, no contact, and every right of way lasts at most its window | `kinetra_i4sim:right of way ends the recorded stall of a mover pushed from its goal` |
-| The holder is marked in the inspector, and turning the policy off ends it with an event | `kinetra_i4sim:a mover with the right of way is marked, and turning the policy off ends it` |
+| The holder is marked in the inspector, and turning the policy off ends it at once, with an event | `kinetra_i4sim:a mover with the right of way is marked, and turning the policy off ends it` |
+| The first tick of a scene whose movers already have goals runs with the policy on | `kinetra_i4sim:right of way runs from the first tick of a scene whose movers already have goals` (an out-of-range read before; a release build need not show it) |
 | The scenario key and the TRAFFIC row | the scenario case and two controller cases, extended |
 | Off by default changes nothing | the golden and pressure suites |
 | The measured effect holds | the harness and the 50,000-tick benchmark with MAKE WAY, with and without `--right-of-way` |
@@ -235,10 +236,11 @@ Step 3, with Kinetra `24fb31d` (`feat/stall-detector`):
   - Reciprocal: 412 `pushed_back` of 631, the count the classifying replay found, with 166 `unknown`, 42 `opposing_mover`, 6 `stationary_blocker` and 5 `oscillating`.
   - Improved: 322 `pushed_back` of 763.
 
-Step 4, with Kinetra `406a534` (`feat/right-of-way`):
+Step 4, with Kinetra `feat/right-of-way` after its review fix:
 
-- Kinetra: 333 of 333 tests pass, and the consumer runs.
-- Lab: 175 of 175 i4sim cases pass, the golden and pressure lines unchanged.
+- Kinetra: 335 of 335 tests pass, and the consumer runs.
+- Lab: 176 of 176 i4sim cases pass, the golden and pressure lines unchanged.
+- The review fixes leave the harness identical (Reciprocal 114 products, 13,587 waiting ticks; Improved 105, 196 contacts).
 
 With MAKE WAY on, RIGHT OF WAY off → on. The integrated version gives the prototype's numbers for the 480-tick window exactly:
 
@@ -266,7 +268,23 @@ Two smaller fixes followed: an end reason for a participant on a make-way trip, 
 - A fresh track's zero goal and anchor matched a mover whose goal is the world origin, so its first move toward the goal read as a reversal. A track now anchors at the mover on its first observed step.
 - In i4sim a tiny force that `configure_motion` accepts made the lookahead infinite, which the engine rejects in every tick, after motion. The adapter clamps it.
 
-Each now has a case that fails without its fix. Three documentation gaps were closed too: the README's module row, the testing table, and the validation of absent movers. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
+Each now has a case that fails without its fix. Three documentation gaps were closed too: the README's module row, the testing table, and the validation of absent movers.
+
+**Step 4, the author's review** (`/code-review` at high, both repositories). Three issues:
+
+- With the policy on, the first tick of a scene whose movers already had goals read `fleet.controls` before it was sized; the state now checks its size, and a case runs that path.
+- The comment and README said Improved predicts the holder along its velocity, but a fixed body has none for Improved's steering. The measured behavior is the one the user chose, so the docs now say what it is: Improved avoids the holder as a standing body.
+- A mover waiting at a junction or corridor could get the right of way, which the stall detector counts as busy. The right of way now counts every coordination of the last tick as busy, as the detector does.
+
+The nits taken:
+
+- The decision runs before this tick's route preparation.
+- Turning the policy off ends the rights of way at once.
+- The event columns are documented.
+- The engine validates a step once and saturates a window past the clock.
+- The unused accessor is gone.
+
+The harness is unchanged by all of it. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
 
 ## Pull request
 
@@ -304,7 +322,7 @@ Step 4. Title: `feat(i4sim): give a pushed-back mover the right of way`. Kinetra
   - Two simulation cases; the scenario and menu cases are extended.
   - The README, blueprint, tests and architecture pages.
 
-**Verification.** Kinetra 333 of 333, Lab i4sim 175 of 175, golden and pressure unchanged. Over 50,000 ticks with MAKE WAY:
+**Verification.** Kinetra 335 of 335, Lab i4sim 176 of 176, golden and pressure unchanged. Over 50,000 ticks with MAKE WAY:
 
 - Reciprocal: 344 → 351 products, waiting −27%, no contact.
 - Improved: 348 → 356 products, contacts 836 → 644.

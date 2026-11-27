@@ -32,8 +32,8 @@ class MotionStep {
     std::uint64_t contact_ticks() const { return contact_ticks_; }
     /// Movers whose reciprocal avoidance was infeasible or overridden in the last tick.
     std::size_t avoidance_limited() const { return avoidance_limited_; }
-    /// Whether `mover` holds the right of way (RIGHT OF WAY) in the current tick.
-    bool right_of_way(std::size_t mover) const { return right_of_way_.granted(mover); }
+    /// Ends every right of way at once, with an event per holder; for turning RIGHT OF WAY off.
+    void end_right_of_way(Fleet &fleet, std::uint64_t tick, EventLog &log);
 
   private:
     /// What one mover steers around: nearby movers from the snapshot, the same movers as
