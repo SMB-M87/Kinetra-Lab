@@ -16,7 +16,9 @@ namespace demo {
 ///
 /// An agent wanders around its home until retarget() commands a goal. Commanded travel
 /// always follows a planned route. Wandering either steers without a route or plans short
-/// routes, as WanderTuning::mode says; both turn back beyond the home range.
+/// routes, as WanderTuning::mode says; both turn back beyond the home range. An agent that
+/// holds on arrival stays where its commanded travel ends instead of wandering, until the
+/// next retarget(); a Showcase uses it to send agents from stop to stop.
 class Agent {
   public:
     /// An agent for world body `body_id`, wandering around `home`. Its random sequence is
@@ -41,8 +43,11 @@ class Agent {
     /// Simulated seconds until the route is planned again; zero or less means at the next
     /// active tick.
     float replan_in() const { return replan_in_; }
-    /// Whether the agent wanders, rather than travelling to a commanded goal.
+    /// Whether the agent wanders or holds, rather than travelling to a commanded goal.
     bool wandering() const { return wandering_; }
+    /// Whether the agent stands at the end of its commanded travel (hold_on_arrival()). A
+    /// holding agent also counts as wandering().
+    bool holding() const { return holding_; }
     /// Whether the last active tick wandered by steering. Such an agent follows no route, so
     /// only local avoidance keeps it clear of terrain, and there is no route to draw. False
     /// during route wander and commanded travel, and for a dormant agent.
@@ -50,8 +55,13 @@ class Agent {
 
     /// Commands an awake agent to travel to `destination` for at most 20 active simulated
     /// seconds; a dormant agent ignores it. Keeps the displayed route until the next active
-    /// tick computes a replacement.
+    /// tick computes a replacement. Ends a hold.
     void retarget(kinetra::Vec2 destination);
+    /// From now on, commanded travel that ends, by arrival or by its time limit, leaves the
+    /// agent holding: it steers at the point where the travel ended, without a route, until
+    /// the next retarget(). An agent that wanders holds at once, at its goal(), which for a
+    /// new agent is its home.
+    void hold_on_arrival();
     /// Plans the route again at the next active tick, for example after terrain changed.
     void invalidate_route() { replan_in_ = 0; }
     /// Wakes the agent when `body`, its own body, overlaps `view`, and puts it to sleep
@@ -85,6 +95,9 @@ class Agent {
                             const WanderTuning &wander);
     /// A seeded random value in [0, 1).
     float unit() { return float(random_() >> 8) / 16777216.f; }
+    /// Ends commanded travel: the agent holds at its goal when it holds on arrival, and
+    /// wanders otherwise.
+    void end_travel();
     /// Simulated seconds between two plans of the same route.
     static constexpr float replan_interval = 2;
     /// One full turn in radians.
@@ -109,6 +122,7 @@ class Agent {
     bool active_{};
     float replan_in_{};
     bool wandering_{true};
+    bool holding_{}, holds_on_arrival_{};
     bool steers_without_route_{};
     /// `heading_`: direction in radians of the last wander leg, or of the last travel while
     /// steering. `wander_angle_`: where on the wander circle the agent aims, in radians

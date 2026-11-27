@@ -15,9 +15,23 @@ void Agent::retarget(kinetra::Vec2 destination) {
     if (!active_)
         return;
     goal_ = destination;
-    wandering_ = false;
+    wandering_ = holding_ = false;
     command_remaining_ = 20;
     invalidate_route();
+}
+
+void Agent::hold_on_arrival() {
+    holds_on_arrival_ = true;
+    if (wandering_) {
+        holding_ = true;
+        route_.clear();
+    }
+}
+
+void Agent::end_travel() {
+    wandering_ = true;
+    wander_remaining_ = 0;
+    holding_ = holds_on_arrival_;
 }
 
 void Agent::update_visibility(kinetra::Aabb view, const kinetra::Body &body) {
@@ -37,15 +51,20 @@ kinetra::Vec2 Agent::advance_navigation(float dt, const kinetra::Body &body,
     if (!wandering_) {
         command_remaining_ -= dt;
         if (command_remaining_ <= 0) {
-            wandering_ = true;
-            wander_remaining_ = 0;
+            end_travel();
+            // A leg that ran out of time holds where it is, not at the goal it missed.
+            if (holding_)
+                goal_ = body.position;
         }
     }
     replan_in_ -= dt;
     wander_remaining_ -= dt;
-    if ((!wandering_ || !route_.empty()) && kinetra::length(goal_ - body.position) < 0.6f) {
-        wandering_ = true;
-        wander_remaining_ = 0;
+    if (!holding_ && (!wandering_ || !route_.empty()) && kinetra::length(goal_ - body.position) < 0.6f)
+        end_travel();
+    if (holding_) {
+        route_.clear();
+        steers_without_route_ = false;
+        return goal_;
     }
     steers_without_route_ = wandering_ && tuning.wander.mode == WanderMode::steering;
     if (steers_without_route_)

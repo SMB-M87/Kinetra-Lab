@@ -34,19 +34,26 @@ Demo and i4sim start in Debug Mode with their default layers on: VECTORS and PAT
 
 ### Demo
 
-The reference for Kinetra's mechanisms: physics and contacts, A* navigation, steering and reciprocal avoidance, in four scenarios that the launcher offers when DEMO is chosen. In Terrain a player walks a streamed, seeded world among a crowd of agents that wander around their homes, by steering or by planned routes, and a click sends the player along a planned route. The debug menu tunes the agents' motion and wander while they run. [Demo guide](labs/demo/README.md)
+The reference for Kinetra's mechanisms: physics and contacts, A* navigation, steering and reciprocal avoidance, in eleven scenarios that the launcher offers when DEMO is chosen. In Terrain a player walks a streamed, seeded world among a crowd of agents that wander around their homes, by steering or by planned routes, and a click sends the player along a planned route. The debug menu tunes the agents' motion and wander while they run. [Demo guide](labs/demo/README.md)
 
 | Normal view | Debug view |
 | --- | --- |
 | ![Demo: the player walks among physics agents](docs/media/demo-clip.gif) | ![Demo with vectors and paths: agents wander by steering around their homes](docs/media/demo-debug-clip.gif) |
 
-The other three scenarios each show one mechanism, from its start, in Debug Mode:
+The other scenarios each show one mechanism, from its start, in Debug Mode. From Maze on they are showcases: their agents repeat their motion on their own, as i4sim's showcase scenes do, and a click still commands a selected agent.
 
 | Scenario | Clip |
 | --- | --- |
 | **Gravity**: dynamic shapes fall onto two ramps; some slide off, and all come to rest | ![Demo Gravity: circles and boxes fall onto two ramps and come to rest](docs/media/demo-gravity-clip.gif) |
-| **Maze**: a click beyond the last wall plans a route through the alternating gaps, and the player walks it | ![Demo Maze: the player follows its planned route through three walls](docs/media/demo-maze-clip.gif) |
-| **Doorway**: two groups with opposing goals meet in one opening and pass each other by reciprocal avoidance | ![Demo Doorway: two groups of three agents cross through one opening](docs/media/demo-doorway-clip.gif) |
+| **Maze**: six agents shuttle between far cells of a labyrinth and meet in its corridors; a click across the maze sends the player along a planned route | ![Demo Maze: agents and the player follow planned routes through a labyrinth](docs/media/demo-maze-clip.gif) |
+| **Doorway**: two groups shuttle through one opening, pass each other by reciprocal avoidance and turn together after two seconds | ![Demo Doorway: two groups of three agents cross through one opening](docs/media/demo-doorway-clip.gif) |
+| **Corridor**: two groups of six swap ends through a long corridor and form lanes | ![Demo Corridor: two groups pass each other in a corridor](docs/media/demo-corridor-clip.gif) |
+| **Crossing**: two streams cross at right angles between four blocks | ![Demo Crossing: a horizontal and a vertical stream cross at an intersection](docs/media/demo-crossing-clip.gif) |
+| **Circle**: sixteen agents on a circle each head for the opposite point, meet in the middle and turn around one another | ![Demo Circle: sixteen agents swap places across a circle](docs/media/demo-circle-clip.gif) |
+| **Bottleneck**: sixteen agents leave a room through one narrow exit | ![Demo Bottleneck: a group squeezes through one exit](docs/media/demo-bottleneck-clip.gif) |
+| **Chaos**: forty agents travel to random points between five pillars | ![Demo Chaos: forty agents cross the field in every direction](docs/media/demo-chaos-clip.gif) |
+| **Fleet**: two arrow formations travel one oval in opposite directions, meet head-on and pass the pillars on their way | ![Demo Fleet: two formations meet head-on](docs/media/demo-fleet-clip.gif) |
+| **Swarm**: thirty agents follow one lure along a figure eight and flow around the pillar where it crosses | ![Demo Swarm: a swarm flows around a pillar](docs/media/demo-swarm-clip.gif) |
 
 ### Dotio
 

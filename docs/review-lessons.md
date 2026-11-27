@@ -46,6 +46,8 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **When a commit adds or removes test cases, update the case count and the description in the module README's test table in the same commit** · added 2026-11-27 · source: [#151](https://github.com/SMB-M87/Kinetra-Lab/pull/151)
+  1542c94 added two showcase cases, and Demo's README still counted 8 and described neither.
 - **When a pull request applies one rule in several applications, give each application its own test for each goal, not one application per goal** · added 2026-11-27 · source: [#145](https://github.com/SMB-M87/Kinetra-Lab/pull/145)
   The start of a route over its own body was tested in Demo only, while Dotio (a hook in logic) and i4sim (a call in the view) reach it by other code paths that a later change could break unseen.
 

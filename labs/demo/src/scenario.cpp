@@ -12,9 +12,17 @@ struct Entry {
     std::string_view label;
 };
 
-constexpr std::array entries{
-    Entry{Scenario::terrain, "terrain", "TERRAIN"}, Entry{Scenario::gravity, "gravity", "GRAVITY"},
-    Entry{Scenario::maze, "maze", "MAZE"}, Entry{Scenario::doorway, "doorway", "DOORWAY"}};
+constexpr std::array entries{Entry{Scenario::terrain, "terrain", "TERRAIN"},
+                             Entry{Scenario::gravity, "gravity", "GRAVITY"},
+                             Entry{Scenario::maze, "maze", "MAZE"},
+                             Entry{Scenario::doorway, "doorway", "DOORWAY"},
+                             Entry{Scenario::corridor, "corridor", "CORRIDOR"},
+                             Entry{Scenario::crossing, "crossing", "CROSSING"},
+                             Entry{Scenario::circle, "circle", "CIRCLE"},
+                             Entry{Scenario::bottleneck, "bottleneck", "BOTTLENECK"},
+                             Entry{Scenario::chaos, "chaos", "CHAOS"},
+                             Entry{Scenario::fleet, "fleet", "FLEET"},
+                             Entry{Scenario::swarm, "swarm", "SWARM"}};
 } // namespace
 
 std::vector<std::string> scenario_labels() {
@@ -36,7 +44,9 @@ Scenario scenario_at(std::size_t index) {
 Scenario parse_scenario(std::string_view name) {
     const auto entry = std::ranges::find(entries, name, &Entry::name);
     if (entry == entries.end())
-        throw std::invalid_argument("Demo scenario must be terrain, gravity, maze or doorway");
+        throw std::invalid_argument(
+            "Demo scenario must be terrain, gravity, maze, doorway, corridor, crossing, "
+            "circle, bottleneck, chaos, fleet or swarm");
     return entry->scenario;
 }
 } // namespace demo

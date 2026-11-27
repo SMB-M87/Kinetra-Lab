@@ -19,7 +19,7 @@ The Demo is Kinetra-Lab's reference application for the public Kinetra engine. I
 
 ## Purpose and scope
 
-The Demo owns its policy: world generation, the population and where it spawns, agent decisions (wander, commands, sleep), the player's controls, the tuning values and the debug menu's content. The mechanisms come from Kinetra: physics and contacts, `Navigation` (A*, swept clearance, route shortening), `steer` and reciprocal `avoid_collisions`, the spatial grid, the fixed clock, the camera, and the runtime with its overlays.
+The Demo owns its policy: world generation, the population and where it spawns, agent decisions (wander, commands, sleep, holding), the showcase scripts, the player's controls, the tuning values and the debug menu's content. The mechanisms come from Kinetra: physics and contacts, `Navigation` (A*, swept clearance, route shortening), `steer` and reciprocal `avoid_collisions`, the spatial grid, the fixed clock, the camera, and the runtime with its overlays.
 
 It is not a collision-free crowd simulation. Steering and navigation use conservative envelopes; agents can still touch, and a dense crowd can keep an agent from arriving. Agents on commanded travel can pass each other head-on in agreed lanes with PASSING on, through Kinetra's `PassingCoordinator` ([a tick](#a-tick)).
 
@@ -31,10 +31,27 @@ Choose DEMO in the launcher to open the [scenario menu](../../docs/media/launche
 | --- | --- |
 | Terrain | Explore the seeded world and click to plan routes through its resident terrain. The launcher's `--agents` option sets the initial crowd count |
 | Gravity | Watch dynamic shapes fall onto ramps and collide. Use SIMULATION → GRAVITY, RUNNING and SINGLE TICK to examine the contacts |
-| Maze | Click the open floor on the far side. PATHS shows the route around alternating walls |
-| Doorway | Watch two groups approach a shared opening. Use MOTION → AVOIDANCE to switch between RECIPROCAL and LEGACY, or relaunch the same layout to repeat the encounter |
+| Maze | Six agents shuttle between far cells of a labyrinth, each turning one second after it arrives. Click a cell across the maze to send the player; PATHS shows the routes |
+| Doorway | Two groups shuttle through one opening and turn together two seconds after the last one arrived. Use MOTION → AVOIDANCE to switch between RECIPROCAL and LEGACY and watch the next encounter |
+| Corridor | Two groups of six swap ends through a corridor 7 units wide and form lanes; try PASSING |
+| Crossing | Two streams of six cross at right angles between four blocks |
+| Circle | Sixteen agents on a circle cross to the opposite point and back; reciprocal avoidance turns them around one another in the middle |
+| Bottleneck | Sixteen agents leave a room through one exit 2.4 units wide, and come back |
+| Chaos | Forty agents travel to random points between five pillars, each pausing half a second; the points come from the seed |
+| Fleet | Two arrow formations of six follow lures around one oval in opposite directions: they meet head-on twice per lap and split around the pillars |
+| Swarm | Thirty agents follow one lure along a figure eight and flow around the pillar where it crosses |
 
-`kinetra --variant demo` and `kinetra_demo` start Terrain by default. Use `--scenario terrain|gravity|maze|doorway` with either executable to start that layout directly. `kinetra --scenario maze` selects Demo automatically. Authored scenes have fixed layouts and populations.
+`kinetra --variant demo` and `kinetra_demo` start Terrain by default. Use `--scenario` with a lowercase scenario name (`terrain`, `gravity`, `maze`, `doorway`, `corridor`, `crossing`, `circle`, `bottleneck`, `chaos`, `fleet`, `swarm`) with either executable to start that layout directly. `kinetra --scenario maze` selects Demo automatically. Authored scenes have fixed layouts and populations; the launcher shows the scenarios on two pages.
+
+### Showcases
+
+From Maze on every scenario is a showcase: a [`Showcase`](include/demo/world/showcase.h) script tells its agents where to go next, so the motion repeats without input, as in i4sim's [showcase scenes](../i4sim/blueprints/README.md#showcase-scenes). Its agents hold where their commanded travel ends instead of wandering (ACTIVITY HOLDING in the inspector). A script is one of three kinds:
+
+- **Shuttle:** each agent cycles through its own stops. Turning *together* (Doorway, Corridor, Crossing, Circle, Bottleneck), the agents turn at once when every one has held for the pause; turning *alone* (Maze), each turns after its own pause.
+- **Roam:** each agent travels to a seeded random point of an area and holds for the pause before it picks the next (Chaos).
+- **Follow:** lures travel closed loops at a fixed speed, and every quarter second each agent is sent to its slot next to its lure, half a second ahead of the lure's motion; a formation's slots turn with the lure's heading (Fleet), a swarm's do not (Swarm).
+
+A click on a selected agent, or CLICK SETS GOAL, sends agents elsewhere; the script leaves each one alone until it holds at that goal, then takes it back. A group that turns together does not wait for an agent sent away: it turns without it, and the agent joins the next turn after it holds, heading for the same end as its group. After CLICK SETS GOAL, which sends every agent away, the first agents to hold at the click turn, and the others join a later turn in step. An agent whose leg lasts longer than commanded travel's 20 seconds holds where it stands, so a shared turn never waits longer than that. With PASSING on, a showcase's new leg ends the agent's passing plan, as a user's command does; Fleet and Swarm send every agent to its slot four times a second, so PASSING has no effect there.
 
 ## Controls
 
@@ -69,7 +86,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 | AGENTS | WANDER (STEERING or ROUTE), HOME RANGE, then WANDER REACH and WANDER JITTER for steering wander, CLICK SETS GOAL and PASSING (off at the start) |
 | Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, PASSING off, speed 1×) |
 
-The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain, Maze and Doorway. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and time scale persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. PASSING lets agents on commanded travel pass each other head-on in agreed side lanes ([a tick](#a-tick)). LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
+The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain and in every scenario from Maze on. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and time scale persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. PASSING lets agents on commanded travel pass each other head-on in agreed side lanes ([a tick](#a-tick)). LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
 
 The default camera follows the player in Terrain and frames the center of the authored scenes. Ghost moves only the camera. Clicking in Ghost teleports the player and clears momentum and routes when the destination has clearance. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
 
@@ -133,7 +150,8 @@ The logic library `kinetra_demo_logic` builds without the runtime and holds ever
 | [zoom.h](include/demo/zoom.h) | logic | Zoom limits in and outside Debug Mode, apart from the scene so the launcher can start a Demo without compiling it |
 | [scenario.h](include/demo/scenario.h) | logic | The scenario catalog and its CLI names |
 | [world/scene.h](include/demo/world/scene.h) | logic | World, terrain residency, population, the tick, body renumbering |
-| [world/agent.h](include/demo/world/agent.h) | logic | One agent's lifecycle, wander, commands and route |
+| [world/agent.h](include/demo/world/agent.h) | logic | One agent's lifecycle, wander, commands, holding and route |
+| [world/showcase.h](include/demo/world/showcase.h) | logic | The scripts that move a showcase's agents: shuttle, roam and follow |
 | [world/terrain.h](include/demo/world/terrain.h) | logic | Seeded chunk generation and loading |
 | [world/tuning.h](include/demo/world/tuning.h) | logic | Motion and wander values that change while the scene runs, and their validation |
 | [input/commands.h](include/demo/input/commands.h), [input/player_control.h](include/demo/input/player_control.h) | logic | One frame of intent, the presentation options and action results |
@@ -222,9 +240,11 @@ stateDiagram-v2
     Wandering --> Dormant : body leaves the active area (route dropped)
     Commanded --> Dormant : body leaves the active area (goal and timer kept)
     Dormant --> Commanded : enters again with a command left
+    Commanded --> Holding : travel ends, for an agent that holds on arrival
+    Holding --> Commanded : retarget() (the showcase's next leg, or a click)
 ```
 
-*Takeaway:* sleep freezes an agent: it keeps its goal and timers and only loses its route, which it replans on waking.
+*Takeaway:* sleep freezes an agent: it keeps its goal and timers and only loses its route, which it replans on waking. In a showcase, an agent holds where its travel ends instead of wandering, until the next command; the authored scenes keep every agent awake.
 
 | Decision | Demo policy |
 | --- | --- |
@@ -236,7 +256,7 @@ stateDiagram-v2
 | Replan | Every two simulated seconds and after terrain invalidation |
 | Route wander timeout | 0.8–1.6 active simulated seconds; bounded acceleration smooths frequent goal changes into curves |
 | Command timeout | 20 active simulated seconds |
-| Arrival / expired command | Resume wandering from the current/arrival location; the home range then brings the agent back |
+| Arrival / expired command | Resume wandering from the current/arrival location; the home range then brings the agent back. A showcase's agent holds there instead: at the goal on arrival, where it stands when the command expired |
 | Failed route | Hold position and retry while the relevant policy permits |
 
 Commanded travel always plans a route, because its goal can lie behind obstacles. Route following looks ahead around visible corners and brakes only at the final endpoint. Navigation is Kinetra's [planner](../../external/Kinetra/docs/engine/navigation.md) with one-unit spacing and a conservative 0.85-unit circular envelope. An exact free click stays exact, an occupied click goes to the nearest reachable free node, and a goal outside the area or not connected to it fails. Outward recovery lets a body that a contact pushed into the planning margin leave it without crossing a surface.
@@ -271,7 +291,8 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo` (31) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands, PASSING among them |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (5) | Inspector interactions, routes, and steering probes at different zoom levels; routes, probes and vectors pass under the agents they cross, and a route starts over its own body (label `graphics`) |
 | [passing_tests.cpp](tests/passing_tests.cpp) | `kinetra_demo_passing` (6) | Passing with PASSING on. A new goal, PASSING off and `place_agents` end a plan; the menu's extreme tuning (MAX SPEED 16, ACCELERATION 1, every HORIZON) runs. Four pressure cases, each under reciprocal avoidance and legacy steering: a head-on pair in the open arena completes its plan, one agent against two in a column, the player stopping on a lane exit (the plan ends as obstructed) and two streams of three through the doorway. Each case checks that its situation occurs, then that every agent reaches its goal and no two moving bodies overlap by more than 0.01 units. They assert outcomes, not recorded lines, so they hold on every toolchain |
-| [scenario_tests.cpp](tests/scenario_tests.cpp) | `kinetra_demo` (3 scenario cases) | Gravity, maze routing and fixed layout lifetime, and commanded doorway traffic |
+| [scenario_tests.cpp](tests/scenario_tests.cpp) | `kinetra_demo` (4 scenario cases) | The catalog's eleven labels and CLI names; Gravity, the player's route through the maze and fixed layout lifetime, and Doorway's groups crossing and coming home |
+| [showcase_tests.cpp](tests/showcase_tests.cpp) | `kinetra_demo` (13 showcase cases) | Holding on arrival and after the command limit; shuttles that turn together (in the same tick, after the last arrival and the pause) and alone; a shared turn without an agent a user sent away, which rejoins the next turn; CLICK SETS GOAL followed by turns in step once the agents hold; a turn alone unaffected by another agent's command; seeded roaming inside its area; following agents near their slots, and a commanded agent taken back once it holds; a showcase's command ending the passing plan of the old goal; Terrain refusing a showcase and a dormant agent waiting for its leg; rejected scripts; and every showcase scenario for 40 seconds: each agent completes its legs, a shuttle's legs end at their stops, Fleet's and Swarm's agents keep near their slots, and no two moving bodies overlap by more than 0.01 units |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:demo` (1) | `kinetra_demo --frames 120` starts, draws and exits with 0 (label `graphics`) |
 
 Run the suites that need no window from the repository root:
@@ -295,5 +316,6 @@ The graphics suite covers selected session interactions and rendering. Desktop f
 ## Open points
 
 - The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. An agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there, and in a dense crowd agents stray up to about ten units beyond their range for moments. The fixed clock runs at most 16 ticks per frame, so at the fastest time scale of 4 simulated time falls behind below 30 frames per second; the simulation itself needed 0.64 s of every second at the default 48 agents, mostly for the engine's spatial-grid rebuilds, and about 0.08 s since the engine indexes fixed bodies once and queries its grid without hashing (Demo does not use `priority_steer`, so hotspot 4 leaves it there) ([performance](../../docs/performance.md#demo)). Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks.
+- Showcase scripts are not drawn: no layer shows the stops, the lures or the formation slots. Fleet's formations are loose, because each agent is sent to its slot only every quarter second and slows down within a unit of it; a formation behavior that steers by its slot's velocity would hold them tighter.
 - Passing plans are not drawn yet: no debug layer shows the agreed lanes, the waits or the braking points. In the doorway and in a column most plans end as obstructed, because the other agents of a stream soon stand or drive in the lanes; the agents then pass by avoidance alone.
 - Decisions behind this design: [camera-driven terrain](../../external/Kinetra/docs/decisions/0002-camera-driven-terrain.md), [application boundary](../../external/Kinetra/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](../../external/Kinetra/docs/decisions/0005-sandbox-agent-lifecycle.md).
