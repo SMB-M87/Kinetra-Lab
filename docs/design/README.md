@@ -13,6 +13,8 @@ One design document per Lab branch, written before the code and kept after mergi
 | Date | Document | Status |
 | --- | --- | --- |
 | 2026-11-27 | [Debug layers under bodies](2026-11-27-paths-under-bodies.md): the routes, probes, vectors, forces and detection ranges of Demo, Dotio and i4sim are drawn under the moving bodies, with the start of a body's own route or arrow over it; one route width; i4sim's `MAS-demonstrator` fixture renamed `test-environment` | implemented |
+| 2026-11-27 | [Launcher preview stills of their own](2026-11-27-launcher-preview-stills.md): Demo's still shows Doorway as its groups cross, i4sim's the small floor `1680x960+` whole, from capture scenes made for the still | implemented |
+| 2026-11-27 | [RECOVERY detour past a corner](2026-11-27-i4sim-recovery-corner.md): mover 18 stuck 3 mm beside a cell; Kinetra's `constrain_borders` gives its face choice a time horizon | implemented |
 | 2026-11-27 | [Vec2 equality in place of component comparisons](2026-11-27-vec2-component-comparisons.md) | implemented |
 | 2026-11-27 | [Configuration button in the settings panel](2026-11-27-settings-configuration-button.md): SCENARIOS, DIFFICULTY and BLUEPRINTS move from the debug menu to the settings panel in place of LAUNCHER, and the pages they open get a LAUNCHER button | implemented |
 | 2026-11-27 | [i4sim make-way showcase scene](2026-11-27-i4sim-make-way-showcase.md): the parked-blocker scene of MAKE WAY as the sixth showcase scene, with its clip | implemented |
