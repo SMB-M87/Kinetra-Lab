@@ -52,7 +52,7 @@ Non-goals:
 | Where the rule applies | Demo, Dotio and i4sim | Settled with the user: all three draw a PATHS layer over bodies. |
 | How a route shows its owner | Every route under all moving bodies; the start of each route, up to where it leaves its body, drawn right after that body | Settled with the user. Drawing the start right after the body, not after all bodies, lets a neighbor drawn later cover it, so the start never lies over a neighbor. |
 | Where the clipping lives | `kinetra_lab::route_start` in `labs/shared/include/kinetra_lab/route.h`, header-only and headless | Three applications need it, and it is Lab drawing policy. It is a candidate for Kinetra ([scope](../../AGENTS.md#scope)), but a pure clip of a polyline to a circle is too small to justify an engine pull request now. |
-| The body's extent for the start | A circle: the body's radius; for a box the smaller half extent; for a Demo polygon the distance to its nearest edge | The largest circle around the position that stays inside the body, so the start never reaches past the body's edge. |
+| The body's extent for the start | A circle: the body's radius; for a box the smaller half extent; for a Demo polygon the distance to its nearest edge; each less half the line's width | The largest circle around the position that stays inside the body. `route_start` clips the line's center, so the radius loses half the width, or the line's edge would reach that far past the body onto a neighbor (review round 1). |
 | How Dotio draws over one enemy at a time | An optional `after_enemy` callback on `World::draw` | `World::draw` draws all enemies through the logic's `Renderer`; the presentation needs to draw between two enemies without copying the draw order of enemies, arrows, bolts and the player. |
 | Route line width | `kinetra_lab::route_line_pixels` = 2.5 screen pixels, divided by the camera's zoom in each application | The user asked for thinner lines in Demo and thicker ones in i4sim and Dotio; one value between Demo's 3 and i4sim's 2 pixels makes the three alike. Dotio's width no longer depends on the zoom, so its paths stay visible zoomed out. |
 | Name of the i4sim test fixture `MAS-demonstrator` | `test-environment` (`labs/i4sim/tests/test-environment.json`, and its `name`), with the test names and READMEs that said MAS | Asked by the user on the same branch. Kebab case like the other fixtures (`pressure-*.json`). The READMEs still name `MAS-demonstrator` once, as the reference's blueprint it comes from; dated design documents keep the old name as history. The benchmark's CSV now names it `test-environment`, so the recorded baseline tables follow. |
@@ -88,7 +88,11 @@ One side effect in Demo, visible in the refreshed captures: a moving body's velo
 
 | Behavior | Test | Level |
 | --- | --- | --- |
-| `route_start` ends where the route first leaves the circle, keeps a route inside it, stops at the first exit, counts a waypoint on the circle as inside, and is only its first point without a route or a radius | `kinetra_lab:a route's start …` (three cases) | Targeted |
+| `route_start` ends where the route first leaves the circle, keeps a route that stays inside, stops at the first exit of a route that comes back, ends at a waypoint on the edge without repeating it, and is only its first point without a route or a radius | `kinetra_lab:a route's start …` (five cases) | Targeted |
+| Dotio's `World::draw` runs its hook right after each active enemy, before the next | `kinetra_dotio:the world's draw hook runs right after each active enemy, before the next` | Targeted |
+| Dotio: an enemy's vector starts over the enemy itself (an enemy's path start has the enemy's own color, so its pixels cannot show it) | `kinetra_dotio_graphics:an enemy's velocity vector starts over the enemy itself` | Full (graphics) |
+| Dotio: a path is about 2.5 pixels wide at zoom 5 and 50 | `kinetra_dotio_graphics:an enemy's path is about 2.5 screen pixels wide at every zoom` | Full (graphics) |
+| i4sim: a route starts over its own mover | `kinetra_i4sim_graphics:a mover's route starts over the mover itself` | Full (graphics) |
 | Demo: the player's route does not cover an agent it crosses, and its start shows over the player | `kinetra_demo_graphics:a route passes under the agents it crosses and starts over its own body` (doorway scenario, the player walks past each agent) | Full (graphics) |
 | Dotio: an enemy's path does not cover the player | `kinetra_dotio_graphics:an enemy's path passes under the player it crosses` (path wander, the first frame a path crosses the player) | Full (graphics) |
 | i4sim: a route does not cover a mover listed before its owner | `kinetra_i4sim_graphics:a mover's route passes under the movers it crosses` (`4320x2400` at seed 42, the first crossing within 10 000 ticks) | Full (graphics) |
@@ -104,7 +108,21 @@ Each graphics test failed on the old drawing order and passes on the new one.
 
 ## Review
 
-Findings of the review of `git diff main...HEAD`, and how they were resolved, are recorded in the pull request.
+Round 1, the agent review of 39ebb48 (*Fix first*):
+
+| Finding | Resolution | Commit |
+| --- | --- | --- |
+| No test for the start over the own body in Dotio and i4sim, nor for the route width | Headless test of `World::draw`'s hook order; graphics cases for an enemy's vector start over the enemy (a path start has the enemy's own color, so no pixel can show it), a mover's route start over the mover, and the path width at zoom 5 and 50. Each fails without the change it covers | 926d8a6 |
+| Stale graphics-case counts in the test tables | Counts and descriptions updated in this round's docs commit, the i4sim diagram too | this round |
+| Conflict with `main` | `main` merged (#142, #153); the Kinetra pointer moved with it, so the captures were rendered again | merge commit |
+| Nit: a waypoint on the edge repeated as the exit | No second point when the route leaves at once; the test expects two points | 4d282e7 |
+| Nit: a line's half width reached past the body | Every start is clipped at the radius less half its line's width | 4d282e7, 6381728 |
+| Nit: the Demo test used the player's default radius | It uses the box's smaller half extent | 6381728 |
+| Nit: each route copied into a vector every frame | Dotio and i4sim draw from the position through the span | 6381728 |
+| Nit: `draw_bodies(bool)` | `enum class Bodies { fixed, moving }` | 6381728 |
+| Nit: one test case for three behaviors | Split into one case per behavior | 4d282e7 |
+| Nit: the follow-up belongs on the roadmap | Not needed: the vectors and force arrows it named are done on this branch | |
+| Lesson proposed | Added to `docs/review-lessons.md` | this round |
 
 ## Verification
 
@@ -117,6 +135,7 @@ Findings of the review of `git diff main...HEAD`, and how they were resolved, ar
 - After merging `main`: the same targeted builds and tests (dev 65 of 65, release i4sim 165 of 165), the graphics suites 25 of 25, and the debug captures rendered again on the merged code (`demo-debug-clip`, `dotio-debug`, `i4sim-debug`, `i4sim-debug-clip` changed and were looked at).
 - After moving the probes and detection ranges: the graphics suites 28 of 28; each of the three new cases fails on the previous drawing order and passes on the new one. The captures rendered again: `demo-debug`, `demo-debug-clip`, `demo-doorway-clip`, `demo-gravity-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug` and `i4sim-debug-clip` changed and were looked at.
 - After moving the vectors and arrows: the graphics suites 31 of 31; each of the three new cases fails on the previous drawing order and passes on the new one. The captures rendered again: `demo-debug`, `demo-debug-clip`, `demo-doorway-clip`, `demo-gravity-clip`, `demo-maze-clip`, `dotio-debug`, `dotio-debug-clip`, `i4sim-debug` and `i4sim-debug-clip` changed and were looked at.
+- After review round 1 and merging `main` (#142, #153): the graphics suites 34 of 34; dev `kinetra_lab`, `kinetra_dotio` 68 of 68; release `^kinetra_i4sim` 165 of 165; no new warnings.
 - The pull request's CI is the Full level.
 
 ## Pull request
