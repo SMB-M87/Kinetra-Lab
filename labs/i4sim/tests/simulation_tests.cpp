@@ -31,6 +31,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -3264,6 +3265,40 @@ TEST_CASE("predictive passing leaves a checked make way route under its existing
     during_make_way.coordinate(floor, fleet, scenario.motion_settings(), scenario.ticks(), events);
     CHECK(during_make_way.pairs() == 0);
     CHECK_FALSE(fleet.movers[0].coordination.passing);
+}
+
+TEST_CASE("a force so small that braking never ends still lets stalls be observed") {
+    Simulation simulation(fixture());
+    simulation.set_workload(false);
+    auto settings = simulation.motion_settings();
+    // The smallest normal float: at the default speed of 2 the braking distance, 4 / force,
+    // is 2^128 and overflows, without a denormal that flush-to-zero would read as 0.
+    settings.force = std::numeric_limits<float>::min();
+    REQUIRE_NOTHROW(simulation.configure_motion(settings));
+    REQUIRE(simulation.move_to(0, {1900, 750}));
+    simulation.run();
+    for (int tick = 0; tick < 200; ++tick)
+        REQUIRE_NOTHROW(simulation.tick());
+    // Mover 0 cannot accelerate, so its route makes no progress and an episode starts.
+    CHECK(simulation.stall_details(0));
+}
+
+TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back") {
+    // Seed 7 under Reciprocal with MAKE WAY: from tick 10615 mover 8, bound north, pushes
+    // mover 7 away from its processing goal 30 mm south of it for over a thousand ticks.
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), 7);
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = true;
+    simulation.configure_motion(settings);
+    simulation.run();
+    while (simulation.ticks() < 10615)
+        simulation.tick();
+    const auto stall = simulation.stall_details(7);
+    REQUIRE(stall);
+    CHECK(stall->detected_at == 10615);
+    CHECK(stall->reason == StallReason::pushed_back);
+    CHECK(stall->blocker == 8u);
 }
 
 TEST_CASE("make way clears the recorded 4320x2400 departures") {
