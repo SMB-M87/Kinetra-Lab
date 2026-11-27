@@ -28,6 +28,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <optional>
@@ -3088,6 +3089,140 @@ TEST_CASE("a newly admitted exit can invalidate a make way leg outside the junct
     traffic.admit(floor, fleet, settings, index, boxes);
     REQUIRE(traffic.exit_reservation(0));
     CHECK_FALSE(detail::MakeWay::traffic_clear(goals, probe, leg));
+}
+
+namespace {
+/// The movers of the recorded passing pair at the tick its plan formed, for driving the
+/// adapter directly; `coordinate` forms the same plan again from them.
+struct PassingBench {
+    Simulation scenario = passing_pair(SteeringProfile::reciprocal);
+    std::optional<detail::FloorPlan> floor;
+    detail::Fleet fleet;
+    detail::EventLog log;
+    detail::PredictivePassing passing;
+
+    PassingBench() {
+        run_until_pair(scenario);
+        floor.emplace(scenario.blueprint());
+        fleet.movers = scenario.movers();
+        for (const auto &mover : fleet.movers)
+            fleet.max_half = {std::max(fleet.max_half.x, mover.body.half_extents.x),
+                              std::max(fleet.max_half.y, mover.body.half_extents.y)};
+        fleet.progress.resize(fleet.movers.size());
+        log.record(true);
+    }
+    /// One coordination at `tick`, after the traffic state of the tick was reset.
+    void coordinate(std::uint64_t tick) {
+        detail::Traffic::begin_tick(fleet);
+        passing.coordinate(*floor, fleet, scenario.motion_settings(), tick, log);
+    }
+    void cancel(std::size_t mover, std::uint64_t tick) {
+        passing.cancel(*floor, fleet, scenario.motion_settings(), mover, tick, log);
+    }
+    std::optional<PassingEnd> last_end() const {
+        std::optional<PassingEnd> end;
+        for (const auto &event : log.events())
+            if (event.kind == EventKind::passing_ended)
+                end = event.end;
+        return end;
+    }
+};
+} // namespace
+
+TEST_CASE(
+    "a participant that stops, is held or comes under traffic control ends its plan, in participant order") {
+    struct Case {
+        const char *name;
+        std::function<void(detail::Fleet &)> change;
+        PassingEnd expected;
+    };
+    const auto control = [](detail::Fleet &fleet, std::size_t id) {
+        fleet.controls[id] = detail::TrafficControl{0, fleet.movers[id].body.position, true};
+    };
+    const std::vector<Case> cases{
+        {"stopped", [](detail::Fleet &f) { f.movers[0].lifecycle = MoverLifecycle::idle; },
+         PassingEnd::participant_stopped},
+        {"held", [](detail::Fleet &f) { f.movers[1].held = true; }, PassingEnd::participant_held},
+        {"control", [&](detail::Fleet &f) { control(f, 1); }, PassingEnd::traffic_control},
+        {"retreating", [](detail::Fleet &f) { f.movers[1].coordination.corridor_retreating = true; },
+         PassingEnd::traffic_control},
+        // The first participant decides: its control before the second one's stop, and the
+        // other way round.
+        {"control first",
+         [&](detail::Fleet &f) {
+             control(f, 0);
+             f.movers[1].lifecycle = MoverLifecycle::idle;
+         },
+         PassingEnd::traffic_control},
+        {"stopped first",
+         [&](detail::Fleet &f) {
+             f.movers[0].lifecycle = MoverLifecycle::idle;
+             control(f, 1);
+         },
+         PassingEnd::participant_stopped},
+        // Within one participant: stopped before held before traffic control.
+        {"stopped and controlled",
+         [&](detail::Fleet &f) {
+             f.movers[0].lifecycle = MoverLifecycle::idle;
+             control(f, 0);
+         },
+         PassingEnd::participant_stopped},
+        {"held and controlled",
+         [&](detail::Fleet &f) {
+             f.movers[0].held = true;
+             control(f, 0);
+         },
+         PassingEnd::participant_held},
+    };
+    for (const auto &c : cases) {
+        CAPTURE(c.name);
+        PassingBench bench;
+        const auto tick = bench.scenario.ticks();
+        bench.coordinate(tick);
+        REQUIRE(bench.passing.pairs() == 1);
+        detail::Traffic::begin_tick(bench.fleet);
+        c.change(bench.fleet);
+        bench.passing.coordinate(*bench.floor, bench.fleet, bench.scenario.motion_settings(), tick + 1,
+                                 bench.log);
+        CHECK(bench.passing.pairs() == 0);
+        CHECK(bench.last_end() == c.expected);
+    }
+}
+
+TEST_CASE("a new goal outside a plan keeps a failed pair's retry wait; one inside a plan imposes none") {
+    SUBCASE("outside a plan") {
+        PassingBench bench;
+        const auto tick = bench.scenario.ticks();
+        bench.coordinate(tick);
+        REQUIRE(bench.passing.pairs() == 1);
+        // The plan fails: a participant is held, so both wait passing_retry_ticks.
+        bench.fleet.movers[1].held = true;
+        bench.coordinate(tick + 1);
+        REQUIRE(bench.last_end() == PassingEnd::participant_held);
+        bench.fleet.movers[1].held = false;
+        // A goal for a mover in no plan reaches the adapter as a cancel; it must not end the
+        // wait of either.
+        bench.cancel(0, tick + 2);
+        bench.cancel(1, tick + 2);
+        // The wait counts coordinations, one per tick; the pair forms again once it has passed.
+        std::uint64_t now = tick + 2;
+        for (; now < tick + 1 + detail::passing_retry_ticks; ++now) {
+            bench.coordinate(now);
+            REQUIRE(bench.passing.pairs() == 0);
+        }
+        bench.coordinate(now);
+        CHECK(bench.passing.pairs() == 1);
+    }
+    SUBCASE("inside a plan") {
+        PassingBench bench;
+        const auto tick = bench.scenario.ticks();
+        bench.coordinate(tick);
+        REQUIRE(bench.passing.pairs() == 1);
+        bench.cancel(0, tick + 1);
+        REQUIRE(bench.last_end() == PassingEnd::goal_changed);
+        bench.coordinate(tick + 2);
+        CHECK(bench.passing.pairs() == 1);
+    }
 }
 
 TEST_CASE("predictive passing leaves a checked make way route under its existing policy") {

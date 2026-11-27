@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cmath>
+#include <vector>
 
 namespace i4sim::detail {
 using namespace kinetra;
@@ -61,7 +62,8 @@ PassingEnd unavailable_reason(const Fleet &fleet, const std::array<std::size_t, 
         if (fleet.controls[id] || m.coordination.corridor_retreating)
             return PassingEnd::traffic_control;
         // A make-way trip starts with a new goal, which cancels the plan first; a goal kind
-        // set without one still reads as a goal change.
+        // set without one still reads as a goal change, though the coordinator counts it as
+        // unavailable and both movers then wait passing_retry_ticks.
         if (m.goal == GoalKind::making_way)
             return PassingEnd::goal_changed;
     }
