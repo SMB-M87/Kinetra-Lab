@@ -204,3 +204,20 @@ TEST_CASE("in a corridor one cell wide no plan fits and both enemies still get t
     CHECK(run.formed == 0);
     CHECK(run.all_arrived());
 }
+
+TEST_CASE("PASSING runs at the debug menu's extreme movement tuning") {
+    // The slowest and fastest MOVE SPEED, with every route force at its smallest step and at
+    // its largest value: the speed and acceleration the coordinator is given span their range.
+    for (const float movement : {0.25f, dotio::max_movement_multiplier})
+        for (const float force : {0.05f, dotio::max_state_force}) {
+            CAPTURE(movement);
+            CAPTURE(force);
+            Arena arena({{23, 14, 23, 46}, {23, 46, 23, 14}}, true);
+            arena.carve(20, 10, 26, 50);
+            arena.wake();
+            arena.world->settings().movement_multiplier = movement;
+            auto &tuning = arena.world->enemy_tuning();
+            tuning.wander_force = tuning.pursue_force = tuning.recover_force = force;
+            CHECK_NOTHROW(arena.run(600));
+        }
+}

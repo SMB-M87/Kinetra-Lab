@@ -129,6 +129,13 @@ struct Arena {
     Run run(int ticks) {
         return run(ticks, [](const demo::Scene &, const Run &) {});
     }
+
+    /// Runs ticks until a passing plan is active; the agents start too far apart for one.
+    void form() {
+        for (int t = 0; t < 1200 && scene.passing_plans().empty(); ++t)
+            scene.update(tick, {});
+        REQUIRE_FALSE(scene.passing_plans().empty());
+    }
 };
 
 void report(const Run &run) {
@@ -205,5 +212,51 @@ TEST_CASE("two streams through a doorway plan to pass and every agent arrives wi
         CHECK(run.formed >= 1);
         CHECK(run.all_arrived());
         CHECK(run.contact_ticks == 0);
+    }
+}
+
+TEST_CASE("PASSING runs at the debug menu's extreme tuning") {
+    // The fastest top speed with the weakest acceleration brakes over the longest distance,
+    // which widens the coordinator's formation range most; every horizon the menu offers.
+    for (const float horizon : {0.25f, 1.5f, 4.f}) {
+        CAPTURE(horizon);
+        Arena arena({{{-12, 0}, {12, 0}}, {{12, 0}, {-12, 0}}}, true);
+        auto &motion = arena.scene.tuning().motion;
+        motion.max_speed = 16;
+        motion.max_acceleration = 1;
+        motion.horizon = horizon;
+        CHECK_NOTHROW(arena.run(600));
+    }
+}
+
+TEST_CASE("a new goal, PASSING off and renumbered bodies end the plans") {
+    {
+        Arena arena({{{-12, 0}, {12, 0}}, {{12, 0}, {-12, 0}}}, true);
+        arena.form();
+        // A new goal for one participant cancels the plan; both still reach their goals.
+        arena.trips[0].to = {-12, 8};
+        arena.scene.command_agent(0, arena.trips[0].to);
+        CHECK(arena.scene.passing_plans().empty());
+        const auto run = arena.run(2400);
+        CHECK(run.all_arrived());
+        CHECK(run.contact_ticks == 0);
+    }
+    {
+        Arena arena({{{-12, 0}, {12, 0}}, {{12, 0}, {-12, 0}}}, true);
+        arena.form();
+        arena.scene.set_passing(false);
+        CHECK(arena.scene.passing_plans().empty());
+        CHECK_FALSE(arena.scene.passing());
+        const auto run = arena.run(2400);
+        CHECK(run.formed == 0);
+        CHECK(run.all_arrived());
+    }
+    {
+        Arena arena({{{-12, 0}, {12, 0}}, {{12, 0}, {-12, 0}}}, true);
+        arena.form();
+        // New agents on the same bodies: the old plan's ids would name other agents.
+        const std::vector<std::size_t> bodies{2, 1};
+        arena.scene.place_agents(bodies, 7);
+        CHECK(arena.scene.passing_plans().empty());
     }
 }
