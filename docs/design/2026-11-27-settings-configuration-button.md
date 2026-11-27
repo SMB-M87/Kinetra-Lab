@@ -1,6 +1,6 @@
 # Configuration button in the settings panel
 
-Status: accepted · Branch: Lab `ccr-7c409f6c-5786az`, Kinetra `feat/settings-configuration-button` · Related: [launcher and overlays](../launcher-overlays.md), [Kinetra's contract](../../external/Kinetra/docs/engine/launcher-overlays.md), Kinetra [ADR 0013](../../external/Kinetra/docs/decisions/0013-settings-overlay-in-kinetra.md) and [ADR 0014](../../external/Kinetra/docs/decisions/0014-session-navigation-requests.md)
+Status: implemented · Branch: Lab `ccr-7c409f6c-5786az`, Kinetra `feat/settings-configuration-button` · Related: [launcher and overlays](../launcher-overlays.md), [Kinetra's contract](../../external/Kinetra/docs/engine/launcher-overlays.md), Kinetra [ADR 0013](../../external/Kinetra/docs/decisions/0013-settings-overlay-in-kinetra.md) and [ADR 0014](../../external/Kinetra/docs/decisions/0014-session-navigation-requests.md)
 
 Demo's SCENARIOS, Dotio's DIFFICULTY and i4sim's BLUEPRINTS leave a running session for the application's own choice of variant. They sit at the bottom of the debug menu, so a player without the debug mode cannot reach them. The user asked to move them to the settings panel: each takes the place of LAUNCHER in the panel's action row, and the pages they open get a LAUNCHER button, so the launcher stays one click further away.
 
@@ -96,16 +96,57 @@ flowchart LR
 
 ## Review
 
-Filled in after the review.
+`/code-review` at medium depth over both branch diffs found no bug and six nits, all fixed in a review commit in each repository:
+- `kinetra_lab::Session` and `launcher::bindings` still said sessions leave through the settings panel's LAUNCHER; they name the three buttons and the page's LAUNCHER now.
+- `LaunchMenu`'s class comment said LAUNCHER returns from the configuration page in every menu; it now says only the default `configuration_page` menu does, and a nested menu reports it.
+- Kinetra's runtime README said the leave button ends a program without a launcher; it now adds "unless the session serves the request itself", as i4sim does.
+- i4sim's `request()` still mapped the panel's `menu` request, which BLUEPRINTS can no longer make; the dead branch is gone.
+- The tour's `click_menu_footer` computed a point whatever ran; it now throws unless the launcher menu or i4sim's blueprint screen shows.
+- This document's status: `implemented`.
+
+The copies check (`check_copies.py` with the old wordings `launcher_x`, `settings LAUNCHER`, `LAUNCHER gives`, `debug menu's SCENARIOS` and `DIFFICULTY`, `BLUEPRINTS entry`, `scenarios_requested`, `difficulty_requested`, `LAUNCHER / RESUME / EXIT`, `Launcher / Exit`, `LAUNCHER and EXIT`, `click_menu_page_exit`, `SCENARIOS row`, `last row`, `Escape or M`, `SessionRequest::menu` and others) found the launcher README's test table and its *last row* sentence, a duplicate row in [launcher and overlays](../launcher-overlays.md) and the i4sim test README; all changed. The hits left are this change's own new text, the dated design index and ADR 0013's context, which describes the panel as it was.
 
 ## Verification
 
-Filled in after verification.
+Kinetra (`external/Kinetra`, branch `feat/settings-configuration-button`):
+- `cmake --build --preset dev` and `ctest --preset dev`: 314 of 314 passed, no warnings.
+- `cmake --build --preset graphics --target kinetra_engine_runtime_tests` and `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir build-graphics -R kinetra_engine_graphics`: 23 of 23 passed.
+- The external consumer with `CONSUMER_GRAPHICS=ON`: builds and exits 0.
+- `python3 tools/check_docs.py`: all links resolve.
+
+Lab:
+- `cmake --build --preset dev`: no errors and no new warnings. `ctest --preset dev -LE soak -R '^kinetra_(demo:|dotio:|i4sim_controller|lab:|menu:|capture)'`: 183 of 183 passed.
+- `cmake --build --preset graphics` and `ctest --preset graphics -L graphics`: 33 of 33 passed, among them the new `kinetra_i4sim_graphics` cases, the settings-panel case of `kinetra_graphics`, every `kinetra_smoke` run and `kinetra_capture_smoke`, which renders `ui-launcher` through the new path.
+- The label check of the `kinetra_graphics` case fails when Demo's button is labeled LAUNCHER, so it tells the labels apart.
+- `kinetra_capture --tour /dev/null`, which plays the whole tour with the changed script: still running when this was pushed; the result follows in a later commit. CI does not run the tour.
+- `tools/capture/capture_media.sh` for the stale rows of both media tables. Changed and committed: `demo-debug`, `dotio-debug`, `i4sim-debug`, `demo-debug-clip`, `i4sim-debug-clip` (the debug menu's last row), `dotio-settings` (DIFFICULTY), `launcher-demo-scenarios`, `launcher-difficulty` (LAUNCHER beside EXIT), and Kinetra's `ui-launcher`, `ui-settings` and `ui-inspector`. `dotio-debug-clip` rendered identical. Every refreshed file was looked at.
+- `python3 external/Kinetra/tools/check_docs.py`: all links resolve.
+- Not run locally: the `ci`, `headless` and `windows` presets; the pull requests' CI covers them. Full level only when CI is green.
 
 ## Pull request
 
-Filled in before the push.
+**Title:** feat(labs): SCENARIOS, DIFFICULTY and BLUEPRINTS in the settings panel
+
+**Summary.** Demo's SCENARIOS, Dotio's DIFFICULTY and i4sim's BLUEPRINTS leave the debug menu and take the place of LAUNCHER in the settings panel, so they work in Debug Mode or not. The pages they open, the launcher's configuration page and i4sim's blueprint screen, get a LAUNCHER button next to EXIT.
+
+**Changes.**
+- Demo and Dotio: the settings panel's first button asks for `SessionRequest::configurations`; the `scenarios_requested` and `difficulty_requested` flags and their rows are gone.
+- i4sim: BLUEPRINTS asks for `configurations`, which the session serves itself through `FactoryController::close_later()` and `SettingsOverlay::clear_request()`; the blueprint screen shows LAUNCHER on both pages.
+- Tests: the row lists, a settings-panel case for Demo and Dotio with Debug Mode off and a drawn-label check, two i4sim graphics cases (BLUEPRINTS and the next blueprint; LAUNCHER and EXIT on both pages), and the controller case for `close_later()`.
+- Capture tool: the tour and the `ui-launcher` clip leave through the settings panel and the page's LAUNCHER (`Tour::click_menu_footer`).
+- Docs: the three module READMEs, the launcher README, [launcher and overlays](../launcher-overlays.md), [architecture](../architecture.md), the capture README, the roadmap item on menu rows, and the README's controls. Media: the captures listed under *Verification*.
+- The Kinetra pointer moves to `feat/settings-configuration-button`.
+
+**Design.** This document.
+
+**Verification.** As in *Verification* above.
+
+**Review notes.** i4sim serves the `configurations` request itself and clears it, because its overlay outlives the blueprint; the new graphics case checks that the next blueprint stays loaded. The README's settings line dropped "zoom", which the settings panel has not had since zoom moved to the debug menu.
+
+**Dependencies and merge order.** Needs [Kinetra#70](https://github.com/SMB-M87/Kinetra/pull/70), which merges first, with a merge commit, not a squash, so the pointer stays reachable. Kinetra's `lab-pointer` workflow then moves Lab `main` to the Kinetra merge commit in a pointer-only pull request.
+
+**Follow-up.** None.
 
 ## Open points
 
-None yet.
+None.
