@@ -232,7 +232,9 @@ void FactoryController::restart(bool running) {
         simulation_->configure_motion(motion);
     if (running)
         simulation_->run();
-    awaiting_start_ = !running;
+    // Only R makes a paused restart wait for RUN (handle_keys); a scheduled replay of a
+    // paused scene keeps the pause the operator chose.
+    awaiting_start_ = false;
     selected_mover_.reset();
     selected_producer_.reset();
 }
@@ -266,6 +268,7 @@ void FactoryController::handle_keys(const Input &input, Camera2D &camera) {
         restart(scenario_.has_value());
         if (!loaded())
             return;
+        awaiting_start_ = !simulation_->running();
     }
     if (input.hit(Key::g))
         simulation_->set_workload(!simulation_->workload());

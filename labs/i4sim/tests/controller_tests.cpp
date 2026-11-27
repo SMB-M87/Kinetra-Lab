@@ -429,6 +429,35 @@ TEST_CASE("a restarting scene starts again by itself and keeps its rate and run 
         CHECK_MESSAGE(mover.moving(), "the restarted scene sends its goals again");
 }
 
+TEST_CASE("a paused restarting scene stepped past its pause restarts paused without awaiting its start") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(i4sim::test::showcase_blueprint("corridor-recovery")));
+    REQUIRE(controller.simulation().running());
+    auto camera = camera_for(controller);
+    const auto settled = [&] {
+        for (const auto &mover : controller.simulation().movers())
+            if (mover.lifecycle != i4sim::MoverLifecycle::idle)
+                return false;
+        return true;
+    };
+    for (int f = 0; f < 10000 && !settled(); ++f)
+        frame(controller, camera, {}, 0.05);
+    REQUIRE_MESSAGE(settled(), "The corridor-recovery scene did not settle");
+    frame(controller, camera, key(Key::space));
+    REQUIRE_FALSE(controller.simulation().running());
+    REQUIRE_FALSE(controller.awaiting_start());
+
+    // SINGLE TICK advances the pause tick by tick; the frame after it lets the scene restart.
+    const auto ticks_before = controller.simulation().ticks();
+    for (int i = 0; i < 1000 && controller.simulation().ticks() >= ticks_before; ++i) {
+        choose(controller, "SINGLE TICK");
+        frame(controller, camera);
+    }
+    REQUIRE_MESSAGE(controller.simulation().ticks() < ticks_before, "The paused scene did not restart");
+    CHECK_FALSE(controller.simulation().running());
+    CHECK_MESSAGE(!controller.awaiting_start(), "a scheduled replay is not a start to wait for");
+}
+
 TEST_CASE("a shuttling scene does not restart") {
     FactoryController controller(42, true, 200);
     REQUIRE(controller.load(i4sim::test::showcase_blueprint("junction-crossing")));

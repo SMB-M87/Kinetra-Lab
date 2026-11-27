@@ -82,7 +82,8 @@ class FactoryController {
     /// Whether the blueprint waits for its first run: a load() or an R restart left it paused
     /// and it has not run since. The session shows start_button() while it does; a left
     /// click on the button, Space, P and the RUNNING entry end the wait.
-    bool awaiting_start() const { return awaiting_start_ && !simulation_->running(); }
+    /// A finished simulation, which nothing starts again, does not wait.
+    bool awaiting_start() const { return awaiting_start_ && simulation_->state() == RunState::paused; }
 
     /// Which debug layers are selected.
     const ViewLayers &layers() const { return layers_; }
@@ -148,7 +149,8 @@ class FactoryController {
 
   private:
     void close();
-    /// Builds the blueprint anew; it runs when `running` and otherwise awaits its start.
+    /// Builds the blueprint anew and runs it when `running`. Leaves awaiting_start() false;
+    /// R sets it for a blueprint it restarted paused.
     void restart(bool running);
     /// Restarts a restarting scene when its RestartTimer says so; see handle_input().
     void restart_when_due();
