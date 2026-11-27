@@ -27,6 +27,9 @@ inline constexpr std::string_view i4sim_capture_blueprint = "4320x2400.json";
 /// Blueprint of the launcher's i4sim preview: the small original floor, with four producers
 /// and few enough movers that the whole floor stays calm and sharp at the still's size.
 inline constexpr std::string_view i4sim_preview_blueprint = "1680x960+.json";
+/// Seconds of the preview floor, from Space, that are searched for the moment most of its
+/// movers drive.
+inline constexpr int i4sim_preview_search_seconds = 60;
 /// The clicks that give the i4sim captures their motion settings, starting from the menu of
 /// a newly loaded blueprint (SIMULATION open): the Reciprocal profile, which steers most
 /// evenly, and plain A*, whose routes are straight lines instead of detours around crowds.

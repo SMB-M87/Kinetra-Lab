@@ -345,8 +345,9 @@ void dotio_debug_clip(Stage &stage) {
     });
 }
 
-// i4sim: the captured blueprint (i4sim_capture_blueprint) with the Reciprocal profile and
-// plain A*, running at the session's own rate; Debug Mode is on at the start.
+// i4sim: the screenshots and clips show the captured blueprint (i4sim_capture_blueprint), the
+// launcher preview i4sim_preview_blueprint; all with the Reciprocal profile and plain A*,
+// running at the session's own rate. Debug Mode is on at the start.
 
 /// What an i4sim capture shows around the floor.
 enum class I4simView {
@@ -406,8 +407,6 @@ void i4sim_debug(Stage &stage) {
     stage.shot();
 }
 
-/// Seconds of the preview floor that are searched for the moment most of its movers drive.
-constexpr int i4sim_preview_search_seconds = 60;
 /// Wheel notches the i4sim preview zooms in from the session's fit, which keeps room for HUD
 /// lines that the preview does not show. The floor then fills most of the window and leaves
 /// the SETTINGS button in the top-left corner beside it.
@@ -418,7 +417,11 @@ constexpr float i4sim_preview_zoom_in = 2;
 int i4sim_preview_start() {
     const auto driving = driving_movers(i4sim::default_blueprint_directory() / i4sim_preview_blueprint,
                                         i4sim_preview_search_seconds * steps_per_second);
-    return busiest_window_start(driving, 1, 1) + 1;
+    const int busiest = busiest_window_start(driving, 1, 1);
+    if (driving[std::size_t(busiest)] == 0)
+        std::cerr << "kinetra_capture: no i4sim mover drove within " << i4sim_preview_search_seconds
+                  << " s; i4sim-preview shows the floor at rest\n";
+    return busiest + 1;
 }
 
 /// The launcher's i4sim still: the small preview floor whole, at the moment most of its

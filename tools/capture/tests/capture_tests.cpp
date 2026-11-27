@@ -354,7 +354,8 @@ TEST_CASE("the i4sim preview floor loads and sets movers off within the minute t
     // The preview shows the moment most movers drive; a floor whose movers stay parked
     // would show a still floor.
     const auto floor = i4sim::default_blueprint_directory() / capture::i4sim_preview_blueprint;
-    const auto driving = capture::driving_movers(floor, static_cast<int>(60 / capture::Stage::step_seconds));
+    const auto driving = capture::driving_movers(
+        floor, static_cast<int>(capture::i4sim_preview_search_seconds / capture::Stage::step_seconds));
     CHECK(*std::max_element(driving.begin(), driving.end()) > 0);
 }
 
