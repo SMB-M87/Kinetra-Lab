@@ -41,6 +41,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **When a new panel takes the pointer over an existing screen, list the controls it covers at the window sizes the applications open with (the default 1280 × 800, and 1280 × 720) in the design document's decision** · added 2026-11-27 · source: [#152](https://github.com/SMB-M87/Kinetra-Lab/pull/152)
+  At 1280 × 720 a one-line error panel covered the blueprint menu's LAUNCHER and EXIT, which the decision did not mention, so a four-second message blocked them.
+
 - **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
   A slot that a kill empties after the passing step and a spawn refills before the next one never looks empty, so the new enemy inherited the old plan.
 
