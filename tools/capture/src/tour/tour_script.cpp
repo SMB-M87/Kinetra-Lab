@@ -367,8 +367,8 @@ void i4sim_chapter(Tour &tour) {
     tour.pause(0.7, 1.0);
     tour.click_menu_page_row(row_of(scenes, showcase_scene, 0), scenes.size());
     tour.wait(1.2);
+    // A scene loads running.
     tour.caption("H CROSSING: FOUR MOVERS SWAP CORNERS WITHOUT PATH PLANNING");
-    tour.tap({Key::space});
     tour.wait(11.0);
     tour.toggle_debug_menu();
     tour.pause(0.6, 0.9);
@@ -380,7 +380,8 @@ void i4sim_chapter(Tour &tour) {
     tour.click_menu_page_row(row_of(floors, floor_blueprint, 1), catalog_rows);
     tour.wait(1.8);
     tour.caption("A CLICK INSPECTS A MOVER, SHIFT + CLICK GIVES IT A GOAL");
-    // The floor loads paused, so its movers still stand where the blueprint puts them.
+    // The floor loads paused behind its RUN button, so its movers still stand where the
+    // blueprint puts them.
     const auto blueprint = i4sim::load_blueprint(directory / floor_blueprint);
     if (blueprint.movers.empty())
         throw std::runtime_error("The tour's i4sim floor has no movers");
