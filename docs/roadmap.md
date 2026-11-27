@@ -20,7 +20,9 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-Nothing in progress.
+- **Stall detection and remedies in i4sim** · i4sim, with Kinetra · added 2026-11-21
+  The departure check, a right-of-way fallback for pushed-back movers, i4sim on Kinetra's `PassingCoordinator`, and stall detection and MAKE WAY in the engine, in a stack of five steps; with Kinetra's *i4sim on the passing coordinator*.
+  Where: [design](design/2026-11-27-stall-remedies-in-the-engine.md), branch `feat/i4sim-departure-check` (step 1).
 
 ## Next
 
@@ -28,9 +30,6 @@ Nothing agreed next.
 
 ## Later
 
-- **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
-  [Stall detection](design/2026-11-26-i4sim-stall-detection.md) supplies the diagnosis, and [MAKE WAY](design/2026-11-27-i4sim-make-way.md) lets one parked neighbor clear the route when a checked refuge is available. The remedy is measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness).
-  Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Step 3 is a temporary motion fallback. The user chooses its motion type and return rule from the detection data. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [MAKE WAY follow-up](design/2026-11-27-i4sim-make-way.md#open-points).
 - **RECOVERY detour past a corner** · i4sim · added 2026-11-21
   Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
   Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).

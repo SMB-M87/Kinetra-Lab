@@ -1,0 +1,175 @@
+# Stall remedies in the engine
+
+Status: accepted · Branch: `feat/i4sim-departure-check` (step 1 of 5) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
+
+This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it is *i4sim on the passing coordinator*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
+
+## Table of contents
+
+- [Problem](#problem)
+- [Goals and non-goals](#goals-and-non-goals)
+- [Decisions](#decisions)
+- [Design](#design)
+- [Affected areas](#affected-areas)
+- [Test plan](#test-plan)
+- [Verification](#verification)
+- [Review](#review)
+- [Pull request](#pull-request)
+- [Open points](#open-points)
+
+[Directory guide](README.md) · [Project overview](../../README.md) · [Documentation index](../README.md)
+
+## Problem
+
+**Departures from the head of a queue.** A mover that already carries a product waits for its turn at its holding place, often its own parking place in a row of parked movers. When its product heads the queue, `Production::approach` ([production.cpp](../../labs/i4sim/src/simulation/production.cpp)) sends it to the processing goal over the plain grid route. Allocation, by contrast, plans a free mover's departure with `require_departure`, refined around stationary footprints ([routing.cpp](../../labs/i4sim/src/simulation/routing.cpp)). The stall-detection replay of mover 25 showed the gap ([stall detection](2026-11-26-i4sim-stall-detection.md#problem)). On `1680x960+` under Improved, every seed of the harness makes 20 contacts when mover 5 leaves at tick 4847 between parked movers 2 and 6.
+
+To measure it, a copy of the code logged every such departure on the 48-run harness (four floors, six seeds, 12,000 ticks, Reciprocal and Improved, other traffic off). For about 330 departures per profile, the check found no route in 3 to 7 cases, and few of those were followed by a stall. Most stalls follow departures that pass the check. The check mostly helps through its refined route, not its veto.
+
+**Long stalls after MAKE WAY.** A second copy of the code classified the motion around each stall at its onset. That covered the 50,000-tick benchmark (its default three floors, two seeds) and the harness, with MAKE WAY on:
+
+| Profile, run | Episodes | ≥ 400 ticks after detection | Of those: *pushed back* | Detector's reason for those |
+| --- | ---: | ---: | ---: | --- |
+| Reciprocal, 50,000 ticks | 631 | 72 | 60 (56,279 ticks) | `unknown` |
+| Improved, 50,000 ticks | 763 | 23 | 9 | mostly `unknown` |
+| Reciprocal, harness | 139 | 7 | 3 | `unknown` |
+| Improved, harness | 176 | 5 | 2 | `unknown` |
+
+*Pushed back* means the stalled mover moves away from its route leg (`dot(velocity, leg) < −0.05` mm/tick) while a moving neighbor ahead, within 1.6 times their summed half diagonals, drives toward it. The stalled mover is typically within 150 mm of its goal, while the neighbor's route runs through that spot. Under Reciprocal both creep away at about 0.25 mm/tick for hundreds or thousands of ticks: replays of `4320x2400` seed 7 (mover 7 against mover 8, 1,183 ticks) and seed 1234 (mover 25 carried east by mover 0). The detector sees neither a stationary blocker nor an opposing standoff, so it reports `unknown`.
+
+**Two passing coordinators.** Demo and Dotio use Kinetra's `PassingCoordinator`, while i4sim still runs its own `PredictivePassing` (356 lines). That is the same lifecycle that ADR 0017 extracted into the engine. Reading the two side by side shows three differences:
+
+- After a goal change, i4sim waits `passing_retry_ticks` before a new plan, while the engine lets the mover join at once.
+- The guard query margin is `|max_half| + speed·horizon` in i4sim and `2·|largest_half| + speed·horizon` in the engine.
+- i4sim replans the routes of ended plans before it forms new plans in the same tick. The engine forms them from the headings at the start of the step.
+
+## Goals and non-goals
+
+- Make the departure from the head of a producer queue optionally checked, measured on the harness and the long benchmark.
+- Choose the temporary motion fallback and its return rule from the detection data, opt-in and measured.
+- Move i4sim onto `kinetra::PassingCoordinator`, and move stall detection, the fallback and MAKE WAY's generic part into `Kinetra::Simulation`. i4sim keeps the factory part: product, recipe step, queue slot and parking reservation.
+- Remedies stay opt-in. With them off, every golden and pressure line stays as recorded, except the lines with PASSING on, which step 2 records again once.
+- Non-goals: Demo and Dotio adopting the new remedies (roadmap items), the RECOVERY corner case (its own item), a policy that moves several blockers at once.
+
+## Decisions
+
+Settled with the user on 2026-11-27, in three rounds of forms.
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Departure check | *Gate*, opt-in as DEPARTURE CHECK: the refined route when one exists, otherwise wait at the holding place | Over 50,000 ticks: products +1 to 4% in every configuration; Reciprocal waiting 152,001 → 92,401 (MAKE WAY off) and 104,020 → 79,381 (on); Improved contacts 836 → 233 with MAKE WAY. *Refine* alone raised Reciprocal waiting with MAKE WAY on |
+| Wait limit of the gate | 1,200 ticks (`10 × stall_ticks`), then depart as without the check | Agent's choice. Without a limit a mover sealed in for good never moves, so no stall starts and MAKE WAY never acts. The longest measured wait was 672 ticks, so the limit changes no measured run |
+| Gate on a processing-place departure | No | A mover held at a processing place blocks its producer |
+| Fallback motion | *Right of way* (RIGHT OF WAY), opt-in, Reciprocal and Improved: the pushed mover keeps steering at its goal and the others treat it as not cooperating, so the pusher avoids alone | Prototype over 50,000 ticks, Reciprocal: products 344 → 346, waiting −12%, stuck movers 23 → 16, no contact. *Stand still* failed: Reciprocal 38 contacts and fewer products, Improved waiting ×25 |
+| Return rule | A fixed window of 480 ticks (`4 × stall_ticks`), shorter when the mover arrives, changes goal, is held or comes under traffic control | 50,000 ticks: Reciprocal 344 → 351 products, waiting −27%, stuck 23 → 15; Improved 348 → 356, contacts 836 → 644, stuck 6 → 3. Returning on progress was worse than no fallback. In the harness the 480 window has two Reciprocal runs with a stuck mover at the end (base: none) |
+| i4sim on `PassingCoordinator` | Yes; the lines with PASSING on are recorded again once the harness shows an equal flow | One lifecycle in three applications; the three differences above are not worth engine options |
+| Where MAKE WAY and the fallback live | Both in Kinetra (the user's choice; the agent recommended i4sim) | The user wants the remedies reusable by every application |
+| Engine form | Classes of their own beside `PassingCoordinator` in `Kinetra::Simulation` | Each has its own per-step contract and events; an application composes the ones it needs |
+| Stall detection | Moves into the engine as well, with the new reason `pushed_back` (the user's choice; the agent recommended keeping it in i4sim) | Both remedies start from an episode, and Demo and Dotio can use the detector too |
+| Stack | Five steps on branches named by the repository rule, each its own pull request, merged bottom-up | One question per step |
+
+## Design
+
+| Step | Branches | Content |
+| --- | --- | --- |
+| 1 | Lab `feat/i4sim-departure-check` | DEPARTURE CHECK in i4sim |
+| 2 | Kinetra and Lab `refactor/i4sim-passing-coordinator` | i4sim's passing runs on `kinetra::PassingCoordinator`; a Kinetra ADR amends 0017 |
+| 3 | Kinetra and Lab `feat/stall-detector` | `kinetra::StallDetector`, the reasons of i4sim's detector plus `pushed_back`; i4sim uses it |
+| 4 | Kinetra and Lab `feat/right-of-way` | `kinetra::RightOfWay`; i4sim's RIGHT OF WAY |
+| 5 | Kinetra and Lab `refactor/make-way-engine` | `kinetra::MakeWay`, the request lifecycle; i4sim keeps refuge candidates, reservations and production |
+
+**Step 1: departure check.** `MotionSettings::departure_check` (DEBUG → TRAFFIC → DEPARTURE CHECK, `scenario.motion.departureCheck`, `--departure-check`) is off by default. When a product with a mover heads its queue, `Production::departure_route` plans the mover's route with `require_departure`:
+
+- When a route exists, the mover gets that refined route.
+- When none exists, the mover stays at its holding place with its product and tries again in the next tick. `Production::departure_waits_` keeps the tick at which the wait began, per product.
+- After `departure_wait_ticks` (1,200) without a route, it departs as without the setting.
+- Turning the setting off releases a waiting mover in the next tick and drops its wait.
+
+A departure from a processing place to the next producer is unchanged.
+
+**Steps 2 to 5** are designed on their branches and written here when each starts. The contracts the user accepted:
+
+- `StallDetector` takes, per mover, a progress counter, a state and a route heading from the application. It returns episodes with an onset diagnosis.
+- `RightOfWay` takes episodes and movers, and returns who is not cooperating for how long.
+- `MakeWay` owns a request: trigger, alternate route first, then the nearest refuge, a deadline, the return and events. The application supplies refuge candidates and a callback that checks a route against its world and reservations.
+
+## Affected areas
+
+- Step 1:
+  - i4sim's `MotionSettings`, `Production`, `simulation_constants.h`, the scenario parser, the TRAFFIC menu and the motion benchmark.
+  - The i4sim README, blueprint README, tests README and factory architecture page.
+  - Default behavior and every recorded line are unchanged. No capture shows the TRAFFIC section, so no media changes.
+- Steps 2 to 5:
+  - Kinetra's `Kinetra::Simulation` (new headers beside `passing_coordinator.h`), its navigation contract page and an ADR.
+  - i4sim's simulation core, passing, stall detector and MAKE WAY.
+
+## Test plan
+
+Step 1, Targeted level (Lab logic), with the full i4sim suites:
+
+| Behavior | Test |
+| --- | --- |
+| Without the setting, a sealed queued mover leaves as soon as its product heads the queue | `kinetra_i4sim:without departure check a sealed queued mover leaves at once` |
+| With it, the mover stays at its holding place with its product and the producer waits; once a neighbor drives away, it departs long before the limit and reaches the producer without contact | `…departure check keeps a sealed queued mover waiting until a checked route opens` |
+| A mover sealed in for good departs exactly `departure_wait_ticks` after its product headed the queue | `…departure check lets a mover sealed in for good depart after the wait limit` |
+| Turning the setting off releases a waiting mover in the next tick | `…turning departure check off releases a waiting mover` |
+| The recorded `1680x960+` departure (seed 42, Improved) makes contacts without the check and none with it | `…departure check routes a queued Improved departure around its parked neighbors` |
+| The scenario key and the TRAFFIC row | the scenario case and two `kinetra_i4sim_controller` cases, extended |
+| Off by default changes nothing | `kinetra_i4sim_golden_tests`, `kinetra_i4sim_pressure_tests` unchanged |
+
+The harness and the 50,000-tick benchmark with `--departure-check` reproduce the measured gate results.
+
+## Verification
+
+Step 1, on Lab `main` `39cb628` with Kinetra `e3ad07c`, Release with Lab and Kinetra warnings on:
+
+```sh
+cmake --preset release -DKINETRA_LAB_WARNINGS=ON -DKINETRA_WARNINGS=ON
+cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests \
+  kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark -j 4
+ctest --preset release -R '^kinetra_i4sim' -j 4 --output-on-failure   # 170 of 170 passed
+```
+
+The branch reproduces the measured gate exactly. On the harness with `--make-way --departure-check`:
+
+- Reciprocal: 111 products, 0 contacts, 19,812 waiting ticks.
+- Improved: 104 products, 5 contacts, 2,786 waiting ticks.
+
+A mover held by the gate stands idle, so `FlowMetrics` does not count it as waiting. Gated ticks summed to at most 2,016 in a harness profile and 143 over the 50,000-tick benchmark, so the reductions in waiting are not an artifact of that.
+
+The 50,000-tick rows come from the measuring copy of the code. The branch matches it on every harness run, and no run reaches the wait limit:
+
+| 50,000 ticks, products / waiting / contacts / runs stuck at end | Base | Departure check |
+| --- | --- | --- |
+| Reciprocal, MAKE WAY off | 334 / 152,001 / 0 / 3 | 346 / 92,401 / 0 / 3 |
+| Reciprocal, MAKE WAY on | 344 / 104,020 / 0 / 0 | 351 / 79,381 / 0 / 1 |
+| Improved, MAKE WAY off | 343 / 8,022 / 1,386 / 1 | 356 / 8,331 / 1,430 / 2 |
+| Improved, MAKE WAY on | 348 / 7,638 / 836 / 1 | 352 / 8,109 / 233 / 0 |
+
+## Review
+
+Filled in per step.
+
+## Pull request
+
+Step 1. Title: `feat(i4sim): check the departure from the head of a producer queue`.
+
+**Summary.** Step 1 of 5 of *Stall remedies in the engine*. DEPARTURE CHECK, off by default, sends a mover that carries a product from its holding place to the producer only along a route refined around stationary movers. Without such a route it waits there for at most 1,200 ticks.
+
+**Changes.**
+- `MotionSettings::departure_check`, with `Production::departure_route` and its wait limit.
+- The TRAFFIC row, the scenario key `departureCheck` and the benchmark flag `--departure-check`.
+- Five simulation cases; the scenario and menu cases are extended.
+- README, blueprint, tests and architecture pages.
+
+**Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md), which records the user's decisions for the whole stack.
+
+**Verification.** Every i4sim suite passes (170 cases) with the golden and pressure lines unchanged. On the 50,000-tick benchmark the check raises products by 1 to 4% in every configuration, cuts Reciprocal waiting by 24 to 39%, and cuts Improved contacts from 836 to 233 with MAKE WAY.
+
+**Dependencies and merge order.** Lab only; the bottom of the stack, based on `main`.
+
+**Follow-up.** Steps 2 to 5 (this document); Demo and Dotio adoption of the remedies becomes a roadmap item.
+
+## Open points
+
+- The *refine* variant without the wait cut Improved contacts as well as the gate, but raised Reciprocal waiting with MAKE WAY on (104,020 → 111,295). The gate was chosen; the data stay here.
+- In the 12,000-tick harness the gate holds one recurring mover for 672 ticks on `4320x2400` under Reciprocal. A route that opens only when a neighbor leaves its parking place cannot be found by refinement; MAKE WAY does not act on an idle mover.
