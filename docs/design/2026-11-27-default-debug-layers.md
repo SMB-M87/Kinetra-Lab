@@ -46,7 +46,7 @@ Non-goals:
 | Demo's defaults | VECTORS and PATHS on; STEERING PROBES, COLLISION SHAPES, ACTIVE AGENTS and HOME RANGE off | The user's request |
 | i4sim's defaults | GRID, PATHS, FORCES, BORDERS, DETECTION and all their parts on; HEATMAP and CONTACT SHAPES off | The user's request; that the parts stay on is the user's choice of 2026-11-27 |
 | Captures | Refreshed with the new defaults in this pull request | The user's choice of 2026-11-27, over scripts that turn the other layers on to keep the old pictures |
-| The Demo layers UI clip and the tour | `ui-debug-layers` keeps its clicks, which now toggle each layer away from its default and back; the tour turns STEERING PROBES and COLLISION SHAPES on for a look and then off with VECTORS, so its later chapters see the same layers as before | The clip still shows every layer; the tour keeps its story |
+| The Demo layers UI clip and the tour | `ui-debug-layers` keeps its clicks, which now toggle each layer away from its default and back; the tour's Demo chapter turns STEERING PROBES, COLLISION SHAPES and ACTIVE AGENTS on for a look and then the first two off with VECTORS, so its later chapters see PATHS and ACTIVE AGENTS as before; its i4sim chapter no longer clicks HEATMAP, which now starts off | The clip still shows every layer; the tour keeps its story (changed in review round 1) |
 
 ## Design
 
@@ -86,6 +86,18 @@ Self-review of `git diff main...HEAD`:
 
 `check_copies.py` with the terms *every debug layer*, *all visual layers*, *every layer on*, *start on* and *starts selected*: the remaining hits are Dotio's, which keeps every layer, the new i4sim sentence, and i4sim's note on the menu's height with every layer on, which still holds.
 
+Agent review, round 1 (on `31ae128`, conclusion *Fix first*):
+
+| Finding | Resolution | Commit |
+| --- | --- | --- |
+| Blocking: the branch conflicts with `main` (#143's settings-panel move, #142's make-way showcase clip, the Kinetra pointer at `9841a50`); neither side of the four binary conflicts is right | Merged `main`; README and i4sim README sentences combine both sides; the Demo and i4sim debug captures and all six showcase clips rendered again on the merged head. Only the four debug captures and the make-way clip changed; the other clips came out identical | `47d0b49`, `c4d92e7` |
+| The tour's clicks assumed the old defaults: Demo's later chapters lost ACTIVE AGENTS, and i4sim's LAYERS chapter turned HEATMAP on | Demo turns ACTIVE AGENTS on with the other two; i4sim no longer clicks HEATMAP. The tour was played to its end ([Verification](#verification)) | `4080f6e` |
+| The Demo debug clip's alt text in `README.md` named steering probes and collision shapes | Now "vectors and paths" | `4080f6e` |
+| A comment in `scenes.cpp` still said the showcase scenes run with every visual layer | Now "the default layers" | `4080f6e` |
+| Nits: the controller suite's case count (44 → 45) in `labs/i4sim/tests/README.md`; the message of the key-two check | Both carried out | `4080f6e` |
+| Lessons proposed: re-read toggle clicks after a default flips; merge `main` before review when it changed the same captures | Added to `docs/review-lessons.md` | `6e1d502` |
+| For the user: the review session reported running below the `high` effort its Levels table asks for | Passed on to the user; it was started with effort `high` | |
+
 ## Verification
 
 Full level: locally the targeted builds and tests of every changed area, then the pull request's CI.
@@ -101,6 +113,16 @@ Full level: locally the targeted builds and tests of every changed area, then th
 | `clang-format --dry-run --Werror` on the changed C++ files | Clean |
 | Build warnings in the `graphics` build | None |
 
+After merging `main` (round 1):
+
+| Command | Result |
+| --- | --- |
+| `ctest --preset release -R '^kinetra_i4sim\|^kinetra_demo(:\|_terrain\|_crowd\|_passing)\|^kinetra_capture\|^kinetra_menu:\|^kinetra_lab:' -LE soak` | 293/293 passed |
+| `ctest --preset graphics -L graphics`; `ctest --preset graphics -R '^kinetra_capture'` | 33/33 and 35/35 passed |
+| `tools/capture/capture_media.sh build-graphics` with the Demo and i4sim debug scenes, the Demo scenario clips and all six showcase clips | Every changed file looked at: the new menu and the new defaults |
+| `ctest --preset release -R '^kinetra_i4sim_controller\|^kinetra_capture:'` after the review fixes | 79/79 passed |
+| `tools/capture/capture_tour.sh build-graphics <scratchpad>/tour.mp4` (the thumbnail next to it, not in `docs/media`) | The tour plays to its end, 19138 frames, 318 s. Frames looked at: Demo's LAYERS chapter shows the five layers on for a look, HOME RANGE then shows on PATHS and ACTIVE AGENTS, and i4sim's LAYERS chapter keeps HEATMAP off while it toggles DETECTION and FORCES |
+
 ## Pull request
 
 Title: `feat(demo,i4sim): start sessions with fewer debug layers`
@@ -112,15 +134,15 @@ Demo opens every scenario with only the VECTORS and PATHS debug layers on. i4sim
 ## Changes
 - `DebugLayers` (Demo) and `ViewLayers()` (i4sim) start with the new defaults.
 - Tests: Demo's layer rows, a new i4sim case for the start state, the i4sim key and menu cases, and the launcher's graphics check of both menus.
-- Capture tool: comments, and the tour keeps its story with the new defaults.
+- Capture tool: comments, and the tour's Demo and i4sim chapters keep their story with the new defaults.
 - Docs: README, Demo and i4sim READMEs, launcher and overlays page, capture README.
-- Media: the Demo and i4sim debug screenshots, clips and the five showcase clips, refreshed.
+- Media: the Demo and i4sim debug screenshots and clips and the six showcase clips, refreshed on the head merged with `main`.
 
 ## Design
 [docs/design/2026-11-27-default-debug-layers.md](docs/design/2026-11-27-default-debug-layers.md)
 
 ## Verification
-Targeted suites of Demo, i4sim and the capture tool (277/277), the graphics suites and smoke tests (25/25), the capture smoke test, the docs check and clang-format pass locally. CI is the Full level.
+Targeted suites of Demo, i4sim, the capture tool, the menu and the shared Lab code (293/293 on the merged head), the graphics suites and smoke tests, the capture smoke test, the docs check and clang-format pass locally, and the tour plays to its end with the new defaults. CI is the Full level.
 
 ## Review notes
 Kinetra's shared-UI GIFs still show Demo's old defaults; its media guide lets them follow with the next Kinetra change that makes them stale.
