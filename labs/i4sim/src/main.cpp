@@ -6,6 +6,8 @@
 #include "i4sim/presentation/session.h"
 #endif
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <iostream>
 
 namespace {
@@ -88,6 +90,10 @@ int main(int argc, char **argv) {
                 }
             }
             simulation.run();
+            // Times the tick loop alone, not loading or --output, so the rate is the
+            // simulation's.
+            const auto started = std::chrono::steady_clock::now();
+            const auto first_tick = simulation.ticks();
             for (std::uint64_t i = 0; i < ticks && simulation.running(); ++i) {
                 simulation.tick();
                 if (mover) {
@@ -96,11 +102,14 @@ int main(int argc, char **argv) {
                                                       simulation.movers()[*mover].definition.id, &snapshot);
                 }
             }
+            const std::chrono::duration<double> seconds = std::chrono::steady_clock::now() - started;
+            const auto ran = simulation.ticks() - first_tick;
+            const auto rate = seconds.count() > 0 ? std::llround(double(ran) / seconds.count()) : 0;
             if (output)
                 simulation.dump(*output);
             auto &summary = inspect ? std::cerr : std::cout;
             summary << "i4sim: " << simulation.ticks() << " ticks, " << simulation.completed()
-                    << " completed products\n";
+                    << " completed products, " << rate << " ticks/s\n";
             return 0;
         }
 #ifdef I4SIM_RUNTIME

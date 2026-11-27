@@ -53,7 +53,7 @@ endif()
 if(DEFINED NORMAL_ARGS)
     execute_process(COMMAND "${PROGRAM}" ${NORMAL_ARGS}
         RESULT_VARIABLE normal_result OUTPUT_VARIABLE normal)
-    if(NOT normal_result EQUAL 0 OR NOT normal MATCHES "3 ticks, [0-9]+ completed products")
+    if(NOT normal_result EQUAL 0 OR NOT normal MATCHES "3 ticks, [0-9]+ completed products, [0-9]+ ticks/s")
         message(FATAL_ERROR "Ordinary i4sim batch output failed: ${normal}")
     endif()
     execute_process(COMMAND "${PROGRAM}" ${NORMAL_ARGS} --inspect absent
