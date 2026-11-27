@@ -100,6 +100,8 @@ Self-review of the branch diff against the workflow's checklist:
 - `cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark` and `ctest --preset release -R '^kinetra_i4sim'`: 168 of 168 passed.
 - The button looked at in a 640 × 480 frame of the graphics test: centered below the toolbar, above the floor's top edge.
 - `python3 external/Kinetra/tools/check_docs.py` and `check_copies.py`: see Review.
+- After merging `main` (with the make-way showcase scene and the settings panel's BLUEPRINTS), again: `ctest --preset release -R '^kinetra_i4sim'` 168 of 168, and `SDL_VIDEODRIVER=offscreen ctest --preset graphics -R '^kinetra_i4sim_graphics|^kinetra_capture'` 41 of 41.
+- The tour, which drops its Space for the H crossing scene and which CI does not play, played to its end: `SDL_VIDEODRIVER=offscreen kinetra_capture --tour /dev/null` wrote 19108 frames (318 s) and exited with 0.
 - Full level: the pull request's CI.
 
 ## Pull request
