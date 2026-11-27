@@ -44,9 +44,6 @@ Nothing agreed next.
 - **Frame pacing in WSLg** · runtime, build · added 2026-11-21
   The Linux build stutters in WSLg and the Windows build does not; the design document lists three options and recommends measuring option 1 (Wayland with frame callbacks) first. On 2026-11-22 the user kept the choice open.
   Next step: the user's choice, when they come back to it. Where: [Frame pacing in WSLg](design/2026-11-20-wslg-frame-pacing.md) (draft).
-- **CI image with the toolchain built in** · CI, with Kinetra · added 2026-11-22
-  Ubuntu package installation repeats for Linux tests and for the Windows cross build. The two jobs use different toolchains.
-  Next step: follow the Kinetra item and measure whether the Windows packaging job would also benefit from a prebuilt Ubuntu image.
 - **Impact-based verification script** · tools · added 2026-11-21
   One command that reads the changed paths and runs the level, targets and CTest regex of the table in [verification in Lab](../AGENTS.md#verification-in-lab), with that table in a file both the script and the page use. The `verify` skill and developers then run the same selection, and a forgotten target becomes rare.
   Next step: a design: where the table lives, and how Kinetra's own table joins it.
