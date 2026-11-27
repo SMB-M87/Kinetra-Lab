@@ -222,7 +222,7 @@ bool Scene::evict_distant(Aabb retained) {
     std::erase_if(agents_, [&](const Agent &a) {
         if (!discard[a.body_id()])
             return false;
-        if (selected_agent_ && a.home().x == selected_agent_->x && a.home().y == selected_agent_->y)
+        if (selected_agent_ && a.home() == *selected_agent_)
             clear_selection();
         return true;
     });
