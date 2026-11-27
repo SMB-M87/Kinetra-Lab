@@ -173,6 +173,11 @@ class Application {
         entries.push_back(debug_number("PURSUE FORCE", tuning.pursue_force, tuning_step::state_force));
         entries.push_back(debug_number("RECOVER FORCE", tuning.recover_force, tuning_step::state_force));
         entries.push_back(debug_number("KAMIKAZE FORCE", tuning.kamikaze_force, tuning_step::state_force));
+        entries.push_back({.label = "PASSING",
+                           .action = [this] { world_->set_passing(!world_->passing()); },
+                           .kind = kinetra::DebugEntryKind::check,
+                           .active = [this] { return world_->passing(); },
+                           .depth = 1});
     }
 
     void add_spawning_entries(std::vector<kinetra::DebugEntry> &entries) {
@@ -233,6 +238,7 @@ class Application {
         entries.push_back(kinetra::debug_check("GHOST CAMERA", ghost, 0));
         entries.push_back({.label = "RESET PARAMETERS", .action = [this] {
                                world_->reset_tuning();
+                               world_->set_passing(false);
                                time_scale = 1;
                            }});
         entries.push_back({.label = "DIFFICULTY", .action = [this] { difficulty_requested = true; }});

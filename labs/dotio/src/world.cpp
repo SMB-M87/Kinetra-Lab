@@ -2,6 +2,7 @@
 #include "dotio/ai/fuzzy.h"
 #include "dotio/entities/physics_adapter.h"
 #include "dotio/math/random.h"
+#include "dotio/navigation/route.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -24,11 +25,35 @@ constexpr std::uint32_t wander_stream = 0x57414E44; // "WAND"
 /// Second word of the seed sequences of World::behavior_random() and of the placement stream.
 constexpr std::uint32_t behavior_stream = 0x42485652;  // "BHVR"
 constexpr std::uint32_t placement_stream = 0x504C4345; // "PLCE"
+
+/// Passing geometry in legacy pixels, for enemies of radius 20: the gap kept between two
+/// passing enemies and before a destination, how far past the midpoint the exits lie, the
+/// extra room along the line a plan needs, and the clearance added to each footprint.
+constexpr float passing_gap = 6, passing_exit_offset = 12, passing_formation_room = 24, passing_clearance = 2;
+/// Distance from a lane target within which an enemy has reached it, in legacy pixels.
+constexpr float passing_arrival = 15;
+/// Share of the top speed below which an enemy at a lane target counts as standing there.
+constexpr float passing_stop_fraction = 0.25f;
+/// Updates over which conflicts are predicted (one second at 60 Hz), and between two
+/// predicted positions of another mover in the lane guard.
+constexpr int passing_horizon = 60, passing_sample_updates = 4;
+/// Updates the lane ahead of a waiting enemy stays clear before it moves on; the longest
+/// wait and stretch without progress; and the pause before a pair whose plan failed may
+/// plan again.
+constexpr std::uint64_t passing_resume = 20, passing_timeout = 240, passing_retry = 60;
+
+/// Whether `enemy` follows its route in its current state, so it can join a passing plan.
+bool follows_route(Enemy &enemy, WanderMode wander) {
+    return enemy.is_pursueing() || enemy.is_recovering() ||
+           (enemy.is_wandering() && wander == WanderMode::path);
+}
 } // namespace
 
 void World::initialize(std::uint32_t seed, Difficulty difficulty) {
     settings_ = settings_for(difficulty); // Throws before anything else in the world changes.
     enemy_tuning_ = {};
+    end_passing(false);
+    passing_ = false;
     difficulty_ = difficulty;
     seed_ = seed;
     spawn_credit_ = 0;
@@ -106,6 +131,8 @@ kinetra::Vec2 World::stream_around_player() {
                               static_cast<float>(rows) * Grid::cell_size};
     offset_column_ += columns;
     offset_row_ += rows;
+    // Every route is planned again after the shift, and the lanes would lie elsewhere.
+    end_passing(false);
     grid_.generate(seed_, offset_row_, offset_column_);
     resident_cells_ = {-1, -1, -1, -1};
     player_.position -= shift;
@@ -293,6 +320,7 @@ void World::reset_tuning() {
 
 void World::reset() {
     ++resets_;
+    end_passing(false);
     spawn_credit_ = 0;
     survival_seconds_ = 0;
     enemies_moved_ = false;
@@ -350,13 +378,110 @@ void World::add_bolt(const kinetra::Vec2 position, const kinetra::Vec2 velocity)
     bolts_ += Bolt(position, velocity);
 }
 
+void World::set_passing(bool passing) {
+    if (passing_ && !passing)
+        end_passing(true);
+    passing_ = passing;
+}
+
+void World::end_passing(bool replan) {
+    passing_events_ = passing_coordinator_.clear();
+    std::size_t slot = 0;
+    for (auto &enemy : get_enemies()) {
+        enemy.passing_target.reset();
+        if (replan)
+            for (const auto &event : passing_events_)
+                if ((event.movers[0] == slot || event.movers[1] == slot) && !enemy.path.empty())
+                    enemy.path = plan_route(grid_, enemy.position, enemy.path.destination());
+        ++slot;
+    }
+}
+
+void World::coordinate_passing() {
+    const float force =
+        std::max({enemy_tuning_.wander_force, enemy_tuning_.pursue_force, enemy_tuning_.recover_force}) *
+        settings_.movement_multiplier;
+    // Enemies that cannot move pass nobody.
+    if (!(force > 0)) {
+        end_passing(true);
+        return;
+    }
+    // A constant push settles at four times its size per update: the top speed.
+    const float speed = 4 * force;
+    const kinetra::PassingCoordination coordination{
+        .margins = {passing_gap, passing_exit_offset, passing_formation_room},
+        .prediction = {speed, force, passing_horizon, passing_sample_updates},
+        .clearance = {passing_clearance, passing_clearance},
+        .arrival_distance = passing_arrival,
+        .stop_speed = speed * passing_stop_fraction,
+        .resume_steps = passing_resume,
+        .timeout_steps = passing_timeout,
+        .retry_steps = passing_retry};
+    // One mover per pool slot, so plans keep their indices while slots fill and empty, and
+    // the player after them as a mover that never joins a plan.
+    auto &enemies = get_enemies();
+    const std::size_t slots = enemies.get_size();
+    // A kill empties a slot after one passing step and a spawn can refill it before the next,
+    // so the coordinator never sees it empty: a new lifetime in a slot ends the slot's plan.
+    std::vector<kinetra::PassingEvent> events;
+    std::size_t slot = 0;
+    for (auto &enemy : enemies) {
+        if (enemy.is_active && passing_generations_[slot] != enemy.generation()) {
+            const auto cancelled = passing_coordinator_.cancel(slot);
+            events.insert(events.end(), cancelled.begin(), cancelled.end());
+        }
+        passing_generations_[slot++] = enemy.generation();
+    }
+    std::vector<kinetra::PassingMover> movers(slots + 1);
+    slot = 0;
+    for (auto &enemy : enemies) {
+        auto &mover = movers[slot++];
+        if (!enemy.is_active) {
+            mover.state = kinetra::PassingMoverState::absent; // The default body is valid.
+            continue;
+        }
+        mover.body = physics_body(enemy);
+        mover.state = enemy.frozen ? kinetra::PassingMoverState::standing : kinetra::PassingMoverState::busy;
+        if (!enemy.frozen && !enemy.path.empty() && follows_route(enemy, enemy_tuning_.wander)) {
+            mover.state = kinetra::PassingMoverState::free;
+            mover.heading = kinetra::normalized(enemy.path.next() - enemy.position);
+            mover.destination = enemy.path.destination();
+        }
+    }
+    auto &player = movers[slots];
+    player.body = physics_body(player_);
+    player.state = kinetra::length(player_.velocity) < coordination.stop_speed
+                       ? kinetra::PassingMoverState::standing
+                       : kinetra::PassingMoverState::busy;
+    const auto stepped = passing_coordinator_.step(
+        movers, coordination, [this](std::size_t, kinetra::Vec2 from, kinetra::Vec2 to, kinetra::Vec2 half) {
+            return grid_.navigation().clear(from, to, half);
+        });
+    events.insert(events.end(), stepped.begin(), stepped.end());
+    passing_events_ = std::move(events);
+    slot = 0;
+    for (auto &enemy : enemies) {
+        // An enemy whose plan ended resumes its trip on a route from where it stands.
+        for (const auto &event : passing_events_)
+            if (event.kind == kinetra::PassingEventKind::ended &&
+                (event.movers[0] == slot || event.movers[1] == slot) && !enemy.path.empty())
+                enemy.path = plan_route(grid_, enemy.position, enemy.path.destination());
+        const auto target = passing_coordinator_.target(slot);
+        enemy.passing_target = target ? std::optional{target->point} : std::nullopt;
+        ++slot;
+    }
+}
+
 void World::update_enemies(const float delta, const bool debug) {
     enemies_moved_ = true;
+    passing_events_.clear();
     std::size_t index = 0;
     // Snapshot the entire population first: neighbor separation may move another
     // enemy before its own update, and that displacement also belongs to the sweep.
     for (const auto &enemy : get_enemies())
         previous_enemy_positions_[index++] = enemy.position;
+    if (passing_)
+        coordinate_passing();
     for (auto &enemy : get_enemies()) {
         if (!enemy.is_active || enemy.frozen)
             continue;
