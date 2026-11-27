@@ -382,7 +382,11 @@ void i4sim_chapter(Tour &tour) {
 
     tour.caption("A FLOOR OF 4320 BY 2400 MM: 29 MOVERS, 18 PRODUCERS");
     tour.click_menu_page_row(row_of(floors, floor_blueprint, 1), catalog_rows);
-    tour.wait(1.8);
+    tour.wait(1.2);
+    // The floor's MOTION and SIMULATION rows come later; BLUEPRINTS is no longer in the debug
+    // menu, so the menu is opened here.
+    tour.toggle_debug_menu();
+    tour.wait(0.6);
     tour.caption("A CLICK INSPECTS A MOVER, SHIFT + CLICK GIVES IT A GOAL");
     // The floor loads paused, so its movers still stand where the blueprint puts them.
     const auto blueprint = i4sim::load_blueprint(directory / floor_blueprint);
