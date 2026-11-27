@@ -56,7 +56,7 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Departure check | *Gate*, opt-in as DEPARTURE CHECK: the refined route when one exists, otherwise wait at the holding place | The prototype, over 50,000 ticks: products +1 to 4% in every configuration; Reciprocal waiting 152,001 → 92,401 (MAKE WAY off) and 104,020 → 79,381 (on); Improved contacts 836 → 233 with MAKE WAY. *Refine* alone raised Reciprocal waiting with MAKE WAY on. The branch after review is in *Verification* |
+| Departure check | *Gate*, opt-in as DEPARTURE CHECK: the refined route when one exists, otherwise wait at the holding place | The prototype, over 50,000 ticks: products +1 to 4% in every configuration; Reciprocal waiting 152,001 → 92,401 (MAKE WAY off) and 104,020 → 79,381 (on); Improved contacts 836 → 233 with MAKE WAY. *Refine* alone raised Reciprocal waiting with MAKE WAY on. The branch after review is in *Verification*: on Kinetra `9841a50` it still pays off under Reciprocal, but under Improved it trades 2 and 4 products for half the contacts. The user kept the gate for both profiles on 2026-11-27, with that trade-off stated in the README (review round 4 of #146) |
 | Wait limit of the gate | 1,200 ticks (`10 × stall_ticks`), then depart as without the check | Agent's choice. Without a limit a mover sealed in for good never moves, so no stall starts and MAKE WAY never acts. The longest measured wait was 672 ticks, so the limit changes no measured run |
 | Gate on a processing-place departure | No | A mover held at a processing place blocks its producer |
 | Gate on a mover still driving to its holding place | No: only a mover that stands there is held back; review round 1 of #146 | Held back in the aisle, it would drive on into its parking row and could seal itself in, and its wait would count its drive |
@@ -274,6 +274,11 @@ The first measurement ran on Kinetra `24fb31d`, before Kinetra #69 came in throu
   - the sentence on the gate's figures;
   - the comment at the staging, and a check for an empty queue before its head, as `approach()` and `update_product()` do (`ac27d31`).
 - Not taken: cases for the staging branch and the `cell < 0` guard. Both need an unusable parking place or a floor that is no multiple of its cells, which the public API does not build.
+
+**Step 1, agent review round 4** ([#146](https://github.com/SMB-M87/Kinetra-Lab/pull/146), *Needs the user*):
+
+- *For the user:* the gate no longer raises products in every configuration, the reason the user chose it on. The user chose to keep it for both profiles and to state the trade-off: the README's *Departure check* section and the *Departure check* row of *Decisions* now say that it pays off under Reciprocal and trades products for fewer contacts under Improved.
+- The nit on the *Decisions* row is taken with it, and the proposed lesson is on the review-lessons page, together with #150's on the same pattern.
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
 
