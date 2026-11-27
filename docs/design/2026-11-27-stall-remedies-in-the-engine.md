@@ -160,7 +160,7 @@ Step 2, Full level (an engine pointer moves; the engine itself is unchanged):
 | Every plan outcome, arrival and contact count of the five pressure scenarios under both profiles stays; trajectories and waiting may change, and each change is recorded | `kinetra_i4sim_pressure_tests`, lines recorded again where they moved |
 | The golden runs with PASSING on stay as recorded | `kinetra_i4sim_golden_tests` |
 | A make-way mover joins no plan; the event log's reasons (`goal_changed`, `participant_held`, …) | the existing `kinetra_i4sim` passing cases |
-| Each derived end reason (stopped, held, traffic control), first participant first and stopped before held before control within one | `kinetra_i4sim:a participant that stops, is held or comes under traffic control ends its plan, in participant order` (fails with the order flipped) |
+| Each derived end reason (stopped, held, traffic control), first participant first, and within one participant stopped before control and held before control | `kinetra_i4sim:a participant that stops, is held or comes under traffic control ends its plan, in participant order` (fails with the order flipped) |
 | A new goal outside a plan keeps a failed pair's retry wait, and one inside a plan imposes none | `kinetra_i4sim:a new goal outside a plan keeps a failed pair's retry wait; one inside a plan imposes none` (fails without the early return in `cancel`) |
 | The flow with PASSING on is compared: identical on the harness; on the long runs products, plans and contacts in plans compared | the harness and the 50,000-tick benchmark with `--predictive-passing`, before and after |
 
@@ -219,7 +219,7 @@ The gate's figures for the branch after review rounds 1 and 2, from an instrumen
 
 These are the first version's figures, and round 2's staging of a rescheduled mover near its new producer changed no measured run.
 
-Step 2, on step 1's branch with Kinetra `e81fab3` (`refactor/i4sim-passing-coordinator`, ADR only), the same Release build: 171 of 171 i4sim cases pass.
+Step 2, on step 1's branch with Kinetra `482c072` (Kinetra `main`, which holds #71's ADR), the same Release build: 176 of 176 i4sim cases pass, after the review cases of round 1 and the merges of step 1.
 
 - The golden lines, those with PASSING on included, are unchanged.
 - Six of the ten pressure lines were recorded again:
