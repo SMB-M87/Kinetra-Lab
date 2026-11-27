@@ -6,6 +6,17 @@
 /// types, so the rules are testable without a window.
 namespace kinetra_lab {
 
+/// `input` without its keys and typed text, the pointer kept: what the application gets on a
+/// frame whose keys a debug menu took for a typed number (kinetra::DebugMenu::keys_captured),
+/// so a digit, Enter or Escape typed there does not also act in the application. Held keys
+/// count as released for that frame.
+inline kinetra::Input without_keys(kinetra::Input input) {
+    input.held.fill(false);
+    input.pressed.fill(false);
+    input.text.clear();
+    return input;
+}
+
 /// Movement direction from WASD or the arrow keys: x is right minus left, y is up minus
 /// down (world axes, Y up). Opposite keys cancel; diagonals are not normalized.
 inline kinetra::Vec2 direction(const kinetra::Input &input) {

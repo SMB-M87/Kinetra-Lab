@@ -153,9 +153,9 @@ void demo_chapter(Tour &tour) {
     tour.caption("SIMULATION: SLOW MOTION, PAUSE AND SINGLE TICKS");
     tour.click_row("SIMULATION");
     tour.pause();
-    tour.step_row("SPEED", false, 2);
+    tour.step_row("UPS", false, 2);
     tour.wait(3.4);
-    tour.step_row("SPEED", true, 2);
+    tour.step_row("UPS", true, 2);
     tour.click_row("RUNNING");
     tour.wait(0.9);
     tour.click_row("SINGLE TICK");
@@ -313,11 +313,11 @@ void dotio_chapter(Tour &tour) {
     tour.step_row("SPAWN RATE", true, 6);
     dotio_fight(tour, 7, false);
 
-    tour.caption("SIMULATION: DOUBLE SPEED, THEN TICK BY TICK");
+    tour.caption("SIMULATION: DOUBLE THE UPS, THEN TICK BY TICK");
     tour.click_row("SIMULATION");
-    tour.step_row("SPEED", true, 1);
+    tour.step_row("UPS", true, 1);
     dotio_fight(tour, 3, false);
-    tour.step_row("SPEED", false, 1);
+    tour.step_row("UPS", false, 1);
     tour.click_row("SINGLE TICK");
     click_again(tour, 7);
     tour.wait(0.5);

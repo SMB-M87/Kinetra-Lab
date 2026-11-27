@@ -61,7 +61,7 @@ The bundled launcher asks for Easy, Medium or Hard, default Medium ([difficulty 
 | Click in Ghost | Teleport real player, when settings is closed; suppress shooting |
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
-| Settings Frame Times / Frame Limit | Show the frame-time graph / pace frames where the platform has no VSync |
+| Settings Frame Times | Show the frame-time graph |
 | Shift+Ctrl | Open/close the upper-left debug menu; switches Debug Mode on when it was off |
 | DEBUG button (next to Settings) | Toggle the debug menu in Debug Mode |
 | Wheel / ZOOM row of the debug menu | Zoom in Debug Mode: 2.5–50 px/unit; leaving Debug Mode clamps to 25–50 |
@@ -81,7 +81,7 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 
 | Section | Rows |
 | --- | --- |
-| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 60 Hz update per click), SPEED (time scale 0.125× to 4×), INVULNERABLE (no damage, no mana cost; starts off) |
+| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 60 Hz update per click), UPS (updates per second, 60 is real time, 1 to 1,000,000; type a number over it or halve and double it), FPS (VSYNC, a limit or UNCAPPED), INVULNERABLE (no damage, no mana cost; starts off) |
 | LAYERS | VECTORS, STEERING PROBES, PATHS with its parts WANDER, PURSUE, KAMIKAZE and RECOVERY while it is on, COLLISION SHAPES, ACTIVE AGENTS, AI STATES, HIDING HITS. A row drawn in one color shows that color; the PATHS parts show the color of their AI state. All start off |
 | ENEMIES | WANDER (STEERING or PATH), MOVE SPEED, FIRE INTERVAL, ARROW SPEED, PREDICTION, PURSUIT CYCLES, HITS, the force of each state: WANDER, ATTACK, PURSUE, RECOVER and KAMIKAZE FORCE, and PASSING ([passing](#passing); off at the start) |
 | SPAWNING | ACTIVE LIMIT, SPAWN RATE, CROWD LOAD, SPACING |
@@ -237,7 +237,7 @@ sequenceDiagram
 
 *Takeaway:* movement runs every update and decisions every third, both in a fixed order on one thread, so a run depends only on its seed and its commands.
 
-`Application::advance` turns elapsed time into updates with a fixed clock (`kinetra::FixedClock`, at most 8 per frame), scaled by the SPEED row; SINGLE TICK runs exactly one in a paused world. Drawing happens between ticks: `Application` keeps the positions of the player, enemies, arrows and bolts before and after the last update, and `PresentedPositions` swaps blended positions in for one frame's drawing. An update that respawned the player is not blended ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
+`Application::advance` turns elapsed time into updates of 1/60 s with a tick clock (`kinetra::TickClock`) at the UPS row's rate, at most `tick_limit` per frame, which the session sets from a `kinetra::TickBudget` (8 without one); SINGLE TICK runs exactly one in a paused world. Drawing happens between ticks: `Application` keeps the positions of the player, enemies, arrows and bolts before and after the last update, and `PresentedPositions` swaps blended positions in for one frame's drawing. An update that respawned the player is not blended ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
 ### World and residency
 
@@ -376,7 +376,7 @@ Both test programs are doctest suites: each `TEST_CASE` is one behavior, named a
 | Source | CTest suite (cases) | Coverage |
 | --- | --- | --- |
 | [passing_tests.cpp](tests/passing_tests.cpp) | `kinetra_dotio` (8) | PASSING runs at the menu's slowest and fastest MOVE SPEED and route forces; a slot refilled between two updates ends its plan; a recovering enemy against a pursuer completes its plan without touching. Passing under pressure with PASSING on, path wanderers on a grid of walls: a head-on pair in an open room completes its plan without touching, while without passing the same pair touches; one against a column; a frozen enemy on a lane exit (the plan ends as obstructed); a corridor one cell wide, where no plan fits. Each case checks that its situation occurs and that every enemy arrives. They assert outcomes, not recorded lines |
-| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (47) | Routes clear of walls, pursuers that reach the player along one route, no enemy standing still, shelters out of sight, determinism per seed and a recorded fingerprint, independent worlds, geometry, streaming and the planner in step with it, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, time scale, single tick and zoom; `World::draw`'s hook after each enemy. Needs no window |
+| [dotio_tests.cpp](tests/dotio_tests.cpp) | `kinetra_dotio` (47) | Routes clear of walls, pursuers that reach the player along one route, no enemy standing still, shelters out of sight, determinism per seed and a recorded fingerprint, independent worlds, geometry, streaming and the planner in step with it, combat, fuzzy AI, difficulty, lifecycle, debug camera and commands; tunable balance and its limits; steering wander (corridor, wall, dead end, corner, feelers, repeatability per seed); the debug menu's rows, UPS, tick limit, single tick, zoom, and the hook after each enemy in `World::draw`. Needs no window |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_dotio_graphics` (10) | Drawing between ticks without moving the simulation or camera; wall colors without a window; then rendering resources, statistics, zoom-independent AI label placement and Ghost marker presentation in one case, because those checks share one `Runtime`; enemy paths and probes pass under the player, and the player's vector under the enemies; an enemy's vector starts over the enemy; a path is about 2.5 pixels wide at two zooms. Needs an OpenGL context (label `graphics`) |
 | [CMakeLists.txt](CMakeLists.txt) | `kinetra_smoke:dotio` (1) | `kinetra_dotio --difficulty medium --seed 42 --frames 120` starts, draws and exits with 0. Needs an OpenGL context (label `graphics`) |
 

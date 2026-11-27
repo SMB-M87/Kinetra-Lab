@@ -65,14 +65,14 @@ FrameCommands applied(DebugPanel &panel, bool debug_mode = true, bool pointer_ca
 
 TEST_CASE("the menu starts with the simulation section open and ends with zoom ghost camera and reset") {
     Fixture f;
-    CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "SPEED", "GRAVITY",
-                                                 "LAYERS", "MOTION", "AGENTS", "ZOOM", "GHOST CAMERA",
-                                                 "RESET PARAMETERS"});
+    CHECK(f.labels() == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS", "FPS",
+                                                 "GRAVITY", "LAYERS", "MOTION", "AGENTS", "ZOOM",
+                                                 "GHOST CAMERA", "RESET PARAMETERS"});
     const auto menu = f.panel.entries();
     CHECK((menu[0].kind == DebugEntryKind::group && menu[0].active() && menu[0].depth == 0));
     CHECK(menu[1].depth == 1);
-    CHECK_MESSAGE((menu[8].rule_above && menu[8].depth == 0), "a rule sets the commands apart");
-    CHECK((menu[9].kind == DebugEntryKind::check && menu[9].depth == 0 && !menu[9].active()));
+    CHECK_MESSAGE((menu[9].rule_above && menu[9].depth == 0), "a rule sets the commands apart");
+    CHECK((menu[10].kind == DebugEntryKind::check && menu[10].depth == 0 && !menu[10].active()));
 }
 
 TEST_CASE("a section heading opens its rows and closes the open section") {
@@ -213,8 +213,8 @@ TEST_CASE("reset parameters restores the tuning, the avoidance model and the tim
     f.row("WANDER").action();
     f.row("ROUTE").action();
     f.open("SIMULATION");
-    f.row("SPEED").increase();
-    REQUIRE(f.panel.time_scale() == 2);
+    f.row("UPS").increase();
+    REQUIRE(f.panel.ups() == 2 * demo::real_time_ups);
     f.row("RESET PARAMETERS").action();
     const demo::Tuning defaults;
     const auto &tuning = f.application.tuning();
@@ -222,8 +222,8 @@ TEST_CASE("reset parameters restores the tuning, the avoidance model and the tim
     CHECK(tuning.wander.range == defaults.wander.range);
     CHECK(tuning.wander.mode == defaults.wander.mode);
     CHECK(f.panel.reciprocal_avoidance());
-    CHECK(f.panel.time_scale() == 1);
-    CHECK(applied(f.panel).time_scale == 1);
+    CHECK(f.panel.ups() == demo::real_time_ups);
+    CHECK(applied(f.panel).ups == demo::real_time_ups);
 }
 
 TEST_CASE("running pauses and resumes the scene and a single tick runs exactly one") {
@@ -258,14 +258,31 @@ TEST_CASE("running pauses and resumes the scene and a single tick runs exactly o
     CHECK(f.application.paused());
 }
 
-TEST_CASE("the speed row sets the time scale of the frame's commands") {
+TEST_CASE("the UPS row sets the ticks per second of the frame's commands") {
     Fixture f;
-    CHECK(applied(f.panel).time_scale == 1);
-    f.row("SPEED").decrease();
-    f.row("SPEED").decrease();
-    CHECK(applied(f.panel).time_scale == 0.25f);
-    CHECK(f.row("SPEED").value() == "0.25X");
-    CHECK_MESSAGE(applied(f.panel, false).time_scale == 0.25f, "the time scale holds outside debug mode");
+    CHECK(applied(f.panel).ups == demo::real_time_ups);
+    f.row("UPS").decrease();
+    f.row("UPS").decrease();
+    CHECK(applied(f.panel).ups == 30);
+    CHECK(f.row("UPS").value() == "30");
+    f.row("UPS").set(250000);
+    CHECK(applied(f.panel).ups == 250000);
+    CHECK_MESSAGE(applied(f.panel, false).ups == 250000, "the UPS holds outside debug mode");
+}
+
+TEST_CASE("the FPS row follows the UPS row and changes only the frame-rate setting") {
+    Fixture f;
+    const auto entries = f.panel.entries();
+    const auto ups =
+        std::find_if(entries.begin(), entries.end(), [](const auto &e) { return e.label == "UPS"; });
+    REQUIRE(ups != entries.end());
+    REQUIRE(ups + 1 != entries.end());
+    CHECK((ups + 1)->label == "FPS");
+    f.row("FPS").set(30);
+    CHECK(f.panel.frame_rate().mode() == kinetra::FrameRateMode::limit);
+    CHECK(f.panel.frame_rate().limit() == 30);
+    f.row("RESET PARAMETERS").action();
+    CHECK_MESSAGE(f.panel.frame_rate().limit() == 30, "the frame rate is a view setting, not a parameter");
 }
 
 TEST_CASE("layers gravity and the ghost camera reach the commands only in debug mode") {

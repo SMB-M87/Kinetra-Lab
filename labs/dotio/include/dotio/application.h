@@ -10,10 +10,12 @@
 #include <cstdint>
 #include <kinetra/simulation/clock.h>
 #include <kinetra/view/camera.h>
+#include <kinetra/view/frame_rate.h>
 #include <kinetra/view/inspector.h>
 #include <kinetra/view/timing.h>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -79,7 +81,9 @@ struct Commands {
 /// now sequentially on the main thread rather than racing the update/render loop.
 class Application {
     std::unique_ptr<dotio::World> world_ = std::make_unique<dotio::World>();
-    kinetra::FixedClock clock_{tick_seconds, 8};
+    kinetra::TickClock clock_{double(real_time_ups)};
+    /// Ticks the last advance() ran.
+    std::uint64_t ticks_run_{};
     int tick_{};
     /// moving_positions() before and after the last tick; presentation only.
     std::vector<std::optional<kinetra::Vec2>> before_tick_, after_tick_;
@@ -115,7 +119,8 @@ class Application {
                                    step_requested_ = true;
                                },
                            .depth = 1});
-        entries.push_back(kinetra_lab::time_scale_entry(time_scale));
+        entries.push_back(kinetra_lab::ups_entry(ups));
+        entries.push_back(frame_rate_setting.entry());
         entries.push_back(kinetra::debug_check("INVULNERABLE", invulnerable));
     }
 
@@ -197,8 +202,13 @@ class Application {
     bool paused{}, debug{}, ghost{};
     bool vectors{}, collisions{}, ai{}, probes{}, invulnerable{};
     bool statistics{}, active_agents{}, frame_times{};
-    /// Simulated seconds per elapsed second, set by the debug menu's SPEED row.
-    float time_scale{1};
+    /// Ticks per elapsed second, set by the debug menu's UPS row; real_time_ups is real time.
+    std::uint64_t ups{real_time_ups};
+    /// The most ticks the next advance() may run; a longer backlog is dropped. The session
+    /// sets it from its kinetra::TickBudget.
+    std::uint64_t tick_limit{default_tick_limit};
+    /// The debug menu's FPS row; the session applies it to the runtime once per drawn frame.
+    kinetra::FrameRateSetting frame_rate_setting;
     /// Which section and which list of the debug menu are open.
     kinetra::DebugFolds folds{"SIMULATION"};
     /// The debug menu's ZOOM row and the steps its buttons asked for.
@@ -212,9 +222,8 @@ class Application {
     /// panel's, not a row here.
     ///
     /// The tuning rows change the world's balance (dotio::World::settings) and its enemy
-    /// tuning in place, within tuning_step; RESET PARAMETERS restores both and the time
-    /// scale. The rows follow the contract of kinetra::DebugEntry: they refer to this
-    /// application, which must outlive them.
+    /// tuning in place, within tuning_step; RESET PARAMETERS restores both and the UPS. The rows follow the
+    /// contract of kinetra::DebugEntry: they refer to this application, which must outlive them.
     std::vector<kinetra::DebugEntry> debug_entries() {
         std::vector<kinetra::DebugEntry> entries;
         for (const std::string label : {"SIMULATION", "LAYERS", "ENEMIES", "SPAWNING"}) {
@@ -235,7 +244,7 @@ class Application {
         entries.push_back({.label = "RESET PARAMETERS", .action = [this] {
                                world_->reset_tuning();
                                world_->set_passing(false);
-                               time_scale = 1;
+                               ups = real_time_ups;
                            }});
         return entries;
     }
@@ -298,8 +307,15 @@ class Application {
     std::optional<kinetra::InspectorSnapshot> inspect_enemy() const;
     /// Snapshot of a particular slot and lifetime, or empty when it is absent.
     std::optional<kinetra::InspectorSnapshot> inspect_enemy(std::size_t slot, std::uint64_t generation) const;
-    /// Simulated seconds per update in a running world.
+    /// Simulated seconds per update in a running world, the same at every UPS.
     static constexpr double tick_seconds = 1.0 / 60;
+    /// The UPS at which the world runs in real time.
+    static constexpr std::uint64_t real_time_ups = 60;
+    /// Most ticks a frame runs when nothing else limits it: the backlog cap of Dotio's clock
+    /// before its UPS could be set.
+    static constexpr std::uint64_t default_tick_limit = 8;
+    /// Ticks the last advance() ran, for the session's tick budget; a single tick counts.
+    std::uint64_t ticks_run() const { return ticks_run_; }
     /// Reject destinations overlapping terrain, physical props or active enemies. `point` and
     /// `radius` are in legacy pixels of the resident window, not world units.
     bool teleport_clear(kinetra::Vec2 point, float radius) {
@@ -335,7 +351,10 @@ class Application {
         return true;
     }
 
+    /// Throws std::invalid_argument, before anything changes, for a UPS of zero.
     void advance(double elapsed, const Commands &commands, kinetra::Camera2D &camera) {
+        if (ups == 0)
+            throw std::invalid_argument("UPS must be at least one");
         if (debug && ghost && commands.teleport) {
             auto &player = world_->get_player();
             const auto candidate = from_world(commands.teleport_target);
@@ -362,13 +381,17 @@ class Application {
         const bool single_tick = paused && std::exchange(step_requested_, false);
         const bool running = !paused || single_tick;
         // Lifecycle bounds do not shrink when the player zooms in, avoiding spawn churn.
-        const int scaled_steps = clock_.advance(elapsed * static_cast<double>(time_scale));
-        const int steps = single_tick ? 1 : scaled_steps;
+        // A new rate starts from the last tick.
+        if (clock_.rate() != double(ups))
+            clock_.rate(double(ups));
+        const auto due = clock_.advance(elapsed, tick_limit);
+        const int steps = single_tick ? 1 : static_cast<int>(due);
+        ticks_run_ = running ? std::uint64_t(steps) : 0;
         // Legacy coordinates use 25 pixels per world unit: 0.9 * 25 / (2 * 2.5) = 4.5.
         world_->stream_enemies(center, {camera.viewport.x * 0.5f, camera.viewport.y * 0.5f},
                                {camera.viewport.x * 4.5f, camera.viewport.y * 4.5f},
                                {camera.viewport.x * 6.25f, camera.viewport.y * 6.25f},
-                               running ? float(steps * clock_.step()) : 0.f);
+                               running ? float(steps * tick_seconds) : 0.f);
         auto aim = from_world(commands.aim) - initial_shift;
         frame_rate.count();
         // Snapshots from before a pause would draw the first running frames behind the state

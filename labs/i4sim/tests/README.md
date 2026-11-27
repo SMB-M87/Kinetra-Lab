@@ -115,7 +115,7 @@ Each case then requires the outcome (no contact, every mover at its goal, no stu
 
 | Area | The cases require |
 | --- | --- |
-| Loading | A blueprint loads paused and awaiting its start, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives running with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
+| Loading | A blueprint loads paused and awaiting its start, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives running with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..1,000,000 is rejected; a typed UPS sets the rate, the tick limit caps a frame, and the FPS row keeps its setting across blueprints |
 | Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a paused one stepped past its pause with SINGLE TICK restarts paused, without awaiting its start; a shuttling scene is never restarted |
 | Keys | Space and P, which end the wait for a start that a later pause does not bring back, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart keeps the current tick rate and motion settings, leaves a blueprint paused and awaiting its start, and replays a scene's goals running |
 | RUN button | Centered below the toolbar, narrower in a narrow viewport and above the fitted floor; a left click on it starts a blueprint that awaits its start and picks nothing below it, a right click on it does nothing, and once started a click there reaches the floor again |

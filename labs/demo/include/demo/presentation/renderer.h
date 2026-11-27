@@ -16,11 +16,11 @@ struct FrameOverlays {
     /// The debug menu and the rows it draws; pass the rows the menu was updated with.
     const kinetra::DebugMenu *menu{};
     std::span<const kinetra::DebugEntry> entries{};
-    /// The statistics line at the bottom, with `fps` frames per second and, when it is not
-    /// 1, the `time_scale` the scene runs at.
+    /// The statistics line at the bottom, with `fps` frames per second and, when the UPS row
+    /// is not at real time, the `ups` measured and the `target_ups` it asks for.
     bool statistics{};
-    double fps{};
-    float time_scale{1};
+    double fps{}, ups{};
+    std::uint64_t target_ups{real_time_ups};
     /// The settings panel or its toolbar.
     const kinetra::SettingsOverlay *settings{};
     /// The frame-time graph.

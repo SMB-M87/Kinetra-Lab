@@ -96,7 +96,7 @@ class SimulationCore {
     /// Runs as many ticks as `elapsed` seconds hold at the current update rate, while
     /// `running`; the remainder carries over. Throws std::invalid_argument for a negative or
     /// non-finite `elapsed`.
-    void advance(double elapsed);
+    void advance(double elapsed, std::uint64_t tick_limit);
     /// Runs one tick while `running`, and does nothing otherwise. Reaching the blueprint's
     /// tick cap moves the simulation to `finished`.
     void tick();
@@ -142,7 +142,7 @@ class SimulationCore {
     /// Set while not running; the first running advance() then aligns previous positions
     /// with the current ones, so drawing does not step back behind the state shown.
     bool resume_pending_{true};
-    kinetra::FixedClock clock_{1.0 / 200, 256};
+    kinetra::TickClock clock_{200};
     unsigned ups_{200};
     std::uint64_t ticks_{};
 };

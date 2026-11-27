@@ -6,11 +6,16 @@
 #include "i4sim/presentation/detail/world_view.h"
 #include "i4sim/simulation/inspector.h"
 
+#include "kinetra_lab/debug.h"
+#include "kinetra_lab/input.h"
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/settings.h"
 #include <kinetra/runtime/debug_view.h>
 #include <kinetra/runtime/settings_view.h>
+#include <kinetra/simulation/clock.h>
+#include <kinetra/view/timing.h>
 
+#include <chrono>
 #include <cstddef>
 #include <functional>
 #include <optional>
@@ -70,13 +75,26 @@ class FactorySession final : public kinetra_lab::Session {
         // Lit only where a click would reach it: not under the debug menu or the inspector.
         start_lit_ = !captured && !inspection.captured &&
                      start_button(camera.viewport).overlaps({input.mouse, input.mouse});
-        controller_.handle_input(elapsed, input, camera, {captured || inspection.captured, debug_});
+        // While a number is typed into the menu, the keys are the menu's.
+        const auto &keys = menu_.keys_captured() ? kinetra_lab::without_keys(input) : input;
+        controller_.limit_ticks(budget_.ticks(kinetra_lab::tick_share * controller_.frame_rate().interval()));
+        const auto first_tick = controller_.simulation().ticks();
+        const auto started = std::chrono::steady_clock::now();
+        controller_.handle_input(elapsed, keys, camera, {captured || inspection.captured, debug_});
+        const auto seconds =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        // A restart (R, or a repeating scene) starts the count again.
+        const auto last_tick = controller_.simulation().ticks();
+        const auto ran = last_tick >= first_tick ? last_tick - first_tick : last_tick;
+        budget_.record(ran, seconds);
+        ups_.count(int(ran));
+        ups_.advance(elapsed);
         if (before != controller_.selected_mover())
             inspector_.reset();
     }
 
     void render(Runtime &runtime) override {
-        frame_limit_.apply(runtime);
+        controller_.frame_rate().apply(runtime);
         if (!controller_.loaded()) {
             screen_.draw(runtime, controller_.message());
             return;
@@ -87,9 +105,9 @@ class FactorySession final : public kinetra_lab::Session {
         // Outside debug mode the layers keep their selection but are not drawn.
         draw_world(runtime, simulation, debug_ ? controller_.layers() : ViewLayers::none(),
                    controller_.selected_mover());
-        draw_hud(
-            runtime, simulation,
-            {statistics_, controller_.selected_producer(), controller_.description(), controller_.message()});
+        draw_hud(runtime, simulation,
+                 {statistics_, controller_.selected_producer(), controller_.description(),
+                  controller_.message(), ups_.rate()});
         // Below the panels, which cover it while they are open.
         if (controller_.awaiting_start())
             draw_start_button(runtime, start_button(runtime.camera.viewport), start_lit_);
@@ -170,13 +188,15 @@ class FactorySession final : public kinetra_lab::Session {
     DebugMenu menu_;
     InspectorView inspector_;
     bool statistics_{true}, debug_{true}, frame_times_{};
+    /// The ticks a frame may run, and the ticks per second the clock reached.
+    kinetra::TickBudget budget_;
+    kinetra::RateCounter ups_;
     /// Whether the pointer was over the RUN button in the last advance(), which lights it.
     bool start_lit_{};
-    kinetra_lab::FrameLimitSwitch frame_limit_;
     // Declared after the flags it borrows.
     SettingsOverlay settings_{
         kinetra_lab::settings_rows(
-            statistics_, debug_, frame_times_, frame_limit_.enabled,
+            statistics_, debug_, frame_times_,
             {"WASD / ARROWS  MOVE", "CLICK SELECT / RIGHT BLOCK", "SHIFT + RIGHT CLICK  INSPECT",
              "SHIFT CLICK FREE MOVER GOAL", "SPACE PAUSE / R RESET"},
             {"1 - 6  TOGGLE LAYERS", "Q / E  HALVE / DOUBLE UPS", "G WORKLOAD / F FIT"}),

@@ -148,11 +148,11 @@ TEST_CASE("a controller built running starts its blueprints running") {
     CHECK_FALSE(controller.awaiting_start());
 }
 
-TEST_CASE("an update rate outside 1 to 10000 is rejected") {
+TEST_CASE("an update rate outside 1 to 1,000,000 is rejected") {
     CHECK_THROWS_AS(FactoryController(42, false, 0), std::invalid_argument);
-    CHECK_THROWS_AS(FactoryController(42, false, 10001), std::invalid_argument);
+    CHECK_THROWS_AS(FactoryController(42, false, 1000001), std::invalid_argument);
     CHECK_NOTHROW(FactoryController(42, false, 1));
-    CHECK_NOTHROW(FactoryController(42, false, 10000));
+    CHECK_NOTHROW(FactoryController(42, false, 1000000));
 }
 
 TEST_CASE("a failed load keeps the loaded blueprint and reports the path and the cause") {
@@ -346,9 +346,35 @@ TEST_CASE("q and e halve and double the update rate within its bounds") {
     for (int i = 0; i < 10; ++i)
         frame(controller, camera, key(Key::q));
     CHECK(controller.simulation().updates_per_second() == 1);
-    for (int i = 0; i < 20; ++i)
+    for (int i = 0; i < 25; ++i)
         frame(controller, camera, key(Key::e));
-    CHECK(controller.simulation().updates_per_second() == 10000);
+    CHECK(controller.simulation().updates_per_second() == 1000000);
+}
+
+TEST_CASE("a number typed over the UPS row sets the rate, and the tick limit caps a frame") {
+    FactoryController controller(42, true, 200);
+    REQUIRE(controller.load(factory));
+    auto camera = camera_for(controller);
+    entry(controller, "UPS").set(750);
+    CHECK(controller.simulation().updates_per_second() == 750);
+    step(controller, "UPS", false);
+    CHECK_MESSAGE(controller.simulation().updates_per_second() == 375, "halving starts from the typed rate");
+    entry(controller, "UPS").set(5000000);
+    CHECK(controller.simulation().updates_per_second() == 1000000);
+    // A second at a million ticks per second is a backlog the limit cuts to 50 ticks.
+    controller.limit_ticks(50);
+    const auto before = controller.simulation().ticks();
+    controller.handle_input(1, {}, camera, {});
+    CHECK(controller.simulation().ticks() - before == 50);
+}
+
+TEST_CASE("the FPS row follows UPS and keeps its setting across blueprints") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    entry(controller, "FPS").set(30);
+    CHECK(controller.frame_rate().limit() == 30);
+    REQUIRE(controller.load(factory));
+    CHECK(entry(controller, "FPS").value() == "30");
 }
 
 TEST_CASE("r restarts a blueprint paused, awaiting its start, with its update rate and motion settings") {
@@ -662,16 +688,16 @@ TEST_CASE("an open panel leaves a paused blueprint paused") {
 TEST_CASE("the menu starts with the simulation section open") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
-    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS",
+    CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS", "FPS",
                                                          "WORKLOAD", "LAYERS", "MOTION", "TRAFFIC", "ZOOM",
                                                          "FRAME SCENE"});
     const auto menu = controller.menu();
     CHECK((menu[0].kind == kinetra::DebugEntryKind::group && menu[0].active() && menu[0].depth == 0));
-    CHECK_FALSE(menu[5].active());
+    CHECK_FALSE(menu[6].active());
     CHECK(menu[1].depth == 1);
-    CHECK_MESSAGE((menu[8].label == "ZOOM" && menu[8].depth == 0 && menu[8].rule_above),
+    CHECK_MESSAGE((menu[9].label == "ZOOM" && menu[9].depth == 0 && menu[9].rule_above),
                   "a rule sets the commands apart from the sections");
-    CHECK_MESSAGE(menu[9].depth == 0, "FRAME SCENE stays outside the sections");
+    CHECK_MESSAGE(menu[10].depth == 0, "FRAME SCENE stays outside the sections");
 }
 
 TEST_CASE("a section heading opens its rows and closes the open section") {

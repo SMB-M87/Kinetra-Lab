@@ -33,14 +33,7 @@ inline constexpr unsigned i4sim_updates_per_second = 200;
 inline constexpr kinetra::Vec2 debug_menu_origin{8, 32};
 
 /// Rows of the Lab settings panel, in the order of kinetra_lab::settings_rows.
-enum class SettingsRow : std::size_t {
-    statistics,
-    debug_mode,
-    frame_times,
-    frame_limit,
-    sim_controls,
-    debug_controls
-};
+enum class SettingsRow : std::size_t { statistics, debug_mode, frame_times, sim_controls, debug_controls };
 
 /// Drives one session in a Runtime and writes what it draws.
 ///

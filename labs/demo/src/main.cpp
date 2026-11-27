@@ -6,7 +6,6 @@
 
 #include <kinetra/runtime/engine.h>
 #include <kinetra/runtime/session.h>
-#include <kinetra/simulation/clock.h>
 
 #include <cstdlib>
 #include <iostream>
@@ -30,7 +29,7 @@ void trace_agent(demo::Scenario scenario, std::uint32_t seed, std::uint64_t tick
     kinetra::Camera2D camera;
     camera.pixels_per_unit = demo::initial_zoom;
     const auto id = "AGENT " + coordinates;
-    const double step = kinetra::FixedClock{}.step();
+    const double step = demo::tick_seconds;
     for (std::uint64_t tick = 0; tick < ticks; ++tick) {
         application.advance(step, {}, camera);
         const auto snapshot = demo::inspect_agent(application.scene(), home);

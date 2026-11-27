@@ -25,7 +25,7 @@ The factory application lives in Lab and consumes reusable simulation capabiliti
 | Dummy product actors, allocation managers, producer queues | [Lab production](../labs/i4sim/src/simulation/production.cpp) in the [deterministic simulation](#simulation-structure) |
 | Parking and producer approach policy | Lab reservations, staging and queue ownership |
 | LoadingScreen / rendering / interaction | Lab [controller](../labs/i4sim/include/i4sim/controller.h) (headless: input to commands) and [session](../labs/i4sim/src/presentation/session.cpp) with its blueprint screen, world view and HUD ([structure](../labs/i4sim/README.md#structure)); shared Kinetra LaunchMenu, Runtime and bitmap text |
-| Tick / render cycles | Existing Kinetra FixedClock and session loop; Lab chooses UPS |
+| Tick / render cycles | Kinetra's TickClock and session loop; Lab chooses UPS, up to 1,000,000 |
 | Dumps / metrics | Lab summary export |
 | MQTT / actor framework / Windows platform | Excluded |
 

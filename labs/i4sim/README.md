@@ -70,7 +70,7 @@ It prints the ticks it ran, the completed products and the ticks per second of t
 | `--ticks N` | Batch mode: run N ticks (up to 100,000,000) without a window, as fast as the processor allows, or fewer when the blueprint's tick cap comes first, and report the ticks per second. `--ups` does not apply. Needs `--blueprint` |
 | `--output DIR` | Batch mode: write `summary.json` with run totals and per-mover, per-producer and per-product counters. A graphical session writes no summary |
 | `--seed N` | Seed of the workload; 42 by default |
-| `--run`, `--ups N` | Graphical: start every loaded blueprint running, not only showcase scenes, and its ticks per second (1 to 10000, default 200) |
+| `--run`, `--ups N` | Graphical: start every loaded blueprint running, not only showcase scenes, and its ticks per second (1 to 1,000,000, default 200) |
 | `--frames N` | Graphical: stop after N frames, for smoke runs |
 
 ## Controls
@@ -83,7 +83,7 @@ Ctrl or the SETTINGS button opens the modal settings panel, which pauses the sim
 | Space / P | Pause or resume; also starts a blueprint that shows the RUN button |
 | R | Restart the blueprint with the same seed and keep the current tick rate and motion settings. A blueprint restarts paused and shows the RUN button again; a showcase scene also gets its goals, workload and repeat setting again and restarts running, so a changed setting can be compared with the original run |
 | G | Toggle the automatic workload |
-| Q / E | Halve / double the ticks per second |
+| Q / E | Halve / double the ticks per second, within 1 to 1,000,000 |
 | 1–6 | Toggle the Grid, Heatmap, Paths, Forces, Borders and Detection layers (drawn only in Debug Mode); a layer's parts keep their own selection |
 | WASD / arrows | Pan the camera |
 | Wheel (in Debug Mode) / F | Zoom / fit the floor in the window |
@@ -96,7 +96,7 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 
 | Section | Rows |
 | --- | --- |
-| SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second), WORKLOAD |
+| SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second, 1 to 1,000,000; type a number over it or halve and double it), FPS (VSYNC, a limit or UNCAPPED), WORKLOAD |
 | LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. ROUTES, DETECTION, the target arrows and every FORCES part go under the movers, with the start of each route, arrow and line over its own mover. A color swatch beside a row is the color it is drawn in |
 | MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
 | TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY, DEPARTURE CHECK, RIGHT OF WAY (`LEGACY` likewise) |
@@ -119,7 +119,7 @@ The current wait counts consecutive ticks in which the mover has a goal, is free
 | --- | --- |
 | Blueprint | A JSON file with the floor size, the grid cell size, movers, producers and forbidden zones. Validated on load; a data format, so changing a field is a contract change |
 | Factory space | Millimeters from the floor's top-left corner, **Y down**. Blueprints, the simulation and every `Simulation` query use it. The camera's world has Y up; `flip_y` ([view.h](include/i4sim/simulation/view.h)) converts either way |
-| Tick, UPS | The simulation advances in fixed ticks. Speeds are millimeters per tick, so changing the ticks per second (UPS) changes only how fast the wall clock runs |
+| Tick, UPS | The simulation advances in fixed ticks. Speeds are millimeters per tick, so changing the ticks per second (UPS) changes only how fast the wall clock runs. A frame runs at most the ticks that fit in three quarters of its interval; at a UPS the processor cannot reach, the HUD's `UPS 9800/1000000` shows the rate reached and the one asked for |
 | Mover | A rectangular transport vehicle. It has a parking place (its start), at most one goal, and at most one product |
 | Producer | A robot or manual station with a processing place where a mover stands while it works, and a bounded queue |
 | Product, recipe | A product needs a fixed sequence of interactions, each at a producer that supports it. It keeps one mover until it is complete |

@@ -64,7 +64,7 @@ A click on a selected agent, or CLICK SETS GOAL, sends agents elsewhere; the scr
 | Click in Ghost | Teleport real player to free visible destination, when settings is closed |
 | SETTINGS button / Ctrl | Open/close centered settings; pause while open |
 | Settings Statistics / Debug Mode | Toggle statistics / enable debug tools |
-| Settings Frame Times / Frame Limit | Show the frame-time graph / pace frames where the platform has no VSync |
+| Settings Frame Times | Show the frame-time graph |
 | Shift+Ctrl | Open/close the upper-left debug menu; switches Debug Mode on when it was off |
 | DEBUG button (next to Settings) | Toggle the debug menu in Debug Mode |
 | Wheel / ZOOM row of the debug menu | Zoom in Debug Mode: 5–100 px/unit; leaving Debug Mode clamps to 17–100 |
@@ -80,13 +80,13 @@ The menu is a tree with one section open at a time; SIMULATION is open at the st
 
 | Section | Rows |
 | --- | --- |
-| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 120 Hz tick per click), SPEED (time scale 0.125× to 4×), GRAVITY |
+| SIMULATION | RUNNING (pause and resume), SINGLE TICK (pauses, then runs one 120 Hz tick per click), UPS (ticks per second, 120 is real time, 1 to 1,000,000; type a number over it or halve and double it), FPS (VSYNC, a limit or UNCAPPED), GRAVITY |
 | LAYERS | VECTORS, STEERING PROBES, PATHS, COLLISION SHAPES, ACTIVE AGENTS, HOME RANGE, each with the color it is drawn in. VECTORS, STEERING PROBES and PATHS are drawn under the player, the agents and the props; the start of each vector and route is drawn over its own body. HOME RANGE draws a line from every awake agent to its home, and the range circle of the selected agent |
 | MOTION | AVOIDANCE (RECIPROCAL or LEGACY), MAX SPEED, ACCELERATION, RESPONSE, CLEARANCE; then HORIZON and PASSING BIAS for reciprocal avoidance, or LOOKAHEAD, SEPARATION and SEP WEIGHT for legacy steering |
 | AGENTS | WANDER (STEERING or ROUTE), HOME RANGE, then WANDER REACH and WANDER JITTER for steering wander, CLICK SETS GOAL and PASSING (off at the start) |
 | Below the rule | ZOOM, GHOST CAMERA, RESET PARAMETERS (the default motion and wander values, reciprocal avoidance, PASSING off, speed 1×) |
 
-The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain and in every scenario from Maze on. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and time scale persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. PASSING lets agents on commanded travel pass each other head-on in agreed side lanes ([a tick](#a-tick)). LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED or the time scale when the scene does not run in real time.
+The MOTION and AGENTS rows change the scene's [`Tuning`](include/demo/world/tuning.h) between ticks, within the limits in [debug_panel.h](include/demo/debug_panel.h). Debug Mode gates layers, Ghost and gravity in Terrain and in every scenario from Maze on. Gravity keeps its gravity setting outside Debug Mode. The tuning values, avoidance model and UPS persist in all scenarios. CLICK SETS GOAL makes a click command every awake agent. PASSING lets agents on commanded travel pass each other head-on in agreed side lanes ([a tick](#a-tick)). LEGACY uses nearest-obstacle steering. The statistics line shows PAUSED, or the UPS measured and asked for (`UPS 236/240`) when the UPS row is not at real time.
 
 The default camera follows the player in Terrain and frames the center of the authored scenes. Ghost moves only the camera. Clicking in Ghost teleports the player and clears momentum and routes when the destination has clearance. A yellow outline identifies the selected agent. The top-right inspector shows its current state, motion settings, goal, route and steering. Click another agent to switch, or use X to clear the selection. The debug menu's RUNNING row pauses or resumes the simulation while inspecting. The frame-time graph moves below the inspector.
 
@@ -97,7 +97,7 @@ For a fixed-seed run without opening a window, use `kinetra_demo --scenario door
 | Term | Meaning |
 | --- | --- |
 | World unit | The Demo's length unit. The player is 1.3 by 0.8 units, an agent about 0.64; a terrain chunk is 32 units square |
-| Tick | One fixed simulation step of 1/120 simulated second, from `kinetra::FixedClock`; a frame runs as many as its elapsed time (times the time scale) is worth, at most 16 |
+| Tick | One fixed simulation step of 1/120 simulated second, from `kinetra::TickClock`; a frame runs as many as its elapsed time is worth at the UPS row's rate, at most `FrameCommands::tick_limit`, which the session sets from a `kinetra::TickBudget` (16 without one) |
 | Mover | A moving body: an agent, the player or one of six passive props. Movers occupy the world's first body ids, before the terrain |
 | Terrain chunk | A 32-unit square of fixed circles and rotated boxes, generated from the seed and its coordinate alone, so it is the same on every visit |
 | Resident area | Around the player, 1.25 times the view at the widest debug zoom (5 px/unit): the terrain physics uses, and the agents the scene keeps |
@@ -117,7 +117,7 @@ classDiagram
         frame order, panels
     }
     class DebugPanel {
-        menu rows, layers, time scale
+        menu rows, layers, UPS, FPS
     }
     class Application {
         pause, clock, camera, pointer
@@ -131,7 +131,7 @@ classDiagram
     DemoSession *-- DebugPanel
     DebugPanel ..> Application : borrows
     Application *-- Scene
-    Application *-- FixedClock
+    Application *-- TickClock
     Scene *-- World
     Scene *-- Terrain : terrain and preview
     Scene *-- Navigation
@@ -188,7 +188,7 @@ sequenceDiagram
 
 *Takeaway:* everything that changes the scene happens before its ticks, in a fixed order, so a click resolves against this frame's camera and the ticks see the frame's settings.
 
-The overlays come first: an open settings panel takes the whole frame and pauses the scene (`kinetra_lab::ModalPause`), and the debug menu takes the pointer while it is over the menu. `DebugPanel::apply` then completes the commands with what the menu decides: layers, the ghost camera, gravity, avoidance model, time scale, a single tick, zoom steps. `Application::advance` consumes clock time even while paused, so resuming never replays paused time; only the simulation runs on scaled time, the camera keeps real time.
+The overlays come first: an open settings panel takes the whole frame and pauses the scene (`kinetra_lab::ModalPause`), and the debug menu takes the pointer while it is over the menu. `DebugPanel::apply` then completes the commands with what the menu decides: layers, the ghost camera, gravity, avoidance model, UPS, a single tick, zoom steps; the session adds the tick limit. `Application::advance` consumes clock time even while paused, so resuming never replays paused time; only the simulation runs at the UPS, the camera keeps real time.
 
 Drawing runs between ticks: `Application` keeps every body's pose before and after the last tick, and `presented_pose(id)` blends them by how much of the next tick has accumulated. A body that changed outside the last tick (a teleport, renumbering) or a paused scene shows its exact state. The renderer moves the camera onto the drawn player for that frame only, so the player does not jitter ([drawing between ticks](../../docs/architecture.md#session-ownership-and-frame-flow)).
 
@@ -288,7 +288,7 @@ Every test program is a doctest suite: each `TEST_CASE` is one behavior, named a
 | [crowd_characterization_tests.cpp](tests/crowd_characterization_tests.cpp) | `kinetra_demo_crowd_characterization` (4) | Pins crowd behavior in both wander modes, so a refactor can prove that it preserves behavior. A dense idle crowd (240 agents, seed 123, 480 frames) and a player walking through newly streamed chunks with commanded agents (40 agents, seed 456, 1200 frames) check every frame for finite motion, an intact swept-event budget, a one-to-one agent-to-body mapping and at most 0.01 units of overlap between moving bodies. Each scenario and wander mode is one case and must reproduce a recorded summary line with a trajectory fingerprint; a mismatch shows the expected and actual line. `KINETRA_PRINT_GOLDEN=1` prints the current lines for a deliberate update |
 | [crowd_stability_tests.cpp](tests/crowd_stability_tests.cpp) | `kinetra_demo_crowd` (5) | 60 simulated seconds per case. 240 initial agents with seeds 123 and 456 and steering wander, and seed 123 with route wander; rejects swept-event starvation, nonfinite motion and the spinning tangent-contact freeze. Two more cases watch 48 agents around a standing player, one per wander mode: at least 80 % of those awake after a second are still awake after a minute (labels `unit` and `soak`, 180-second timeout per case) |
 | [terrain_tests.cpp](tests/terrain_tests.cpp) | `kinetra_demo_terrain` (24) | Deterministic terrain streaming and compaction, crowded polygon population near the initial camera, sleep/wake, wandering by steering and by route, the home range, commands, detours, clearance, recovery and arrival, navigation and Ghost preview isolation |
-| [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo` (31) | Pause/resume, time scale and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands, PASSING among them |
+| [application_tests.cpp](tests/application_tests.cpp), [debug_panel_tests.cpp](tests/debug_panel_tests.cpp) | `kinetra_demo` (33) | Pause/resume, UPS, tick limit and single tick, input commands and bindings, camera/pointer ordering, avoidance-mode switching and reset behavior; tuning defaults, limits and effect; steering wanderers around terrain in both avoidance models; the debug menu's rows, limits and commands, PASSING among them |
 | [presentation_tests.cpp](tests/presentation_tests.cpp) | `kinetra_demo_graphics` (5) | Inspector interactions, routes, and steering probes at different zoom levels; routes, probes and vectors pass under the agents they cross, and a route starts over its own body (label `graphics`) |
 | [passing_tests.cpp](tests/passing_tests.cpp) | `kinetra_demo_passing` (6) | Passing with PASSING on. A new goal, PASSING off and `place_agents` end a plan; the menu's extreme tuning (MAX SPEED 16, ACCELERATION 1, every HORIZON) runs. Four pressure cases, each under reciprocal avoidance and legacy steering: a head-on pair in the open arena completes its plan, one agent against two in a column, the player stopping on a lane exit (the plan ends as obstructed) and two streams of three through the doorway. Each case checks that its situation occurs, then that every agent reaches its goal and no two moving bodies overlap by more than 0.01 units. They assert outcomes, not recorded lines, so they hold on every toolchain |
 | [scenario_tests.cpp](tests/scenario_tests.cpp) | `kinetra_demo` (4 scenario cases) | The catalog's eleven labels and CLI names; Gravity, the player's route through the maze and fixed layout lifetime, and Doorway's groups crossing and coming home |
@@ -315,7 +315,6 @@ The graphics suite covers selected session interactions and rendering. Desktop f
 
 ## Open points
 
-- The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. An agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there, and in a dense crowd agents stray up to about ten units beyond their range for moments. The fixed clock runs at most 16 ticks per frame, so at the fastest time scale of 4 simulated time falls behind below 30 frames per second; the simulation itself needed 0.64 s of every second at the default 48 agents, mostly for the engine's spatial-grid rebuilds, and about 0.08 s since the engine indexes fixed bodies once and queries its grid without hashing (Demo does not use `priority_steer`, so hotspot 4 leaves it there) ([performance](../../docs/performance.md#demo)). Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks.
-- Showcase scripts are not drawn: no layer shows the stops, the lures or the formation slots. Fleet's formations are loose, because each agent is sent to its slot only every quarter second and slows down within a unit of it; a formation behavior that steers by its slot's velocity would hold them tighter.
+- The circular planning envelope can reject narrow gaps; moving crowds may prevent arrival. An agent whose home lies within its range of the edge of the active area can still walk out and fall asleep there, and in a dense crowd agents stray up to about ten units beyond their range for moments. A frame runs at most the ticks that fit in three quarters of its interval, so at a UPS the processor cannot reach the scene runs slower than asked, and the statistics line shows by how much; at 480 UPS the simulation itself needed 0.64 s of every second at the default 48 agents, mostly for the engine's spatial-grid rebuilds, and about 0.08 s since the engine indexes fixed bodies once and queries its grid without hashing (Demo does not use `priority_steer`, so hotspot 4 leaves it there) ([performance](../../docs/performance.md#demo)). Rendering culls offscreen bodies and reuses Ghost chunks. Physics and steering still consume resident data. Desktop feel/performance requires manual Artix checks.
 - Passing plans are not drawn yet: no debug layer shows the agreed lanes, the waits or the braking points. In the doorway and in a column most plans end as obstructed, because the other agents of a stream soon stand or drive in the lanes; the agents then pass by avoidance alone.
 - Decisions behind this design: [camera-driven terrain](../../external/Kinetra/docs/decisions/0002-camera-driven-terrain.md), [application boundary](../../external/Kinetra/docs/decisions/0004-sandbox-application-boundaries.md), [agent lifecycle](../../external/Kinetra/docs/decisions/0005-sandbox-agent-lifecycle.md).

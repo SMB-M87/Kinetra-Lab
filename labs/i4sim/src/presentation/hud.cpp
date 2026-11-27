@@ -5,6 +5,7 @@
 #include <kinetra/runtime/overlay_style.h>
 
 #include <array>
+#include <cmath>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -25,11 +26,13 @@ constexpr int max_message_lines = 4;
 constexpr int description_gap = 2;
 
 /// Run totals, with the counters of the coordination features that are on.
-std::string totals_text(const Simulation &simulation) {
+std::string totals_text(const Simulation &simulation, double measured_ups) {
     const auto &motion = simulation.motion_settings();
     std::ostringstream text;
-    text << "TICK " << simulation.ticks() << " UPS " << simulation.updates_per_second() << " CONTACTS "
-         << simulation.collisions() << " DURATION " << simulation.contact_ticks();
+    // Reached, then asked for, as in Demo; the bitmap font has no parentheses.
+    text << "TICK " << simulation.ticks() << " UPS " << std::llround(measured_ups) << "/"
+         << simulation.updates_per_second() << " CONTACTS " << simulation.collisions() << " DURATION "
+         << simulation.contact_ticks();
     if (motion.predictive_passing && supports_predictive_passing(motion.profile))
         text << " PASS " << simulation.predictive_pairs();
     if (motion.corridor_traffic)
@@ -78,7 +81,7 @@ HudLines hud_lines(int message_lines) {
 
 void draw_hud(Runtime &runtime, const Simulation &simulation, const HudContent &content) {
     if (content.statistics) {
-        hud::draw_line(runtime, totals_text(simulation), 2, hud::statistics_color);
+        hud::draw_line(runtime, totals_text(simulation, content.measured_ups), 2, hud::statistics_color);
         hud::draw_line(runtime, motion_text(simulation), 1, hud::statistics_color);
     }
     // The message's line comes from hud_lines(), so its test covers where the message is drawn.

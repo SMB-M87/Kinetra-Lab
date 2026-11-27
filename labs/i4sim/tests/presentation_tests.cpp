@@ -69,8 +69,8 @@ std::filesystem::path without_scenario(std::string_view name, const std::filesys
 /// section's rows always start right below its heading.
 namespace menu_row {
 /// The SIMULATION heading, and the LAYERS and MOTION headings while SIMULATION, with its
-/// four rows, is open.
-constexpr unsigned simulation = 0, layers_below_simulation = 5, motion_below_simulation = 6;
+/// five rows, is open.
+constexpr unsigned simulation = 0, layers_below_simulation = 6, motion_below_simulation = 7;
 /// LAYERS open: heading on row 1, then GRID, HEATMAP and PATHS.
 constexpr unsigned layers = 1, paths = 4;
 /// MOTION open: heading on row 2, then PROFILE, PLANNER, RECOVERY, SPEED, FORCE, HORIZON and
@@ -89,17 +89,17 @@ constexpr unsigned corridor = 4, junction = 5, parking = 6, predictive = 7;
 /// help collapsed, located through a panel with the same Lab rows, so the tests follow the
 /// shared layout.
 Vec2 settings_point(Vec2 viewport, float x, float y) {
-    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    bool statistics{}, debug{}, frame_times{};
     const SettingsOverlay mirror(
-        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+        kinetra_lab::settings_rows(statistics, debug, frame_times, {"LINE"}, {"LINE"}));
     return viewport / 2 + (Vec2{x, y} - mirror.half_extent()) * SettingsOverlay::scale(viewport);
 }
 
 /// The settings panel's action row, at the button centered on `x`.
 Vec2 settings_action(Vec2 viewport, float x) {
-    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    bool statistics{}, debug{}, frame_times{};
     const SettingsOverlay mirror(
-        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+        kinetra_lab::settings_rows(statistics, debug, frame_times, {"LINE"}, {"LINE"}));
     return settings_point(viewport, x, mirror.actions_y() + 3);
 }
 
@@ -220,9 +220,9 @@ TEST_CASE("BLUEPRINTS in the settings panel closes the blueprint, and the next o
     REQUIRE_FALSE(session->status().starts_with("Loadscreen"));
     // The button is the settings panel's, so it works with the debug mode off: STATISTICS is
     // row 0 and DEBUG MODE row 1 of the Lab rows.
-    bool statistics{}, debug{}, frame_times{}, frame_limit{};
+    bool statistics{}, debug{}, frame_times{};
     const SettingsOverlay mirror(
-        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"LINE"}, {"LINE"}));
+        kinetra_lab::settings_rows(statistics, debug, frame_times, {"LINE"}, {"LINE"}));
     click_in_settings(*session, camera, settings_point(camera.viewport, 60, mirror.row_y(1) + 3));
     Input resume;
     resume.clicked = true;

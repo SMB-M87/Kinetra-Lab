@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <string>
 #include <utility>
@@ -70,25 +71,38 @@ TEST_CASE("without a panel the pause state passes through") {
     CHECK_FALSE(pause.update(false, false));
 }
 
+TEST_CASE("an input without keys keeps the pointer and drops keys and text") {
+    kinetra::Input input;
+    input.held[std::size_t(kinetra::Key::w)] = input.pressed[std::size_t(kinetra::Key::one)] = true;
+    input.text = "1";
+    input.mouse = {3, 4};
+    input.clicked = true;
+    input.wheel = 1;
+    const auto stripped = kinetra_lab::without_keys(input);
+    CHECK_FALSE(stripped.down(kinetra::Key::w));
+    CHECK_FALSE(stripped.hit(kinetra::Key::one));
+    CHECK(stripped.text.empty());
+    CHECK(stripped.mouse == kinetra::Vec2{3, 4});
+    CHECK(stripped.clicked);
+    CHECK(stripped.wheel == 1);
+}
+
 TEST_CASE("the settings rows come in Lab's order without a zoom row") {
-    bool statistics{}, debug{}, frame_times{}, frame_limit{};
-    const auto rows =
-        kinetra_lab::settings_rows(statistics, debug, frame_times, frame_limit, {"MOVE"}, {"TELEPORT"});
-    REQUIRE(rows.size() == 6);
-    const std::pair<const char *, bool *> toggles[]{{"STATISTICS", &statistics},
-                                                    {"DEBUG MODE", &debug},
-                                                    {"FRAME TIMES", &frame_times},
-                                                    {"FRAME LIMIT", &frame_limit}};
-    for (std::size_t i = 0; i < 4; ++i) {
+    bool statistics{}, debug{}, frame_times{};
+    const auto rows = kinetra_lab::settings_rows(statistics, debug, frame_times, {"MOVE"}, {"TELEPORT"});
+    REQUIRE(rows.size() == 5);
+    const std::pair<const char *, bool *> toggles[]{
+        {"STATISTICS", &statistics}, {"DEBUG MODE", &debug}, {"FRAME TIMES", &frame_times}};
+    for (std::size_t i = 0; i < 3; ++i) {
         const auto *toggle = std::get_if<kinetra::ToggleRow>(&rows[i]);
         REQUIRE(toggle);
         CHECK(toggle->label == toggles[i].first);
         CHECK(toggle->value == toggles[i].second);
     }
-    const auto &sim = std::get<kinetra::HelpSection>(rows[4]);
+    const auto &sim = std::get<kinetra::HelpSection>(rows[3]);
     CHECK(sim.label == "SIM CONTROLS");
     CHECK(sim.lines == std::vector<std::string>{"MOVE"});
-    const auto &controls = std::get<kinetra::HelpSection>(rows[5]);
+    const auto &controls = std::get<kinetra::HelpSection>(rows[4]);
     CHECK(controls.label == "DEBUG CONTROLS");
     const std::vector<std::string> expected{kinetra_lab::debug_menu_help, kinetra_lab::wheel_zoom_help,
                                             "TELEPORT"};
@@ -117,22 +131,23 @@ TEST_CASE("the zoom row collects the steps of its buttons and shows the observed
     CHECK(row.value() == "0.25");
 }
 
-TEST_CASE("the speed row halves and doubles the time scale within its limits") {
-    float scale = 1;
-    auto row = kinetra_lab::time_scale_entry(scale);
-    CHECK(row.label == "SPEED");
+TEST_CASE("the UPS row halves, doubles and takes a typed rate within Lab's limits") {
+    std::uint64_t ups = 120;
+    auto row = kinetra_lab::ups_entry(ups);
+    CHECK(row.label == "UPS");
     CHECK(row.depth == 1);
-    CHECK(row.value() == "1X");
+    CHECK(row.value() == "120");
     row.decrease();
-    CHECK(scale == 0.5f);
-    CHECK(row.value() == "0.5X");
-    for (int i = 0; i < 10; ++i)
-        row.decrease();
-    CHECK(scale == kinetra_lab::slowest_time_scale);
+    CHECK(ups == 60);
+    row.set(750);
+    row.increase();
+    CHECK(ups == 1500);
     for (int i = 0; i < 20; ++i)
-        row.increase();
-    CHECK(scale == kinetra_lab::fastest_time_scale);
-    CHECK(row.value() == "4X");
+        row.decrease();
+    CHECK(ups == kinetra_lab::slowest_ups);
+    row.set(123456789);
+    CHECK(ups == kinetra_lab::fastest_ups);
+    CHECK(row.value() == "1000000");
 }
 
 TEST_CASE("a route's start ends where the route first leaves its body") {

@@ -43,6 +43,11 @@ constexpr bool supports_predictive_passing(SteeringProfile profile) {
 constexpr bool supports_right_of_way(SteeringProfile profile) {
     return profile == SteeringProfile::improved || profile == SteeringProfile::reciprocal;
 }
+/// Most ticks per second Simulation::updates_per_second accepts.
+inline constexpr unsigned most_updates_per_second = 1000000;
+/// Most ticks one Simulation::advance runs unless it is given another limit: the backlog cap
+/// of i4sim's clock before its rate could exceed 10,000.
+inline constexpr std::uint64_t default_tick_limit = 256;
 /// Longest prediction horizon `Simulation::configure_motion` accepts, in ticks.
 inline constexpr float longest_motion_horizon = 64;
 /// Motion and traffic settings of a simulation; see `Simulation::configure_motion`.
@@ -362,15 +367,17 @@ class Simulation {
     bool workload() const;
     /// Turns the random workload on or off; open products stay.
     void set_workload(bool enabled);
-    /// Runs as many ticks as `elapsed` seconds hold at the current update rate, while
-    /// `running`; the remainder carries over. Throws std::invalid_argument for a negative or
-    /// non-finite `elapsed`.
-    void advance(double elapsed);
+    /// Runs as many ticks as `elapsed` seconds hold at the current update rate, at most
+    /// `tick_limit`, while `running`. A longer backlog is dropped, so a rate the processor
+    /// cannot reach slows the simulation down; the fraction of the next tick carries over.
+    /// Throws std::invalid_argument for a negative or non-finite `elapsed`.
+    void advance(double elapsed, std::uint64_t tick_limit = default_tick_limit);
     /// Runs one tick while `running`, and does nothing otherwise. Reaching the blueprint's
     /// tick cap moves the simulation to `finished`.
     void tick();
-    /// Sets how many ticks one simulated second holds, in 1..10000 (default 200), and
-    /// drops the time accumulated so far. Throws std::invalid_argument outside that range.
+    /// Sets how many ticks one wall-clock second holds, in 1..most_updates_per_second
+    /// (default 200), and drops the time accumulated so far. Throws std::invalid_argument
+    /// outside that range.
     void updates_per_second(unsigned rate);
     /// Ticks per simulated second.
     unsigned updates_per_second() const;

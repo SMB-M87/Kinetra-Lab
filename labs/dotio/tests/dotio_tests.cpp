@@ -856,9 +856,10 @@ kinetra::DebugEntry menu_row(dotio::Application &application, std::string_view l
 
 TEST_CASE("the debug menu starts with the simulation section and ends with zoom ghost camera and reset") {
     dotio::Application application(42);
-    CHECK(menu_labels(application) ==
-          std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "SPEED", "INVULNERABLE", "LAYERS",
-                                   "ENEMIES", "SPAWNING", "ZOOM", "GHOST CAMERA", "RESET PARAMETERS"});
+    CHECK(menu_labels(application) == std::vector<std::string>{"SIMULATION", "RUNNING", "SINGLE TICK", "UPS",
+                                                               "FPS", "INVULNERABLE", "LAYERS", "ENEMIES",
+                                                               "SPAWNING", "ZOOM", "GHOST CAMERA",
+                                                               "RESET PARAMETERS"});
     const auto ghost = menu_row(application, "GHOST CAMERA");
     CHECK((ghost.kind == kinetra::DebugEntryKind::check && ghost.depth == 0 && !ghost.active()));
     ghost.action();
@@ -945,16 +946,16 @@ TEST_CASE("the enemies and spawning sections change the world's balance within t
         }
     CHECK(world.difficulty_settings().active_spawn_limit == dotio::tuning_step::smallest_spawn_limit);
 
-    application.time_scale = 4;
+    application.ups = 240;
     menu_row(application, "RESET PARAMETERS").action();
     CHECK(world.difficulty_settings() == preset);
     CHECK(world.enemy_tuning() == dotio::EnemyTuning{});
     CHECK_FALSE(world.passing());
-    CHECK(application.time_scale == 1);
+    CHECK(application.ups == dotio::Application::real_time_ups);
     open_map(application.world().grid());
 }
 
-TEST_CASE("the time scale and a single tick decide how many updates a frame runs") {
+TEST_CASE("the UPS, the tick limit and a single tick decide how many updates a frame runs") {
     dotio::Application application(42);
     for (auto &enemy : application.world().get_enemies())
         enemy.is_active = false;
@@ -964,26 +965,34 @@ TEST_CASE("the time scale and a single tick decide how many updates a frame runs
     dotio::Commands right;
     right.direction = {1, 0};
     const auto origin = player.position;
-    // How far the player gets in a fifth of a second of frames at the given time scale. It
+    // How far the player gets in a fifth of a second of frames at the given UPS. It
     // starts from the same open spot every time and stays within its cell, so neither a wall
     // nor the streaming of the world around the player can come in between.
-    const auto travelled = [&](float scale) {
+    const auto travelled = [&](std::uint64_t ups) {
         open_map(application.world().grid());
-        application.time_scale = scale;
+        application.ups = ups;
         player.position = origin;
         player.velocity = {};
         for (int frame = 0; frame < 12; ++frame)
             application.advance(1.0 / 60, right, camera);
         return player.position.x - origin.x;
     };
-    const float normal = travelled(1);
+    const float normal = travelled(60);
     REQUIRE(normal > 0);
-    CHECK_MESSAGE(travelled(0.5f) < normal * 0.75f, "half speed did not slow the world down");
-    CHECK_MESSAGE(travelled(2) > normal * 1.5f, "double speed did not speed the world up");
+    CHECK_MESSAGE(travelled(30) < normal * 0.75f, "half the UPS did not slow the world down");
+    CHECK_MESSAGE(travelled(120) > normal * 1.5f, "double the UPS did not speed the world up");
+    // A frame runs at most the tick limit; the rest of its backlog is dropped.
+    application.tick_limit = 2;
+    application.ups = 6000;
+    application.advance(1.0 / 60, right, camera);
+    CHECK(application.ticks_run() == 2);
+    application.tick_limit = dotio::Application::default_tick_limit;
+    application.ups = 0;
+    CHECK_THROWS_AS(application.advance(1.0 / 60, right, camera), std::invalid_argument);
 
     open_map(application.world().grid());
     player.position = origin;
-    application.time_scale = 1;
+    application.ups = dotio::Application::real_time_ups;
     application.paused = true;
     player.velocity = {};
     const auto standing = player.position;

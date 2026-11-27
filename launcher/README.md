@@ -80,7 +80,7 @@ To refresh a preview, pass the lab's preview scene (`demo-preview`, `dotio` or `
 | CTest | Covers | Needs |
 | --- | --- | --- |
 | `kinetra_menu` | Registration order and previews, Demo scenarios, Dotio difficulties, defaults, and configuration picking at resized viewports | Runtime build, no window |
-| `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), FRAME LIMIT, the settings panel's SCENARIOS, DIFFICULTY and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
+| `kinetra_graphics` | Every application through the real launcher sessions: settings toggles, pause and resume, debug gating, the Shift+Ctrl shortcut and debug-menu rows (RUNNING, layers, ZOOM, GHOST CAMERA), the FPS row, the settings panel's SCENARIOS, DIFFICULTY and EXIT requests | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 | `kinetra_smoke:launcher*` | `kinetra` starts in the menu and with each `--variant`, draws 120 frames and exits with 0 | `KINETRA_TEST_GRAPHICS`, an OpenGL context |
 
 ```sh

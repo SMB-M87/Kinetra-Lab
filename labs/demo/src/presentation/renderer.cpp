@@ -3,8 +3,10 @@
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/route.h"
 #include "kinetra_lab/under_bodies.h"
-#include <algorithm>
 #include <kinetra/runtime/hud_text.h>
+
+#include <algorithm>
+#include <cmath>
 #include <limits>
 #include <string_view>
 #include <vector>
@@ -244,8 +246,9 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
         // What the debug menu's SIMULATION rows did to time is not visible in the scene itself.
         if (application.paused())
             text += " PAUSED";
-        else if (overlays.time_scale != 1)
-            text += " SPEED " + debug_number_text(overlays.time_scale) + "X";
+        else if (overlays.target_ups != real_time_ups)
+            text += " UPS " + std::to_string(std::llround(overlays.ups)) + "/" +
+                    std::to_string(overlays.target_ups);
         const float width =
             std::min(runtime.camera.viewport.x, 2 * hud::margin + float(text.size()) * 6 * hud::text_scale);
         runtime.box(runtime.camera.screen_to_world({width / 2, runtime.camera.viewport.y - 15}),
