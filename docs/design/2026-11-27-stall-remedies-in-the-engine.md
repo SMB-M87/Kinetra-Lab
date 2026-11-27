@@ -1,8 +1,8 @@
 # Stall remedies in the engine
 
-Status: accepted · Branch: `feat/i4sim-departure-check` (step 1 of 5) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
+Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
 
-This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it is *i4sim on the passing coordinator*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
+This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it was *i4sim on the passing coordinator*, which Kinetra#71 replaced with *Stall detection and remedies in the engine*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
 
 ## Table of contents
 
@@ -74,10 +74,10 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 
 | Step | Branches | Content |
 | --- | --- | --- |
-| 1 | Lab `feat/i4sim-departure-check` | DEPARTURE CHECK in i4sim |
-| 2 | Kinetra and Lab `refactor/i4sim-passing-coordinator` | i4sim's passing runs on `kinetra::PassingCoordinator`; a Kinetra ADR amends 0017 |
-| 3 | Kinetra and Lab `feat/stall-detector` | `kinetra::StallDetector`, the reasons of i4sim's detector plus `pushed_back`; i4sim uses it |
-| 4 | Kinetra and Lab `feat/right-of-way` | `kinetra::RightOfWay`; i4sim's RIGHT OF WAY |
+| 1 | Lab `feat/i4sim-departure-check` (#146) | DEPARTURE CHECK in i4sim |
+| 2 | Kinetra and Lab `refactor/i4sim-passing-coordinator` (Kinetra#71, merged; #149) | i4sim's passing runs on `kinetra::PassingCoordinator`; a Kinetra ADR amends 0017 |
+| 3 | Kinetra and Lab `feat/stall-detector` (Kinetra#72, #150) | `kinetra::StallDetector`, the reasons of i4sim's detector plus `pushed_back`; i4sim uses it |
+| 4 | Kinetra and Lab `feat/right-of-way` (Kinetra#74, #154) | `kinetra::RightOfWay`; i4sim's RIGHT OF WAY |
 | 5 | Kinetra and Lab `refactor/make-way-engine` | `kinetra::MakeWay`, the request lifecycle; i4sim keeps refuge candidates, reservations and production |
 
 **Step 1: departure check.** `MotionSettings::departure_check` (DEBUG → TRAFFIC → DEPARTURE CHECK, `scenario.motion.departureCheck`, `--departure-check`) is off by default. When a product with a mover heads its queue, `Production::departure_route` plans the mover's route with `require_departure`:
@@ -91,7 +91,21 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 
 A departure from a processing place to the next producer is unchanged.
 
-**Steps 2 to 5** are designed on their branches and written here when each starts. The contracts the user accepted:
+**Step 2: i4sim on the coordinator.** `PredictivePassing` keeps its interface and becomes an adapter over `kinetra::PassingCoordinator`; the 300 lines of its own plan lifecycle go. Per tick it maps every mover to a state:
+
+- a mover that is not moving, or is held, is `standing`;
+- one under traffic control, retreating in a corridor or on a make-way trip is `busy`;
+- every other mover is `free`, heading along its route.
+
+A lane check keeps each leg on the floor's grid and out of every traffic zone, as before. The coordinator's events go to the event log with the factory's reasons: `unavailable` becomes `participant_stopped`, `participant_held` or `traffic_control`, in the documented order, and `cancelled` becomes `goal_changed` (from `cancel`) or `disabled` (from `clear`). After each ended plan the adapter plans both routes again. Kinetra's [ADR 0018](../../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md) amends 0017.
+
+Three behaviors follow the engine now:
+
+- After a goal change a mover may join a new plan at once. A goal change outside a plan leaves a running retry wait alone: the adapter cancels only a participant.
+- The guard queries a wider margin.
+- A mover whose plan ends forms its next plan one tick later, along the route planned again when the plan ended. The adapter gives a participant no heading, because the route it holds is its original one, overridden by the plan.
+
+**Steps 3 to 5** are designed on their branches and written here when each starts. The contracts the user accepted:
 
 - `StallDetector` takes, per mover, a progress counter, a state and a route heading from the application. It returns episodes with an onset diagnosis.
 - `RightOfWay` takes episodes and movers, and returns who is not cooperating for how long.
@@ -125,6 +139,17 @@ Step 1, Targeted level (Lab logic), with the full i4sim suites:
 | Off by default changes nothing | `kinetra_i4sim_golden_tests`, `kinetra_i4sim_pressure_tests` unchanged |
 
 The harness and the 50,000-tick benchmark with `--departure-check` reproduce the measured gate results.
+
+Step 2, Full level (an engine pointer moves; the engine itself is unchanged):
+
+| Behavior | Test |
+| --- | --- |
+| Every plan outcome, arrival and contact count of the five pressure scenarios under both profiles stays; trajectories and waiting may change, and each change is recorded | `kinetra_i4sim_pressure_tests`, lines recorded again where they moved |
+| The golden runs with PASSING on stay as recorded | `kinetra_i4sim_golden_tests` |
+| A make-way mover joins no plan; the event log's reasons (`goal_changed`, `participant_held`, …) | the existing `kinetra_i4sim` passing cases |
+| Each derived end reason (stopped, held, traffic control), first participant first, and within one participant stopped before control and held before control | `kinetra_i4sim:a participant that stops, is held or comes under traffic control ends its plan, in participant order` (fails with the order flipped) |
+| A new goal outside a plan keeps a failed pair's retry wait, and one inside a plan imposes none | `kinetra_i4sim:a new goal outside a plan keeps a failed pair's retry wait; one inside a plan imposes none` (fails without the early return in `cancel`) |
+| The flow with PASSING on is compared: identical on the harness; on the long runs products, plans and contacts in plans compared | the harness and the 50,000-tick benchmark with `--predictive-passing`, before and after |
 
 ## Verification
 
@@ -160,6 +185,30 @@ The gate's figures for the branch after review rounds 1 to 3, on Kinetra `9841a5
 - Held ticks sum to 2,016 (Reciprocal) and 186 (Improved) on the harness, and to at most 79 and 7 over the 50,000-tick benchmark.
 
 The longest wait and the harness sums equal the first version's; over 50,000 ticks the held ticks fell from 143 to at most 79. Round 2's staging of a rescheduled mover at a holding place for its new producer changed no measured run, and the figures are the same on `da98dfa` and `9841a50`.
+
+Step 2, on step 1's branch with Kinetra `9841a50` (Kinetra `main`, which holds #71's ADR and #69), the same Release build: 176 of 176 i4sim cases pass, after the review cases of round 1 and the merges of step 1, the last with Lab `main`'s #142.
+
+- The golden lines, those with PASSING on included, are unchanged.
+- Six of the ten pressure lines were recorded again:
+  - Every plan count, crossing count, end reason, arrival count and contact count is the same, and five waiting counts too.
+  - The Reciprocal three-oncoming case waits 10 ticks instead of 9: its second plan forms a tick after the first completes.
+  - The trajectory fingerprints differ.
+
+The flow with PASSING on, before and after, both on Kinetra `9841a50`:
+
+| Run, PASSING on | Products | Contacts (in plans) | Waiting ticks | Stuck movers | Runs stuck at end | Plans formed |
+| --- | --- | --- | --- | --- | --- | --- |
+| Harness, Reciprocal | 114 → 114 | 0 (0) → 0 (0) | 16,234 → 16,234 | 3 → 3 | 2 → 2 | 33 → 33 |
+| Harness, Improved | 104 → 104 | 177 (0) → 177 (0) | 6,571 → 6,571 | 1 → 1 | 1 → 1 | 36 → 36 |
+| 50,000 ticks, Reciprocal | 353 → 354 | 0 (0) → 0 (0) | 112,588 → 94,404 | 24 → 14 | 3 → 3 | 474 → 455 |
+| 50,000 ticks, Improved | 351 → 353 | 1,049 (0) → 804 (0) | 37,659 → 34,875 | 7 → 10 | 0 → 0 | 426 → 446 |
+
+The harness is identical run for run. The long runs diverge the way any small change makes them diverge:
+
+- Products and plans stay level, and no contact happens in a plan.
+- Waiting falls under both profiles, and Improved's own contacts beside parked movers fall.
+
+The first measurement ran on Kinetra `482c072`. On `9841a50`, which brings in Kinetra #69's change to priority steering at rest, the Reciprocal rows are the same and the Improved rows move, with the same findings.
 
 ## Review
 
@@ -202,6 +251,22 @@ The longest wait and the harness sums equal the first version's; over 50,000 tic
 
 **Step 1, the author's review** (`/code-review` at medium). One finding in the change: the wait's start tick survived a hold or a make-way trip of the waiting mover, so the mover could leave on the plain route at once when it came back. The wait now starts again (`update_product` drops it on its early return), and a new case pins it. The review also reported issues in code this step does not change; they are listed under *Open points* for step 5 and for their owners.
 
+**Step 2, the author's review** (`/code-review` at medium). It found two issues in the change:
+
+- The coordinator's `cancel` also ends a retry wait, so a new goal for a mover outside any plan cut its 120-tick wait after a failed plan short. The adapter now cancels only a participant.
+- A mover whose plan completed could form its next plan in the same step from its old, overridden route. The adapter now gives a participant no heading, so the next plan forms a tick later from the route planned again. Two pressure lines moved by a tick of waiting for it.
+
+Two smaller fixes followed: an end reason for a participant on a make-way trip, and `details` builds the plan list only for a participant. Two findings are older than this change and are listed under *Open points*, and so is the cost of the coordinator's own spatial index.
+
+**Step 2, agent review round 1** ([#149](https://github.com/SMB-M87/Kinetra-Lab/pull/149), *Fix first*):
+
+- *Should fix:* no case pinned the goal-change retry rules. A new case keeps a failed pair's wait through a new goal outside a plan, coordinating once per tick as i4sim does, and lets a pair whose plan a goal ended form again at once. It fails without the early return in `cancel`.
+- *Should fix:* the derived end reasons and their order had no constructed case. A new case gives each reason and both orders: across participants, and within one. It fails with the order flipped.
+- Of the nits:
+  - The include, the comments on the switched-off and make-way waits, and the wording of the test-plan rows are fixed.
+  - So are the intro, the ADR link, the merge order, the pull request numbers per step and the performance row.
+  - Ending every plan with `cancel` on a switch-off instead of `clear()` is documented, not changed: the waits of a switched-off feature have no plan left to protect.
+
 ## Pull request
 
 Step 1. Title: `feat(i4sim): check the departure from the head of a producer queue`.
@@ -222,6 +287,24 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
 
 **Follow-up.** Steps 2 to 5 (this document); Demo and Dotio adoption of the remedies becomes a roadmap item.
 
+Step 2. Title: `feat(i4sim): run predictive passing on Kinetra's PassingCoordinator`.
+
+**Summary.** Step 2 of 5. i4sim's passing becomes an adapter over the engine's coordinator, as Demo's and Dotio's already are, and its own plan lifecycle is removed. Kinetra's ADR 0018 records the move and the remedies to come.
+
+**Changes.**
+- `PredictivePassing` maps movers to `PassingMoverState`, checks lanes against the floor and its zones, logs events with the factory's reasons and restores routes. It cancels only a participant, and gives a participant no heading.
+- `coordinate` no longer takes the spatial index.
+- Six pressure lines are recorded again.
+- The architecture, performance and i4sim pages are updated, the retry comment follows the engine, and the Kinetra pointer moves to the ADR branch.
+
+**Design.** [Stall remedies in the engine](2026-11-27-stall-remedies-in-the-engine.md#design), step 2; Kinetra [ADR 0018](../../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md).
+
+**Verification.** 171 of 171 i4sim cases pass, and the golden lines are unchanged. The pressure lines keep every outcome; one wait grows by a tick and the trajectories differ. With PASSING on, the harness is identical. Over 50,000 ticks products stay level while waiting falls (Reciprocal −16%) and Improved's contacts fall from 1,049 to 804, on Kinetra `9841a50`; the tables are in the design document.
+
+**Dependencies and merge order.** It sits on step 1 (#146) and merges after it. Kinetra's ADR pull request (Kinetra#71) has merged.
+
+**Follow-up.** Steps 3 to 5.
+
 ## Open points
 
 - The *refine* variant without the wait cut Improved contacts as well as the gate, but raised Reciprocal waiting with MAKE WAY on (104,020 → 111,295). The gate was chosen; the data stay here.
@@ -229,7 +312,11 @@ Step 1. Title: `feat(i4sim): check the departure from the head of a producer que
   - `checked_route` applies `traffic_clear` to the beneficiary's routes, so a stalled mover whose route crosses an enabled junction or corridor never gets help.
   - A yielding mover braking inside a zone switched on around it passes `controlled` to `integrate`, never snaps to idle and can hold the zone with no deadline.
   - A yielding mover that is held keeps its trip and goal, so its queued product freezes the producer's queue for the length of the hold.
-- Found by the same review, outside this stack:
+- Found by step 2's review in behavior the adapter kept from i4sim's coordinator:
+  - Restoring a participant's route resets its control, which on a `traffic_control` end drops the corridor recovery's control for that tick.
+  - Restoring the route of a participant that stopped (went idle) sets it moving again toward its destination.
+- With passing on, the coordinator builds its own spatial index over the movers each tick, next to the one `MotionStep` builds; the profile in [performance](../performance.md#i4sim) predates the move.
+- Found by step 1's review, outside this stack:
   - i4sim's inspector STALLED row (from `stall_details`) and the HUD's STALLED count (from `stalled()`) use different definitions and can disagree for an exit-waiting mover.
   - Demo's `passing_events()` drops the events of plans that `end_passing()` ends, and Dotio clears them before they are read.
 - In the 12,000-tick harness the gate holds one recurring mover for 672 ticks on `4320x2400` under Reciprocal. A route that opens only when a neighbor leaves its parking place cannot be found by refinement; MAKE WAY does not act on an idle mover.

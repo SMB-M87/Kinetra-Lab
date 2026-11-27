@@ -55,7 +55,7 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Fleet` | [fleet.h](../labs/i4sim/include/i4sim/simulation/detail/fleet.h) | Movers, progress counters, per-tick controls and stop lines | Shared mover data that the components pass to each other |
 | Routing | [routing.h](../labs/i4sim/include/i4sim/simulation/detail/routing.h) | Nothing | Grid routes refined around stationary movers; Navigation recovery routes |
 | `Traffic` | [traffic.h](../labs/i4sim/include/i4sim/simulation/detail/traffic.h) | Gates, exit reservations, corridor recoveries | Junction and corridor admission, exit pockets, corridor recovery |
-| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/include/i4sim/simulation/detail/predictive_passing.h) | Plans, retry ticks, plan ids | [Predictive passing](#predictive-passing) |
+| `PredictivePassing` | [predictive_passing.h](../labs/i4sim/include/i4sim/simulation/detail/predictive_passing.h) | Kinetra's `PassingCoordinator`, which holds plans, retry ticks and plan ids | [Predictive passing](#predictive-passing) |
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
@@ -263,9 +263,12 @@ The [application guide](../labs/i4sim/README.md#provenance-and-differences) is a
 
 ## Predictive passing
 
-Kinetra supplies the [conflict prediction, lane candidates and guard](../external/Kinetra/docs/engine/navigation.md#predictive-passing).
-i4sim checks candidates against its floor, movers, traffic zones and reservations. It
-owns plan state, priority, waiting, retries and route restoration.
+Kinetra supplies the [conflict prediction, lane candidates and guard](../external/Kinetra/docs/engine/navigation.md#predictive-passing)
+and the `PassingCoordinator` that owns plan state, priority, waiting and retries
+([ADR 0018](../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md)).
+i4sim tells it what each mover is (free, under another control, or standing), checks
+each lane against its floor and traffic zones, restores routes after a plan, and logs
+the plan's events with the factory's end reasons.
 
 [Lab coordination](../labs/i4sim/src/simulation/predictive_passing.cpp) is an opt-in policy
 for Improved and Reciprocal. It predicts conflicting, approximately opposite route
@@ -300,7 +303,8 @@ plans, and ignore movers behind them.
 Disabling the feature, blocking a participant or issuing a new goal releases the
 pair and rebuilds the original routes. A pair also releases after 240 ticks without
 measurable progress. After a plan that did not complete, both participants wait 120
-ticks before retrying; after a completed one they may pair again at once. Body positions
+ticks before retrying; after a completed one, or one that a new goal or switching the
+feature off ended, they may pair again from the next tick. Body positions
 are never snapped by this policy. Existing local avoidance and contact correction
 remain active. The guard predicts along current velocities; this is not a general
 collision-free or starvation-free scheduler.
