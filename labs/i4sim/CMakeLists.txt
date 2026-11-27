@@ -2,7 +2,7 @@
 add_library(kinetra_i4sim_logic src/controller.cpp
     src/blueprint/blueprint.cpp src/blueprint/scenario.cpp
     src/simulation/flow_metrics.cpp src/simulation/floor_plan.cpp src/simulation/geometry.cpp
-    src/simulation/goals.cpp src/simulation/inspector.cpp src/simulation/motion_step.cpp src/simulation/predictive_passing.cpp
+    src/simulation/goals.cpp src/simulation/inspector.cpp src/simulation/make_way.cpp src/simulation/motion_step.cpp src/simulation/predictive_passing.cpp
     src/simulation/production.cpp src/simulation/routing.cpp src/simulation/shuttle.cpp
     src/simulation/simulation.cpp src/simulation/simulation_core.cpp src/simulation/stall_detector.cpp
     src/simulation/traffic.cpp)

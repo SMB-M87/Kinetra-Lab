@@ -14,8 +14,9 @@ constexpr float opposing_cosine = -0.8f;
 
 bool eligible(const Mover &mover) {
     const auto &coord = mover.coordination;
-    return mover.moving() && !mover.held && !mover.route.empty() && !coord.junction_waiting &&
-           !coord.exit_waiting && !coord.corridor_waiting && !coord.corridor_retreating && !coord.passing;
+    return mover.goal != GoalKind::making_way && mover.moving() && !mover.held && !mover.route.empty() &&
+           !coord.junction_waiting && !coord.exit_waiting && !coord.corridor_waiting &&
+           !coord.corridor_retreating && !coord.passing;
 }
 
 Vec2 heading(const Mover &mover) {

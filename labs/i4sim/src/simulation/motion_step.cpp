@@ -1,5 +1,6 @@
 #include "i4sim/simulation/detail/motion_step.h"
 #include "i4sim/simulation/detail/geometry.h"
+#include "i4sim/simulation/detail/make_way.h"
 #include "i4sim/simulation/detail/routing.h"
 #include "i4sim/simulation/detail/simulation_constants.h"
 
@@ -54,10 +55,13 @@ void MotionStep::run(Goals &goals, Production &production) {
             continue;
         const auto around = surroundings(goals, i, snapshot, index);
         const auto &control = fleet.controls[i];
-        const auto target = control ? control->target : m.route.front();
-        const bool arrival = control ? control->arrival : m.route.size() == 1;
+        // Admission runs after route preparation and can reserve a new exit.
+        const bool make_way_stop =
+            m.goal == GoalKind::making_way && !MakeWay::traffic_clear(goals, m, m.route);
+        const auto target = make_way_stop ? m.body.position : control ? control->target : m.route.front();
+        const bool arrival = make_way_stop || (control ? control->arrival : m.route.size() == 1);
         choose_acceleration(goals, m, snapshot[i], around, target, arrival);
-        integrate(goals, production, i, around, control.has_value());
+        integrate(goals, production, i, around, make_way_stop || control.has_value());
     }
     resolve_contacts(goals);
 }
@@ -69,7 +73,9 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
         return false;
     // Congestion includes this mover's footprint; it is not evidence that
     // its route is obstructed. Replan only after sustained lack of progress.
-    if (!m.detour && ++tracking.replan >= replan_ticks && tracking.no_progress >= obstruction_ticks) {
+    const bool temporary = m.goal == GoalKind::making_way;
+    if (!temporary && !m.detour && ++tracking.replan >= replan_ticks &&
+        tracking.no_progress >= obstruction_ticks) {
         auto route = plan_route(goals.floor, goals.fleet, goals.motion, i, m.destination);
         if (!route.empty()) {
             m.route = std::move(route);
@@ -84,12 +90,13 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
     }
     if (++tracking.no_progress >= stall_ticks + std::min(recovery_backoff_limit, tracking.recovery_attempts) *
                                                     recovery_backoff_ticks &&
-        goals.motion.recovery) {
+        goals.motion.recovery && !temporary) {
         recover_route(goals.floor, goals.fleet, i);
         ++tracking.recovery_attempts;
     }
     while (m.route.size() > 1 && distance(m.body.position, m.route.front()) < waypoint_reach_mm &&
-           goals.floor.grid().clear(m.body.position, m.route[1], m.body.half_extents))
+           goals.floor.grid().clear(m.body.position, m.route[1], m.body.half_extents) &&
+           (!temporary || MakeWay::shortcut_clear(goals, m, std::span(m.route).subspan(1))))
         m.route.erase(m.route.begin());
     return true;
 }

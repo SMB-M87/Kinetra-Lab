@@ -59,7 +59,8 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
-| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact and stall events |
+| `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Active refuge and return trips | Checked parking relief after stall observation, including outward withdrawal from newly protected space |
+| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall and make-way events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
 | `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Per-mover observations and the active episode's onset diagnosis | Observe route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
 
@@ -69,8 +70,10 @@ flowchart TD
     S --> M[MotionStep]
     S --> G[Goals]
     S --> SD[StallDetector]
+    S --> MW[MakeWay]
     P --> G
     M --> G
+    M -->|Check live reservations| MW
     G --> T[Traffic]
     G --> PP[PredictivePassing]
     G --> R[Routing]
@@ -82,6 +85,10 @@ flowchart TD
     M --> E
     SD -->|Fleet only| F
     SD --> E
+    MW --> SD
+    MW --> G
+    MW --> R
+    MW --> E
 ```
 
 *Takeaway:* dependencies point down to the floor and the fleet, without a cycle. Only `Goals` gives a mover a new goal, so a new goal always ends the mover's corridor recovery and passing plans. `MotionStep` reaches traffic and passing through the same `Goals` view. Components store no references to each other: `SimulationCore` passes what each call needs, so copying a simulation cannot leave a reference into the original.
@@ -95,8 +102,9 @@ flowchart TD
 5. Move (`MotionStep::run`): prepare routes, snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
 6. Advance production and drop completed products.
 7. Turn the shuttle: once every shuttling mover has stood still for `shuttle_pause_ticks` (400), send each one to its other end through the checks of `move_to`.
-8. Observe stall episodes and update waiting counters from the completed tick.
-9. At the blueprint's tick cap, change to `RunState::finished`.
+8. Observe stall episodes, then advance MAKE WAY trips.
+9. Update waiting counters.
+10. At the blueprint's tick cap, change to `RunState::finished`.
 
 **Mover state.** Each axis of a mover's state is one value. The lifecycle:
 
@@ -111,7 +119,7 @@ stateDiagram-v2
     moving --> moving: new goal with a route
 ```
 
-The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls).
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival), `parking_staging` (waiting outside another mover's route), or `making_way` (temporarily leaving a parking place and returning on a checked route). Both temporary goal kinds survive arrival at their refuge. The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls). MAKE WAY also uses active episodes to decide when to check a route.
 
 ## Execution
 
@@ -158,7 +166,9 @@ Before a new grant, i4sim follows the route to the first fully clear exit and
 reserves its swept rectangular footprint plus a bounded braking pocket (clipped
 to the next waypoint). Static geometry, other bodies, their braking travel and
 existing exit reservations must leave this pocket clear. A goal ending inside the
-junction supplies no exit and is ineligible for a new grant. The oldest eligible
+junction supplies no exit and is ineligible for a new grant. A MAKE WAY mover contributes physical
+occupancy and may withdraw from a newly enabled zone. Its temporary trip makes no
+new admission or exit request. The oldest eligible
 request may pass a blocked request, whose FIFO ticket remains intact. An admitted
 exit stays reserved while that agent still requests or physically occupies the
 zone, including after a goal change; it is not revoked by later readiness changes.
@@ -272,7 +282,7 @@ participants must be within 0.1 mm and below 0.05 mm/tick before a stage complet
 Every formation/crossing sweep checks static grid clearance with 2 mm footprint
 inflation, all other mover footprints in the snapshot, detected traffic zones, and
 the swept envelopes of existing pairs. Detected narrow passages are excluded even
-when their optional admission policy is off. Corridor recovery has precedence.
+when their optional admission policy is off. Corridor recovery has precedence, and a mover with a checked MAKE WAY route stays out of new passing plans.
 If no candidate fits, ordinary steering keeps its existing route.
 
 Every tick a guard rechecks each participant's remaining legs against the current

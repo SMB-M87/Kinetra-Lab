@@ -64,6 +64,8 @@ struct MotionSettings {
     /// Maximum speed in millimeters per tick, maximum acceleration in millimeters per tick
     /// squared, and prediction horizon in ticks.
     float speed{2}, force{0.6f}, horizon{32};
+    /// Gives a parked blocker a temporary refuge if that opens a checked route.
+    bool make_way{};
 };
 /// Whether a simulation advances. Every simulation starts `paused`.
 enum class RunState {
@@ -113,6 +115,8 @@ enum class GoalKind {
     /// Parking traffic: the mover waits at a staging place because its own parking place
     /// lies on another mover's route. Survives arrival; any new goal replaces it.
     parking_staging,
+    /// Temporary trip to a refuge or back to reserved parking.
+    making_way,
 };
 /// What traffic coordination decided for a mover in the last tick. Several fields can be
 /// true at once; all are false again at the start of the next coordination.
@@ -314,7 +318,7 @@ class Simulation {
     void record_events(bool enabled);
     /// Whether events are being recorded.
     bool recording_events() const;
-    /// Passing, contact and stall events recorded while recording was on, oldest first. The
+    /// Passing, contact, stall and make-way events recorded while recording was on, oldest first. The
     /// log grows without bound while recording is on. The span is valid until the next
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const;

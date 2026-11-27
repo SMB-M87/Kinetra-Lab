@@ -129,8 +129,8 @@ void Traffic::start_recovery(const FloorPlan &floor, std::size_t j, const Fleet 
     auto axis = [&](Vec2 value) { return shape.vertical ? value.y : value.x; };
     const auto &a = fleet.movers[occupants[0]], &b = fleet.movers[occupants[1]];
     // Only two stalled movers that stand still and want to pass each other.
-    if (a.held || b.held || !a.moving() || !b.moving() ||
-        fleet.progress[occupants[0]].no_progress < stall_ticks ||
+    if (a.goal == GoalKind::making_way || b.goal == GoalKind::making_way || a.held || b.held || !a.moving() ||
+        !b.moving() || fleet.progress[occupants[0]].no_progress < stall_ticks ||
         fleet.progress[occupants[1]].no_progress < stall_ticks || length(a.body.velocity) > stop_speed ||
         length(b.body.velocity) > stop_speed ||
         axis(a.destination - a.body.position) * axis(b.destination - b.body.position) >= 0)
@@ -266,7 +266,9 @@ Traffic::Requests Traffic::find_requests(const FloorPlan &floor, const Fleet &fl
             const auto extent = m.body.half_extents + half;
             if (std::abs(offset.x) < extent.x && std::abs(offset.y) < extent.y)
                 result.occupants[j].push_back(i);
-            if (m.held || !m.moving() || m.route.empty())
+            // A temporary parking trip can leave a zone enabled around it, but
+            // cannot request entry or reserve the exit it is already avoiding.
+            if (m.goal == GoalKind::making_way || m.held || !m.moving() || m.route.empty())
                 continue;
             Body zone;
             zone.position = shape.center;
