@@ -215,6 +215,7 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "i4sim-showcase-corridor-recovery-clip",
                                          "i4sim-showcase-predictive-passing-clip",
                                          "i4sim-showcase-h-crossing-clip",
+                                         "i4sim-showcase-make-way-clip",
                                          "ui-launcher",
                                          "ui-settings",
                                          "ui-debug-menu",
@@ -245,11 +246,9 @@ TEST_CASE("a showcase cycle holds the scene's pauses and is the same on every ru
                                         capture::i4sim_updates_per_second / capture::Stage::step_seconds);
     // Shuttles stand twice per cycle, at the goal and back at the start; corridor recovery
     // stands once, before it restarts.
-    const std::pair<const char *, int> scenes[]{{"junction-crossing", 2},
-                                                {"corridor-passing", 2},
-                                                {"corridor-recovery", 1},
-                                                {"predictive-passing", 2},
-                                                {"h-crossing", 2}};
+    const std::pair<const char *, int> scenes[]{{"junction-crossing", 2}, {"corridor-passing", 2},
+                                                {"corridor-recovery", 1}, {"predictive-passing", 2},
+                                                {"h-crossing", 2},        {"make-way", 2}};
     for (const auto &[name, pauses] : scenes) {
         CAPTURE(name);
         const int steps = capture::showcase_cycle_steps(showcase_file(name));
