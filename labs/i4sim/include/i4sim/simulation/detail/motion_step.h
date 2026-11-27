@@ -55,9 +55,15 @@ class MotionStep {
     void update_right_of_way(Goals &goals);
 
     static bool follow_route(Goals &goals, std::size_t mover);
-    static Surroundings surroundings(const Goals &goals, std::size_t mover,
-                                     const std::vector<kinetra::Body> &snapshot,
-                                     const kinetra::SpatialGrid &index);
+    /// Fills `around` with mover `mover`'s neighbors and nearby borders, reusing its storage
+    /// and `ids`, the buffer of spatial queries: one mover's lists replace the last one's.
+    static void surroundings(const Goals &goals, std::size_t mover,
+                             const std::vector<kinetra::Body> &snapshot, const kinetra::SpatialGrid &index,
+                             Surroundings &around, std::vector<std::size_t> &ids);
+    /// Storage that surroundings() reuses from mover to mover and tick to tick, so a tick
+    /// allocates no lists per mover.
+    Surroundings around_;
+    std::vector<std::size_t> ids_;
     void choose_acceleration(const Goals &goals, Mover &mover, const kinetra::Body &start,
                              const Surroundings &around, Vec2 target, bool arrival);
     static void integrate(Goals &goals, Production &production, std::size_t mover, const Surroundings &around,

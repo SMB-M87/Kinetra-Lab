@@ -117,7 +117,8 @@ void MotionStep::run(Goals &goals, Production &production) {
             continue;
         if (!prepare_together && !follow_route(goals, i))
             continue;
-        const auto around = surroundings(goals, i, snapshot, index);
+        surroundings(goals, i, snapshot, index, around_, ids_);
+        const auto &around = around_;
         const auto &control = fleet.controls[i];
         // Admission runs after route preparation and can reserve a new exit.
         const bool make_way_stop =
@@ -165,16 +166,18 @@ bool MotionStep::follow_route(Goals &goals, std::size_t i) {
     return true;
 }
 
-MotionStep::Surroundings MotionStep::surroundings(const Goals &goals, std::size_t i,
-                                                  const std::vector<Body> &snapshot,
-                                                  const SpatialGrid &index) {
+void MotionStep::surroundings(const Goals &goals, std::size_t i, const std::vector<Body> &snapshot,
+                              const SpatialGrid &index, Surroundings &around, std::vector<std::size_t> &ids) {
     const auto &fleet = goals.fleet;
     const auto &motion = goals.motion;
     const auto &m = fleet.movers[i];
-    Surroundings around;
+    around.neighbors.clear();
+    around.agents.clear();
+    around.edges.clear();
     const float reach =
         length(m.body.half_extents) + goals.floor.mover_max_extent() * 2 + 2 * motion.speed * motion.horizon;
-    for (auto id : index.query({m.body.position - Vec2{reach, reach}, m.body.position + Vec2{reach, reach}}))
+    index.query({m.body.position - Vec2{reach, reach}, m.body.position + Vec2{reach, reach}}, ids);
+    for (auto id : ids)
         if (id != i) {
             around.neighbors.push_back(snapshot[id]);
             if (motion.profile == SteeringProfile::reciprocal) {
@@ -187,13 +190,20 @@ MotionStep::Surroundings MotionStep::surroundings(const Goals &goals, std::size_
                                          other.half_extents});
             }
         }
-    for (const auto &edge : goals.floor.borders())
-        if (distance_to_segment(m.body.position, edge.start, edge.end) <=
-            length(m.body.half_extents) + motion.speed * motion.horizon + border_search_margin_mm)
+    // A border within `limit` of the mover has its bounding box within `limit` too, so the
+    // index skips only borders the distance test would reject, and returns the others in
+    // ascending order, as the loop over every border did.
+    const float limit = length(m.body.half_extents) + motion.speed * motion.horizon + border_search_margin_mm;
+    const auto borders = goals.floor.borders();
+    goals.floor.border_index().query(
+        {m.body.position - Vec2{limit, limit}, m.body.position + Vec2{limit, limit}}, ids);
+    for (auto id : ids) {
+        const auto &edge = borders[id];
+        if (distance_to_segment(m.body.position, edge.start, edge.end) <= limit)
             around.edges.push_back(edge);
+    }
     if (i < fleet.stops.size())
         around.edges.insert(around.edges.end(), fleet.stops[i].begin(), fleet.stops[i].end());
-    return around;
 }
 
 void MotionStep::choose_acceleration(const Goals &goals, Mover &m, const Body &start,
