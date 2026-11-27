@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-27 | [i4sim surroundings](2026-11-27-i4sim-surroundings.md): hotspot 8, the neighbor and border lists of every mover without allocations or a scan of every border | implemented |
 | 2026-11-27 | [Tick rates](2026-11-27-tick-rates.md): typed UPS and FPS rows in every lab, up to a million ticks per second, a budgeted clock in Kinetra, and runs of a million ticks that report ticks per second | implemented |
 | 2026-11-27 | [RECOVERY detour past a corner](2026-11-27-i4sim-recovery-corner.md): mover 18 stuck 3 mm beside a cell; Kinetra's `constrain_borders` gives its face choice a time horizon | implemented |
 | 2026-11-27 | [Vec2 equality in place of component comparisons](2026-11-27-vec2-component-comparisons.md) | implemented |

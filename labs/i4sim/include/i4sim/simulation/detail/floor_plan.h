@@ -36,6 +36,9 @@ class FloorPlan {
     const kinetra::WeightedGrid &grid() const { return grid_; }
     /// Segments between free and blocked cells and along the outer edge.
     std::span<const kinetra::Segment> borders() const { return borders_; }
+    /// The bounding box of every border, by its index in borders(): a query returns the
+    /// borders that can lie within an area, ascending, as a loop over borders() meets them.
+    const kinetra::SpatialGrid &border_index() const { return border_index_; }
     /// All traffic zones: junctions first, then corridors.
     std::span<const ZoneGeometry> zones() const { return zones_; }
     /// Number of junctions, which are the first zones.
@@ -70,7 +73,7 @@ class FloorPlan {
 
   private:
     kinetra::WeightedGrid grid_;
-    kinetra::SpatialGrid zone_index_;
+    kinetra::SpatialGrid zone_index_, border_index_;
     std::vector<kinetra::Segment> borders_;
     std::vector<ZoneGeometry> zones_;
     std::size_t junction_count_{};

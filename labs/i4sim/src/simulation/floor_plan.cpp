@@ -8,7 +8,8 @@ using namespace kinetra;
 
 FloorPlan::FloorPlan(const Blueprint &blueprint)
     : grid_(blueprint.dimension, blueprint.cell_size),
-      zone_index_(std::max(blueprint.cell_size.x, blueprint.cell_size.y)), cell_size_(blueprint.cell_size),
+      zone_index_(std::max(blueprint.cell_size.x, blueprint.cell_size.y)),
+      border_index_(std::max(blueprint.cell_size.x, blueprint.cell_size.y)), cell_size_(blueprint.cell_size),
       dimension_(blueprint.dimension), mover_max_extent_(blueprint.mover_max_extent) {
     auto block_area = [&](Vec2 p, Vec2 size) {
         for (float y = p.y; y < p.y + size.y; y += cell_size_.y)
@@ -26,6 +27,12 @@ FloorPlan::FloorPlan(const Blueprint &blueprint)
         if (!grid_.blocked(grid_.cell(definition.position)))
             block_area(definition.position - Vec2{radius, radius}, {radius * 2, radius * 2});
     borders_ = grid_.borders();
+    std::vector<Aabb> border_boxes;
+    border_boxes.reserve(borders_.size());
+    for (const auto &edge : borders_)
+        border_boxes.push_back({{std::min(edge.start.x, edge.end.x), std::min(edge.start.y, edge.end.y)},
+                                {std::max(edge.start.x, edge.end.x), std::max(edge.start.y, edge.end.y)}});
+    border_index_.rebuild(border_boxes);
     find_junctions();
     junction_count_ = zones_.size();
     find_corridors();
