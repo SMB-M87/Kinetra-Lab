@@ -37,12 +37,11 @@ struct PanelState {
 
 /// Owns the simulation of the loaded blueprint and applies the operator's commands to it.
 ///
-/// A controller starts without a blueprint. load() gives it one; the BLUEPRINTS menu entry,
-/// or a scene that cannot be replayed, takes it away again. Every call that reads or
-/// commands the simulation requires loaded(); without a blueprint such a call is a
-/// precondition violation. One frame of a loaded blueprint is, in this order:
-/// begin_frame(), suspend(), the actions of clicked menu() entries, handle_input(), and
-/// update_camera() before drawing.
+/// A controller starts without a blueprint. load() gives it one; close_later(), which the
+/// settings panel's BLUEPRINTS calls, or a scene that cannot be replayed, takes it away again. Every call
+/// that reads or commands the simulation requires loaded(); without a blueprint such a call is a precondition
+/// violation. One frame of a loaded blueprint is, in this order: begin_frame(), suspend(), the actions of
+/// clicked menu() entries, handle_input(), and update_camera() before drawing.
 ///
 /// Positions are factory millimeters with Y down; the camera's world has Y up (flip_y).
 /// Not thread-safe. Not copyable or movable, because menu entries refer to the controller.
@@ -60,7 +59,7 @@ class FactoryController {
     /// Loads the blueprint at `path` with its scenario section, if it has one, and replaces
     /// the loaded blueprint. The new simulation is paused, or running when the controller
     /// was built so; the selection and the message are cleared, a camera fit is pending and
-    /// a close that the BLUEPRINTS entry requested for the old blueprint is dropped.
+    /// a close that close_later() requested for the old blueprint is dropped.
     /// On failure nothing changes except the message: report_error() gets the path and the
     /// cause, and the function returns false.
     bool load(const std::filesystem::path &path);
@@ -93,12 +92,16 @@ class FactoryController {
     /// Starts a frame: closes the blueprint on request and ages any transient message by
     /// `elapsed` seconds. Returns whether a blueprint remains loaded for simulation input.
     bool begin_frame(double elapsed);
+    /// Closes the blueprint at the next begin_frame(), so the frame that asked still
+    /// finishes with its simulation. The settings panel's BLUEPRINTS asks for it. Without a
+    /// blueprint, or when a load() comes first, nothing closes.
+    void close_later() { close_requested_ = true; }
     /// Pauses the simulation while a modal panel is `open` and restores the run state it
     /// had when the panel closes (kinetra_lab::ModalPause). Call once per frame.
     void suspend(bool open);
     /// The rows of the debug menu, in display order: the headings SIMULATION, LAYERS, MOTION
-    /// and TRAFFIC, each followed by its rows while it is open, then, below a rule, ZOOM,
-    /// FRAME SCENE and BLUEPRINTS. At most one section is open; SIMULATION is open at the
+    /// and TRAFFIC, each followed by its rows while it is open, then, below a rule, ZOOM
+    /// and FRAME SCENE. At most one section is open; SIMULATION is open at the
     /// start. A click on a heading opens that section and closes the other, or closes it
     /// when it was open (kinetra::DebugFolds). PROFILE and PLANNER open a list of their
     /// values below them; choosing a value closes the list. A layer row gets the swatch
@@ -168,8 +171,7 @@ class FactoryController {
     /// The menu's ZOOM row and the steps its buttons asked for.
     kinetra_lab::ZoomControl zoom_;
     bool fit_pending_{};
-    /// Set by the BLUEPRINTS entry; the next begin_frame() closes the blueprint, so the
-    /// frame that clicked the entry still finishes with its simulation.
+    /// Set by close_later(); the next begin_frame() closes the blueprint.
     bool close_requested_{};
     kinetra_lab::ModalPause modal_pause_;
 };
