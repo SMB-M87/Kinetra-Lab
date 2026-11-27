@@ -165,11 +165,11 @@ Step 3, Full level (a new public engine header):
 
 | Behavior | Test |
 | --- | --- |
-| The detector's contract at two world scales: threshold and end, each reason and its order, what is no blocker and no push, oscillation, restarts, absent movers, a shorter span, a goal at the origin, invalid input that changes nothing | Kinetra `kinetra_stall_detector_tests` (15 cases; the push case fails without the push branch, the last two without their fixes) |
+| The detector's contract at two world scales: threshold and end, each reason and its order, what is no blocker and no push, oscillation, restarts, absent movers, a shorter span, a goal at the origin, invalid input that changes nothing | Kinetra `kinetra_stall_detector_tests` (15 cases; the push case fails without the push branch, the span and origin cases without their fixes, and the restart case without its goal rule) |
 | An external consumer can use it | Kinetra's consumer check |
 | i4sim's diagnoses stay, and motion does not change | the existing stall cases of `kinetra_i4sim`, the golden and pressure suites, and the long benchmark with MAKE WAY |
 | The recorded `4320x2400` stall of mover 7 (seed 7, Reciprocal, MAKE WAY) is `pushed_back` by mover 8 | `kinetra_i4sim:the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back` |
-| A force so small that the braking distance is infinite still lets a tick observe stalls | `kinetra_i4sim:a force so small that braking never ends still lets stalls be observed` (fails without the clamp) |
+| A force so small that the braking distance is infinite still lets a tick observe stalls, and an episode starts | `kinetra_i4sim:a force so small that braking never ends still lets stalls be observed` (fails without the clamp) |
 
 ## Verification
 
@@ -230,14 +230,16 @@ The harness is identical run for run. The long runs diverge the way any small ch
 
 The first measurement ran on Kinetra `482c072`. On `9841a50`, which brings in Kinetra #69's change to priority steering at rest, the Reciprocal rows are the same and the Improved rows move, with the same findings.
 
-Step 3, with Kinetra `24fb31d` (`feat/stall-detector`):
+Step 3, with Kinetra `b6a8e34` (`feat/stall-detector` after review round 1 of Kinetra#72). Its range from step 2's `9841a50` holds only the detector, its review fixes and documentation:
 
-- Kinetra's release preset with warnings as errors: 327 of 327 tests pass, and the external consumer builds and runs headless.
-- Lab: 173 of 173 i4sim cases pass.
-- The 50,000-tick benchmark with MAKE WAY gives the base's numbers exactly (Reciprocal 344 products, 104,020 waiting ticks, no contact; Improved 348, 7,638, 836), so detection changes no motion.
+- Kinetra's release preset with warnings as errors: 331 of 331 tests pass, and the external consumer builds and runs headless.
+- Lab: 178 of 178 i4sim cases pass.
+- The 50,000-tick benchmark with MAKE WAY gives the base's numbers exactly (Reciprocal 344 products, 104,020 waiting ticks, no contact; Improved 352, 7,323, 835), so detection changes no motion.
 - Its episodes, by reason:
   - Reciprocal: 412 `pushed_back` of 631, the count the classifying replay found, with 166 `unknown`, 42 `opposing_mover`, 6 `stationary_blocker` and 5 `oscillating`.
-  - Improved: 322 `pushed_back` of 763.
+  - Improved: 329 `pushed_back` of 768.
+
+The first measurement ran on Kinetra `24fb31d`, before Kinetra #69 came in through the merge of Kinetra `main`. Reciprocal's figures are the same on `b6a8e34`. Improved's move with #69: before it, the base had 348 products, 7,638 waiting ticks and 836 contacts, and 322 of 763 episodes were `pushed_back`.
 
 ## Review
 
@@ -299,6 +301,15 @@ Each now has a case that fails without its fix. Three documentation gaps were cl
   - The invalid-input case covers every validated branch.
   - The description no longer waits for #71.
 
+**Step 3, agent review round 1** ([#150](https://github.com/SMB-M87/Kinetra-Lab/pull/150), *Fix first*):
+
+- *Should fix:* *Verification* recorded Kinetra `24fb31d`, but the head records a pointer whose range also brought in Kinetra #69, a change to priority steering at rest. Measured again on the recorded pointer, now `b6a8e34`: detection still changes no motion, Reciprocal's figures are the same, and Improved's move with #69. *Verification*, *Test plan*, *Pull request* and both descriptions are updated, and so are steps 1, 2 and 4, whose pointers moved across #69 too.
+- Nits taken:
+  - the small-force case checks that an episode starts;
+  - the lesson on measuring again after a pointer move.
+- Not changed: commit `d6628fe` names a header its pointer does not have yet; history stays, and in steps 4 and 5 the pointer comes with or before the code that needs it.
+- Kinetra#72's nits: the footprint's rounding is listed under the module's *Open points* (`b6a8e34`). The `///` of `detail/footprint.h` names the right of way, which Kinetra#74 adds; it stays, because changing a header would need another review round for a word that becomes true when #74 merges.
+
 **Step 2, agent review round 1** ([#149](https://github.com/SMB-M87/Kinetra-Lab/pull/149), *Fix first*):
 
 - *Should fix:* no case pinned the goal-change retry rules. A new case keeps a failed pair's wait through a new goal outside a plan, coordinating once per tick as i4sim does, and lets a pair whose plan a goal ended form again at once. It fails without the early return in `cancel`.
@@ -340,9 +351,9 @@ Step 3. Title: `feat(i4sim): observe stalls with Kinetra's StallDetector`. Kinet
   - A recorded case pins `pushed_back`.
   - The architecture, i4sim and tests pages are updated.
 
-**Verification.** Kinetra 327 of 327, the consumer, Lab i4sim 173 of 173. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
+**Verification.** Kinetra 331 of 331, the consumer, Lab i4sim 178 of 178, on Kinetra `b6a8e34`. The long benchmark gives the base's numbers exactly, and 412 of Reciprocal's 631 episodes are `pushed_back`.
 
-**Dependencies and merge order.** Kinetra's step 3 sits on Kinetra's step 2 (ADR) and merges after it; Lab's step 3 sits on Lab's step 2 and merges after it and after Kinetra's step 3.
+**Dependencies and merge order.** Kinetra's step 3 (Kinetra#72) is based on Kinetra `main`, where the ADR (#71) has merged. Lab's step 3 sits on Lab's step 2 and merges after it and after Kinetra#72.
 
 **Follow-up.** Steps 4 and 5.
 
