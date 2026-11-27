@@ -2,128 +2,75 @@
 #include "i4sim/simulation/detail/simulation_constants.h"
 
 #include <algorithm>
-#include <cmath>
+#include <limits>
+#include <stdexcept>
+#include <vector>
 
 namespace i4sim::detail {
 using namespace kinetra;
 namespace {
-/// A larger excursion than the small adjustments of stationary steering.
+/// A larger excursion than the small adjustments of stationary steering, in millimeters.
 constexpr float excursion_distance_mm = 2;
 constexpr unsigned oscillation_reversals = 2;
+/// Legs at more than about 143 degrees oppose each other.
 constexpr float opposing_cosine = -0.8f;
+/// A pushing neighbor is within 1.6 times the combined half diagonals: in contact or about
+/// to be, at the factory's clearances.
+constexpr float pushing_reach = 1.6f;
+/// A pushing neighbor lies within about 78 degrees of the mover's leg.
+constexpr float ahead_cosine = 0.2f;
 
-bool eligible(const Mover &mover) {
+/// A mover on its own route, outside any coordination, is observed; one that stands still
+/// is a stationary blocker to others; one under any other control moves without being
+/// observed.
+StallMoverState state(const Mover &mover) {
+    if (!mover.moving() || mover.held)
+        return StallMoverState::standing;
     const auto &coord = mover.coordination;
-    return mover.goal != GoalKind::making_way && mover.moving() && !mover.held && !mover.route.empty() &&
-           !coord.junction_waiting && !coord.exit_waiting && !coord.corridor_waiting &&
-           !coord.corridor_retreating && !coord.passing;
+    if (mover.goal == GoalKind::making_way || mover.route.empty() || coord.junction_waiting ||
+        coord.exit_waiting || coord.corridor_waiting || coord.corridor_retreating || coord.passing)
+        return StallMoverState::busy;
+    return StallMoverState::observed;
 }
 
-Vec2 heading(const Mover &mover) {
-    return normalized(mover.route.front() - mover.body.position);
-}
-
-bool blocks_leg(const Mover &mover, const Mover &other, const MotionSettings &motion) {
-    const auto start = mover.body.position;
-    const auto delta = mover.route.front() - start;
-    if (dot(other.body.position - start, delta) <= 0)
-        return false;
-    // Diagnose the next leg within steering reach. A distant mover on a later
-    // leg may have left by the time the participant reaches it.
-    const float reach = length(mover.body.half_extents) * 2 + motion.speed * motion.horizon +
-                        braking_distance(motion.speed, motion.force);
-    const auto end = start + limited(delta, reach);
-    return swept_box_overlaps(start, end, mover.body.half_extents + clearance, other.body);
-}
-
-StallDetails diagnose(const Fleet &fleet, const MotionSettings &motion, std::size_t index, std::uint64_t tick,
-                      unsigned reversals) {
-    const auto &mover = fleet.movers[index];
-    const auto forward = heading(mover);
-    std::optional<std::size_t> opposing;
-    for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
-        if (i == index)
-            continue;
-        const auto &neighbor = fleet.movers[i];
-        if (!blocks_leg(mover, neighbor, motion))
-            continue;
-        if (!neighbor.moving() || neighbor.held)
-            return {tick, StallReason::stationary_blocker, i};
-        if (opposing || !eligible(neighbor))
-            continue;
-        const auto opposing_heading = heading(neighbor);
-        // Reciprocal avoidance can keep a pair moving sideways in place. Judge
-        // speed along each route leg to distinguish that from making headway.
-        if (std::abs(dot(mover.body.velocity, forward)) <= stop_speed &&
-            std::abs(dot(neighbor.body.velocity, opposing_heading)) <= stop_speed &&
-            dot(forward, opposing_heading) < opposing_cosine && blocks_leg(neighbor, mover, motion))
-            opposing = i;
-    }
-    if (opposing)
-        return {tick, StallReason::opposing_mover, opposing};
-    return {tick, reversals >= oscillation_reversals ? StallReason::oscillating : StallReason::unknown};
-}
-
-void record(EventLog &log, EventKind kind, std::size_t mover, std::uint64_t tick, const StallDetails &stall) {
-    if (log.recording())
-        log.add({.tick = tick, .kind = kind, .movers = {mover, 0}, .stall = stall});
+StallObservation observation(const MotionSettings &motion) {
+    return {.threshold_steps = stall_ticks,
+            .excursion = excursion_distance_mm,
+            .oscillation_reversals = oscillation_reversals,
+            // A tiny force accepted by configure_motion can make the braking distance
+            // infinite; the whole leg is then within reach, as it was before the engine.
+            .lookahead =
+                std::min(motion.speed * motion.horizon + braking_distance(motion.speed, motion.force),
+                         std::numeric_limits<float>::max()),
+            .clearance = clearance,
+            .stop_speed = stop_speed,
+            .opposing_cosine = opposing_cosine,
+            .pushing_reach = pushing_reach,
+            .ahead_cosine = ahead_cosine};
 }
 } // namespace
 
-void StallDetector::Track::observe_position(Vec2 position) {
-    const auto delta = position - anchor;
-    constexpr float excursion_squared = excursion_distance_mm * excursion_distance_mm;
-    if (direction == Vec2{}) {
-        const float squared = dot(delta, delta);
-        if (squared >= excursion_squared) {
-            forward_peak = std::sqrt(squared);
-            direction = delta / forward_peak;
-        }
-        return;
-    }
-    const float forward = dot(delta, direction);
-    forward_peak = std::max(forward_peak, forward);
-    // Measure backtracking from the turning point, including motion that
-    // straddles the anchor without getting far from it on either side.
-    if (forward_peak - forward >= excursion_distance_mm) {
-        ++reversals;
-        anchor = position;
-        direction = -direction;
-        forward_peak = 0;
-        return;
-    }
-    // Keep the lateral reference independent of small advances along the
-    // current axis, so a sustained sideways excursion can establish a new axis.
-    const auto sideways = delta - direction * forward;
-    if (dot(sideways, sideways) >= excursion_squared) {
-        anchor = position;
-        direction = normalized(sideways);
-        forward_peak = 0;
-    }
-}
-
 void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
                             EventLog &log) {
+    std::vector<StallMover> movers;
+    movers.reserve(fleet.movers.size());
     for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
-        const auto &mover = fleet.movers[i];
-        auto &track = tracks_[i];
-        const auto no_progress = fleet.progress[i].no_progress;
-        const bool watching = eligible(mover) && no_progress > 0;
-        // Route preparation can reset the counter and then immediately count
-        // the next tick, even when the destination is unchanged.
-        if (!watching || track.goal != mover.destination || no_progress <= track.last_no_progress) {
-            if (track.stall)
-                record(log, EventKind::stall_ended, i, tick, *track.stall);
-            track = {.goal = mover.destination, .anchor = mover.body.position};
-        }
-        track.last_no_progress = no_progress;
-        if (!watching || track.stall)
-            continue;
-        track.observe_position(mover.body.position);
-        if (++track.observations >= stall_ticks) {
-            track.stall = diagnose(fleet, motion, i, tick, track.reversals);
-            record(log, EventKind::stall_started, i, tick, *track.stall);
-        }
+        const auto &m = fleet.movers[i];
+        movers.push_back({m.body, m.route.empty() ? m.body.position : m.route.front(), m.destination,
+                          fleet.progress[i].no_progress, state(m)});
     }
+    for (const auto &event : detector_.observe(movers, observation(motion), tick))
+        if (log.recording())
+            log.add({.tick = tick,
+                     .kind = event.kind == StallEvent::Kind::started ? EventKind::stall_started
+                                                                     : EventKind::stall_ended,
+                     .movers = {event.mover, 0},
+                     .stall = event.diagnosis});
+}
+
+std::optional<StallDetails> StallDetector::details(std::size_t mover) const {
+    if (mover >= movers_)
+        throw std::out_of_range("Unknown mover");
+    return detector_.episode(mover);
 }
 } // namespace i4sim::detail

@@ -97,6 +97,25 @@ void Production::schedule(Product &product, Goals &goals) {
     auto &m = fleet.movers[*product.mover];
     if (m.held)
         return;
+    // A rescheduled product whose mover waits away from a processing place, at its parking
+    // place after a blocked producer for example, leaves the way a queued one does: approach()
+    // sends it once the product heads the queue, through DEPARTURE CHECK. A mover that just
+    // finished at a processing place leaves at once, or it would block that producer.
+    // A position off the grid (the strip a blueprint whose dimension is no multiple of its
+    // cells leaves) is no processing place.
+    const int cell = floor.grid().cell(m.body.position);
+    if (departure.empty() && goals.motion.departure_check && (cell < 0 || !floor.processing_cell(cell))) {
+        product.state = ProductState::transporting;
+        // Not yet at the head, it waits at a holding place for its new producer, as a queued
+        // product does.
+        const auto &queue = producers_[*product.producer].queue;
+        if (!queue.empty() && queue.front() != product.id) {
+            const auto hold = goals.holding_position(m, goal);
+            if (distance(hold, m.destination) > same_point_mm)
+                goals.set(m, hold);
+        }
+        return;
+    }
     goals.set(m, goal);
     if (!departure.empty()) {
         m.route = std::move(departure);
@@ -134,9 +153,14 @@ void Production::update_product(Product &p, Goals &goals) {
     }
     auto &m = goals.fleet.movers.at(*p.mover);
     auto &producer = producers_.at(*p.producer);
-    if (m.held || m.goal == GoalKind::making_way)
+    if (m.held || m.goal == GoalKind::making_way) {
+        // A held or yielding mover does not wait for its departure; its wait starts again
+        // when it is back, so the limit never lets it leave unchecked at once.
+        departure_waits_.erase(p.id);
         return;
+    }
     if (producer.blocked && p.state != ProductState::processing) {
+        departure_waits_.erase(p.id);
         std::erase(producer.queue, p.id);
         p.producer.reset();
         p.state = ProductState::waiting;
@@ -172,10 +196,38 @@ bool Production::approach(Product &p, Mover &m, Producer &producer, Goals &goals
         return false;
     }
     if (distance(m.destination, goal) > same_point_mm) {
+        auto route = departure_route(p, m, goal, goals);
+        if (!route)
+            return false;
         goals.set(m, goal);
+        if (!route->empty()) {
+            m.route = std::move(*route);
+            goals.fleet.progress[goals.fleet.index(m)].best_remaining =
+                route_remaining(m.body.position, m.route);
+        }
         p.state = ProductState::transporting;
     }
     return true;
+}
+
+std::optional<std::vector<Vec2>> Production::departure_route(const Product &p, const Mover &m, Vec2 goal,
+                                                             const Goals &goals) {
+    if (!goals.motion.departure_check || m.lifecycle != MoverLifecycle::idle) {
+        // A wait that the operator ended by turning the check off does not count later. A mover
+        // still on its way to its holding place turns toward the producer as before: held back
+        // in the aisle it would drive on into its parking row and could seal itself in.
+        departure_waits_.erase(p.id);
+        return std::vector<Vec2>{};
+    }
+    // A queued mover waits at its holding place, often a parking row, where parked
+    // neighbors can stand on the plain grid route. Like a newly allocated mover it leaves
+    // only along a route refined around stationary footprints.
+    auto route = plan_route(goals.floor, goals.fleet, goals.motion, goals.fleet.index(m), goal, true);
+    const auto since = departure_waits_.try_emplace(p.id, goals.tick).first->second;
+    if (route.empty() && goals.tick - since < departure_wait_ticks)
+        return std::nullopt;
+    departure_waits_.erase(p.id);
+    return route;
 }
 
 void Production::process(Product &p, Mover &m, Producer &producer, Goals &goals) {
