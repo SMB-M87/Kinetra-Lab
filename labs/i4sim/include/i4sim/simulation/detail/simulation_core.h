@@ -8,6 +8,7 @@
 #include "i4sim/simulation/detail/predictive_passing.h"
 #include "i4sim/simulation/detail/production.h"
 #include "i4sim/simulation/detail/shuttle.h"
+#include "i4sim/simulation/detail/stall_detector.h"
 #include "i4sim/simulation/detail/traffic.h"
 #include "i4sim/simulation/simulation.h"
 
@@ -53,10 +54,8 @@ class SimulationCore {
     std::size_t predictive_pairs() const { return passing_.pairs(); }
     std::optional<Vec2> passing_target(std::size_t mover) const;
     std::optional<Simulation::PassingDetails> passing_details(std::size_t mover) const;
-    /// True when `mover` has made no route progress for 120 ticks while no
-    /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
-    /// std::out_of_range for an unknown mover.
     bool stalled(std::size_t mover) const;
+    std::optional<StallDetails> stall_details(std::size_t mover) const { return stalls_.details(mover); }
     const MotionSettings &motion_settings() const { return motion_; }
     /// Replaces the motion settings, in any run state. Clears the coordination state of the
     /// features it turns off and sets every moving mover's goal again, which ends passing
@@ -73,7 +72,7 @@ class SimulationCore {
     /// and copying the simulation copies its log.
     void record_events(bool enabled) { log_.record(enabled); }
     bool recording_events() const { return log_.recording(); }
-    /// Passing and contact events recorded while recording was on, oldest first. The
+    /// Passing, contact and stall events recorded while recording was on, oldest first. The
     /// log grows without bound while recording is on. The span is valid until the next
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const { return log_.events(); }
@@ -136,6 +135,7 @@ class SimulationCore {
     Production production_;
     MotionStep motion_step_;
     Shuttle shuttle_;
+    StallDetector stalls_;
     std::uint32_t seed_;
     /// Set while not running; the first running advance() then aligns previous positions
     /// with the current ones, so drawing does not step back behind the state shown.

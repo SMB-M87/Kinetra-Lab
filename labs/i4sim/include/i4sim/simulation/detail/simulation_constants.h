@@ -30,8 +30,8 @@ inline constexpr float waypoint_reach_mm = 3;
 inline constexpr unsigned obstruction_ticks = 100;
 /// Ticks between two replanning attempts of a mover that makes no progress.
 inline constexpr unsigned replan_ticks = 100;
-/// Ticks without route progress after which a mover counts as stalled: corridor recovery
-/// may start, the HUD shows STALLED, and route recovery makes its first attempt.
+/// Ticks without route progress used by corridor recovery, route recovery and the
+/// stall detector.
 inline constexpr unsigned stall_ticks = 120;
 /// Extra ticks route recovery waits per earlier attempt, so a mover that keeps failing
 /// does not plan a Navigation route every tick.

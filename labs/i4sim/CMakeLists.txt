@@ -4,7 +4,8 @@ add_library(kinetra_i4sim_logic src/controller.cpp
     src/simulation/flow_metrics.cpp src/simulation/floor_plan.cpp src/simulation/geometry.cpp
     src/simulation/goals.cpp src/simulation/inspector.cpp src/simulation/motion_step.cpp src/simulation/predictive_passing.cpp
     src/simulation/production.cpp src/simulation/routing.cpp src/simulation/shuttle.cpp
-    src/simulation/simulation.cpp src/simulation/simulation_core.cpp src/simulation/traffic.cpp)
+    src/simulation/simulation.cpp src/simulation/simulation_core.cpp src/simulation/stall_detector.cpp
+    src/simulation/traffic.cpp)
 target_include_directories(kinetra_i4sim_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab: the controller uses the headless input policy in kinetra_lab/input.h.
 target_link_libraries(kinetra_i4sim_logic PUBLIC Kinetra::Simulation kinetra_lab
@@ -89,6 +90,25 @@ if(BUILD_TESTING)
     add_executable(kinetra_i4sim_motion_benchmark tests/motion_benchmark.cpp)
     target_link_libraries(kinetra_i4sim_motion_benchmark PRIVATE kinetra_i4sim_testing)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_motion_benchmark)
+    add_test(NAME kinetra_i4sim_benchmark_duplicate_blueprint_stems COMMAND ${CMAKE_COMMAND}
+        "-DBENCHMARK=$<TARGET_FILE:kinetra_i4sim_motion_benchmark>"
+        "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/MAS-demonstrator.json"
+        "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/benchmark-same-stem"
+        -DFIRST_STEM=floor -DSECOND_STEM=floor
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_log_names.cmake")
+    add_test(NAME kinetra_i4sim_benchmark_duplicate_seeds COMMAND kinetra_i4sim_motion_benchmark
+        --seed 42 --seed 42 --ticks 1 --events "${CMAKE_CURRENT_BINARY_DIR}/benchmark-events")
+    set_tests_properties(kinetra_i4sim_benchmark_duplicate_seeds PROPERTIES
+        PASS_REGULAR_EXPRESSION "Duplicate seed for event logs")
+    if(UNIX)
+        # Exercise UTF-8 arguments on hosts where the CLI accepts them directly.
+        add_test(NAME kinetra_i4sim_benchmark_unicode_log_names COMMAND ${CMAKE_COMMAND}
+            "-DBENCHMARK=$<TARGET_FILE:kinetra_i4sim_motion_benchmark>"
+            "-DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/MAS-demonstrator.json"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/benchmark-unicode"
+            -DFIRST_STEM=Étage -DSECOND_STEM=étage
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_log_names.cmake")
+    endif()
     kinetra_add_doctest(kinetra_i4sim_tests PREFIX kinetra_i4sim
         SOURCES tests/simulation_tests.cpp LIBRARIES kinetra_i4sim_testing nlohmann_json::nlohmann_json)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_tests)

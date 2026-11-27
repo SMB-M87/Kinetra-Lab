@@ -59,14 +59,16 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
 | `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
-| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing and contact events |
+| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact and stall events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
+| `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Per-mover observations and the active episode's onset diagnosis | Observe route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
 
 ```mermaid
 flowchart TD
     S[SimulationCore: tick order] --> P[Production]
     S --> M[MotionStep]
     S --> G[Goals]
+    S --> SD[StallDetector]
     P --> G
     M --> G
     G --> T[Traffic]
@@ -78,6 +80,8 @@ flowchart TD
     R --> F
     PP --> E[EventLog]
     M --> E
+    SD -->|Fleet only| F
+    SD --> E
 ```
 
 *Takeaway:* dependencies point down to the floor and the fleet, without a cycle. Only `Goals` gives a mover a new goal, so a new goal always ends the mover's corridor recovery and passing plans. `MotionStep` reaches traffic and passing through the same `Goals` view. Components store no references to each other: `SimulationCore` passes what each call needs, so copying a simulation cannot leave a reference into the original.
@@ -91,7 +95,8 @@ flowchart TD
 5. Move (`MotionStep::run`): prepare routes, snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
 6. Advance production and drop completed products.
 7. Turn the shuttle: once every shuttling mover has stood still for `shuttle_pause_ticks` (400), send each one to its other end through the checks of `move_to`.
-8. At the blueprint's tick cap, change to `RunState::finished`.
+8. Observe stall episodes and update waiting counters from the completed tick.
+9. At the blueprint's tick cap, change to `RunState::finished`.
 
 **Mover state.** Each axis of a mover's state is one value. The lifecycle:
 
@@ -106,7 +111,7 @@ stateDiagram-v2
     moving --> moving: new goal with a route
 ```
 
-The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces all of this to the HUD's status, and `Simulation::stalled` reports a mover that made no progress for 120 ticks while no coordination held it back.
+The goal kind says who chose the goal: `automatic` (production, parking), `manual` (an operator command or a shuttle leg, kept until arrival) or `parking_staging` (waiting outside another mover's route, kept after arrival and replaced by any new goal). The operator hold (`held`) is independent of both. `Coordination` holds what traffic and passing decided in the last tick; several of its flags can be true at once. `mover_status` reduces this to the HUD's status. The stall detector observes completed ticks and exposes episodes through `Simulation::stall_details` for the [inspector](../labs/i4sim/README.md#controls).
 
 ## Execution
 
@@ -227,13 +232,13 @@ with a bounded visibility graph using the original grid waypoints and expanded
 rectangular mover corners. The same refinement runs after sustained lack of
 progress, including movers that have stalled for at least 100 ticks. This supplies
 safe aisle approaches without a circular envelope excluding a tight parking slot.
-Transport allocation also requires a clear departure route around stationary/stalled
-bodies, so a reserved mover trapped behind parked neighbors is skipped in favor
-of an available mover. Refinement considers current stationary/stalled bodies, preserves grid clearance
-and falls back to the weighted route if no connection exists or the 256-node
-budget is exceeded. Other moving traffic still uses local avoidance. This is
-separate from optional geometric recovery and does not guarantee progress in
-arbitrary crowds.
+Initial transport allocation requires a clear departure route around stationary or
+stalled bodies. If refinement finds no connection or exceeds its 256-node budget,
+allocation skips that mover. Ordinary routing can use the weighted route in those
+cases. When a product already has a mover and reaches the front of the producer's
+queue, dispatch uses ordinary routing. The [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem)
+shows how that can leave a mover with an obstructed first leg. Other moving
+traffic still uses local avoidance. Optional geometric recovery is a separate policy.
 
 Route recovery converts millimeter geometry into units of one planner resolution (a quarter of the smaller factory cell dimension), then converts the route back to millimeters. This keeps long factory routes within the planner's spatial query budget while retaining the configured resolution and mover clearance.
 

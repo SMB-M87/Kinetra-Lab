@@ -70,6 +70,7 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 | Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
 | Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
 | Steering | Every profile runs; invalid horizons are rejected; head-on and crossing encounters end without contact under Improved and Reciprocal; a mover does not stall on its own heatmap footprint; a valid detour never reports a stall; a contact cannot displace a parked mover |
+| Stall diagnostics | Head-on stalls report both participants. The detector identifies a stationary blocker, reversals after a change of axis and oscillation across an anchor. Minor jitter does not supply evidence of oscillation. Goal changes, renewed progress and controlled waits reset observation. |
 | Reciprocal | Results do not depend on the ticks per second; acceleration stays bounded; a mover leaves through a rectangular gap whose enclosing circles overlap; parked neighbors do not move |
 | Parking | Leaving and returning beside a wall, in a corner and between parked neighbors, under Improved, Original and Reciprocal: no contact, bounded acceleration, the exact parking place and no drift afterwards. Allocation skips a mover trapped behind held neighbors |
 | Parking traffic | MAS with seed 42 completes at least 15 products in 50000 ticks without contact; waiting and release, blocked departures, a manual goal replacing a deferral, and switching the policy off without moving a body |
@@ -209,7 +210,9 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 
 The `MAS-demonstrator` fixture and the catalog's `3840x2400` and `8640x4800` run for 50000 ticks each with seeds 42 and 915839214.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
-`--ticks` accepts 1 through 1000000; `--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv` (tick, kind, plan, both movers, end reason, border and passing flags), so a contact or plan can be replayed from its seed and tick. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
+`--ticks` accepts 1 through 1000000. Repeat `--blueprint <file>` or `--seed <unsigned 32-bit integer>` to select floors and seeds. Each selected floor runs with every selected seed. Omit either option to keep its default set. Recovery, parking traffic, junction traffic and corridor traffic remain disabled unless explicitly requested.
+
+`--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv` for the default selection or a single explicit blueprint. With multiple `--blueprint` arguments, the logs use `<number>-<blueprint>-<seed>.csv`, where the number is the one-based order of the input file. This keeps equal stems and Unicode filename aliases distinct on case-insensitive volumes. An invocation with event logging requires distinct seeds. For a stall event, `first` is the affected mover's index and `stall_reason`, `stall_blocker` and `stall_detected_at` carry the onset diagnosis. Use separate output directories for passing on and off to keep both logs. The benchmark's `stuck_movers` and `stuck_at_end` count sustained lack of progress toward the goal by straight-line distance. The shorter route-progress stall episodes support inspection and replay.
 The CSV has one line per blueprint and seed:
 
 | Column | Meaning |

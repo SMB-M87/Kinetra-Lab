@@ -284,10 +284,13 @@ class Simulation {
         Vec2 target;
     };
     std::optional<PassingDetails> passing_details(std::size_t mover) const;
-    /// True when `mover` has made no route progress for 120 ticks while no
-    /// corridor or passing coordination holds it back: the HUD's STALLED. Throws
-    /// std::out_of_range for an unknown mover.
+    /// True when the route progress counter has reached 120 ticks without corridor
+    /// waiting, corridor retreat or predictive passing. Throws std::out_of_range for
+    /// an unknown mover. The inspector uses stall_details() for diagnosed episodes.
     bool stalled(std::size_t mover) const;
+    /// Diagnosis of the active stall episode at the last completed tick, if any.
+    /// Throws std::out_of_range for an unknown mover.
+    std::optional<StallDetails> stall_details(std::size_t mover) const;
     /// The motion settings in use.
     const MotionSettings &motion_settings() const;
     /// Replaces the motion settings, in any run state; bodies do not move. Clears the
@@ -311,7 +314,7 @@ class Simulation {
     void record_events(bool enabled);
     /// Whether events are being recorded.
     bool recording_events() const;
-    /// Passing and contact events recorded while recording was on, oldest first. The
+    /// Passing, contact and stall events recorded while recording was on, oldest first. The
     /// log grows without bound while recording is on. The span is valid until the next
     /// call that can record (a tick, a goal, a motion change); copy what must outlive it.
     std::span<const SimulationEvent> events() const;

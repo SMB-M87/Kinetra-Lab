@@ -38,6 +38,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **Change the direction of a repeated-motion fixture before it settles into its pattern** · added 2026-11-27 · source: [#135](https://github.com/SMB-M87/Kinetra-Lab/pull/135)
+  The stall detector held on to its first axis. A fixture that moved only along that axis passed while a mover that first drifted sideways could oscillate without a diagnosis.
+
 - **When a measurement changes, search for its old figures as terms (`0.64 s`, `64%`), not only for the words that describe it** · added 2026-11-24 · source: #111
   Demo's README quoted the performance page's 0.64 s per second and blamed the grid rebuilds in its open points, which a search for the hotspot's wording did not find.
 

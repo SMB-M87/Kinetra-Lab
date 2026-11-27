@@ -126,6 +126,9 @@ std::optional<Simulation::PassingDetails> Simulation::passing_details(std::size_
 bool Simulation::stalled(std::size_t mover) const {
     return core_->stalled(mover);
 }
+std::optional<StallDetails> Simulation::stall_details(std::size_t mover) const {
+    return core_->stall_details(mover);
+}
 const MotionSettings &Simulation::motion_settings() const {
     return core_->motion_settings();
 }
