@@ -2,6 +2,7 @@
 // controls and traffic overlays. CTest labels the suite `graphics`.
 //
 // Set I4SIM_CAPTURE=<file.ppm> to save the frame after the Motion checks.
+#include "i4sim/controller.h"
 #include "i4sim/presentation/session.h"
 #include "i4sim/testing/showcase.h"
 #include "kinetra_lab/inspector.h"
@@ -150,10 +151,11 @@ TEST_CASE("the mover inspector and debug pause work together") {
     CHECK(title_visible());
     const auto running =
         Vec2{8, 32} + Vec2{12, DebugMenu::row_top(1) + 8} * DebugMenu::scale(runtime.camera.viewport);
-    click(running);
-    CHECK(session->status().ends_with("RUNNING"));
+    // A showcase scene loads running.
     click(running);
     CHECK(session->status().ends_with("PAUSED"));
+    click(running);
+    CHECK(session->status().ends_with("RUNNING"));
     CHECK(title_visible());
     click({1260, 20});
     session->render(runtime);
@@ -213,9 +215,25 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->render(runtime);
     CHECK_MESSAGE(session->status().find("PAUSED") != std::string::npos,
                   "Loadscreen did not load paused blueprint");
+    // The RUN button: its outline in the accent color on the left edge of its box, until a
+    // click on it starts the blueprint.
+    const auto button = i4sim::start_button(runtime.camera.viewport);
+    const auto button_outline = [&] {
+        session->render(runtime);
+        const auto pixel = runtime.frame().pixel(int(button.min.x), int((button.min.y + button.max.y) / 2));
+        const auto accent = overlay::accent_color;
+        return std::abs(pixel[0] - accent.r * 255) < 2 && std::abs(pixel[1] - accent.g * 255) < 2 &&
+               std::abs(pixel[2] - accent.b * 255) < 2;
+    };
+    CHECK_MESSAGE(button_outline(), "A paused blueprint did not show its RUN button");
+    Input start;
+    start.clicked = true;
+    start.mouse = (button.min + button.max) / 2;
+    session->advance(0, start, runtime.camera);
+    CHECK_MESSAGE(session->status().find("RUNNING") != std::string::npos, "The RUN button did not start");
+    CHECK_MESSAGE(!button_outline(), "The RUN button stayed after the start");
     Input run;
     run.pressed[std::size_t(Key::space)] = true;
-    session->advance(0, run, runtime.camera);
     for (Key key : {Key::one, Key::two, Key::three, Key::four, Key::five, Key::six}) {
         Input toggle;
         toggle.pressed[std::size_t(key)] = true;
@@ -553,7 +571,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->advance(0, choose, runtime.camera); // SHOWCASE is still highlighted
     session->render(runtime);
     session->advance(0, choose, runtime.camera); // first scene, alphabetically corridor-passing
-    CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "Showcase scene did not load paused");
+    CHECK_MESSAGE(session->status() == "Single-lane corridor | RUNNING",
+                  "Showcase scene did not load running");
     // The world area between the toolbar and the statistics lines; without a workload, only
     // the scenario's goals can move anything there: rows 80 to 359.
     auto world_pixels = [&] {
@@ -567,8 +586,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
             session->render(runtime);
         }
     };
-    session->advance(0, run, runtime.camera);
-    auto before = world_pixels();
+    const auto at_load = world_pixels();
+    auto before = at_load;
     run_frames(30);
     CHECK_MESSAGE(world_pixels() != before, "Showcase scene movers did not move to their goals");
     run_frames(30);
@@ -584,9 +603,9 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     Input reset;
     reset.pressed[std::size_t(Key::r)] = true;
     session->advance(0, reset, runtime.camera);
-    CHECK_MESSAGE(session->status() == "Single-lane corridor | PAUSED", "R did not restart the scene");
-    session->advance(0, run, runtime.camera);
     before = world_pixels();
+    CHECK_MESSAGE(before == at_load, "R did not restart the scene");
+    CHECK_MESSAGE(session->status() == "Single-lane corridor | RUNNING", "R paused the scene");
     run_frames(30);
     CHECK_MESSAGE(world_pixels() != before, "R did not re-send the scene's goals");
 
@@ -597,9 +616,8 @@ TEST_CASE("the session renders its overlays and handles input and catalog recove
     session->advance(0, choose, runtime.camera);
     session->advance(0, down, runtime.camera);
     session->advance(0, choose, runtime.camera);
-    REQUIRE_MESSAGE(session->status() == "Corridor retreat recovery | PAUSED",
+    REQUIRE_MESSAGE(session->status() == "Corridor retreat recovery | RUNNING",
                     "Restarting scene did not load");
-    session->advance(0, run, runtime.camera);
     const auto run_ticks = [&](int ticks) {
         // 0.25 s holds exactly 50 ticks at the default 200 ticks per second.
         for (int frame = 0; frame < ticks / 50; ++frame)

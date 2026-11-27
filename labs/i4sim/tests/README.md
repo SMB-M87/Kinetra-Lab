@@ -25,7 +25,7 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 flowchart TD
     Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (74)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
-    Logic --> Controller["kinetra_i4sim_controller (44)<br/>controller_tests.cpp"]
+    Logic --> Controller["kinetra_i4sim_controller (47)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (4)<br/>session input and rendering"]
     Logic --> Presentation
@@ -38,7 +38,7 @@ flowchart TD
 | `simulation_tests.cpp` | `kinetra_i4sim` (74) | Required behavior of the loaders and the simulation |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
-| `controller_tests.cpp` | `kinetra_i4sim_controller` (44) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (47) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (4, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
@@ -114,9 +114,10 @@ Each case then requires the outcome (no contact, every mover at its goal, no stu
 
 | Area | The cases require |
 | --- | --- |
-| Loading | A blueprint loads paused, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
+| Loading | A blueprint loads paused and awaiting its start, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives running with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
 | Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
-| Keys | Space and P, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart is paused, keeps the current tick rate and motion settings, and replays a scene's goals |
+| Keys | Space and P, which end the wait for a start that a later pause does not bring back, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart keeps the current tick rate and motion settings, leaves a blueprint paused and awaiting its start, and replays a scene's goals running |
+| RUN button | Centered below the toolbar, narrower in a narrow viewport and above the fitted floor; a left click on it starts a blueprint that awaits its start and picks nothing below it, a right click on it does nothing, and once started a click there reaches the floor again |
 | Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor, but with Shift it only selects, as a left click does; Shift+left-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
 | Camera | The fit; panning scaled by frame time (capped at 0.1 s) and zoom; the wheel only in debug mode, and the ZOOM row's buttons, both within the zoom limits |
 | Modal pause | An open panel pauses a running blueprint and restores it; a paused one stays paused |
@@ -126,7 +127,7 @@ Not covered: a scene that cannot be replayed after `R`, which needs a scenario t
 
 ## Graphics suite
 
-`presentation_tests.cpp` checks that a rejected goal expires after returning to the blueprint screen and pins the graphical factory's signature at compile time. Its main OpenGL case selects a blueprint on the blueprint screen, pauses and resumes, checks the color swatches and the PATHS parts in the LAYERS section, edits motion settings through the debug menu's lists and `[-] [+]` buttons while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift+left-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene paused, runs it and restarts it with `R`, and checks that the restarting corridor-recovery scene moves again after its pause.
+`presentation_tests.cpp` checks that a rejected goal expires after returning to the blueprint screen and pins the graphical factory's signature at compile time. Its main OpenGL case selects a blueprint on the blueprint screen, checks that the RUN button is drawn and that a click on it starts the blueprint and removes it, pauses and resumes, checks the color swatches and the PATHS parts in the LAYERS section, edits motion settings through the debug menu's lists and `[-] [+]` buttons while running and paused and compares the rendered statistics lines, toggles every layer, checks the right-button input edges, the modal settings panel and the return to the launcher, and recovers from a missing blueprint and a missing catalog. It then builds the junction, corridor, corridor-recovery and passing setups through the debug menu and Shift+left-click goals, from copies of the showcase scenes without their scenario, and counts the pixels of the cyan, blue, lime, pink and mint overlays. Finally it opens the SHOWCASE page, loads a scene, which runs at once, and restarts it with `R`, which draws the scene's first frame again and keeps it running, and checks that the restarting corridor-recovery scene moves again after its pause.
 
 Set `I4SIM_CAPTURE=<file.ppm>` to save the frame after the Motion checks. Software rendering verifies drawing and input contracts, not desktop feel or performance.
 
@@ -141,13 +142,13 @@ headless/graphics fixture. Open it under SHOWCASE on the loadscreen, or directly
 
 Its scenario disables the workload, selects Reciprocal with JUNCTION TRAFFIC and
 sends the west mover to the east arm at `(1100, 700)` and the north mover to the
-south arm at `(700, 1100)`. Press Space. The cyan boundary marks the exclusive zone.
+south arm at `(700, 1100)`. The scene runs as it loads. The cyan boundary marks the exclusive zone.
 Disable JUNCTION TRAFFIC in DEBUG → Motion and press `R` to replay the scene
 without it and observe the uncoordinated narrow-crossing failure. There are no
 producers in this fixture. The graphics test builds the same setup through the
 debug menu and Shift+left-click goals, from a copy without the scenario.
 
-For a blocked-exit demonstration, change the goals before pressing Space: send the
+For a blocked-exit demonstration, press Space right after the scene loads to pause it, change the goals, and press Space again: send the
 north mover to `(900, 700)` and the west mover back to `(300, 700)`. Once the north
 mover has stopped, command the west mover to `(1100, 700)`; it waits
 before entry and `EXIT` increases. Move the blocker farther east to `(1250, 700)`
@@ -165,8 +166,8 @@ straight single-cell corridor:
 ```
 
 Its scenario disables the workload, selects Reciprocal with CORRIDOR TRAFFIC and
-sends the west mover to `(1900, 700)` and the east mover to `(300, 700)`. Press
-Space. One waits in its entrance room while the other traverses the blue corridor
+sends the west mover to `(1900, 700)` and the east mover to `(300, 700)`. The scene
+runs as it loads. One waits in its entrance room while the other traverses the blue corridor
 and clears the lime exit pocket. Disabling CORRIDOR TRAFFIC (DEBUG → View) and
 pressing `R` replays the head-on standstill. Enabling corridor traffic after a
 standstill also permits the two-mover retreat recovery described below.
@@ -179,7 +180,7 @@ corridor, so recovery can be inspected directly:
 ```
 
 Its scenario uses the corridor-passing setup: the mover at `(1000, 700)` heads for
-`(1900, 700)` and the one at `(1200, 700)` for `(300, 700)`. Run the scene. After
+`(1900, 700)` and the one at `(1200, 700)` for `(300, 700)`. The scene runs as it loads. After
 sustained standstill one backs
 into the side of an entrance room; its pink arrow and `RETREAT` identify the
 manoeuvre. The other waits, passes, and both resume their unchanged goals.
@@ -192,7 +193,7 @@ manoeuvre. The other waits, passes, and both resume their unchanged goals.
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/showcase/predictive-passing.json
 ```
 
-Its scenario disables the workload and the heatmap costs, selects Reciprocal with PREDICTIVE PASS and sends the movers to swapped goals at `(1900, 800)` and `(500, 800)`. Press Space: both move into side lanes, pass, and continue to their goals. Mint arrows show the temporary targets and `PASS` counts the pair. Switch PREDICTIVE PASS off in DEBUG → View and press `R` to compare.
+Its scenario disables the workload and the heatmap costs, selects Reciprocal with PREDICTIVE PASS and sends the movers to swapped goals at `(1900, 800)` and `(500, 800)`. As the scene loads, both move into side lanes, pass, and continue to their goals. Mint arrows show the temporary targets and `PASS` counts the pair. Switch PREDICTIVE PASS off in DEBUG → View and press `R` to compare.
 
 ## Motion benchmark
 

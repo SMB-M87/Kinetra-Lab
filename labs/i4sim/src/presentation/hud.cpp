@@ -1,7 +1,9 @@
 #include "i4sim/presentation/detail/hud.h"
 
 #include <kinetra/runtime/bitmap_text.h>
+#include <kinetra/runtime/overlay_style.h>
 
+#include <array>
 #include <sstream>
 #include <string>
 
@@ -73,5 +75,24 @@ void draw_hud(Runtime &runtime, const Simulation &simulation, const HudContent &
     // Below the SETTINGS and DEBUG toolbar, smaller than the HUD lines.
     if (!content.message.empty())
         draw_text(runtime, content.message, {12, 98}, 0.8f, {1, 0.4f, 0.3f});
+}
+
+void draw_start_button(Runtime &runtime, Aabb box, bool lit) {
+    using namespace kinetra::overlay;
+    const Vec2 size = box.max - box.min;
+    draw_rectangle(runtime, box.min, size, lit ? accent_color : panel_color);
+    draw_outline(runtime, box.min, size, 2, lit ? bright_color : accent_color);
+    const Color mark = lit ? panel_color : bright_color;
+    // The play mark: a triangle 16 pixels high, pointing right.
+    const Vec2 tip = box.min + Vec2{28, size.y / 2};
+    const std::array corners{runtime.camera.screen_to_world(tip + Vec2{-14, -8}),
+                             runtime.camera.screen_to_world(tip),
+                             runtime.camera.screen_to_world(tip + Vec2{-14, 8})};
+    runtime.polygon(corners, mark);
+    // RUN at scale 2 (14 pixels high) and the hint at scale 1 beside it, both centered on the
+    // mark.
+    draw_text(runtime, "RUN", snapped(box.min + Vec2{36, size.y / 2 - 7}), 2, mark);
+    draw_text(runtime, "CLICK OR SPACE", snapped(box.min + Vec2{82, size.y / 2 - 3.5f}), 1,
+              lit ? panel_color : text_color);
 }
 } // namespace i4sim

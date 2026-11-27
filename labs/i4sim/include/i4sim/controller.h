@@ -35,6 +35,13 @@ struct PanelState {
     bool debug_mode{true};
 };
 
+/// The RUN button that a blueprint shows while it awaits its start
+/// (FactoryController::awaiting_start()): a box in screen pixels, 200 by 40, centered across
+/// `viewport` 30 pixels from its top, below the toolbar and above the fitted floor, and
+/// narrower when the viewport leaves less than 16 pixels on each side. It stays off the
+/// middle of the floor, where movers are selected and given goals before the start.
+kinetra::Aabb start_button(Vec2 viewport);
+
 /// Owns the simulation of the loaded blueprint and applies the operator's commands to it.
 ///
 /// A controller starts without a blueprint. load() gives it one; the BLUEPRINTS menu entry,
@@ -50,16 +57,18 @@ struct PanelState {
 /// the controller is alive, and ask for new entries after any of them ran.
 class FactoryController {
   public:
-    /// `seed` seeds every simulation the controller builds. `running` starts a loaded
-    /// blueprint unpaused. `updates_per_second` is the tick rate of a loaded blueprint.
+    /// `seed` seeds every simulation the controller builds. `running` starts every loaded
+    /// blueprint unpaused; without it only a blueprint with a scenario section (a showcase
+    /// scene) starts so. `updates_per_second` is the tick rate of a loaded blueprint.
     /// Throws std::invalid_argument for a rate outside 1..10000.
     FactoryController(std::uint32_t seed, bool running, unsigned updates_per_second);
     FactoryController(const FactoryController &) = delete;
     FactoryController &operator=(const FactoryController &) = delete;
 
     /// Loads the blueprint at `path` with its scenario section, if it has one, and replaces
-    /// the loaded blueprint. The new simulation is paused, or running when the controller
-    /// was built so; the selection and the message are cleared, a camera fit is pending and
+    /// the loaded blueprint. The new simulation runs when the controller was built running or
+    /// the blueprint has a scenario, and otherwise is paused and awaits its start; the
+    /// selection and the message are cleared, a camera fit is pending and
     /// a close that the BLUEPRINTS entry requested for the old blueprint is dropped.
     /// On failure nothing changes except the message: report_error() gets the path and the
     /// cause, and the function returns false.
@@ -71,6 +80,10 @@ class FactoryController {
     const Simulation &simulation() const { return *simulation_; }
     /// The scenario's description line; empty without a scenario or a description.
     std::string_view description() const;
+    /// Whether the blueprint waits for its first run: a load() or an R restart left it paused
+    /// and it has not run since. The session shows start_button() while it does; a left
+    /// click on the button, Space, P and the RUNNING entry end the wait.
+    bool awaiting_start() const { return awaiting_start_ && !simulation_->running(); }
 
     /// Which debug layers are selected.
     const ViewLayers &layers() const { return layers_; }
@@ -106,12 +119,15 @@ class FactoryController {
     std::vector<kinetra::DebugEntry> menu(const LayerColors &colors = {});
     /// Applies a frame of input and then advances the simulation by `elapsed` seconds.
     ///
-    /// Space or P pause and resume. R restarts the blueprint paused with the current tick rate
-    /// and motion settings, and replays a scenario's goals. G toggles the workload, F fits the
+    /// Space or P pause and resume. R restarts the blueprint with the current tick rate and
+    /// motion settings: a blueprint with a scenario replays its goals and runs, any other
+    /// waits paused for its start. G toggles the workload, F fits the
     /// camera, and 1 to 6 toggle grid, heatmap, paths, forces, borders and detection. Q and E
     /// halve and double the update rate within 1..10000. The camera pans with WASD or the
     /// arrows, and zooms with the wheel as `panels` allows and by the steps the menu's ZOOM
-    /// row collected. A click selects the mover or producer under it. On empty ground,
+    /// row collected. While the blueprint awaits its start, a click on start_button() is the
+    /// button's: a left click runs the blueprint and neither click reaches the floor.
+    /// Otherwise a click selects the mover or producer under it. On empty ground,
     /// a left click clears only the producer selection. Right-click also holds or blocks
     /// the target; with Shift held it selects as a left click does, holding and blocking
     /// nothing. Shift+left-click sends the selected mover there. Pointer commands are skipped while
@@ -129,7 +145,8 @@ class FactoryController {
 
   private:
     void close();
-    void restart();
+    /// Builds the blueprint anew; it runs when `running` and otherwise awaits its start.
+    void restart(bool running);
     /// Restarts a restarting scene when its RestartTimer says so; see handle_input().
     void restart_when_due();
     void toggle_pause();
@@ -152,6 +169,8 @@ class FactoryController {
 
     std::uint32_t seed_;
     bool start_running_;
+    /// Set while a simulation that a load or a restart left paused has not run yet.
+    bool awaiting_start_{};
     unsigned updates_per_second_;
     std::optional<Simulation> simulation_;
     /// Setup of the loaded blueprint; R replays it.
