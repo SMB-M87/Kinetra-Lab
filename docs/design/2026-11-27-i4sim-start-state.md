@@ -60,7 +60,7 @@ Non-goals:
 - `toggle_pause()` clears the flag once the simulation runs, so Space, P, the RUNNING entry and the button all end the wait. `awaiting_start()` is the flag while the simulation is paused.
 - `handle_pointer()` first checks the button: while `awaiting_start()`, a click inside `start_button(camera.viewport)` is the button's, a left click runs the blueprint, and nothing in the world is picked. A panel that captures the pointer keeps it, as for any other click.
 
-`start_button(viewport)` is a free function in `controller.h`: a box of 200 by 40 screen pixels, centered across the viewport and 30 pixels from its top, narrower in a viewport less than 232 pixels wide. The camera fit keeps 120 pixels of the height free and fills nine tenths of the rest, so the fitted floor starts at least 54 pixels plus a twentieth of the height from the top, below the button's 70. The session remembers whether the pointer was over it in `advance()` and `draw_start_button()` in `hud.cpp` draws it after the HUD and before the debug menu, the inspector and the settings panel: a panel body with an outline, a play triangle, `RUN` at scale 2 and `CLICK OR SPACE` at scale 1 in one row; under the pointer it is drawn in the accent color, like the overlay's buttons.
+`start_button(viewport)` is a free function in `controller.h`: a box of 200 by 40 screen pixels, centered across the viewport and 30 pixels from its top, narrower in a viewport less than 232 pixels wide. The camera fit keeps 120 pixels of the height free and fills nine tenths of the rest, so the fitted floor starts at least 54 pixels plus a twentieth of the height from the top: below the button's 70 in a viewport at least 320 pixels high. In a lower one the floor reaches into the button's band, and a click there is the button's until the start. A button narrowed for a viewport under 232 pixels wide shows RUN without the hint. The button lights only where a click reaches it, not under the debug menu or the inspector. The session remembers whether the pointer was over it in `advance()` and `draw_start_button()` in `hud.cpp` draws it after the HUD and before the debug menu, the inspector and the settings panel: a panel body with an outline, a play triangle, `RUN` at scale 2 and `CLICK OR SPACE` at scale 1 in one row; under the pointer it is drawn in the accent color, like the overlay's buttons.
 
 ## Affected areas
 
@@ -93,6 +93,19 @@ Self-review of the branch diff against the workflow's checklist:
 - `check_copies.py` with `--term 'loads paused' --term 'press Space' --term 'restarts paused' --term 'waits for Space'`: the remaining hits describe ordinary blueprints, which still load and restart paused.
 - No media refresh: the showcase clips replace their Space step by an empty step, so they record the same frames, and the other i4sim captures press Space before their first frame. The tour video is not in the repository and was not rendered.
 
+Agent review round 1 on f22df81 (conclusion *Fix first*):
+
+| Item | Resolution | Commit |
+| --- | --- | --- |
+| A scheduled replay of a paused restarting scene, stepped past its pause with SINGLE TICK, turned the RUN button on | `restart()` leaves `awaiting_start()` false; only `R` sets it for a blueprint it restarted paused. New controller case "a paused restarting scene stepped past its pause …", which failed before the fix | `bf5e36d` |
+| `docs/media/README.md` still said a showcase scene starts after Space on the SHOWCASE page | Reworded; `git grep -n -i space` over the docs finds no other copy | this round's docs commit |
+| The RUN button needs a screenshot on the pull request | The session's GitHub tools cannot upload an image to a comment; the 640 × 480 frame went to the user to attach, and the reply on the pull request says so | — |
+| Nit: a finished simulation counted as awaiting its start | `awaiting_start()` requires `RunState::paused` | `bf5e36d` |
+| Nit: the floor stays below the button only from a viewport 320 pixels high | Stated in `start_button()`'s comment and in *Design* | `3564dc6` |
+| Nit: the hint ran out of a narrowed button | The hint is left out when it does not fit | `3564dc6` |
+| Nit: the button lit under the inspector | Lit only when neither the debug menu nor the inspector captures the pointer | `3564dc6` |
+| Nit: the blocked-exit steps listed the goals after the second Space | Reordered in `labs/i4sim/tests/README.md` | this round's docs commit |
+
 ## Verification
 
 - `cmake --build --preset dev --target kinetra_i4sim_controller_tests` and `ctest --preset dev -R '^kinetra_i4sim_controller'`: 47 of 47 passed.
@@ -102,6 +115,7 @@ Self-review of the branch diff against the workflow's checklist:
 - `python3 external/Kinetra/tools/check_docs.py` and `check_copies.py`: see Review.
 - After merging `main` (with the make-way showcase scene and the settings panel's BLUEPRINTS), again: `ctest --preset release -R '^kinetra_i4sim'` 168 of 168, and `SDL_VIDEODRIVER=offscreen ctest --preset graphics -R '^kinetra_i4sim_graphics|^kinetra_capture'` 41 of 41.
 - The tour, which drops its Space for the H crossing scene and which CI does not play, played to its end: `SDL_VIDEODRIVER=offscreen kinetra_capture --tour /dev/null` wrote 19108 frames (318 s) and exited with 0.
+- Round 1: `ctest --preset dev -R '^kinetra_i4sim_controller'` 48 of 48 (the new case failed before `bf5e36d`); `SDL_VIDEODRIVER=offscreen ctest --preset graphics -R '^kinetra_i4sim_graphics'` 6 of 6.
 - Full level: the pull request's CI.
 
 ## Pull request

@@ -25,7 +25,7 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 flowchart TD
     Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (74)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
-    Logic --> Controller["kinetra_i4sim_controller (47)<br/>controller_tests.cpp"]
+    Logic --> Controller["kinetra_i4sim_controller (48)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (6)<br/>session input and rendering"]
     Logic --> Presentation
@@ -38,7 +38,7 @@ flowchart TD
 | `simulation_tests.cpp` | `kinetra_i4sim` (74) | Required behavior of the loaders and the simulation |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
-| `controller_tests.cpp` | `kinetra_i4sim_controller` (47) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (48) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (6, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
@@ -115,7 +115,7 @@ Each case then requires the outcome (no contact, every mover at its goal, no stu
 | Area | The cases require |
 | --- | --- |
 | Loading | A blueprint loads paused and awaiting its start, or running when asked, at the session's tick rate, with a camera fit pending; a showcase scene arrives running with its description, settings and goals; a failed load keeps the loaded blueprint and reports path and cause; a tick rate outside 1..10000 is rejected |
-| Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a shuttling scene is never restarted |
+| Scene repeat | A restarting scene starts again by itself after its pause, running and at its tick rate; a paused one stepped past its pause with SINGLE TICK restarts paused, without awaiting its start; a shuttling scene is never restarted |
 | Keys | Space and P, which end the wait for a start that a later pause does not bring back, G, 1 to 6, Q and E within the rate's bounds, F, and R: a restart keeps the current tick rate and motion settings, leaves a blueprint paused and awaiting its start, and replays a scene's goals running |
 | RUN button | Centered below the toolbar, narrower in a narrow viewport and above the fitted floor; a left click on it starts a blueprint that awaits its start and picks nothing below it, a right click on it does nothing, and once started a click there reaches the floor again |
 | Pointer | Selecting a mover or a producer and clearing the selection; a right click holds or blocks and keeps the selection on empty floor, but with Shift it only selects, as a left click does; Shift+left-click sends the selected mover; a rejected goal shows a message for four seconds; a captured pointer does nothing |
@@ -148,8 +148,9 @@ without it and observe the uncoordinated narrow-crossing failure. There are no
 producers in this fixture. The graphics test builds the same setup through the
 debug menu and Shift+left-click goals, from a copy without the scenario.
 
-For a blocked-exit demonstration, press Space right after the scene loads to pause it, change the goals, and press Space again: send the
-north mover to `(900, 700)` and the west mover back to `(300, 700)`. Once the north
+For a blocked-exit demonstration, press Space right after the scene loads to pause it;
+the movers have already set off a little. Send the north mover to `(900, 700)` and
+the west mover back to `(300, 700)`, and press Space again. Once the north
 mover has stopped, command the west mover to `(1100, 700)`; it waits
 before entry and `EXIT` increases. Move the blocker farther east to `(1250, 700)`
 to free the pocket and let the west mover proceed. Lime outlines show an admitted
