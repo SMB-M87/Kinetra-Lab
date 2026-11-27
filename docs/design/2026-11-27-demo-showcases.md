@@ -81,7 +81,7 @@ A `Showcase` knows, per agent, what to do next, and commands only through `Agent
 - **Roam:** each agent travels to a seeded random point of an area, holds for the pause, and picks the next (CHAOS).
 - **Follow:** lures travel closed loops at a fixed speed; each agent is assigned a lure and an offset, rotated with the lure's heading for a formation (FLEET) or fixed for a swarm (SWARM). Every quarter second each agent is commanded to its slot, a little ahead of the lure's motion.
 
-A click on a selected agent, CLICK SETS GOAL and `command_agent` release the agent: the showcase leaves it alone until it holds at the user's goal, and then takes it back. In a shared turn, an agent that is still travelling a user's goal misses that turn and continues its own cycle afterwards.
+A click on a selected agent, CLICK SETS GOAL and `command_agent` release the agent: the showcase leaves it alone until it holds at the user's goal, and then takes it back. In a shared turn, an agent that is still travelling a user's goal misses that turn and continues its own cycle afterwards: the group waits only for the agents the script owns, and turns only when it owns at least one, so after CLICK SETS GOAL the script resumes once the agents hold again.
 
 `Scene` owns an optional `Showcase`; `arrange_scenario` builds it, `set_showcase` replaces it for tests and tools (it marks every agent as holding on arrival), and `place_agents` removes it.
 

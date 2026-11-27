@@ -173,6 +173,71 @@ TEST_CASE("agents that turn alone each turn after their own pause") {
         CHECK(std::abs(float(left[i] - held[i]) * tick - 1) <= 2 * tick);
 }
 
+TEST_CASE("a group that turns together turns without the agent a user sent away, which rejoins later") {
+    auto scene = arena({{-10, 4}, {-10, 0}, {-10, -4}});
+    scene.set_showcase(Showcase::shuttle({{{-10, 4}, {10, 4}}, {{-10, 0}, {10, 0}}, {{-10, -4}, {10, -4}}},
+                                         Turn::together, 1));
+    const auto agents = scene.agents();
+    for (int t = 0; t < 120 * 2; ++t)
+        scene.update(tick, {});
+    // Sent back across the field, the third agent is still travelling when the others turn.
+    scene.command_agent(2, {-18, -12});
+    int others_left = -1, released_held = -1;
+    for (int t = 0; t < 120 * 20 && (others_left < 0 || released_held < 0); ++t) {
+        scene.update(tick, {});
+        if (released_held < 0 && agents[2].holding())
+            released_held = t;
+        if (others_left < 0 && agents[0].goal() == Vec2{-10, 4})
+            others_left = t;
+    }
+    REQUIRE(others_left >= 0);
+    REQUIRE(released_held >= 0);
+    CHECK(others_left < released_held);
+    CHECK(agents[1].goal() == Vec2{-10, 0});
+    CHECK(agents[2].goal() == Vec2{-18, -12});
+    // Back in the script, it joins the next turn and heads for one of its own stops.
+    for (int t = 0; t < 120 * 20 && agents[2].goal() == Vec2{-18, -12}; ++t)
+        scene.update(tick, {});
+    const auto stop = scene.showcase()->stop(2);
+    REQUIRE(stop);
+    CHECK(agents[2].goal() == *stop);
+    CHECK((*stop == Vec2{-10, -4} || *stop == Vec2{10, -4}));
+}
+
+TEST_CASE("CLICK SETS GOAL keeps a shuttle from turning until its agents are back in the script") {
+    auto scene = arena({{-10, 4}, {-10, -4}});
+    scene.set_showcase(Showcase::shuttle({{{-10, 4}, {10, 4}}, {{-10, -4}, {10, -4}}}, Turn::together, 0.5f));
+    const auto agents = scene.agents();
+    scene.target_agents({0, -10});
+    // Every agent follows the click; none is sent to a stop while it travels.
+    for (int t = 0; t < 120 * 3; ++t) {
+        scene.update(tick, {});
+        for (const auto &agent : agents)
+            CHECK((agent.holding() || agent.goal() == Vec2{0, -10}));
+    }
+    for (int t = 0; t < 120 * 25 && agents[0].goal() == Vec2{0, -10}; ++t)
+        scene.update(tick, {});
+    CHECK(agents[0].goal() == *scene.showcase()->stop(0));
+}
+
+TEST_CASE("an agent that turns alone keeps its rhythm while a user sends another away") {
+    auto scene = arena({{-5, 4}, {-10, -4}});
+    scene.set_showcase(Showcase::shuttle({{{-5, 4}, {5, 4}}, {{-10, -4}, {10, -4}}}, Turn::alone, 1));
+    const auto agents = scene.agents();
+    scene.command_agent(1, {-18, -12});
+    int held = -1, left = -1;
+    for (int t = 0; t < 120 * 10 && left < 0; ++t) {
+        scene.update(tick, {});
+        if (held < 0 && agents[0].holding())
+            held = t;
+        if (held >= 0 && !agents[0].holding())
+            left = t;
+    }
+    REQUIRE(left >= 0);
+    CHECK(std::abs(float(left - held) * tick - 1) <= 2 * tick);
+    CHECK(agents[1].goal() == Vec2{-18, -12});
+}
+
 TEST_CASE("roaming agents travel to seeded points inside the area, the same ones for the same seed") {
     const auto goals = [](std::uint32_t seed) {
         auto scene = arena({{-10, 0}, {10, 0}});

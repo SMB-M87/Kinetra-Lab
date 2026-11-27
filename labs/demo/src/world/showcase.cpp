@@ -153,11 +153,21 @@ std::span<const std::size_t> Showcase::update(float dt, std::span<Agent> agents)
     switch (kind_) {
     case Kind::shuttle:
         if (turn_ == Turn::together) {
-            const bool all_held = std::ranges::all_of(agents, &Agent::holding);
-            group_held_ = all_held ? group_held_ + dt : 0;
-            if (all_held && group_held_ >= pause_) {
+            // An agent a user sent away misses the turn: the group waits only for the agents
+            // the script owns, and turns only when it owns one, so CLICK SETS GOAL, which
+            // releases them all, holds the script until they are back.
+            bool owned = false, all_held = true;
+            for (std::size_t i = 0; i < agents.size(); ++i)
+                if (!agents_[i].released) {
+                    owned = true;
+                    all_held = all_held && agents[i].holding();
+                }
+            const bool turn = owned && all_held;
+            group_held_ = turn ? group_held_ + dt : 0;
+            if (turn && group_held_ >= pause_) {
                 for (std::size_t i = 0; i < agents.size(); ++i)
-                    send(i, agents[i]);
+                    if (!agents_[i].released)
+                        send(i, agents[i]);
                 group_held_ = 0;
             }
             break;

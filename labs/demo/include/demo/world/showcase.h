@@ -77,12 +77,14 @@ class Showcase {
     /// its lure. Throws std::out_of_range for an index beyond the slots.
     kinetra::Vec2 slot_target(std::size_t index) const;
 
-    /// Advances the script by `dt` seconds and commands the awake agents whose leg begins;
-    /// a dormant agent waits until it wakes. Returns the indices of the agents it commanded,
-    /// valid until the next update(), so the caller can end what their old goal started (a
-    /// passing plan). Throws std::invalid_argument, before anything changes, for a negative
-    /// or non-finite `dt`, or when `agents` holds another number of agents than
-    /// agent_count().
+    /// Advances the script by `dt` seconds and commands the awake agents whose leg begins.
+    /// A dormant agent waits until it wakes; in a shared turn the group does not wait for
+    /// it, so it falls one stop out of step (the authored scenes keep every agent awake).
+    /// An agent released to a user's command misses the shared turns until it holds.
+    /// Returns the indices of the agents it commanded, valid until the next update(), so
+    /// the caller can end what their old goal started (a passing plan). Throws
+    /// std::invalid_argument, before anything changes, for a negative or non-finite `dt`,
+    /// or when `agents` holds another number of agents than agent_count().
     std::span<const std::size_t> update(float dt, std::span<Agent> agents);
     /// Leaves agent `index` to a command of the user until it holds at that goal; then the
     /// script takes it back. Throws std::out_of_range for an index beyond agent_count().

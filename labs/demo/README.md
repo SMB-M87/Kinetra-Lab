@@ -51,7 +51,7 @@ From Maze on every scenario is a showcase: a [`Showcase`](include/demo/world/sho
 - **Roam:** each agent travels to a seeded random point of an area and holds for the pause before it picks the next (Chaos).
 - **Follow:** lures travel closed loops at a fixed speed, and every quarter second each agent is sent to its slot next to its lure, half a second ahead of the lure's motion; a formation's slots turn with the lure's heading (Fleet), a swarm's do not (Swarm).
 
-A click on a selected agent, or CLICK SETS GOAL, sends agents elsewhere; the script leaves each one alone until it holds at that goal, then takes it back. An agent whose leg lasts longer than commanded travel's 20 seconds holds where it stands, so a shared turn never waits longer than that.
+A click on a selected agent, or CLICK SETS GOAL, sends agents elsewhere; the script leaves each one alone until it holds at that goal, then takes it back. A group that turns together does not wait for an agent sent away: it turns without it, and the agent joins the next turn after it holds. After CLICK SETS GOAL, which sends every agent away, the group turns again once its agents are back. An agent whose leg lasts longer than commanded travel's 20 seconds holds where it stands, so a shared turn never waits longer than that.
 
 ## Controls
 
