@@ -578,7 +578,7 @@ TEST_CASE("the command adapter keeps held controls and maps clicks to walking") 
     input.mouse = {12, 34};
     commands = demo::read_commands(input);
     CHECK_MESSAGE((commands.pointer->action == demo::PointerAction::walk &&
-                   commands.pointer->screen_position.x == 12 && commands.pointer->screen_position.y == 34),
+                   commands.pointer->screen_position == input.mouse),
                   "Plain click was not mapped to walking at logical mouse coordinates");
     input.held[static_cast<std::size_t>(Key::c)] = true;
     CHECK_MESSAGE(demo::read_commands(input).pointer->action == demo::PointerAction::walk,

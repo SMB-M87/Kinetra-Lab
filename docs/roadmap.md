@@ -31,9 +31,6 @@ Nothing agreed next.
 - **Stall detection and remedies in i4sim** · i4sim · added 2026-11-21
   [Stall detection](design/2026-11-26-i4sim-stall-detection.md) supplies the diagnosis, and [MAKE WAY](design/2026-11-27-i4sim-make-way.md) lets one parked neighbor clear the route when a checked refuge is available. The remedy is measured with the [48-run harness](design/2026-11-20-i4sim-tuning-stall.md#measurement-harness).
   Next step: decide whether to apply the strict departure check when a mover already carrying a product reaches the front of its producer queue. Step 3 is a temporary motion fallback. The user chooses its motion type and return rule from the detection data. Where: [stall detection replay](design/2026-11-26-i4sim-stall-detection.md#problem), [MAKE WAY follow-up](design/2026-11-27-i4sim-make-way.md#open-points).
-- **RECOVERY detour past a corner** · i4sim · added 2026-11-21
-  Route recovery can plan a detour that passes a blocked cell's corner with 3 mm to spare, which the border constraint then refuses: mover 18 on `4320x2400` under Improved, in six of the 48 runs with RECOVERY on.
-  Where: [phase 7, open points](design/2026-11-21-i4sim-passing-under-pressure.md#open-points).
 - **Golden tests on Windows** · tests, with Kinetra · added 2026-11-22
   Four Demo crowd characterization cases and i4sim's RVO case still differ on Windows after Kinetra's `atan2` and `asin`, so the Windows presets exclude them; Dotio's fingerprint and the rest hold there. Another function of Windows' C runtime rounds differently, among `sinf`, `cosf`, `expf`, `powf` and `hypot`. Routing it through Kinetra as well would also move the recorded lines on Linux, because glibc's `sinf` and `cosf` are not correctly rounded either, so the lines would be recorded again once.
   Next step: find the function by trying each on Windows CI with a correctly rounded replacement, then the user decides whether to re-record. Where: [Windows tests](windows.md#tests), [Linux beyond Arch, open points](design/2026-11-22-linux-beyond-arch.md#open-points).
@@ -74,9 +71,6 @@ Nothing agreed next.
 - **Cloud setup edge cases** · build, tools · added 2026-11-23
   Three small gaps the agent review left as optional in the cloud setup scripts, two in Kinetra's `tools/cloud_setup.sh` and one in Lab's: a third-party apt source whose update exits 100 still stops the install, `dpkg --configure -a`'s failure is reported as an apt failure, and Lab's message for an old Kinetra commit points to a page that does not name the clang-format version. Like *Ready-to-build cloud sessions*, one item here covers both scripts.
   Where: [Ready-to-build cloud sessions, open points](design/2026-11-23-ready-to-build-cloud-sessions.md#open-points).
-- **Vec2 equality in place of component comparisons** · i4sim, demo, capture, with Kinetra · added 2026-11-24
-  Since Kinetra#52, `kinetra::Vec2` has `==`, and Dotio uses it. i4sim's tests, Demo's inspector and the capture tool's tests still compare the components one by one (for example `labs/i4sim/tests/simulation_tests.cpp:1588`, `labs/demo/src/world/inspector.cpp:20`, `tools/capture/tests/capture_tests.cpp:667`); they can use `==`. Kinetra's item of the same name covers its own.
-  Where: [Dotio on `kinetra::Vec2`, open points](design/2026-11-24-dotio-on-kinetra-vec2.md#open-points).
 
 ## Ideas
 
