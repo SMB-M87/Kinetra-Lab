@@ -128,7 +128,23 @@ The crowd characterization lines are unchanged, so PASSING off computes what it 
 
 ## Pull request
 
-To be written when the branch is complete.
+Kinetra: [#68](https://github.com/SMB-M87/Kinetra/pull/68), `feat(navigation): add a passing coordinator for applications without factory rules`.
+
+Step 1, title: `feat(demo): pass head-on through Kinetra's passing coordinator`
+
+**Summary.** Step 1 of 2. Demo's agents on commanded travel pass each other head-on in agreed side lanes when PASSING is on, through Kinetra's new `PassingCoordinator`; four pressure scenarios prove it under both avoidance models.
+
+**Changes.** `Scene` computes every navigation target before steering and, with PASSING on, lets `coordinate_passing` replace the targets of the participants; new goals cancel plans, renumbering ends them. `place_agents` and `command_agent` serve tests with exact geometry. A PASSING row ends the AGENTS section, off by default and reset by RESET PARAMETERS. `kinetra_demo_passing_tests` holds the scenarios; Lab's verification table names the suite. The pointer follows Kinetra #68.
+
+**Design.** This document; [ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md).
+
+**Verification.** See [Verification](#verification): 75 of 75 Demo cases in `dev`, characterization lines unchanged; CI is the Full level.
+
+**Review notes.** Check that the reordered `steer_agents` reads nothing another agent's steering wrote, the tick unit conversion in `coordinate_passing`, and the cancellation on every path that changes a goal.
+
+**Dependencies and merge order.** Kinetra #68 merges first, with a merge commit; then this pull request, with its pointer at the Kinetra branch commit; then step 2 (Dotio); the pointer to Kinetra's merge commit follows in a pointer-only pull request.
+
+**Follow-up.** Step 2: Dotio. Open points below.
 
 ## Open points
 
