@@ -238,3 +238,66 @@ TEST_CASE("steering probes pass under the agents they cross") {
                       "A probe covers an agent it crosses");
     }
 }
+
+TEST_CASE("velocity vectors pass under the agents they cross") {
+    Runtime runtime("Demo vectors under bodies", 1280, 800);
+    runtime.read_back(true);
+    runtime.camera.pixels_per_unit = 30;
+    demo::Application application(48, 123);
+    const auto &scene = application.scene();
+    const auto &world = scene.world();
+    for (int frame = 0; frame < 120; ++frame)
+        application.advance(1.0 / 60, {}, runtime.camera);
+    demo::FrameCommands vectors;
+    vectors.toggle_vectors = true;
+    application.advance(0, vectors, runtime.camera);
+    REQUIRE(application.presentation().vectors);
+    const auto vector_color = [](std::array<std::uint8_t, 4> pixel) {
+        // The vectors, {0.8, 0.95, 0.4}.
+        return std::abs(pixel[0] - 204) < 20 && std::abs(pixel[1] - 242) < 15 &&
+               std::abs(pixel[2] - 102) < 20;
+    };
+    // The shaft of a body's vector as draw_debug_vector draws it: 0.3 s of motion, at least
+    // 1.5 world units long.
+    const auto shaft = [&](std::size_t id) {
+        const auto velocity = world.body(id).velocity * 0.3f;
+        const auto start = application.presented_pose(id).position;
+        const float size = std::max({length(velocity), 1.5f, 24.f / runtime.camera.pixels_per_unit});
+        return std::pair{start, length(velocity) > 0 ? start + normalized(velocity) * size : start};
+    };
+    // Points (world space) where the vector of one moving body crosses the middle of an agent,
+    // clear of that agent's own vector, which starts over it.
+    std::vector<Vec2> crossings;
+    for (std::size_t id = 0; id < world.bodies().size(); ++id) {
+        const auto &body = world.body(id);
+        if (body.motion == Motion::fixed || !scene.view().overlaps(bounds(body)) ||
+            length(body.velocity) == 0)
+            continue;
+        const auto [start, end] = shaft(id);
+        for (const auto &agent : scene.agents()) {
+            if (agent.body_id() == id)
+                continue;
+            const auto center = application.presented_pose(agent.body_id()).position;
+            const float radius = world.body(agent.body_id()).radius;
+            const auto segment = end - start;
+            const auto point =
+                start + segment * std::clamp(dot(center - start, segment) / dot(segment, segment), 0.f, 1.f);
+            const auto [own_start, own_end] = shaft(agent.body_id());
+            const auto screen = runtime.camera.world_to_screen(point);
+            if (length(point - center) < 0.6f * radius &&
+                distance_to_segment(point, own_start, own_end) > 0.25f * radius && screen.x > 0 &&
+                screen.y > 0 && screen.x < 1280 && screen.y < 800)
+                crossings.push_back(point);
+        }
+    }
+    REQUIRE_MESSAGE(!crossings.empty(), "No vector crossed an agent");
+    demo::render(runtime, application);
+    const auto &frame = runtime.frame();
+    for (const auto point : crossings) {
+        CAPTURE(point.x);
+        CAPTURE(point.y);
+        const auto at = runtime.camera.world_to_screen(point);
+        CHECK_MESSAGE(!vector_color(frame.pixel(int(std::lround(at.x)), int(std::lround(at.y)))),
+                      "A vector covers an agent it crosses");
+    }
+}

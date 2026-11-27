@@ -2,6 +2,7 @@
 #include "kinetra_lab/camera.h"
 #include "kinetra_lab/inspector.h"
 #include "kinetra_lab/route.h"
+#include "kinetra_lab/under_bodies.h"
 #include <algorithm>
 #include <limits>
 #include <string_view>
@@ -10,6 +11,9 @@
 namespace demo {
 using namespace kinetra;
 namespace {
+
+/// Seconds of motion a velocity vector shows.
+constexpr float velocity_vector_scale = 0.3f;
 
 /// The player's route; agents' routes have the PATHS layer color.
 constexpr Color player_route_color{0.6f, 1, 0.3f};
@@ -57,7 +61,7 @@ void draw_collision_shape(Runtime &runtime, const Body &body) {
         draw_debug_box(runtime, body.position, body.half_extents, body.angle, layer_color::collisions);
 }
 
-void draw_body(Runtime &runtime, const Body &body, bool is_player, const PresentationOptions &options) {
+void draw_body(Runtime &runtime, const Body &body, bool is_player) {
     Color color = body.motion == Motion::fixed        ? Color{0.3f, 0.36f, 0.45f}
                   : body.motion == Motion::controlled ? Color{0.18f, 0.75f, 0.82f}
                                                       : Color{0.95f, 0.53f, 0.2f};
@@ -76,8 +80,6 @@ void draw_body(Runtime &runtime, const Body &body, bool is_player, const Present
         const float size = local_extents(body).x;
         runtime.line(body.position, body.position + rotated({size, 0}, body.angle), 0.05f,
                      {0.03f, 0.08f, 0.1f});
-        if (options.vectors)
-            draw_debug_vector(runtime, body.position, body.velocity * 0.3f, layer_color::vectors);
     }
 }
 
@@ -134,7 +136,7 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
             for (const auto &[coordinate, bodies] : scene.preview().chunks())
                 for (const auto &body : bodies)
                     if (scene.view().overlaps(bounds(body)) && !resident.overlaps(bounds(body)))
-                        draw_body(runtime, body, false, options);
+                        draw_body(runtime, body, false);
         }
     }
     // Each route the PATHS layer shows, by the id of the body that follows it.
@@ -155,20 +157,32 @@ void render(Runtime &runtime, const Application &application, const DebugLayers 
             if ((simulated.motion != Motion::fixed) != moving || !scene.view().overlaps(bounds(simulated)))
                 continue;
             const Body body = presented(id, simulated);
-            draw_body(runtime, body, id == scene.player(), options);
+            draw_body(runtime, body, id == scene.player());
             if (layers.collisions)
                 draw_collision_shape(runtime, body);
-            // The start of the body's own route, over this body only: the bodies drawn after
-            // it cover the start again where they overlap.
+            // The start of the body's own velocity vector and route, over this body only: the
+            // bodies drawn after it cover them again where they overlap.
+            if (moving && options.vectors)
+                kinetra_lab::draw_vector_start(runtime, body.position, body.velocity * velocity_vector_scale,
+                                               inner_radius(body), layer_color::vectors);
             if (id < routes.size() && !routes[id].empty())
                 draw_polyline(runtime,
                               kinetra_lab::route_start(body.position, routes[id], inner_radius(body)),
                               route_color(id));
         }
     };
-    // Terrain first, then the steering probes and every route, then whatever moves, so no probe
-    // or route hides a player or an agent while both still cross the terrain they pass.
+    // Terrain first, then the velocity vectors, the steering probes and every route, then
+    // whatever moves, so none of them hides a player or an agent while they still cross the
+    // terrain they pass.
     draw_bodies(false);
+    if (options.vectors)
+        for (std::size_t id = 0; id < scene.world().bodies().size(); ++id) {
+            const auto &simulated = scene.world().body(id);
+            if (simulated.motion == Motion::fixed || !scene.view().overlaps(bounds(simulated)))
+                continue;
+            draw_debug_vector(runtime, position(id), simulated.velocity * velocity_vector_scale,
+                              layer_color::vectors);
+        }
     if (options.probes)
         for (std::size_t probe = 0; probe < scene.world().bodies().size(); ++probe) {
             const auto &simulated = scene.world().body(probe);
