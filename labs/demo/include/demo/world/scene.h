@@ -3,6 +3,7 @@
 #include "demo/input/player_control.h"
 #include "demo/scenario.h"
 #include "demo/world/agent.h"
+#include "demo/world/showcase.h"
 #include "demo/world/terrain.h"
 #include "demo/world/tuning.h"
 #include <kinetra/simulation/navigation.h>
@@ -79,6 +80,8 @@ class Scene {
     /// What happened to passing plans in the last tick, in order; mover indices are world
     /// body ids of that tick.
     std::span<const kinetra::PassingEvent> passing_events() const { return passing_events_; }
+    /// The script that moves the agents of a showcase scenario; none in Terrain and Gravity.
+    const std::optional<Showcase> &showcase() const { return showcase_; }
     /// Motion and wander values that update() reads on every tick; a debug menu may change
     /// them between ticks. update() throws for values that validate() rejects.
     Tuning &tuning() { return tuning_; }
@@ -116,12 +119,18 @@ class Scene {
                  kinetra::Aabb navigation_area);
     /// Replaces the agents with new awake ones on the moving bodies `bodies`, each with its
     /// home at its body's position and its random sequence from `seed`, for tests and tools
-    /// after arrange(). Throws std::invalid_argument, before changing anything, when an id is
-    /// not a moving body, is the player or repeats.
+    /// after arrange(). Removes the showcase. Throws std::invalid_argument, before changing anything, when an
+    /// id is not a moving body, is the player or repeats.
     void place_agents(std::span<const std::size_t> bodies, std::uint32_t seed);
     /// Commands agent `index` (an index into agents()) to `destination`, as a click with the
-    /// agent selected does. Throws std::out_of_range for an index beyond agents().
+    /// agent selected does. A showcase leaves an awake agent to the command until it holds
+    /// there. Throws std::out_of_range for an index beyond agents().
     void command_agent(std::size_t index, kinetra::Vec2 destination);
+    /// Lets `showcase` move the agents from the next tick on, for tests and tools after
+    /// place_agents(); every agent then holds on arrival, and the first legs start at once.
+    /// place_agents() removes the showcase. Throws std::invalid_argument, before changing
+    /// anything, when the showcase expects another number of agents.
+    void set_showcase(Showcase showcase);
 
     /// Update the camera view in every scenario. Terrain retains player-centered terrain
     /// and populates newly active chunks once. The population
@@ -150,14 +159,16 @@ class Scene {
     /// Returns false when the click did neither, so the caller can walk the player.
     bool select_or_target(kinetra::Vec2 destination);
 
-    /// Commands every awake agent to `destination`; the selection stays available.
+    /// Commands every awake agent to `destination`, as command_agent() does; the selection
+    /// stays available.
     void target_agents(kinetra::Vec2 destination);
 
     /// Place the active camera on the player in Terrain and at the center in authored scenes.
     void follow(kinetra::Camera2D &camera) const;
 
-    /// Apply player intent and active-agent steering for one fixed tick; sleeping
-    /// agents remain collision obstacles and regain their exact state after physics.
+    /// Advance the showcase, then apply player intent and active-agent steering for one
+    /// fixed tick; sleeping agents remain collision obstacles and regain their exact state
+    /// after physics.
     ///
     /// Reads `tuning` and throws std::invalid_argument, before anything moves, when
     /// validate() rejects it.
@@ -196,6 +207,7 @@ class Scene {
     bool following_{true};
     kinetra::Aabb view_{};
     std::vector<Agent> agents_;
+    std::optional<Showcase> showcase_;
     std::set<Terrain::Coordinate> populated_;
     /// The terrain bodies that stream() last put into the world, and an index of their
     /// bounds for the agents that avoid terrain without a route. Index i is loaded_terrain_[i].

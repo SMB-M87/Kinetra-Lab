@@ -327,11 +327,9 @@ bool Scene::select_or_target(Vec2 destination) {
             return true;
         }
     if (selected_agent_) {
-        for (auto &agent : agents_)
-            if (length(agent.home() - *selected_agent_) < 0.001f) {
-                if (agent.active())
-                    replan_after(passing_coordinator_.cancel(agent.body_id()));
-                agent.retarget(destination);
+        for (std::size_t i = 0; i < agents_.size(); ++i)
+            if (length(agents_[i].home() - *selected_agent_) < 0.001f) {
+                command_agent(i, destination);
                 return true;
             }
         selected_agent_.reset();
@@ -340,11 +338,8 @@ bool Scene::select_or_target(Vec2 destination) {
 }
 
 void Scene::target_agents(Vec2 destination) {
-    for (auto &agent : agents_) {
-        if (agent.active())
-            replan_after(passing_coordinator_.cancel(agent.body_id()));
-        agent.retarget(destination);
-    }
+    for (std::size_t i = 0; i < agents_.size(); ++i)
+        command_agent(i, destination);
 }
 
 void Scene::command_agent(std::size_t index, Vec2 destination) {
@@ -352,6 +347,19 @@ void Scene::command_agent(std::size_t index, Vec2 destination) {
     if (agent.active())
         replan_after(passing_coordinator_.cancel(agent.body_id()));
     agent.retarget(destination);
+    // A dormant agent ignores the command, so the showcase keeps it.
+    if (showcase_ && agent.active())
+        showcase_->release(index);
+}
+
+void Scene::set_showcase(Showcase showcase) {
+    if (showcase.agent_count() != agents_.size())
+        throw std::invalid_argument("A showcase needs exactly one entry per agent of the scene");
+    showcase_ = std::move(showcase);
+    for (auto &agent : agents_)
+        agent.hold_on_arrival();
+    // Start the first legs now, so the goals show before the first tick.
+    showcase_->update(0, agents_);
 }
 
 void Scene::place_agents(std::span<const std::size_t> bodies, std::uint32_t seed) {
@@ -363,6 +371,7 @@ void Scene::place_agents(std::span<const std::size_t> bodies, std::uint32_t seed
     }
     end_passing();
     agents_.clear();
+    showcase_.reset();
     clear_selection();
     for (auto id : bodies) {
         const auto &body = world_.body(id);
@@ -418,6 +427,8 @@ void Scene::update(float dt, const PlayerControl &control) {
     validate(tuning_);
     avoidance_limited_ = 0;
     passing_events_.clear();
+    if (showcase_)
+        showcase_->update(dt, agents_);
     Tick tick = prepare_tick();
     // Sleeping agents participate as static collision obstacles. Restore complete
     // state after physics so gravity, impulses and timers cannot advance them.
