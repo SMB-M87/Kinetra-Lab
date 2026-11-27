@@ -9,6 +9,10 @@
 #include <optional>
 
 namespace i4sim::detail {
+/// The factory's tuning of stall observation, in millimeters and ticks; RIGHT OF WAY uses it
+/// too, so a push means the same to both.
+kinetra::StallObservation stall_observation(const MotionSettings &motion);
+
 /// Observes route stalls after each completed tick with Kinetra's `StallDetector`: it tells
 /// the detector what each mover is in the factory and how long it went without route
 /// progress, and records the episodes in the event log. Never writes to fleet or traffic

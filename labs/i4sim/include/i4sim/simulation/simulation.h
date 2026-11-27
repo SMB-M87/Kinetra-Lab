@@ -71,6 +71,10 @@ struct MotionSettings {
     /// mover does. Without one it stays at its holding place and tries again every tick,
     /// for at most `departure_wait_ticks`; then it departs as without the check.
     bool departure_check{};
+    /// A mover that stalls because a neighbor drives it back from its goal gets the right of
+    /// way for 480 ticks: it keeps steering at its goal and the others no longer count on it
+    /// to make room. See `Coordination::right_of_way`.
+    bool right_of_way{};
 };
 /// Whether a simulation advances. Every simulation starts `paused`.
 enum class RunState {
@@ -136,6 +140,8 @@ struct Coordination {
     bool corridor_retreating{};
     /// Following the temporary targets of a predictive passing plan.
     bool passing{};
+    /// Holding the right of way after a neighbor pushed it back from its goal (RIGHT OF WAY).
+    bool right_of_way{};
 };
 /// One transport mover: its definition, physical state, goal and statistics. Positions are
 /// in millimeters, velocities in millimeters per tick. Only Simulation changes a mover.

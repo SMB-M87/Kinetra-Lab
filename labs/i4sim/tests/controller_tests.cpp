@@ -566,7 +566,7 @@ TEST_CASE("a section heading opens its rows and closes the open section") {
     CHECK(labels(controller) ==
           std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "CORRIDOR TRAFFIC",
                                    "JUNCTION TRAFFIC", "PARKING TRAFFIC", "PREDICTIVE PASS", "MAKE WAY",
-                                   "DEPARTURE CHECK", "ZOOM", "FRAME SCENE", "BLUEPRINTS"});
+                                   "DEPARTURE CHECK", "RIGHT OF WAY", "ZOOM", "FRAME SCENE", "BLUEPRINTS"});
     choose(controller, "TRAFFIC");
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "TRAFFIC", "ZOOM",
                                                          "FRAME SCENE", "BLUEPRINTS"});
@@ -847,14 +847,14 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     const auto &motion = controller.simulation().motion_settings();
     open_section(controller, "TRAFFIC");
     for (const char *label : {"CORRIDOR TRAFFIC", "JUNCTION TRAFFIC", "PARKING TRAFFIC", "PREDICTIVE PASS",
-                              "MAKE WAY", "DEPARTURE CHECK"}) {
+                              "MAKE WAY", "DEPARTURE CHECK", "RIGHT OF WAY"}) {
         CHECK(entry(controller, label).kind == kinetra::DebugEntryKind::check);
         CHECK_FALSE(entry(controller, label).active());
         choose(controller, label);
         CHECK(entry(controller, label).active());
     }
     CHECK((motion.corridor_traffic && motion.junction_traffic && motion.parking_traffic &&
-           motion.predictive_passing && motion.make_way && motion.departure_check));
+           motion.predictive_passing && motion.make_way && motion.departure_check && motion.right_of_way));
     CHECK_FALSE(entry(controller, "PREDICTIVE PASS").value);
 
     open_section(controller, "MOTION");

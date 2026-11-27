@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     try {
         using namespace i4sim;
         bool recovery = false, parking_traffic = false, junction_traffic = false, corridor_traffic = false;
-        bool predictive_passing = false, make_way = false, departure_check = false;
+        bool predictive_passing = false, make_way = false, departure_check = false, right_of_way = false;
         auto profile = SteeringProfile::improved;
         std::uint64_t ticks = 50000;
         std::optional<std::filesystem::path> event_directory;
@@ -101,6 +101,10 @@ int main(int argc, char **argv) {
             }
             if (option == "--departure-check") {
                 departure_check = true;
+                continue;
+            }
+            if (option == "--right-of-way") {
+                right_of_way = true;
                 continue;
             }
             if (option == "--recovery") {
@@ -143,7 +147,7 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] "
                                             "[--parking-traffic] [--junction-traffic] [--corridor-traffic] "
                                             "[--predictive-passing|--no-predictive-passing] [--make-way] "
-                                            "[--departure-check] "
+                                            "[--departure-check] [--right-of-way] "
                                             "[--profile improved|original|rvo|reciprocal] [--ticks N] "
                                             "[--events DIRECTORY] [--blueprint FILE ...] [--seed N ...]");
             }
@@ -178,6 +182,7 @@ int main(int argc, char **argv) {
                 settings.predictive_passing = predictive_passing;
                 settings.make_way = make_way;
                 settings.departure_check = departure_check;
+                settings.right_of_way = right_of_way;
                 settings.recovery = recovery;
                 settings.parking_traffic = parking_traffic;
                 settings.junction_traffic = junction_traffic;

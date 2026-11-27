@@ -19,6 +19,7 @@ A local C++20 factory simulation, ported from the C# Industry 4.0 reference. Mov
   - [Parking traffic](#parking-traffic)
   - [Make way](#make-way)
   - [Departure check](#departure-check)
+  - [Right of way](#right-of-way)
 - [Invariants and contracts](#invariants-and-contracts)
 - [Changing this module](#changing-this-module)
 - [Tests](#tests)
@@ -96,7 +97,7 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 | SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second), WORKLOAD |
 | LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. A color swatch beside a row is the color it is drawn in |
 | MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
-| TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY, DEPARTURE CHECK |
+| TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY, DEPARTURE CHECK, RIGHT OF WAY |
 
 Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. A PLANNER change replans ordinary routes. MAKE WAY retains its checked routes until return or cancellation. Turning passing off ends plans as `disabled`. Turning MAKE WAY off cancels relief requests and returns the yielding movers when their parking routes are clear. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
 
@@ -122,7 +123,7 @@ The current wait counts consecutive ticks in which the mover has a goal, is free
 | Goal kind | Who chose a mover's goal: the factory (`automatic`), the operator (`manual`), parking traffic (`parking_staging`), or MAKE WAY (`making_way`) |
 | Hold, block | The operator's stop for a mover (it keeps goal and product) and for a producer (it accepts and processes nothing) |
 | Steering profile | How movers avoid each other: Improved (default), Original, RVO experiment, Reciprocal |
-| Traffic policy | An optional rule on top of steering: parking, junction or corridor traffic, predictive passing, MAKE WAY or DEPARTURE CHECK. All are off by default |
+| Traffic policy | An optional rule on top of steering: parking, junction or corridor traffic, predictive passing, MAKE WAY, DEPARTURE CHECK or RIGHT OF WAY. All are off by default |
 | Zone | A junction or corridor that a traffic policy admits movers to, one at a time |
 | Exit pocket | The space behind a zone that an admitted mover needs to leave it; it is reserved with the admission |
 | Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
@@ -355,6 +356,14 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 *Problem:* a mover that carries a product waits for its turn at its holding place, often its own parking place in a row of parked movers. When its product heads the producer queue it used to leave along the plain grid route, which can run through a parked neighbor's footprint: it squeezes past under Improved or stalls under Reciprocal.
 
 **DEBUG → TRAFFIC → DEPARTURE CHECK** is off by default. With it, that departure uses the same check as a newly allocated mover: the route is refined around stationary footprints (`plan_route` with `require_departure`). When no such route exists, the mover stays at its holding place with its product and tries again every tick, so the producer waits. After 1,200 ticks (`departure_wait_ticks`, longer than any wait measured on the bundled floors) it departs as without the check, so a mover sealed in for good still moves and its stall can be observed and handed to MAKE WAY. A departure from a processing place to the next producer is not held back: a mover waiting there would block the producer. [Design and measurements](../../docs/design/2026-11-27-stall-remedies-in-the-engine.md)
+
+### Right of way
+
+*Problem:* under Reciprocal, most long stalls left after MAKE WAY are a mover close to its goal that a neighbor drives back. The neighbor's route runs through the mover's place, and reciprocal avoidance has both give way, so they creep off together at about 0.25 mm/tick, for hundreds or thousands of ticks.
+
+**DEBUG → TRAFFIC → RIGHT OF WAY** is off by default. Kinetra's [`RightOfWay`](../../external/Kinetra/docs/engine/navigation.md#right-of-way) grants a stalled mover the right of way when its route has made no progress for 120 ticks and a neighbor pushes it back, by the same test as the stall reason `pushed_back`. It keeps it for 480 ticks (`right_of_way_ticks`), or less when it leaves its route: it arrives, stops, is held, or comes under traffic control or a make-way trip. While it has it, it steers at its goal as before, but the other movers see it as a body that does not cooperate. Reciprocal avoidance then leaves all the avoiding to the pushing neighbor; Improved predicts it along its velocity as before. The inspector shows `RIGHT OF WAY` as its coordination, and the event log records `right_of_way_granted`, with the pushing neighbor, and `right_of_way_ended`. A mover still stalled and pushed when its window passes gets a new one at once.
+
+Over the 50,000-tick benchmark with MAKE WAY, it raises products from 344 to 351 under Reciprocal and cuts waiting by 27%, without a contact; under Improved from 348 to 356, with fewer contacts (836 → 644) and more waiting. [Design and measurements](../../docs/design/2026-11-27-stall-remedies-in-the-engine.md)
 
 ## Invariants and contracts
 

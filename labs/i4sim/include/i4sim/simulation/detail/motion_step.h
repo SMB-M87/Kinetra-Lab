@@ -5,6 +5,7 @@
 #include <kinetra/simulation/avoidance.h>
 #include <kinetra/simulation/math.h>
 #include <kinetra/simulation/physics.h>
+#include <kinetra/simulation/right_of_way.h>
 #include <kinetra/simulation/spatial_grid.h>
 
 #include <cstddef>
@@ -31,6 +32,8 @@ class MotionStep {
     std::uint64_t contact_ticks() const { return contact_ticks_; }
     /// Movers whose reciprocal avoidance was infeasible or overridden in the last tick.
     std::size_t avoidance_limited() const { return avoidance_limited_; }
+    /// Whether `mover` holds the right of way (RIGHT OF WAY) in the current tick.
+    bool right_of_way(std::size_t mover) const { return right_of_way_.granted(mover); }
 
   private:
     /// What one mover steers around: nearby movers from the snapshot, the same movers as
@@ -44,6 +47,11 @@ class MotionStep {
     std::set<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{}, collisions_{};
     std::size_t avoidance_limited_{};
+    /// RIGHT OF WAY: which pushed-back movers the others do not count on to make room.
+    kinetra::RightOfWay right_of_way_;
+
+    /// Grants and ends rights of way from the state at the end of the last tick, and logs it.
+    void update_right_of_way(Goals &goals);
 
     static bool follow_route(Goals &goals, std::size_t mover);
     static Surroundings surroundings(const Goals &goals, std::size_t mover,

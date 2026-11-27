@@ -2438,6 +2438,7 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     CHECK(loaded->motion.path_planning);
     CHECK_FALSE(loaded->motion.make_way);
     CHECK_FALSE(loaded->motion.departure_check);
+    CHECK_FALSE(loaded->motion.right_of_way);
     CHECK(loaded->motion.speed == MotionSettings{}.speed);
     CHECK(load_error(with_scenario(R"({"motion": {"pathPlanning": "no"}})"))
               .find("pathplanning must be true or false") != std::string::npos);
@@ -2449,15 +2450,17 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
               .find("horizon must be a positive number of at most 64") != std::string::npos);
     const auto tuned = load_scenario(with_scenario(
         R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64, "MakeWay": true,
-                       "DepartureCheck": true}})"));
+                       "DepartureCheck": true, "RightOfWay": true}})"));
     REQUIRE(tuned);
     CHECK_FALSE(tuned->motion.path_planning);
     CHECK(tuned->motion.make_way);
     CHECK(tuned->motion.departure_check);
+    CHECK(tuned->motion.right_of_way);
     Simulation with_policy(crossing_fixture());
     apply_scenario(*tuned, with_policy);
     CHECK(with_policy.motion_settings().make_way);
     CHECK(with_policy.motion_settings().departure_check);
+    CHECK(with_policy.motion_settings().right_of_way);
     CHECK(load_error(with_scenario(R"({"motion": {"makeWay": 1}})")).find("makeway must be true or false") !=
           std::string::npos);
     CHECK(load_error(with_scenario(R"({"motion": {"departureCheck": "yes"}})"))
@@ -3103,6 +3106,75 @@ TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagn
     CHECK(stall->detected_at == 10615);
     CHECK(stall->reason == StallReason::pushed_back);
     CHECK(stall->blocker == 8u);
+}
+
+namespace {
+/// Runs `4320x2400`, seed 7, under Reciprocal with MAKE WAY for 12,000 ticks, with or without
+/// RIGHT OF WAY, and returns the longest stall episode of mover 7 and the simulation.
+std::pair<std::uint64_t, Simulation> pushed_mover_run(bool right_of_way) {
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), 7);
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = true;
+    settings.right_of_way = right_of_way;
+    simulation.configure_motion(settings);
+    simulation.record_events(true);
+    simulation.run();
+    for (int tick = 0; tick < 12000; ++tick)
+        simulation.tick();
+    std::uint64_t longest = 0;
+    for (const auto &event : simulation.events())
+        if (event.kind == EventKind::stall_ended && event.movers[0] == 7)
+            longest = std::max(longest, event.tick - event.stall->detected_at);
+    return {longest, std::move(simulation)};
+}
+} // namespace
+
+TEST_CASE("right of way ends the recorded stall of a mover pushed from its goal") {
+    // Without it, mover 8 pushes mover 7 off its processing goal for 1,183 ticks.
+    CHECK(pushed_mover_run(false).first > 1000);
+    auto [longest, simulation] = pushed_mover_run(true);
+    CHECK(longest < 200);
+    CHECK(simulation.collisions() == 0);
+    const auto &events = simulation.events();
+    CHECK(std::any_of(events.begin(), events.end(), [](const SimulationEvent &event) {
+        return event.kind == EventKind::right_of_way_granted && event.movers[0] == 7 && event.movers[1] == 8;
+    }));
+    // Every right of way that started and ended lasted its window of four stall windows, or
+    // ended early when its mover left its route.
+    for (const auto &event : events)
+        if (event.kind == EventKind::right_of_way_ended)
+            CHECK(std::any_of(events.begin(), events.end(), [&](const SimulationEvent &granted) {
+                return granted.kind == EventKind::right_of_way_granted &&
+                       granted.movers[0] == event.movers[0] && granted.tick < event.tick &&
+                       event.tick - granted.tick <= 4 * detail::stall_ticks;
+            }));
+}
+
+TEST_CASE("a mover with the right of way is marked, and turning the policy off ends it") {
+    auto [longest, simulation] = pushed_mover_run(true);
+    (void)longest;
+    // Run on until some mover holds the right of way.
+    std::optional<std::size_t> holder;
+    for (int tick = 0; tick < 20000 && !holder; ++tick) {
+        simulation.tick();
+        for (std::size_t i = 0; i < simulation.movers().size(); ++i)
+            if (simulation.movers()[i].coordination.right_of_way)
+                holder = i;
+    }
+    REQUIRE(holder);
+    const auto snapshot = i4sim::inspect_mover(simulation, *holder);
+    CHECK(inspection_value(snapshot, "COORDINATION") == "RIGHT OF WAY");
+    auto settings = simulation.motion_settings();
+    settings.right_of_way = false;
+    simulation.configure_motion(settings);
+    const auto before = simulation.events().size();
+    simulation.tick();
+    CHECK_FALSE(simulation.movers()[*holder].coordination.right_of_way);
+    const auto events = simulation.events().subspan(before);
+    CHECK(std::any_of(events.begin(), events.end(), [&](const SimulationEvent &event) {
+        return event.kind == EventKind::right_of_way_ended && event.movers[0] == *holder;
+    }));
 }
 
 TEST_CASE("make way clears the recorded 4320x2400 departures") {
