@@ -1,0 +1,27 @@
+{
+  "name": "Make way",
+  "tickCap": 3600000,
+  "dimension": {"x": 1400, "y": 600},
+  "cellsize": {"x": 200, "y": 200},
+  "moverMaxExtent": 155,
+  "producerMaxQueue": 2,
+  "movers": [
+    {"id": "through", "model": "APM4220", "position": {"x": 243.5, "y": 243.5}},
+    {"id": "parked", "model": "APM4220", "position": {"x": 643.5, "y": 243.5}}
+  ],
+  "producers": [],
+  "forbiddenZones": [
+    {"id": "north", "position": {"x": 0, "y": 0}, "dimension": {"x": 1400, "y": 200}},
+    {"id": "southwest", "position": {"x": 0, "y": 400}, "dimension": {"x": 600, "y": 200}},
+    {"id": "southeast", "position": {"x": 800, "y": 400}, "dimension": {"x": 600, "y": 200}}
+  ],
+  "scenario": {
+    "description": "Make way: a parked mover yields into a side bay to clear the lane, then parks again.",
+    "motion": {"profile": "reciprocal", "heatmap": false, "makeWay": true},
+    "workload": false,
+    "repeat": "shuttle",
+    "goals": [
+      {"mover": "through", "position": {"x": 1100, "y": 300}}
+    ]
+  }
+}

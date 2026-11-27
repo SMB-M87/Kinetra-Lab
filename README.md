@@ -75,6 +75,7 @@ The [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes), each one
 | **Corridor recovery**: movers meet head-on inside the corridor and one backs out; the scene then restarts | ![i4sim corridor recovery: one mover backs out of the corridor](docs/media/i4sim-showcase-corridor-recovery-clip.gif) |
 | **Predictive passing**: movers on a head-on course agree on sides | ![i4sim predictive passing: two movers agree on sides and pass](docs/media/i4sim-showcase-predictive-passing-clip.gif) |
 | **H crossing**: four movers swap diagonal corners without path planning, straight through the middle bar | ![i4sim H crossing: four movers swap diagonal corners without path planning](docs/media/i4sim-showcase-h-crossing-clip.gif) |
+| **Make way**: a parked mover yields into a side bay to clear the lane, then parks again | ![i4sim make way: a parked mover yields into a side bay and parks again](docs/media/i4sim-showcase-make-way-clip.gif) |
 
 The [capture tool](tools/capture/README.md) renders every clip and screenshot, the tour and its thumbnail, and the GIFs of the launcher and the overlays in Kinetra's README.
 
