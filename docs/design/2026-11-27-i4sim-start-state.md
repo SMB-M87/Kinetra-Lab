@@ -98,13 +98,13 @@ Agent review round 1 on f22df81 (conclusion *Fix first*):
 | Item | Resolution | Commit |
 | --- | --- | --- |
 | A scheduled replay of a paused restarting scene, stepped past its pause with SINGLE TICK, turned the RUN button on | `restart()` leaves `awaiting_start()` false; only `R` sets it for a blueprint it restarted paused. New controller case "a paused restarting scene stepped past its pause …", which failed before the fix | `bf5e36d` |
-| `docs/media/README.md` still said a showcase scene starts after Space on the SHOWCASE page | Reworded; `git grep -n -i space` over the docs finds no other copy | this round's docs commit |
+| `docs/media/README.md` still said a showcase scene starts after Space on the SHOWCASE page | Reworded; `git grep -n -i space` over the docs finds no other copy | `3ccb744` |
 | The RUN button needs a screenshot on the pull request | The session's GitHub tools cannot upload an image to a comment; the 640 × 480 frame went to the user to attach, and the reply on the pull request says so | — |
 | Nit: a finished simulation counted as awaiting its start | `awaiting_start()` requires `RunState::paused` | `bf5e36d` |
 | Nit: the floor stays below the button only from a viewport 320 pixels high | Stated in `start_button()`'s comment and in *Design* | `3564dc6` |
 | Nit: the hint ran out of a narrowed button | The hint is left out when it does not fit | `3564dc6` |
 | Nit: the button lit under the inspector | Lit only when neither the debug menu nor the inspector captures the pointer | `3564dc6` |
-| Nit: the blocked-exit steps listed the goals after the second Space | Reordered in `labs/i4sim/tests/README.md` | this round's docs commit |
+| Nit: the blocked-exit steps listed the goals after the second Space | Reordered in `labs/i4sim/tests/README.md` | `3ccb744` |
 
 ## Verification
 
