@@ -160,6 +160,8 @@ TEST_CASE("a load error shows in a panel over the blueprint menu that its X clos
 
     const auto panel = error_panel::bounds(message, camera.viewport, footer);
     CHECK_MESSAGE(panel.max.y <= footer.min.y, "a load error leaves LAUNCHER and EXIT free");
+    // Only a click off the X: no control lies below the panel's center, so this checks that
+    // the message stays. Kinetra's launcher tests cover the panel's capture.
     Input on_panel;
     on_panel.clicked = true;
     on_panel.mouse = {(panel.min.x + panel.max.x) / 2, (panel.min.y + panel.max.y) / 2};
