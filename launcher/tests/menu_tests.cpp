@@ -67,12 +67,13 @@ TEST_CASE("difficulty names parse and unknown names are rejected") {
     CHECK_THROWS_AS(dotio::difficulty_index("impossible"), std::invalid_argument);
 }
 
-TEST_CASE("Demo offers its four scenarios and starts the selected scene") {
+TEST_CASE("Demo offers its eleven scenarios and starts the selected scene") {
     const launcher::Options options{0, 42, 0, 2};
     const auto registrations = launcher::applications(options);
     const auto &registration = registrations[demo_row];
     CHECK(registration.choice.configurations ==
-          std::vector<std::string>{"TERRAIN", "GRAVITY", "MAZE", "DOORWAY"});
+          std::vector<std::string>{"TERRAIN", "GRAVITY", "MAZE", "DOORWAY", "CORRIDOR", "CROSSING", "CIRCLE",
+                                   "BOTTLENECK", "CHAOS", "FLEET", "SWARM"});
     CHECK(registration.choice.default_configuration == 2);
     const auto selection = launcher::selection(Variant::demo, options);
     CHECK(selection.configuration == 2);
@@ -145,7 +146,14 @@ TEST_CASE("picking works at resized viewports") {
             input.clicked = true;
             input.mouse = menu.layout(viewport).row_center(demo_row);
             CHECK((!menu.update(input, viewport) && menu.configuring()));
-            input.mouse = menu.layout(viewport).row_center(scenario);
+            // The scenarios fill two pages; NEXT shows the second.
+            const auto page_size = kinetra::MenuLayout::page_size;
+            if (scenario >= page_size) {
+                input.mouse =
+                    menu.layout(viewport).footer_center(*menu.footer_x(kinetra::FooterButton::next));
+                CHECK_FALSE(menu.update(input, viewport));
+            }
+            input.mouse = menu.layout(viewport).row_center(scenario % page_size);
             const auto picked = menu.update(input, viewport);
             CHECK((picked && picked->application == demo_row && picked->configuration == scenario));
         }

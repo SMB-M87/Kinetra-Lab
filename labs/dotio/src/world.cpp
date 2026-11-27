@@ -583,11 +583,13 @@ void World::update_bolts(const float delta) {
     enemies_moved_ = false;
 }
 
-void World::draw(dotio::Renderer &renderer) {
+void World::draw(dotio::Renderer &renderer, const std::function<void(Enemy &)> &after_enemy) {
     for (auto &enemy : get_enemies()) {
         if (!enemy.is_active)
             continue;
         enemy.draw(renderer);
+        if (after_enemy)
+            after_enemy(enemy);
     }
 
     for (auto &arrow : get_arrows()) {

@@ -24,8 +24,8 @@ using i4sim::RunState;
 using kinetra::DebugEntry;
 
 namespace {
-/// The original MAS demonstrator, kept as a test fixture outside the catalog.
-const auto factory = i4sim::test::fixture_blueprint("MAS-demonstrator");
+/// The test environment (the reference's MAS demonstrator), a test fixture outside the catalog.
+const auto factory = i4sim::test::fixture_blueprint("test-environment");
 /// An open floor of 2400 by 1600 mm with two movers at (500, 800) and (1900, 800).
 const auto open_floor = i4sim::test::showcase_blueprint("predictive-passing");
 const Layer top_layers[]{Layer::grid,    Layer::heatmap,   Layer::paths,         Layer::forces,
@@ -113,8 +113,9 @@ TEST_CASE("a blueprint loads paused at the session's update rate with a camera f
     REQUIRE(controller.load(factory));
     REQUIRE(controller.loaded());
     const auto &simulation = controller.simulation();
-    CHECK(simulation.blueprint().name == "MAS-demonstrator");
+    CHECK(simulation.blueprint().name == "test-environment");
     CHECK(simulation.state() == RunState::paused);
+    CHECK_MESSAGE(controller.awaiting_start(), "a paused blueprint shows the RUN button");
     CHECK(simulation.updates_per_second() == 400);
     CHECK(simulation.seed() == 42);
     CHECK(controller.message().empty());
@@ -144,6 +145,7 @@ TEST_CASE("a controller built running starts its blueprints running") {
     REQUIRE(controller.load(factory));
     CHECK(controller.simulation().state() == RunState::running);
     CHECK(controller.simulation().seed() == 7);
+    CHECK_FALSE(controller.awaiting_start());
 }
 
 TEST_CASE("an update rate outside 1 to 10000 is rejected") {
@@ -164,7 +166,7 @@ TEST_CASE("a failed load keeps the loaded blueprint and reports the path and the
     CHECK_MESSAGE(controller.message().empty(), "a successful load clears the message");
     CHECK_FALSE(controller.load(missing));
     REQUIRE(controller.loaded());
-    CHECK(controller.simulation().blueprint().name == "MAS-demonstrator");
+    CHECK(controller.simulation().blueprint().name == "test-environment");
     CHECK(controller.message().find("missing.json") != std::string::npos);
     REQUIRE(controller.begin_frame(60));
     CHECK_MESSAGE(!controller.message().empty(), "a reported error does not expire");
@@ -184,7 +186,8 @@ TEST_CASE("a showcase scene arrives with its description, settings and goals") {
         CHECK(mover.moving());
         CHECK(mover.goal == i4sim::GoalKind::manual);
     }
-    CHECK_MESSAGE(simulation.state() == RunState::paused, "a scene waits for Space");
+    CHECK_MESSAGE(simulation.state() == RunState::running, "a scene plays without waiting for Space");
+    CHECK_FALSE(controller.awaiting_start());
 }
 
 TEST_CASE("space and p pause and resume") {
@@ -193,11 +196,72 @@ TEST_CASE("space and p pause and resume") {
     auto camera = camera_for(controller);
     frame(controller, camera, key(Key::space));
     CHECK(controller.simulation().state() == RunState::running);
+    CHECK_FALSE(controller.awaiting_start());
     frame(controller, camera, key(Key::p));
     CHECK(controller.simulation().state() == RunState::paused);
+    CHECK_MESSAGE(!controller.awaiting_start(), "a later pause does not bring the RUN button back");
     frame(controller, camera);
     CHECK_MESSAGE(controller.simulation().state() == RunState::paused,
                   "a frame without the key changes nothing");
+}
+
+TEST_CASE("the run button is centered below the toolbar and fits a narrow viewport") {
+    const auto box = i4sim::start_button({1280, 800});
+    CHECK(box.min.x == 540);
+    CHECK(box.max.x == 740);
+    CHECK(box.min.y == 30);
+    CHECK(box.max.y == 70);
+    const auto narrow = i4sim::start_button({200, 300});
+    CHECK(narrow.min.x == 16);
+    CHECK(narrow.max.x == 184);
+    CHECK(narrow.max.y - narrow.min.y == 40);
+}
+
+TEST_CASE("the run button leaves the fitted floor free") {
+    FactoryController controller(42, false, 200);
+    for (const Vec2 viewport : {Vec2{640, 480}, Vec2{1280, 800}, Vec2{1920, 1080}}) {
+        REQUIRE(controller.load(factory)); // A load asks for a fit.
+        Camera2D camera;
+        camera.viewport = viewport;
+        controller.update_camera(camera);
+        const float floor_top = camera.world_to_screen({0, 0}).y;
+        CHECK(i4sim::start_button(viewport).max.y < floor_top);
+    }
+}
+
+TEST_CASE("a click on the run button starts a paused blueprint and reaches nothing below it") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    auto camera = camera_for(controller);
+    REQUIRE(controller.awaiting_start());
+    // Pan so that mover 0 sits under the middle of the button.
+    const auto box = i4sim::start_button(camera.viewport);
+    camera.position +=
+        flip_y(mover_position(controller, 0)) - camera.screen_to_world((box.min + box.max) / 2);
+    Input on_button = click(camera, mover_position(controller, 0), true);
+    REQUIRE(box.overlaps({on_button.mouse, on_button.mouse}));
+    frame(controller, camera, on_button);
+    CHECK_MESSAGE(controller.awaiting_start(), "a right click on the button does not start");
+    CHECK_FALSE(controller.selected_mover());
+    CHECK_FALSE(controller.simulation().movers()[0].held);
+
+    const Input beside = click(camera, mover_position(controller, 0) + Vec2{0, 400});
+    REQUIRE_FALSE(box.overlaps({beside.mouse, beside.mouse}));
+    frame(controller, camera, beside);
+    CHECK_MESSAGE(controller.awaiting_start(), "a click outside the button does not start");
+
+    on_button.right_clicked = false;
+    on_button.clicked = true;
+    frame(controller, camera, on_button);
+    CHECK(controller.simulation().running());
+    CHECK_FALSE(controller.awaiting_start());
+    CHECK_MESSAGE(!controller.selected_mover(), "the button's click selects nothing");
+
+    frame(controller, camera, key(Key::space));
+    REQUIRE_FALSE(controller.simulation().running());
+    frame(controller, camera, on_button);
+    CHECK_MESSAGE(controller.selected_mover() == 0, "after the start, a click there is the floor's again");
+    CHECK_FALSE(controller.simulation().running());
 }
 
 TEST_CASE("a running blueprint advances by the frame time and a paused one stands still") {
@@ -234,17 +298,28 @@ TEST_CASE("g toggles the workload") {
     CHECK(controller.simulation().workload());
 }
 
+TEST_CASE("a session starts with every layer and part but the heatmap and contact shapes") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(factory));
+    const auto &layers = controller.layers();
+    for (std::size_t i = 0; i < i4sim::layer_count; ++i) {
+        const auto layer = static_cast<Layer>(i);
+        CAPTURE(i);
+        const bool off = layer == Layer::heatmap || layer == Layer::contact_shapes;
+        CHECK(layers.selected(layer) == !off);
+        CHECK(layers.shows(layer) == !off);
+    }
+}
+
 TEST_CASE("the keys one to six toggle their layers") {
     FactoryController controller(42, false, 200);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
     const auto &layers = controller.layers();
-    for (auto layer : top_layers)
-        CHECK(layers.selected(layer));
     frame(controller, camera, key(Key::one));
     CHECK_FALSE(layers.selected(Layer::grid));
     frame(controller, camera, key(Key::two));
-    CHECK_FALSE(layers.selected(Layer::heatmap));
+    CHECK_MESSAGE(layers.selected(Layer::heatmap), "key two turns on the heatmap, which starts off");
     frame(controller, camera, key(Key::three));
     CHECK_FALSE(layers.selected(Layer::paths));
     frame(controller, camera, key(Key::four));
@@ -253,7 +328,8 @@ TEST_CASE("the keys one to six toggle their layers") {
     CHECK_FALSE(layers.selected(Layer::borders));
     frame(controller, camera, key(Key::six));
     CHECK_FALSE(layers.selected(Layer::detection));
-    CHECK_MESSAGE(layers.selected(Layer::contact_shapes), "contact shapes have a menu entry only");
+    CHECK_FALSE_MESSAGE(layers.selected(Layer::contact_shapes),
+                        "contact shapes have a menu entry only, so no key turned them on");
     frame(controller, camera, key(Key::one));
     CHECK(layers.selected(Layer::grid));
 }
@@ -275,7 +351,7 @@ TEST_CASE("q and e halve and double the update rate within its bounds") {
     CHECK(controller.simulation().updates_per_second() == 10000);
 }
 
-TEST_CASE("r restarts the blueprint paused with its update rate and motion settings") {
+TEST_CASE("r restarts a blueprint paused, awaiting its start, with its update rate and motion settings") {
     FactoryController controller(42, true, 360);
     REQUIRE(controller.load(factory));
     auto camera = camera_for(controller);
@@ -290,6 +366,7 @@ TEST_CASE("r restarts the blueprint paused with its update rate and motion setti
     const auto &simulation = controller.simulation();
     CHECK(simulation.ticks() == 0);
     CHECK(simulation.state() == RunState::paused);
+    CHECK_MESSAGE(controller.awaiting_start(), "R shows the RUN button again");
     CHECK(simulation.updates_per_second() == 360);
     CHECK(simulation.motion_settings().profile == i4sim::SteeringProfile::original);
     CHECK(simulation.motion_settings().speed == 2.5f);
@@ -302,8 +379,8 @@ TEST_CASE("r restarts the blueprint paused with its update rate and motion setti
     CHECK(controller.simulation().updates_per_second() == 720);
 }
 
-TEST_CASE("r replays a scene's goals with the motion settings in use") {
-    FactoryController controller(42, true, 200);
+TEST_CASE("r replays a scene's goals with the motion settings in use and keeps it running") {
+    FactoryController controller(42, false, 200);
     REQUIRE(controller.load(i4sim::test::showcase_blueprint("corridor-passing")));
     auto camera = camera_for(controller);
     const Vec2 start = mover_position(controller, 0);
@@ -322,6 +399,12 @@ TEST_CASE("r replays a scene's goals with the motion settings in use") {
     for (const auto &mover : simulation.movers())
         CHECK_MESSAGE(mover.moving(), "the scene's goals are sent again");
     CHECK_FALSE(controller.description().empty());
+    CHECK(simulation.running());
+    CHECK_FALSE(controller.awaiting_start());
+
+    frame(controller, camera, key(Key::space));
+    frame(controller, camera, key(Key::r));
+    CHECK_MESSAGE(controller.simulation().running(), "R plays a scene also when it was paused");
 }
 
 TEST_CASE("a restarting scene starts again by itself and keeps its rate and run state") {
@@ -356,6 +439,35 @@ TEST_CASE("a restarting scene starts again by itself and keeps its rate and run 
     CHECK(simulation.motion_settings().corridor_traffic);
     for (const auto &mover : simulation.movers())
         CHECK_MESSAGE(mover.moving(), "the restarted scene sends its goals again");
+}
+
+TEST_CASE("a paused restarting scene stepped past its pause restarts paused without awaiting its start") {
+    FactoryController controller(42, false, 200);
+    REQUIRE(controller.load(i4sim::test::showcase_blueprint("corridor-recovery")));
+    REQUIRE(controller.simulation().running());
+    auto camera = camera_for(controller);
+    const auto settled = [&] {
+        for (const auto &mover : controller.simulation().movers())
+            if (mover.lifecycle != i4sim::MoverLifecycle::idle)
+                return false;
+        return true;
+    };
+    for (int f = 0; f < 10000 && !settled(); ++f)
+        frame(controller, camera, {}, 0.05);
+    REQUIRE_MESSAGE(settled(), "The corridor-recovery scene did not settle");
+    frame(controller, camera, key(Key::space));
+    REQUIRE_FALSE(controller.simulation().running());
+    REQUIRE_FALSE(controller.awaiting_start());
+
+    // SINGLE TICK advances the pause tick by tick; the frame after it lets the scene restart.
+    const auto ticks_before = controller.simulation().ticks();
+    for (int i = 0; i < 1000 && controller.simulation().ticks() >= ticks_before; ++i) {
+        choose(controller, "SINGLE TICK");
+        frame(controller, camera);
+    }
+    REQUIRE_MESSAGE(controller.simulation().ticks() < ticks_before, "The paused scene did not restart");
+    CHECK_FALSE(controller.simulation().running());
+    CHECK_MESSAGE(!controller.awaiting_start(), "a scheduled replay is not a start to wait for");
 }
 
 TEST_CASE("a shuttling scene does not restart") {
@@ -702,12 +814,15 @@ TEST_CASE("the layer entries are check boxes on the layers") {
     const auto &layers = controller.layers();
     for (const char *label : {"GRID", "HEATMAP", "PATHS", "FORCES", "BORDERS", "DETECTION", "CONTACT SHAPES"})
         choose(controller, label);
-    for (auto layer : top_layers)
-        CHECK_FALSE(layers.selected(layer));
-    CHECK_FALSE(entry(controller, "CONTACT SHAPES").active());
-    choose(controller, "CONTACT SHAPES");
-    CHECK(layers.selected(Layer::contact_shapes));
+    for (auto layer : top_layers) {
+        CAPTURE(static_cast<int>(layer));
+        // HEATMAP and CONTACT SHAPES start off, so the click turned them on.
+        CHECK(layers.selected(layer) == (layer == Layer::heatmap || layer == Layer::contact_shapes));
+    }
     CHECK(entry(controller, "CONTACT SHAPES").active());
+    choose(controller, "CONTACT SHAPES");
+    CHECK_FALSE(layers.selected(Layer::contact_shapes));
+    CHECK_FALSE(entry(controller, "CONTACT SHAPES").active());
     CHECK_MESSAGE(entry(controller, "FRAME SCENE").kind == kinetra::DebugEntryKind::button,
                   "a command is a button, not a check box");
 }
@@ -718,9 +833,11 @@ TEST_CASE("the run entries pause, resume and step a single tick") {
     choose(controller, "SINGLE TICK");
     CHECK(controller.simulation().ticks() == 1);
     CHECK(controller.simulation().state() == RunState::paused);
+    CHECK_MESSAGE(controller.awaiting_start(), "a single tick is not a start");
     CHECK_FALSE(entry(controller, "RUNNING").active());
     choose(controller, "RUNNING");
     CHECK(controller.simulation().state() == RunState::running);
+    CHECK_FALSE(controller.awaiting_start());
     CHECK(entry(controller, "RUNNING").active());
     choose(controller, "RUNNING");
     CHECK(controller.simulation().state() == RunState::paused);

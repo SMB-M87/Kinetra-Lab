@@ -1,6 +1,6 @@
 add_library(kinetra_demo_logic
     src/application.cpp src/debug_panel.cpp src/input/mapping.cpp src/scenario.cpp
-    src/world/agent.cpp src/world/inspector.cpp src/world/scene.cpp src/world/scenarios.cpp
+    src/world/agent.cpp src/world/inspector.cpp src/world/scene.cpp src/world/scenarios.cpp src/world/showcase.cpp
     src/world/terrain.cpp src/world/tuning.cpp)
 target_include_directories(kinetra_demo_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # kinetra_lab/debug.h is headless: the menu rows that every Lab application shares.
@@ -20,6 +20,7 @@ if(BUILD_TESTING)
         SOURCES tests/terrain_tests.cpp LIBRARIES kinetra_demo_logic)
     kinetra_add_doctest(kinetra_demo_tests PREFIX kinetra_demo
         SOURCES tests/application_tests.cpp tests/debug_panel_tests.cpp tests/scenario_tests.cpp
+            tests/showcase_tests.cpp
         LIBRARIES kinetra_demo_logic kinetra_lab nlohmann_json::nlohmann_json)
 endif()
 if(KINETRA_BUILD_RUNTIME)

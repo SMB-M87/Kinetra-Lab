@@ -1,9 +1,10 @@
 #pragma once
 // The screen-space text of an i4sim frame: statistics, messages, inspection and scene
-// description.
+// description, and the RUN button of a blueprint that awaits its start.
 #include "i4sim/simulation/simulation.h"
 
 #include <kinetra/runtime/engine.h>
+#include <kinetra/simulation/math.h>
 
 #include <cstddef>
 #include <optional>
@@ -46,4 +47,9 @@ HudLines hud_lines(int message_lines);
 /// inspection of the selection and the description, placed by hud_lines(). Reads the
 /// simulation only. Throws std::out_of_range for a selected index outside its list.
 void draw_hud(kinetra::Runtime &runtime, const Simulation &simulation, const HudContent &content);
+
+/// Draws the RUN button in `box`, screen pixels from start_button(), inside a frame that
+/// the caller began: a panel with a play mark, RUN and CLICK OR SPACE in one row, in the
+/// accent color when `lit` because the pointer is over it.
+void draw_start_button(kinetra::Runtime &runtime, kinetra::Aabb box, bool lit);
 } // namespace i4sim

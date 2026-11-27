@@ -31,6 +31,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -228,7 +229,7 @@ std::string recipe_diagnostics(const Simulation &simulation) {
 /// Describes every mover of a workload that completed too few products.
 std::string workload_diagnostics(const Simulation &factory) {
     std::ostringstream text;
-    text << "MAS completed=" << factory.completed();
+    text << "test-environment completed=" << factory.completed();
     for (const auto &m : factory.movers())
         text << '\n'
              << m.definition.id << " pos=" << m.body.position.x << ',' << m.body.position.y
@@ -1622,8 +1623,8 @@ TEST_CASE("flow metrics reject invalid limits and a second simulation") {
     CHECK_THROWS_AS(flow.observe(Simulation(corridor_fixture())), std::invalid_argument);
 }
 
-TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock consistent") {
-    const auto blueprint = load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator"));
+TEST_CASE("parking traffic keeps the test environment's workload contact-free and its interlock consistent") {
+    const auto blueprint = load_blueprint(i4sim::test::fixture_blueprint("test-environment"));
     Simulation simulation(blueprint, 42), replay(blueprint, 42);
     for (auto *trial : {&simulation, &replay}) {
         auto config = trial->motion_settings();
@@ -1694,7 +1695,7 @@ TEST_CASE("parking traffic keeps the MAS workload contact-free and its interlock
                   "Parking traffic lifecycle was not exercised");
     CHECK_MESSAGE(
         (simulation.completed() >= 15 && simulation.collisions() == 0 && simulation.contact_ticks() == 0),
-        "Parking traffic failed the MAS throughput/contact regression");
+        "Parking traffic failed the test-environment throughput/contact regression");
 }
 
 TEST_CASE("without path planning a mover steers straight at its goal and still needs a route") {
@@ -2539,11 +2540,12 @@ TEST_CASE("every bundled blueprint expands its groups and starts paused") {
     }
 }
 
-TEST_CASE("the MAS blueprint and mover models keep their original semantics") {
-    const auto mas = load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator"));
-    CHECK_MESSAGE((mas.movers.size() == 11 && mas.producers.size() == 4 && mas.cell_size.x == 240),
+TEST_CASE("the test-environment blueprint and mover models keep their original semantics") {
+    const auto environment = load_blueprint(i4sim::test::fixture_blueprint("test-environment"));
+    CHECK_MESSAGE((environment.movers.size() == 11 && environment.producers.size() == 4 &&
+                   environment.cell_size.x == 240),
                   "Original blueprint semantics changed");
-    CHECK_MESSAGE((mas.producers[0].id == "Kuka_1" && mas.producers[3].rectangular),
+    CHECK_MESSAGE((environment.producers[0].id == "Kuka_1" && environment.producers[3].rectangular),
                   "IDs or rectangular producer lost");
     CHECK_MESSAGE(
         (mover_spec(Model::APM4350).dimension.y == 235 && mover_spec(Model::APM4550).payload == 4.5f),
@@ -2575,16 +2577,18 @@ TEST_CASE("both product recipes complete with the original production timing") {
     }
 }
 
-TEST_CASE("the original MAS workload completes recipes within producer queue capacity") {
-    const auto mas = load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator"));
-    Simulation factory(mas, 42);
+TEST_CASE("the test environment's workload completes recipes within producer queue capacity") {
+    const auto environment = load_blueprint(i4sim::test::fixture_blueprint("test-environment"));
+    Simulation factory(environment, 42);
     factory.run();
     for (int i = 0; i < 50000; ++i)
         factory.tick();
     INFO(workload_diagnostics(factory));
-    CHECK_MESSAGE(factory.completed() >= 5, "Original MAS workload deadlocked instead of completing recipes");
+    CHECK_MESSAGE(factory.completed() >= 5,
+                  "The test environment's workload deadlocked instead of completing recipes");
     for (const auto &producer : factory.producers())
-        CHECK_MESSAGE(producer.queue.size() <= mas.producer_max_queue, "Producer queue capacity exceeded");
+        CHECK_MESSAGE(producer.queue.size() <= environment.producer_max_queue,
+                      "Producer queue capacity exceeded");
 }
 
 TEST_CASE("the 3840x2400 factory exercises route recovery and completes products") {
@@ -3266,6 +3270,40 @@ TEST_CASE("predictive passing leaves a checked make way route under its existing
     CHECK_FALSE(fleet.movers[0].coordination.passing);
 }
 
+TEST_CASE("a force so small that braking never ends still lets stalls be observed") {
+    Simulation simulation(fixture());
+    simulation.set_workload(false);
+    auto settings = simulation.motion_settings();
+    // The smallest normal float: at the default speed of 2 the braking distance, 4 / force,
+    // is 2^128 and overflows, without a denormal that flush-to-zero would read as 0.
+    settings.force = std::numeric_limits<float>::min();
+    REQUIRE_NOTHROW(simulation.configure_motion(settings));
+    REQUIRE(simulation.move_to(0, {1900, 750}));
+    simulation.run();
+    for (int tick = 0; tick < 200; ++tick)
+        REQUIRE_NOTHROW(simulation.tick());
+    // Mover 0 cannot accelerate, so its route makes no progress and an episode starts.
+    CHECK(simulation.stall_details(0));
+}
+
+TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back") {
+    // Seed 7 under Reciprocal with MAKE WAY: from tick 10615 mover 8, bound north, pushes
+    // mover 7 away from its processing goal 30 mm south of it for over a thousand ticks.
+    Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), 7);
+    auto settings = simulation.motion_settings();
+    settings.profile = SteeringProfile::reciprocal;
+    settings.make_way = true;
+    simulation.configure_motion(settings);
+    simulation.run();
+    while (simulation.ticks() < 10615)
+        simulation.tick();
+    const auto stall = simulation.stall_details(7);
+    REQUIRE(stall);
+    CHECK(stall->detected_at == 10615);
+    CHECK(stall->reason == StallReason::pushed_back);
+    CHECK(stall->blocker == 8u);
+}
+
 TEST_CASE("make way clears the recorded 4320x2400 departures") {
     for (const auto seed : {2026u, 915839214u}) {
         CAPTURE(seed);
@@ -3287,8 +3325,8 @@ TEST_CASE("make way clears the recorded 4320x2400 departures") {
     }
 }
 
-TEST_CASE("make way preserves a parked product and lets the recorded MAS recipe resume") {
-    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("MAS-demonstrator")), 42);
+TEST_CASE("make way preserves a parked product and lets the recorded test-environment recipe resume") {
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("test-environment")), 42);
     auto settings = simulation.motion_settings();
     settings.profile = SteeringProfile::reciprocal;
     settings.make_way = true;

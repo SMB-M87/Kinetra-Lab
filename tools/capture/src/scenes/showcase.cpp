@@ -33,9 +33,8 @@ int showcase_cycle_steps(const std::filesystem::path &blueprint) {
         controller.handle_input(Stage::step_seconds, input, camera,
                                 {.pointer_captured = false, .debug_mode = true});
     };
-    kinetra::Input space;
-    space.pressed[std::size_t(kinetra::Key::space)] = space.held[std::size_t(kinetra::Key::space)] = true;
-    advance(space);
+    // A scene loads running: no Space. The first step matches the clip's step before it records.
+    advance({});
 
     // A restart builds a new simulation whose movers set off at once, so both repeat modes
     // end a cycle with a departure after a standstill.

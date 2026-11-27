@@ -52,9 +52,14 @@ constexpr int preview_width = 960, preview_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
 /// Lengths of the Demo scenario clips from their start: Gravity until its shapes rest (8 s),
-/// Maze until the player has walked the route and stands at its goal (20 s), Doorway until
-/// both groups are through the opening (8 s).
-constexpr int demo_gravity_frames = 120, demo_maze_frames = 300, demo_doorway_frames = 120;
+/// Maze until the player has walked the route and stands at its goal (32 s). A scenario whose
+/// groups turn together lasts its first leg and the pause, until the groups turn back, so
+/// the GIF loops as the scenario repeats: Doorway 8 s, Corridor 13.6 s, Crossing 11 s, Circle
+/// 9.6 s, Bottleneck 13.6 s. Chaos, Fleet and Swarm run 12 s: Fleet's formations meet once
+/// and Swarm's lure crosses its pillar.
+constexpr int demo_gravity_frames = 120, demo_maze_frames = 480, demo_doorway_frames = 120,
+              demo_corridor_frames = 204, demo_crossing_frames = 165, demo_circle_frames = 144,
+              demo_bottleneck_frames = 204, demo_free_frames = 180;
 /// Length of the Dotio debug clip and the i4sim clips: twelve seconds. Long enough for a
 /// Dotio enemy to run for shelter, reload and come back, and for an i4sim mover to cross
 /// its floor at the session's own speed.
@@ -176,7 +181,7 @@ void turn_wheel(Stage &stage, float notches) {
 }
 
 /// The launcher's Demo still: Doorway at the moment its groups cross, in Debug Mode as the
-/// session starts, so their routes and steering show, without the statistics line. Debug
+/// session starts, so their routes and velocity vectors show, without the statistics line. Debug
 /// Mode also lets the wheel zoom.
 void demo_preview(Stage &stage) {
     stage.start(Variant::demo, static_cast<std::size_t>(demo::Scenario::doorway));
@@ -186,9 +191,9 @@ void demo_preview(Stage &stage) {
     stage.shot();
 }
 
-/// Where the Maze clip clicks, in world units: the open floor beyond the last wall, so the
-/// route winds through every gap.
-constexpr Vec2 demo_maze_goal{17, 8};
+/// Where the Maze clip clicks, in world units: a cell across the labyrinth from the player,
+/// so the route winds through it.
+constexpr Vec2 demo_maze_goal{16, 8};
 
 /// Records `frames` of Demo's `scenario` from its start, in Debug Mode as it starts. The
 /// Maze clip clicks demo_maze_goal in its first frame, so the player walks the route, and
@@ -353,7 +358,7 @@ void dotio_debug_clip(Stage &stage) {
 enum class I4simView {
     /// Debug Mode off: the floor, the labels and the statistics.
     normal,
-    /// Debug Mode with every layer, the debug menu closed.
+    /// Debug Mode with the default layers, the debug menu closed.
     debug,
     /// Debug Mode with the debug menu open on LAYERS: every part and its swatch.
     debug_with_layers,
@@ -452,7 +457,7 @@ void i4sim_debug_clip(Stage &stage) {
     stage.record(long_clip_frames, no_input);
 }
 
-// i4sim showcase scenes: Debug Mode and every visual layer on, as the session starts, the
+// i4sim showcase scenes: Debug Mode and the default layers on, as the session starts, the
 // debug menu closed, at the session's own rate.
 
 /// Records one cycle of the showcase scene in `showcase/<scene>.json`. The clip ends in the
@@ -463,7 +468,8 @@ void i4sim_showcase(Stage &stage, std::string_view scene) {
     stage.start_i4sim(file.string());
     const int frames =
         showcase_cycle_steps(i4sim::default_blueprint_directory() / file) / Stage::steps_per_frame;
-    stage.press(Key::space);
+    // A scene loads running; this step is the one in which the measurement starts.
+    stage.step();
     stage.record(frames, no_input);
 }
 
@@ -502,6 +508,22 @@ const std::vector<Scene> &scenes() {
              [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::maze, demo_maze_frames); }),
         clip("demo-doorway-clip",
              [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::doorway, demo_doorway_frames); }),
+        clip("demo-corridor-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::corridor, demo_corridor_frames); }),
+        clip("demo-crossing-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::crossing, demo_crossing_frames); }),
+        clip("demo-circle-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::circle, demo_circle_frames); }),
+        clip("demo-bottleneck-clip",
+             [](Stage &stage) {
+                 demo_scenario_clip(stage, demo::Scenario::bottleneck, demo_bottleneck_frames);
+             }),
+        clip("demo-chaos-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::chaos, demo_free_frames); }),
+        clip("demo-fleet-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::fleet, demo_free_frames); }),
+        clip("demo-swarm-clip",
+             [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::swarm, demo_free_frames); }),
         shot("dotio", dotio),
         shot("dotio-debug", dotio_debug),
         shot("dotio-settings", dotio_settings),

@@ -1,12 +1,15 @@
 // Window-free tests for the policy shared by the Lab applications
 // (labs/shared/include/kinetra_lab/): input mapping and modal pause (input.h), the debug-menu rows
-// every application shows (debug.h) and the settings rows (settings.h).
+// every application shows (debug.h), the settings rows (settings.h) and the start of a route
+// drawn over its own body (route.h).
 #include "kinetra_lab/debug.h"
 #include "kinetra_lab/input.h"
+#include "kinetra_lab/route.h"
 #include "kinetra_lab/settings.h"
 
 #include <doctest/doctest.h>
 
+#include <cmath>
 #include <cstddef>
 #include <initializer_list>
 #include <string>
@@ -130,4 +133,51 @@ TEST_CASE("the speed row halves and doubles the time scale within its limits") {
         row.increase();
     CHECK(scale == kinetra_lab::fastest_time_scale);
     CHECK(row.value() == "4X");
+}
+
+TEST_CASE("a route's start ends where the route first leaves its body") {
+    using kinetra::Vec2;
+    const std::vector<Vec2> route{{0.25f, 0}, {0.25f, 3}, {5, 3}};
+    const auto points = kinetra_lab::route_start({0, 0}, route, 1);
+    REQUIRE(points.size() == 3);
+    CHECK(points[0].x == 0);
+    CHECK(points[0].y == 0);
+    CHECK(points[1].x == 0.25f);
+    CHECK(points[1].y == 0);
+    // On the circle of radius 1: x stays 0.25, y = sqrt(1 - 0.25^2).
+    CHECK(points[2].x == doctest::Approx(0.25f));
+    CHECK(points[2].y == doctest::Approx(std::sqrt(1 - 0.0625f)));
+}
+
+TEST_CASE("a route's start keeps a route that stays inside its body") {
+    using kinetra::Vec2;
+    const std::vector<Vec2> inside{{2.5f, 2}, {2, 2.5f}};
+    const auto points = kinetra_lab::route_start({2, 2}, inside, 1);
+    REQUIRE(points.size() == 3);
+    CHECK(points.back().x == 2);
+    CHECK(points.back().y == 2.5f);
+}
+
+TEST_CASE("a route's start stops at the first exit of a route that comes back") {
+    using kinetra::Vec2;
+    const std::vector<Vec2> out_and_back{{3, 0}, {0, 0.2f}};
+    const auto points = kinetra_lab::route_start({0, 0}, out_and_back, 1);
+    REQUIRE(points.size() == 2);
+    CHECK(points[1].x == doctest::Approx(1));
+    CHECK(points[1].y == doctest::Approx(0));
+}
+
+TEST_CASE("a route's start ends at a waypoint on its body's edge without repeating it") {
+    using kinetra::Vec2;
+    const std::vector<Vec2> route{{0, -1}, {0, -4}};
+    const auto points = kinetra_lab::route_start({0, 0}, route, 1);
+    REQUIRE(points.size() == 2);
+    CHECK(points[1].x == 0);
+    CHECK(points[1].y == -1);
+}
+
+TEST_CASE("a route's start is only its first point without a route or a body") {
+    using kinetra::Vec2;
+    CHECK(kinetra_lab::route_start({1, 1}, {}, 1).size() == 1);
+    CHECK(kinetra_lab::route_start({1, 1}, std::vector<Vec2>{{1.1f, 1}}, 0).size() == 1);
 }
