@@ -30,7 +30,7 @@ Directory guides: [docs](docs/README.md), [external](external/README.md), [labs]
 
 The video can be older than the code; the clips below are refreshed whenever what they show changes ([media guide](docs/media/README.md)). The launcher's menu and the overlays every lab shares, the settings panel, the debug menu and the agent inspector, are shown in [Kinetra's README](https://github.com/SMB-M87/Kinetra#shared-ui).
 
-Demo and i4sim start with Debug Mode and all visual layers on; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every lab and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with change while it runs. The menu's last row returns to the lab's own choice: SCENARIOS in Demo and DIFFICULTY in Dotio go back to the launcher's page for them, BLUEPRINTS in i4sim to its loadscreen.
+Demo and i4sim start with Debug Mode and all visual layers on; Dotio keeps debug opt-in. Shift+Ctrl opens the debug menu in every lab and switches Debug Mode on: layers, zoom, pause, single tick and speed, and the values each simulation runs with change while it runs. The settings panel returns to the lab's own choice, in Debug Mode or not: SCENARIOS in Demo and DIFFICULTY in Dotio go back to the launcher's page for them, BLUEPRINTS in i4sim to its loadscreen, and each of those pages has a LAUNCHER button.
 
 ### Demo
 
@@ -75,6 +75,7 @@ The [showcase scenes](labs/i4sim/blueprints/README.md#showcase-scenes), each one
 | **Corridor recovery**: movers meet head-on inside the corridor and one backs out; the scene then restarts | ![i4sim corridor recovery: one mover backs out of the corridor](docs/media/i4sim-showcase-corridor-recovery-clip.gif) |
 | **Predictive passing**: movers on a head-on course agree on sides | ![i4sim predictive passing: two movers agree on sides and pass](docs/media/i4sim-showcase-predictive-passing-clip.gif) |
 | **H crossing**: four movers swap diagonal corners without path planning, straight through the middle bar | ![i4sim H crossing: four movers swap diagonal corners without path planning](docs/media/i4sim-showcase-h-crossing-clip.gif) |
+| **Make way**: a parked mover yields into a side bay to clear the lane, then parks again | ![i4sim make way: a parked mover yields into a side bay and parks again](docs/media/i4sim-showcase-make-way-clip.gif) |
 
 The [capture tool](tools/capture/README.md) renders every clip and screenshot, the tour and its thumbnail, and the GIFs of the launcher and the overlays in Kinetra's README.
 
@@ -147,7 +148,7 @@ Run `cmake --workflow --preset dev` for a local Debug build and test run. For pu
 
 `./build.sh` builds and tests both Kinetra and Lab. When the MinGW-w64 cross compiler, Ninja and ccache are installed, it also builds the Windows executables in `build-windows/` without running their tests ([Windows](docs/windows.md#quick-start-from-wsl)); otherwise it says it skipped them. It can be invoked from any working directory and refreshes generated CMake configuration when the checkout has moved. Build outputs are local artifacts; do not copy them between machines.
 
-In every application, Ctrl or the SETTINGS button opens the shared settings panel (zoom, statistics, Debug Mode, controls, Launcher and Exit) and pauses the run. The full controls are in the [Demo](labs/demo/README.md#controls), [Dotio](labs/dotio/README.md#launch-and-controls) and [i4sim](labs/i4sim/README.md#controls) guides.
+In every application, Ctrl or the SETTINGS button opens the shared settings panel (statistics, Debug Mode, frame times and limit, controls, the lab's Scenarios, Difficulty or Blueprints, and Exit) and pauses the run. The full controls are in the [Demo](labs/demo/README.md#controls), [Dotio](labs/dotio/README.md#launch-and-controls) and [i4sim](labs/i4sim/README.md#controls) guides.
 
 ## Applications
 

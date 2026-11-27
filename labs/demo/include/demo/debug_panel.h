@@ -61,8 +61,9 @@ class DebugPanel {
     DebugPanel &operator=(const DebugPanel &) = delete;
 
     /// The rows in display order: the headings SIMULATION, LAYERS, MOTION and AGENTS, each
-    /// followed by its rows while it is open, then, below a rule, ZOOM, GHOST CAMERA, RESET
-    /// PARAMETERS and SCENARIOS. At most one section is open; SIMULATION is at the start.
+    /// followed by its rows while it is open, then, below a rule, ZOOM, GHOST CAMERA and RESET
+    /// PARAMETERS. At most one section is open; SIMULATION is at the start. SCENARIOS is the
+    /// settings panel's, not a row here.
     ///
     /// MOTION lists the rows of the chosen avoidance model only: HORIZON and PASSING BIAS
     /// for RECIPROCAL, LOOKAHEAD, SEPARATION and SEP WEIGHT for LEGACY. AGENTS lists WANDER
@@ -93,10 +94,6 @@ class DebugPanel {
     bool passing() const { return passing_; }
     /// Simulated seconds per elapsed second, as the SPEED row set it.
     float time_scale() const { return time_scale_; }
-    /// Whether SCENARIOS was clicked. The session then asks its host for the launcher's page
-    /// of Demo scenarios (kinetra::SessionRequest::configurations), which ends the session,
-    /// so the flag is never reset.
-    bool scenarios_requested() const { return scenarios_requested_; }
 
   private:
     void add_simulation_entries(std::vector<kinetra::DebugEntry> &entries);
@@ -113,6 +110,5 @@ class DebugPanel {
     float time_scale_{1};
     /// Set by the RUNNING and SINGLE TICK rows; the next apply() turns them into commands.
     bool pause_requested_{}, step_requested_{};
-    bool scenarios_requested_{};
 };
 } // namespace demo
