@@ -78,7 +78,7 @@ sequenceDiagram
 
 **Demo (step 1).** `Scene::steer_agents` first advances every agent's navigation, then calls `coordinate_passing` when PASSING is on, then steers. `coordinate_passing` hands all moving bodies to the coordinator with velocities per tick and the tuning converted from world units and seconds, checks legs with a box sweep against the loaded terrain (`terrain_index_`, `sweep_translation`), replans the routes of the agents whose plans ended and replaces the targets of the participants. `select_or_target`, `target_agents` and `command_agent` cancel an agent's plan before its new goal; `arrange`, `place_agents`, eviction and turning PASSING off end every plan. `place_agents` and `command_agent` exist for tests and tools with exact geometry.
 
-**Dotio (step 2).** `World::update_enemies` calls `coordinate_passing` before the enemies move. Every pool slot is a mover, so indices stay stable: an empty slot is not present (`PassingMover::present`, added to Kinetra#68 for this), a frozen enemy is stationary, and an enemy that follows a route (pursue, recover, path wander) is available, with the heading to its next waypoint and its route's end as destination. The player is the mover after the last slot and never joins. Legs are checked with `WeightedGrid::clear` and the footprint; units are legacy pixels and updates, and the top speed is four times the largest route force times MOVE SPEED. A participant's `Enemy::passing_target` replaces its state's movement: `steer_passing` accelerates toward it with the state's force and slows down within reach, so it stops there. A plan that ends replans its enemies' routes to the same destination; streaming shifts, `reset` and `initialize` end all plans. PASSING is the last row of ENEMIES, off in a new world and reset by RESET PARAMETERS; no committed capture opens ENEMIES.
+**Dotio (step 2).** `World::update_enemies` calls `coordinate_passing` before the enemies move. Every pool slot is a mover, so indices stay stable: an empty slot is not present (`PassingMover::present`, added to Kinetra#68 for this), a frozen enemy is stationary, and an enemy that follows a route (pursue, recover, path wander) is available, with the heading to its next waypoint and its route's end as destination. The player is the mover after the last slot and never joins. Legs are checked with `WeightedGrid::clear` and the footprint; units are legacy pixels and updates, and the top speed is four times the largest route force times MOVE SPEED. A participant's `Enemy::passing_target` replaces its state's movement: `steer_passing` accelerates toward it with the state's force and slows down within reach, so it stops there. A plan that ends replans its enemies' routes to the same destination; streaming shifts, `reset` and `initialize` end all plans, and a slot whose `Enemy::generation()` changed since the last step, refilled after a kill, has its plan cancelled. PASSING is the last row of ENEMIES, off in a new world and reset by RESET PARAMETERS; no committed capture opens ENEMIES.
 
 ## Affected areas
 
@@ -104,6 +104,8 @@ sequenceDiagram
 | Demo: PASSING row starts off, reaches the scene, is reset | `kinetra_demo:PASSING starts off…` | Targeted |
 | Demo with PASSING off computes what it did before | the unchanged `kinetra_demo_crowd_characterization` lines and the `kinetra_demo_crowd` soak cases | Targeted, Full (CI) |
 | Dotio: head-on pair in an open room completes without touching, and touches without passing; one against a column; a frozen enemy on a lane exit (obstructed); a corridor one cell wide (no plan); every enemy arrives | `kinetra_dotio` (`passing_tests.cpp`) | Targeted |
+| Dotio: a recovering enemy against a pursuer, both holding their states, completes one plan without touching (the `recover_force` and `pursue_force` branches) | `kinetra_dotio:a recovering enemy and a pursuer head-on…` | Targeted |
+| Dotio: a slot refilled between two updates ends its plan (fails without the generation check) | `kinetra_dotio:a slot refilled between two updates…` | Targeted |
 | Dotio: PASSING runs at the menu's slowest and fastest MOVE SPEED and route forces | `kinetra_dotio:PASSING runs at the debug menu's extreme movement tuning` | Targeted |
 | Dotio: PASSING row starts off, turns passing on, is reset | `kinetra_dotio:the enemies and spawning sections…` | Targeted |
 | Dotio with PASSING off computes what it did before | the unchanged `kinetra_dotio:a seeded game reproduces its recorded fingerprint` | Targeted |
@@ -121,6 +123,12 @@ Round 1 ([#138](https://github.com/SMB-M87/Kinetra-Lab/pull/138#pullrequestrevie
 - Nit: the reorder of `steer_agents` shared a commit with the feature; published history stays, and later changes keep refactors apart.
 
 The lesson the review proposed (size a grid's cells from its widest query) is on Kinetra's review lessons page.
+
+Round 1 of step 2 ([#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139#pullrequestreview-6084787108), Fix first) found:
+
+- **Blocking: a slot refilled between two passing steps kept its plan.** A kill in `update_bolts` and a spawn in the next frame's `stream_enemies` never let a step see the slot empty, so the new enemy drove to the old lanes. `coordinate_passing` now cancels a slot's plan when its `Enemy::generation()` changed; a case refills a participant's slot and fails without the check. The lesson is on Lab's review lessons page.
+- **Blocking: only path wanderers were tested.** A recovering enemy against a pursuer, both holding their states for the run, completes one plan without touching.
+- Nits: `passing_events()` is cleared at the start of every update; the README's list of Kinetra mechanisms names the target once.
 
 ## Verification
 
@@ -145,7 +153,7 @@ Step 2, Lab `feat/shared-passing-dotio` with the same pointer:
 
 ```sh
 cmake --build --preset dev --target kinetra_dotio_tests kinetra_dotio kinetra_dotio_behavior_benchmark kinetra_demo
-ctest --preset dev -R '^kinetra_dotio' -j 8        # 56 of 56 passed at 9ba5b6a, the inspector traces and the behavior smoke included
+ctest --preset dev -R '^kinetra_dotio' -j 8        # 58 of 58 passed at 9ba5b6a, the inspector traces and the behavior smoke included
 ctest --preset dev -R '^kinetra_demo(:|_terrain|_crowd|_passing)' -LE soak -j 8
 ```
 
@@ -173,13 +181,13 @@ Step 1, title: `feat(demo): pass head-on through Kinetra's passing coordinator`
 
 Step 2, title: `feat(dotio): pass head-on through Kinetra's passing coordinator`
 
-**Summary.** Step 2 of 2, merge after step 1. Dotio's enemies that follow a route pass each other head-on in agreed side lanes when PASSING is on; five pressure scenarios prove it. Closes the roadmap item *Shared passing mechanism*.
+**Summary.** Step 2 of 2, merge after step 1. Dotio's enemies that follow a route pass each other head-on in agreed side lanes when PASSING is on; pressure scenarios prove it for path wanderers and for a recovering enemy against a pursuer. Closes the roadmap item *Shared passing mechanism*.
 
 **Changes.** `World::coordinate_passing` runs before the enemies move, one mover per pool slot (empty slots not present) plus the player; `Enemy::passing_target` and `steer_passing` replace a participant's state movement. PASSING ends ENEMIES, off by default and reset by RESET PARAMETERS. `tests/passing_tests.cpp` joins the `kinetra_dotio` suite. The roadmap item is removed; the Motion lab idea no longer depends on it.
 
 **Design.** This document.
 
-**Verification.** See [Verification](#verification), step 2: 56 of 56 Dotio cases, fingerprint unchanged; CI is the Full level.
+**Verification.** See [Verification](#verification), step 2: 58 of 58 Dotio cases, fingerprint unchanged; CI is the Full level.
 
 **Review notes.** Check `steer_passing` against the state forces, the replanning after a plan ends, and that every path that moves or empties a slot ends or excludes its plan (streaming, reset, initialize, death, eviction).
 

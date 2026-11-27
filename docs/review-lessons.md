@@ -38,6 +38,9 @@ As on [Kinetra's page](../external/Kinetra/docs/review-lessons.md#format): one l
 
 ## Applications
 
+- **When a pool reuses slots, end the slot's coordination state when the slot is refilled, keyed by the occupant's generation, not only when a step sees it empty** · added 2026-11-27 · source: [#139](https://github.com/SMB-M87/Kinetra-Lab/pull/139)
+  A slot that a kill empties after the passing step and a spawn refills before the next one never looks empty, so the new enemy inherited the old plan.
+
 - **Change the direction of a repeated-motion fixture before it settles into its pattern** · added 2026-11-27 · source: [#135](https://github.com/SMB-M87/Kinetra-Lab/pull/135)
   The stall detector held on to its first axis. A fixture that moved only along that axis passed while a mover that first drifted sideways could oscillate without a diagnosis.
 
