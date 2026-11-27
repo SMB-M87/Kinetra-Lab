@@ -83,14 +83,16 @@ Full level: a public Kinetra header, `LaunchMenu` and three `presentation/` fold
 
 | Command | Result |
 | --- | --- |
-| In `external/Kinetra`: `cmake --preset dev && cmake --build --preset dev && ctest --preset dev` | 318 of 318 passed, no warnings |
+| In `external/Kinetra`: `cmake --preset dev && cmake --build --preset dev && ctest --preset dev` | 318 of 318 passed, no warnings; 320 of 320 after merging Kinetra `main` |
 | `cmake --build --preset dev` (Lab, `KINETRA_LAB_WARNINGS` on) | Built, no warnings |
-| `ctest --preset dev -R '^kinetra_(i4sim\|menu\|lab:\|dotio:\|demo:)' -LE soak` | 272 of 272 passed |
-| `cmake --build --preset graphics && ctest --preset graphics -L graphics -LE soak` | 33 of 33 passed, among them the i4sim, Demo and Dotio presentation suites, `kinetra_runtime_tests` and every smoke test |
+| `ctest --preset dev -R '^kinetra_(i4sim\|menu\|lab:\|dotio:\|demo:)' -LE soak` | 272 of 272 passed; 270 of 270 after merging Lab `main` |
+| `cmake --build --preset graphics && ctest --preset graphics -L graphics -LE soak` | 33 of 33 passed, 35 of 35 after merging Lab `main`, among them the i4sim, Demo and Dotio presentation suites, `kinetra_runtime_tests` and every smoke test |
 | `clang-format --dry-run --Werror` on every changed C++ file | Clean |
 | `python3 external/Kinetra/tools/check_docs.py`, in Lab and in Kinetra | All links resolve |
 | `python3 external/Kinetra/tools/check_copies.py --term 'status line' --term '80 characters' --term 'below the toolbar' --term 'load-error screen'` | The hits are ADR status lines, the settings panel's toolbar and the load-error screen that still exists; none names the old behavior |
 | Frames from a temporary case, looked at and not committed | The HUD at 1280 × 720 and 420 × 480 (the message wraps to two lines), the blueprint menu with a long parse error in the panel, and the load-error screen without a catalog |
+
+Lab `main` moved its Kinetra pointer while the pull requests were open: Kinetra `main` (with the menu's LAUNCHER button) is merged into `feat/hud-error-text`, the pointer follows that merge, and Lab `main` is merged into this branch. `LaunchMenu` keeps both the LAUNCHER button and the error panel.
 
 The pull requests' CI completes the Full level.
 
