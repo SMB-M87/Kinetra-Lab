@@ -122,9 +122,9 @@ i4sim marks a mover on its own route, outside every coordination, `observed`; on
 
 i4sim's `MotionSettings::right_of_way` (DEBUG → TRAFFIC → RIGHT OF WAY, `scenario.motion.rightOfWay`, `--right-of-way`) runs it at the start of `MotionStep::run`, from the state at the end of the last tick, with a window of 480 ticks (`4 × stall_ticks`). It counts a mover on its route as observed; a mover that stands or is held as standing; and as busy a mover under a traffic control of the last tick, waiting at a junction or corridor, retreating, in a passing plan or on a make-way trip. Without traffic policies and passing that is the prototype's eligibility, so the measurement holds. A mover with the right of way is a fixed body in the tick's snapshot: Reciprocal's other agents take the whole avoidance instead of half, and Improved's steering avoids it as a standing body. It still steers at its goal and avoids the others itself. Turning the policy off ends every right of way at once. `Coordination::right_of_way` marks it for the inspector, and the event log records `right_of_way_granted` (with the pusher) and `right_of_way_ended`.
 
-**Step 5** is designed on its branch and written here when it starts. The contract the user accepted (step 4 changed `RightOfWay`'s, in *Decisions*):
+**Step 5: making way.** `kinetra::MakeWay` advances open trips before considering stall episodes, in mover order. It tries an alternate route for the stalled mover first, then the nearest reachable refuge that opens a route for that mover. It bounds searches per episode, owns the outbound, waiting and returning phases, and emits one outcome even if a cancelled or obstructed mover still needs a checked route home.
 
-- `MakeWay` owns a request: trigger, alternate route first, then the nearest refuge, a deadline, the return and events. The application supplies refuge candidates and a callback that checks a route against its world and reservations.
+The application supplies a live view of mover state and stall episodes, identifies a blocking neighbor and whether it can yield, offers refuge positions, checks routes against the world, and applies routes and events in the order the engine issues them. i4sim still owns traffic-zone checks, stationary footprint checks, parking reservations, and producer queues. A manually held blocker keeps its product and queue position and returns once released. Skipping a manually held product in its producer's queue would change that queue policy and remains a separate decision.
 
 ## Affected areas
 
@@ -188,6 +188,16 @@ Step 4, Full level (a new public engine header):
 | The scenario key and the TRAFFIC row | the scenario case and two controller cases, extended |
 | Off by default changes nothing | the golden and pressure suites |
 | The measured effect holds | the harness and the 50,000-tick benchmark with MAKE WAY, with and without `--right-of-way` |
+
+Step 5, Full level (a public engine header and its i4sim consumer):
+
+| Behavior | Check |
+| --- | --- |
+| Alternate route comes first and issues no yielding trip. An unreachable candidate is skipped, and a closer checked refuge wins | Kinetra `kinetra_make_way_tests` and the external consumer |
+| A request ends once, checks the route home, and can retry a blocked return; disabling, a held mover or a changed goal ends the request | Kinetra `kinetra_make_way_tests`; i4sim parked-blocker, obstruction and timeout cases |
+| Retry delay and search limit apply per stall episode, and removing a participant cannot leave a stale trip | Kinetra `kinetra_make_way_tests` |
+| The factory keeps its route checks, product, queue position and parking reservation | i4sim MAKE WAY, parking and production cases; compare the long benchmark with MAKE WAY on |
+| Default behavior and passing pressure outcomes stay as recorded | i4sim golden and pressure suites |
 
 ## Verification
 
