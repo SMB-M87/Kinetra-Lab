@@ -56,8 +56,8 @@ void MotionStep::update_right_of_way(Goals &goals) {
         end_right_of_way(goals.fleet, goals.tick, goals.log);
         return;
     }
-    std::vector<StallMover> movers;
-    movers.reserve(fleet.movers.size());
+    auto &movers = stall_movers_;
+    movers.clear();
     for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
         const auto &m = fleet.movers[i];
         movers.push_back({m.body, m.route.empty() ? m.body.position : m.route.front(), m.destination,
@@ -83,8 +83,10 @@ void MotionStep::run(Goals &goals, Production &production) {
         for (std::size_t i = 0; i < fleet.movers.size(); ++i)
             follow_route(goals, i);
     avoidance_limited_ = 0;
-    std::vector<Body> snapshot;
-    std::vector<Aabb> boxes;
+    auto &snapshot = snapshot_;
+    auto &boxes = boxes_;
+    snapshot.clear();
+    boxes.clear();
     for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
         const auto &m = fleet.movers[i];
         snapshot.push_back(m.body);
@@ -97,9 +99,16 @@ void MotionStep::run(Goals &goals, Production &production) {
             // It still avoids them itself.
             snapshot.back().motion = Motion::fixed;
         }
-        boxes.push_back(bounds(m.body));
+        boxes.push_back(box_of(i, m.body));
     }
-    SpatialGrid index(std::max(goals.floor.cell_size().x, goals.floor.cell_size().y));
+    // The floor, and so its cell size, belongs to the simulation; the check keeps the index
+    // right should a step ever move to another floor.
+    const float cell = std::max(goals.floor.cell_size().x, goals.floor.cell_size().y);
+    if (!index_ || index_cell_ != cell) {
+        index_.emplace(cell);
+        index_cell_ = cell;
+    }
+    auto &index = *index_;
     index.rebuild(boxes);
     // Corridor recovery and passing claim movers first; admission then skips their zones.
     Traffic::begin_tick(fleet);
@@ -307,22 +316,68 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
     }
 }
 
+Aabb MotionStep::box_of(std::size_t mover, const Body &body) {
+    // The bounds of a box depend on its position, extents and angle alone: a mover that stands
+    // still keeps them from tick to tick. Other shapes are not remembered.
+    if (body.shape != Shape::box)
+        return bounds(body);
+    if (boxes_of_.size() <= mover)
+        boxes_of_.resize(mover + 1);
+    auto &known = boxes_of_[mover];
+    if (!known.valid || known.position != body.position || known.half_extents != body.half_extents ||
+        known.angle != body.angle) {
+        known = {true, body.position, body.half_extents, body.angle, bounds(body)};
+    }
+    return known.box;
+}
+
+const std::vector<std::size_t> &MotionStep::near_borders(const Goals &goals, std::size_t mover,
+                                                         const Body &body) {
+    if (near_.size() <= mover)
+        near_.resize(mover + 1);
+    auto &near = near_[mover];
+    // The borders are the floor's and never change, so the same position and extents give
+    // the same borders: a mover that stands still, as parked and processing ones do, skips
+    // the search.
+    if (near.valid && near.position == body.position && near.half_extents == body.half_extents)
+        return near.borders;
+    near.valid = true;
+    near.position = body.position;
+    near.half_extents = body.half_extents;
+    near.borders.clear();
+    // A border within `reach` has its bounding box within `reach` too; the margin covers the
+    // rounding of the distance, so the index skips only borders the distance test rejects, and
+    // returns the others in ascending order, as the loop over every border did.
+    const float reach = length(body.half_extents) + .01f;
+    const float limit = reach + border_search_margin_mm;
+    const auto borders = goals.floor.borders();
+    goals.floor.border_index().query({body.position - Vec2{limit, limit}, body.position + Vec2{limit, limit}},
+                                     ids_);
+    for (const std::size_t j : ids_)
+        if (distance_to_segment(body.position, borders[j].start, borders[j].end) <= reach)
+            near.borders.push_back(j);
+    return near.borders;
+}
+
 void MotionStep::resolve_contacts(Goals &goals) {
     auto &movers = goals.fleet.movers;
     const auto borders = goals.floor.borders();
     // Count contacts before correction and resolve each unordered pair once.
-    std::set<std::pair<std::size_t, std::size_t>> current;
+    // Pairs are found in ascending order, every mover pair (i, j > i) before i's borders
+    // (i, movers + j), so `current` is sorted without sorting and `contacts_` can be searched.
+    auto &current = current_;
+    current.clear();
     // Pairs are found on these copies, so resolving one pair never changes which pairs follow.
     // Every pair is tested on bounds computed once per mover: with about a hundred movers this
     // is cheaper than a spatial-index query per mover, and it keeps the pair order trivially.
     const std::size_t count = movers.size();
-    std::vector<Body> integrated;
-    std::vector<Aabb> boxes;
-    integrated.reserve(count);
-    boxes.reserve(count);
-    for (const auto &m : movers) {
-        integrated.push_back(m.body);
-        boxes.push_back(bounds(m.body));
+    auto &integrated = integrated_;
+    auto &boxes = contact_boxes_;
+    integrated.clear();
+    boxes.clear();
+    for (std::size_t i = 0; i < count; ++i) {
+        integrated.push_back(movers[i].body);
+        boxes.push_back(box_of(i, movers[i].body));
     }
     for (auto &m : movers)
         m.contacting = false;
@@ -330,9 +385,9 @@ void MotionStep::resolve_contacts(Goals &goals) {
         movers[a].contacting = true;
         if (b < movers.size())
             movers[b].contacting = true;
-        current.emplace(a, b);
+        current.emplace_back(a, b);
         ++contact_ticks_;
-        if (!contacts_.contains({a, b})) {
+        if (!std::binary_search(contacts_.begin(), contacts_.end(), std::pair{a, b})) {
             ++collisions_;
             if (goals.log.recording()) {
                 SimulationEvent event{.tick = goals.tick, .kind = EventKind::contact};
@@ -361,11 +416,8 @@ void MotionStep::resolve_contacts(Goals &goals) {
                     resolve_contact(a, b, *c);
                     a.motion = b.motion = Motion::controlled;
                 }
-        for (std::size_t j = 0; j < borders.size(); ++j) {
+        for (const std::size_t j : near_borders(goals, i, integrated[i])) {
             const auto &edge = borders[j];
-            if (distance_to_segment(integrated[i].position, edge.start, edge.end) >
-                length(integrated[i].half_extents) + .01f)
-                continue;
             Body wall;
             wall.shape = Shape::box;
             wall.motion = Motion::fixed;
@@ -382,6 +434,7 @@ void MotionStep::resolve_contacts(Goals &goals) {
             }
         }
     }
-    contacts_ = std::move(current);
+    // The swap keeps both buffers' storage for the next tick.
+    std::swap(contacts_, current);
 }
 } // namespace i4sim::detail

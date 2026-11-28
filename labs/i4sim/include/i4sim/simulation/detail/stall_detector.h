@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace i4sim::detail {
 /// The factory's tuning of stall observation, in millimeters and ticks; RIGHT OF WAY uses it
@@ -29,5 +30,7 @@ class StallDetector {
   private:
     std::size_t movers_;
     kinetra::StallDetector detector_;
+    /// The movers as the detector sees them, refilled every tick without allocating.
+    std::vector<kinetra::StallMover> observed_;
 };
 } // namespace i4sim::detail
