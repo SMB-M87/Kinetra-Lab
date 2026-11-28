@@ -2137,6 +2137,44 @@ TEST_CASE("a stop line never crosses the mover it stops") {
     CHECK(line.end.y == 20);
 }
 
+TEST_CASE("a mover stranded after MAKE WAY returns to the factory") {
+    // Recorded on test-environment, seed 42, under Reciprocal on plain A* with every policy and
+    // without SAFETY STOP: mover 4 made way for mover 0 at tick 13092 and braked when its trip
+    // was obstructed. Its way home stayed blocked by mover 0, which waited for the place mover 4
+    // stood on: until 2026-11-28 the factory then stopped for good after six products. With
+    // SAFETY STOP the run goes otherwise; the contact suite's 4320x2400 run strands a mover too.
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("test-environment")), 42);
+    auto settings = simulation.motion_settings();
+    settings.safety_stop = false;
+    settings.profile = SteeringProfile::reciprocal;
+    settings.heatmap = false;
+    settings.recovery = settings.parking_traffic = settings.junction_traffic = settings.corridor_traffic =
+        true;
+    settings.predictive_passing = settings.make_way = settings.departure_check = settings.right_of_way = true;
+    simulation.configure_motion(settings);
+    simulation.record_events(true);
+    simulation.run();
+    std::optional<std::uint64_t> ended;
+    std::uint64_t longest = 0;
+    std::size_t seen = 0;
+    for (int tick = 0; tick < 40000; ++tick) {
+        simulation.tick();
+        const auto events = simulation.events();
+        for (; seen < events.size(); ++seen)
+            if (events[seen].kind == EventKind::make_way_ended && events[seen].movers[1] == 4)
+                ended = events[seen].tick;
+        const auto &m = simulation.movers()[4];
+        if (m.goal != GoalKind::making_way)
+            ended.reset();
+        else if (ended && (m.moving() || m.held))
+            ended = simulation.ticks();
+        else if (ended)
+            longest = std::max(longest, simulation.ticks() - *ended);
+    }
+    CHECK_MESSAGE(longest <= 2 * detail::stall_ticks + 1, "mover 4 stood under MAKE WAY for " << longest);
+    CHECK(simulation.completed() > 6);
+}
+
 TEST_CASE("a persistent contact pair counts once and accumulates its duration") {
     auto b = fixture();
     b.producers.clear();

@@ -5,7 +5,10 @@
 
 #include <kinetra/simulation/make_way.h>
 
+#include <cstdint>
+#include <optional>
 #include <span>
+#include <vector>
 
 namespace i4sim::detail {
 /// Advances temporary parking trips based on episodes from StallDetector.
@@ -25,5 +28,12 @@ class MakeWay {
 
   private:
     kinetra::MakeWay lifecycle_;
+    /// Per mover whose trip ended while it still yields, the tick since which it stands still on
+    /// its own: neither moving home nor held.
+    std::vector<std::optional<std::uint64_t>> ended_;
+    /// Gives a yielding mover back to the factory when it has stood still on its own for
+    /// `stranded_ticks` after its trip ended: its way back stays blocked, often by the mover it
+    /// made way for, which in turn waits for it. Without a product it heads for its parking place.
+    void release_stranded(Goals &goals);
 };
 } // namespace i4sim::detail
