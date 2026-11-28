@@ -102,6 +102,19 @@ StallMoverState right_of_way_state(const Fleet &fleet, std::size_t id) {
         return StallMoverState::busy;
     return StallMoverState::observed;
 }
+
+/// Whether two unrotated boxes lie apart or only touch, so that collide() finds no
+/// penetration. For such boxes collide() computes each axis's overlap as below, and its
+/// penetration is the smaller one, so it can be positive only when both are; this skips it,
+/// with its validation of both bodies, for the near borders and the neighbors that do not
+/// overlap, as kinetra::priority_steer() does. Any other pair is left to collide().
+bool apart(const Body &a, const Body &b) {
+    if (a.shape != Shape::box || b.shape != Shape::box || a.angle != 0 || b.angle != 0)
+        return false;
+    const float overlap_x = a.half_extents.x + b.half_extents.x - std::abs(b.position.x - a.position.x);
+    const float overlap_y = a.half_extents.y + b.half_extents.y - std::abs(b.position.y - a.position.y);
+    return overlap_x <= 0 || overlap_y <= 0;
+}
 } // namespace
 
 void MotionStep::end_right_of_way(Fleet &fleet, std::uint64_t tick, EventLog &log) {
@@ -574,7 +587,7 @@ void MotionStep::resolve_contacts(Goals &goals) {
     };
     for (std::size_t i = 0; i < count; ++i) {
         for (std::size_t j = i + 1; j < count; ++j)
-            if (boxes[i].overlaps(boxes[j]))
+            if (boxes[i].overlaps(boxes[j]) && !apart(integrated[i], integrated[j]))
                 if (auto c = collide(integrated[i], integrated[j]); c && c->penetration > 0) {
                     contact(i, j);
                     ++movers[j].collision_ticks;
@@ -596,6 +609,8 @@ void MotionStep::resolve_contacts(Goals &goals) {
             wall.position = (edge.start + edge.end) / 2;
             wall.half_extents = {std::max(0.001f, std::abs(edge.end.x - edge.start.x) / 2),
                                  std::max(0.001f, std::abs(edge.end.y - edge.start.y) / 2)};
+            if (apart(integrated[i], wall))
+                continue;
             if (auto c = collide(integrated[i], wall); c && c->penetration > 0.0011f) {
                 // The thin collision proxy extends 0.001 mm into free space;
                 // touching that artificial skin is not a physical wall contact.
