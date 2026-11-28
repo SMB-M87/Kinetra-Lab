@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-28 | [i4sim at 100,000 ticks per second](2026-11-28-i4sim-100k-ticks.md): hotspot 9, `3840x2400` from 72,000 to 108,000 headless ticks per second with every result unchanged | implemented |
 | 2026-11-27 | [i4sim surroundings](2026-11-27-i4sim-surroundings.md): hotspot 8, the neighbor and border lists of every mover without allocations or a scan of every border | implemented |
 | 2026-11-27 | [HUD error style](2026-11-27-hud-error-style.md): Kinetra's shared HUD style, an error in red above the statistics, and an error panel over the launch menu; i4sim uses both | implemented |
 | 2026-11-27 | [Demo showcases](2026-11-27-demo-showcases.md): Demo's authored scenarios repeat on their own; Doorway shuttles, Maze becomes a labyrinth with agents, and seven new scenarios show corridors, crossings, a circle, a bottleneck, chaos, fleets and a swarm | implemented |

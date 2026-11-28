@@ -61,7 +61,7 @@ The batch mode needs no window and also builds with `KINETRA_LAB_BUILD_RUNTIME=O
 ./build/kinetra_i4sim --blueprint labs/i4sim/blueprints/3840x2400.json --ticks 1000000 --seed 42 --output /tmp/i4sim-results
 ```
 
-It prints the ticks it ran, the completed products and the ticks per second of the tick loop, for example `i4sim: 1000000 ticks, 1034 completed products, 77502 ticks/s`. The rate depends on the machine and the blueprint: on the cloud machine of the [performance](../../docs/performance.md) page, a few hundred thousand on the smallest factories and about 10,000 on `8640x4800`.
+It prints the ticks it ran, the completed products and the ticks per second of the tick loop, for example `i4sim: 1000000 ticks, 1042 completed products, 108470 ticks/s`. The rate depends on the machine and the blueprint: on the cloud machine of the [performance](../../docs/performance.md) page, a few hundred thousand on the smallest factories and about 10,000 on `8640x4800`.
 
 | Option | Effect |
 | --- | --- |
