@@ -1,7 +1,8 @@
 # The capture script writes top-down RGBA bytes. Embed them so the launcher has no
-# image decoder or asset lookup at runtime.
-set(width 320)
-set(height 180)
+# image decoder or asset lookup at runtime. A still of another size stops the build, so a
+# size change starts from stills scaled with ffmpeg (tools/capture/README.md).
+set(width 480)
+set(height 270)
 math(EXPR row_bytes "${width} * 4")
 math(EXPR image_bytes "${row_bytes} * ${height}")
 math(EXPR row_hex_chars "${row_bytes} * 2")

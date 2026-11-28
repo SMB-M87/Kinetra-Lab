@@ -45,9 +45,9 @@ using launcher::Variant;
 /// Window size of a screenshot, and of a clip: clips are rendered at their final size, so
 /// the bitmap font stays sharp in the GIF.
 constexpr int shot_width = 1920, shot_height = 1080, clip_width = 960, clip_height = 540;
-/// Window size of a launcher preview: three times the 320 x 180 still that capture_media.sh
-/// scales it down to, so the still keeps sharp edges, and a view small enough that the
-/// shapes are larger than in the 1920 x 1080 screenshots.
+/// Window size of a launcher preview: twice the 480 x 270 still that capture_media.sh scales
+/// it down to, so the still keeps sharp edges, and a view small enough that the shapes are
+/// larger than in the 1920 x 1080 screenshots.
 constexpr int preview_width = 960, preview_height = 540;
 /// Length of a clip in frames: four seconds at 15 frames per second.
 constexpr int clip_frames = 60;
@@ -309,6 +309,23 @@ void dotio(Stage &stage) {
     dotio_shot(stage);
 }
 
+/// Wheel notches the Dotio preview zooms in from Dotio's starting zoom of 25 pixels per unit:
+/// eight reach its closest zoom, 50.
+constexpr float dotio_preview_zoom_in = 8;
+
+/// The launcher's Dotio still, in a full-size window: the game at Dotio's closest zoom, which
+/// the wheel reaches only in Debug Mode. A fourfold reduction then keeps the player and its
+/// enemies as large as a 960 x 540 window would, while the HUD, whose scale stops at 2, takes
+/// a quarter of the share it would take there.
+void dotio_preview(Stage &stage) {
+    stage.start_dotio();
+    stage.toggle_setting(SettingsRow::debug_mode);
+    turn_wheel(stage, dotio_preview_zoom_in);
+    stage.point_at(at(stage, .7f, .45f));
+    stage.play(dotio_warm_up_frames, [&](int frame) { return dotio_play(stage, frame); });
+    dotio_shot(stage);
+}
+
 void dotio_debug(Stage &stage) {
     dotio_start(stage, true);
     dotio_shot(stage);
@@ -481,9 +498,11 @@ Scene clip(std::string_view name, void (*script)(Stage &)) {
     return {name, SceneKind::clip, clip_width, clip_height, script};
 }
 
-/// A launcher preview, which capture_media.sh also scales down to the launcher's still.
-Scene preview(std::string_view name, void (*script)(Stage &)) {
-    return {name, SceneKind::screenshot, preview_width, preview_height, script};
+/// A launcher preview, which capture_media.sh also scales down to the launcher's still, in a
+/// window of `width` x `height`.
+Scene preview(std::string_view name, void (*script)(Stage &), int width = preview_width,
+              int height = preview_height) {
+    return {name, SceneKind::screenshot, width, height, script};
 }
 
 /// A clip of the shared UI for Kinetra's README, at the size of the other clips.
@@ -525,6 +544,7 @@ const std::vector<Scene> &scenes() {
         clip("demo-swarm-clip",
              [](Stage &stage) { demo_scenario_clip(stage, demo::Scenario::swarm, demo_free_frames); }),
         shot("dotio", dotio),
+        preview("dotio-preview", dotio_preview, shot_width, shot_height),
         shot("dotio-debug", dotio_debug),
         shot("dotio-settings", dotio_settings),
         clip("dotio-clip", dotio_clip),
