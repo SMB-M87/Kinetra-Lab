@@ -73,10 +73,10 @@ namespace menu_row {
 constexpr unsigned simulation = 0, layers_below_simulation = 6, motion_below_simulation = 7;
 /// LAYERS open: heading on row 1, then GRID, HEATMAP and PATHS.
 constexpr unsigned layers = 1, paths = 4;
-/// MOTION open: heading on row 2, then PROFILE, PLANNER, RECOVERY, SPEED, FORCE, HORIZON and
-/// RESET PARAMETERS, then the TRAFFIC heading.
-constexpr unsigned motion = 2, profile = 3, planner = 4, speed = 6, force = 7, horizon = 8,
-                   traffic_below_motion = 10;
+/// MOTION open: heading on row 2, then PROFILE, PLANNER, RECOVERY, SAFETY STOP, SPEED, FORCE,
+/// HORIZON and RESET PARAMETERS, then the TRAFFIC heading.
+constexpr unsigned motion = 2, profile = 3, planner = 4, speed = 7, force = 8, horizon = 9,
+                   traffic_below_motion = 11;
 /// The values of the open PROFILE list, below its row.
 constexpr unsigned improved = 4, original = 5, reciprocal = 7;
 /// The values of the open PLANNER list, below its row.
