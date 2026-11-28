@@ -274,6 +274,8 @@ void SimulationCore::dump(const std::filesystem::path &directory) const {
               {"completed", production_.completed()},
               {"contactTicks", motion_step_.contact_ticks()},
               {"collisions", motion_step_.collisions()},
+              {"safetyStops", motion_step_.safety_stops()},
+              {"safetyStopTicks", motion_step_.safety_stop_ticks()},
               {"movers", Json::array()},
               {"producers", Json::array()},
               {"products", Json::array()}};

@@ -107,8 +107,8 @@ TEST_CASE("the factory with default motion reproduces its recorded summary") {
         run_factory(recorder, fixture_blueprint("test-environment"), 42, MotionSettings{}, 20000);
     check_summary(
         "factory default motion", recorder, simulation,
-        "ticks=20000 completed=5 collisions=16 contact_ticks=16 interactions=33 distance_mm=27436.008 "
-        "trajectory=8b06d3dac6e3297a");
+        "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=34 distance_mm=28375.384 "
+        "trajectory=07417fa182240ef2");
 }
 
 TEST_CASE("the coordinated factory reproduces its recorded summary") {
@@ -117,8 +117,8 @@ TEST_CASE("the coordinated factory reproduces its recorded summary") {
         run_factory(recorder, fixture_blueprint("test-environment"), 42, coordinated_motion(), 20000);
     check_summary(
         "factory coordinated", recorder, simulation,
-        "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=33 distance_mm=28843.187 "
-        "trajectory=0db5b6760196d5cd");
+        "ticks=20000 completed=5 collisions=0 contact_ticks=0 interactions=33 distance_mm=28839.241 "
+        "trajectory=e80fc54b1e3f41c9");
 }
 
 TEST_CASE("the coordinated large factory reproduces its recorded summary") {
@@ -137,7 +137,7 @@ TEST_CASE("the original steering profile reproduces its recorded summary") {
                                         profile_motion(SteeringProfile::original), 10000);
     check_summary("original profile", recorder, simulation,
                   "ticks=10000 completed=1 collisions=0 contact_ticks=0 interactions=13 distance_mm=8523.861 "
-                  "trajectory=acc39b34b344dcc6");
+                  "trajectory=7ed0d9eb7f141de2");
 }
 
 TEST_CASE("the experimental RVO profile reproduces its recorded summary") {
@@ -146,8 +146,8 @@ TEST_CASE("the experimental RVO profile reproduces its recorded summary") {
                                         profile_motion(SteeringProfile::experimental_rvo), 10000);
     check_summary(
         "experimental rvo profile", recorder, simulation,
-        "ticks=10000 completed=1 collisions=24 contact_ticks=24 interactions=14 distance_mm=17582.890 "
-        "trajectory=bc246a58724f4083");
+        "ticks=10000 completed=1 collisions=0 contact_ticks=0 interactions=14 distance_mm=17650.514 "
+        "trajectory=42f758e4c9be806c");
 }
 
 TEST_CASE("the improved profile with recovery reproduces its recorded summary") {
@@ -155,10 +155,9 @@ TEST_CASE("the improved profile with recovery reproduces its recorded summary") 
     const auto simulation = run_factory(
         recorder, catalog_blueprint("1680x960+"), 7,
         profile_motion(SteeringProfile::improved, [](MotionSettings &m) { m.recovery = true; }), 10000);
-    check_summary(
-        "improved profile with recovery", recorder, simulation,
-        "ticks=10000 completed=1 collisions=20 contact_ticks=22 interactions=13 distance_mm=9216.312 "
-        "trajectory=98f18427ff86ace4");
+    check_summary("improved profile with recovery", recorder, simulation,
+                  "ticks=10000 completed=1 collisions=0 contact_ticks=0 interactions=13 distance_mm=9206.479 "
+                  "trajectory=f471b2e262f5c7df");
 }
 
 TEST_CASE("the junction crossing reproduces its recorded summary") {

@@ -138,6 +138,12 @@ const MotionSettings &Simulation::motion_settings() const {
 void Simulation::configure_motion(MotionSettings settings) {
     core_->configure_motion(settings);
 }
+std::uint64_t Simulation::safety_stops() const {
+    return core_->safety_stops();
+}
+std::uint64_t Simulation::safety_stop_ticks() const {
+    return core_->safety_stop_ticks();
+}
 std::uint64_t Simulation::contact_ticks() const {
     return core_->contact_ticks();
 }

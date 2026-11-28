@@ -90,6 +90,12 @@ struct MotionSettings {
     /// to make room. See `Coordination::right_of_way`. Only under the profiles of
     /// `supports_right_of_way`.
     bool right_of_way{};
+    /// SAFETY STOP: just before a mover moves, its move is cut short where it would come
+    /// within 0.05 mm of another mover, where that one stands now, or of a border, whatever
+    /// steering chose; the mover brakes at once. Movers then never touch, under every
+    /// profile, unless they start touching. On by default; `Simulation::safety_stops()`
+    /// counts how often steering needed it.
+    bool safety_stop{true};
 };
 /// Whether a simulation advances. Every simulation starts `paused`.
 enum class RunState {
@@ -270,6 +276,11 @@ class Simulation {
     std::uint64_t collisions() const;
     /// Movers with infeasible reciprocal constraints or overridden avoidance in the last movement tick.
     std::size_t avoidance_limited() const;
+    /// SAFETY STOP: stops that started, over the whole run; a mover stopped in consecutive
+    /// ticks counts once. Each one is a tick in which steering would have let it touch.
+    std::uint64_t safety_stops() const;
+    /// Ticks summed over every mover that SAFETY STOP stopped.
+    std::uint64_t safety_stop_ticks() const;
     /// Automatic parking returns temporarily staged outside active departure routes.
     std::size_t parking_waiting() const;
     /// Number of isolated single-cell junctions the floor has.

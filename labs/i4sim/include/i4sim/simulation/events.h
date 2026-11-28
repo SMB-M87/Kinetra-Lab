@@ -35,6 +35,11 @@ enum class EventKind {
     /// The right of way ended: its window passed, the mover left its route or the policy
     /// was turned off.
     right_of_way_ended,
+    /// SAFETY STOP shortened a mover's move, which would otherwise have come closer than the
+    /// safety gap to the second mover, or for `border` to the border `Simulation::borders()`
+    /// names; recorded when a stop starts, after a tick without one. Without a blocker, as
+    /// when a move kept turning, the second entry repeats the mover.
+    safety_stop,
 };
 
 /// Evidence available when the detector observed the start of a stall: Kinetra's reasons
@@ -111,7 +116,7 @@ struct SimulationEvent {
     std::array<kinetra::Vec2, 2> entry{}, exit{};
     /// `passing_ended`: why the plan was removed; empty for every other kind.
     std::optional<PassingEnd> end{};
-    /// `contact`: true when the second participant is a border, not a mover.
+    /// `contact` and `safety_stop`: true when the second participant is a border, not a mover.
     bool border{};
     /// `contact`: true when a participant was in a passing plan in that tick.
     bool passing{};
@@ -146,6 +151,8 @@ constexpr std::string_view name(EventKind kind) {
         return "right_of_way_granted";
     case EventKind::right_of_way_ended:
         return "right_of_way_ended";
+    case EventKind::safety_stop:
+        return "safety_stop";
     }
     return "unknown";
 }

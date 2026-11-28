@@ -33,22 +33,33 @@ class MotionStep {
     std::uint64_t contact_ticks() const { return contact_ticks_; }
     /// Movers whose reciprocal avoidance was infeasible or overridden in the last tick.
     std::size_t avoidance_limited() const { return avoidance_limited_; }
+    /// SAFETY STOP: stops that started, over the whole run, and ticks summed over every
+    /// mover that the safety stop shortened.
+    std::uint64_t safety_stops() const { return safety_stops_; }
+    std::uint64_t safety_stop_ticks() const { return safety_stop_ticks_; }
     /// Ends every right of way at once, with an event per holder; for turning RIGHT OF WAY off
     /// or choosing a profile that ignores it.
     void end_right_of_way(Fleet &fleet, std::uint64_t tick, EventLog &log);
 
   private:
-    /// What one mover steers around: nearby movers from the snapshot, the same movers as
-    /// avoidance agents (Reciprocal only), and nearby borders and stop lines.
+    /// What one mover steers around: nearby movers from the snapshot and their indices, the
+    /// same movers as avoidance agents (Reciprocal only), and nearby borders followed by its
+    /// stop lines; `border_ids` index `Simulation::borders()` for the first entries of `edges`.
     struct Surroundings {
         std::vector<kinetra::Body> neighbors;
+        std::vector<std::size_t> neighbor_ids;
         std::vector<kinetra::AvoidanceAgent> agents;
         std::vector<kinetra::Segment> edges;
+        std::vector<std::size_t> border_ids;
     };
     /// Touching pairs of the last tick, ascending; a border is `movers + border index`.
     std::vector<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{}, collisions_{};
     std::size_t avoidance_limited_{};
+    std::uint64_t safety_stops_{}, safety_stop_ticks_{};
+    /// Per mover, the last tick in which the safety stop shortened its move, plus one; zero
+    /// before the first.
+    std::vector<std::uint64_t> stopped_until_;
     /// RIGHT OF WAY: which pushed-back movers the others do not count on to make room.
     kinetra::RightOfWay right_of_way_;
 
@@ -78,8 +89,13 @@ class MotionStep {
     std::vector<kinetra::StallMover> stall_movers_;
     void choose_acceleration(const Goals &goals, Mover &mover, const kinetra::Body &start,
                              const Surroundings &around, Vec2 target, bool arrival);
-    static void integrate(Goals &goals, Production &production, std::size_t mover, const Surroundings &around,
-                          bool controlled);
+    void integrate(Goals &goals, Production &production, std::size_t mover, const Surroundings &around,
+                   bool controlled);
+    /// SAFETY STOP: the part of `move` that mover `mover` can travel this tick without coming
+    /// closer than `safety_gap_mm` to a neighbor, as it stands now, or a border. Sets
+    /// `blocker` to the neighbor, or `movers + border index` for a border, that shortened it.
+    Vec2 safe_move(const Goals &goals, std::size_t mover, Vec2 move, const Surroundings &around,
+                   std::optional<std::size_t> &blocker) const;
     /// `kinetra::bounds(body)` for mover `mover`'s body, remembered per mover until a box's
     /// position, extents or angle change.
     struct KnownBox {

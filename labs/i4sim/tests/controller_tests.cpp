@@ -814,9 +814,9 @@ TEST_CASE("the motion section lists the profile, the planner and the parameters"
     REQUIRE(controller.load(factory));
     open_section(controller, "MOTION");
     CHECK(labels(controller) == std::vector<std::string>{"SIMULATION", "LAYERS", "MOTION", "PROFILE",
-                                                         "PLANNER", "RECOVERY", "SPEED", "FORCE", "HORIZON",
-                                                         "RESET PARAMETERS", "TRAFFIC", "ZOOM",
-                                                         "FRAME SCENE"});
+                                                         "PLANNER", "RECOVERY", "SAFETY STOP", "SPEED",
+                                                         "FORCE", "HORIZON", "RESET PARAMETERS", "TRAFFIC",
+                                                         "ZOOM", "FRAME SCENE"});
     CHECK_MESSAGE(!entry(controller, "SPEED").action, "a number row changes only with its buttons");
 }
 
@@ -890,7 +890,7 @@ TEST_CASE("the profile list shows the four profiles and closes on a choice") {
     CHECK(controller.simulation().motion_settings().profile == i4sim::SteeringProfile::reciprocal);
     CHECK(entry(controller, "PROFILE").value() == "RECIPROCAL");
     CHECK_MESSAGE(!entry(controller, "PROFILE").active(), "choosing a value closes the list");
-    CHECK(labels(controller).size() == 13);
+    CHECK(labels(controller).size() == 14);
 }
 
 TEST_CASE("choosing the current value only closes the list") {
@@ -1008,6 +1008,11 @@ TEST_CASE("the recovery and traffic entries are check boxes on the motion settin
     choose(controller, "RECOVERY");
     CHECK(motion.recovery);
     CHECK(entry(controller, "RECOVERY").active());
+    CHECK(entry(controller, "SAFETY STOP").kind == kinetra::DebugEntryKind::check);
+    CHECK_MESSAGE(entry(controller, "SAFETY STOP").active(), "SAFETY STOP is on by default");
+    choose(controller, "SAFETY STOP");
+    CHECK_FALSE(motion.safety_stop);
+    CHECK_FALSE(entry(controller, "SAFETY STOP").active());
     choose_value(controller, "PROFILE", "ORIGINAL"); // Original has no predictive passing.
     open_section(controller, "TRAFFIC");
     CHECK(entry(controller, "PREDICTIVE PASS").value() == "LEGACY");

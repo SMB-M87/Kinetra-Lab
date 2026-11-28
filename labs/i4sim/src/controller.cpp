@@ -445,6 +445,7 @@ void FactoryController::add_motion_entries(std::vector<kinetra::DebugEntry> &ent
                                .active = [motion, choice] { return planner(motion()) == choice; },
                                .depth = 2});
     entries.push_back(motion_check("RECOVERY", &MotionSettings::recovery));
+    entries.push_back(motion_check("SAFETY STOP", &MotionSettings::safety_stop));
     entries.push_back(motion_number(
         "SPEED", [motion] { return number_text(motion().speed); },
         [](MotionSettings &m) { m.speed /= parameter_step; },

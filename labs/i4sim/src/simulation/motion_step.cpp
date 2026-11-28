@@ -15,6 +15,74 @@ using namespace kinetra;
 namespace {
 /// Margin in millimeters beyond the steering reach within which borders are considered.
 constexpr float border_search_margin_mm = 10;
+/// SAFETY STOP keeps a mover this far, in millimeters, from every neighbor: more than the
+/// rounding of a position on the largest floor, so a stopped pair never counts as touching.
+constexpr float safety_gap_mm = 0.05f;
+/// The same for a border, which a mover may touch, as at a parking place against a wall, but
+/// not cross: twice the rounding of a position on the largest floor.
+constexpr float border_gap_mm = 0.001f;
+/// A cut of at most this many millimeters is the end of an approach that steering already
+/// slows, not a stop: SAFETY STOP applies it but does not count it.
+constexpr float negligible_cut_mm = 0.01f;
+
+/// Distance in millimeters within which a box counts as flush with an obstacle on one axis
+/// although rounding put it slightly inside: it slides along without a stop.
+constexpr float flush_mm = 0.001f;
+
+/// The part of `move` that keeps a box at `offset` from an obstacle out of touch with it,
+/// for `extent` the half extents of both combined. On each axis the box may come no closer
+/// than `gap`, or than it is now when it is closer already. Where the move would
+/// bring it that close on both axes at once, the component on the axis it reaches last is cut
+/// at that point and the other is kept, so the box slides along the obstacle. A box that
+/// already overlaps on both, as after a contact, only stops approaching on the axis it
+/// overlaps least.
+Vec2 clear_move(Vec2 offset, Vec2 move, Vec2 extent, float gap) {
+    Vec2 limit;
+    for (int axis = 0; axis < 2; ++axis) {
+        const float distance = std::abs(axis == 0 ? offset.x : offset.y);
+        const float touch = axis == 0 ? extent.x : extent.y;
+        // The gap counts, unless the box is already closer on this axis, flush or nearly so:
+        // then it may only come no closer. A box that overlaps on this axis, as one beside the
+        // obstacle does, keeps the gap.
+        float bound = touch + gap;
+        if (distance < bound && distance >= touch - flush_mm)
+            bound = distance;
+        (axis == 0 ? limit.x : limit.y) = bound;
+    }
+    const bool inside_x = std::abs(offset.x) < limit.x, inside_y = std::abs(offset.y) < limit.y;
+    if (inside_x && inside_y) {
+        const bool x_axis = std::abs(offset.x) - extent.x >= std::abs(offset.y) - extent.y;
+        float &along = x_axis ? move.x : move.y;
+        if ((x_axis ? offset.x : offset.y) * along < 0)
+            along = 0;
+        return move;
+    }
+    // Slab test of the move against the region: the share of the move before it enters, and
+    // the axis on which it enters last.
+    float enter = 0, leave = 1;
+    int entering = -1;
+    for (int axis = 0; axis < 2; ++axis) {
+        const float start = axis == 0 ? offset.x : offset.y, step = axis == 0 ? move.x : move.y;
+        const float half = axis == 0 ? limit.x : limit.y;
+        if (step == 0) {
+            if (std::abs(start) >= half)
+                return move;
+            continue;
+        }
+        float first = (-half - start) / step, last = (half - start) / step;
+        if (first > last)
+            std::swap(first, last);
+        if (first >= enter) {
+            enter = first;
+            entering = axis;
+        }
+        leave = std::min(leave, last);
+    }
+    if (enter >= leave || entering < 0)
+        return move;
+    (entering == 0 ? move.x : move.y) *= enter;
+    return move;
+}
 /// Ticks a pushed-back mover keeps the right of way: four stall windows, the best of the
 /// windows measured under the prototype's return rule (design: stall remedies in the engine).
 constexpr std::uint64_t right_of_way_ticks = 4 * stall_ticks;
@@ -181,14 +249,17 @@ void MotionStep::surroundings(const Goals &goals, std::size_t i, const std::vect
     const auto &motion = goals.motion;
     const auto &m = fleet.movers[i];
     around.neighbors.clear();
+    around.neighbor_ids.clear();
     around.agents.clear();
     around.edges.clear();
+    around.border_ids.clear();
     const float reach =
         length(m.body.half_extents) + goals.floor.mover_max_extent() * 2 + 2 * motion.speed * motion.horizon;
     index.query({m.body.position - Vec2{reach, reach}, m.body.position + Vec2{reach, reach}}, ids);
     for (auto id : ids)
         if (id != i) {
             around.neighbors.push_back(snapshot[id]);
+            around.neighbor_ids.push_back(id);
             if (motion.profile == SteeringProfile::reciprocal) {
                 // Movers stopped by traffic do not cooperate: the others avoid them alone.
                 const auto &other = snapshot[id];
@@ -208,8 +279,10 @@ void MotionStep::surroundings(const Goals &goals, std::size_t i, const std::vect
         {m.body.position - Vec2{limit, limit}, m.body.position + Vec2{limit, limit}}, ids);
     for (auto id : ids) {
         const auto &edge = borders[id];
-        if (distance_to_segment(m.body.position, edge.start, edge.end) <= limit)
+        if (distance_to_segment(m.body.position, edge.start, edge.end) <= limit) {
             around.edges.push_back(edge);
+            around.border_ids.push_back(id);
+        }
     }
     if (i < fleet.stops.size())
         around.edges.insert(around.edges.end(), fleet.stops[i].begin(), fleet.stops[i].end());
@@ -279,6 +352,29 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
     auto &tracking = goals.fleet.progress[i];
     m.body.acceleration = m.forces.acceleration;
     m.body.velocity = limited(m.body.velocity + m.body.acceleration, goals.motion.speed);
+    if (goals.motion.safety_stop) {
+        std::optional<std::size_t> blocker;
+        const auto move = safe_move(goals, i, m.body.velocity, around, blocker);
+        if (length(m.body.velocity - move) > negligible_cut_mm) {
+            if (stopped_until_.size() < goals.fleet.movers.size())
+                stopped_until_.resize(goals.fleet.movers.size());
+            // A stop that went on in the last tick continues; one after a free tick starts.
+            if (stopped_until_[i] != goals.tick) {
+                ++safety_stops_;
+                if (goals.log.recording()) {
+                    SimulationEvent event{.tick = goals.tick, .kind = EventKind::safety_stop};
+                    const auto movers = goals.fleet.movers.size();
+                    event.border = blocker && *blocker >= movers;
+                    event.movers = {i, blocker ? (event.border ? *blocker - movers : *blocker) : i};
+                    goals.log.add(event);
+                }
+            }
+            stopped_until_[i] = goals.tick + 1;
+            ++safety_stop_ticks_;
+        }
+        // The mover brakes at once, harder than its force allows, as a safety stop does.
+        m.body.velocity = move;
+    }
     const auto before = m.body.position;
     m.body.position += m.body.velocity;
     const float moved = distance(before, m.body.position);
@@ -309,13 +405,20 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
     if (!controlled && m.route.size() == 1 &&
         distance(m.body.position, m.destination) < arrival_distance_mm &&
         length(m.body.velocity) < stop_speed &&
-        goals.floor.grid().clear(m.body.position, m.destination, m.body.half_extents) &&
-        std::none_of(around.neighbors.begin(), around.neighbors.end(), [&](const Body &other) {
+        goals.floor.grid().clear(m.body.position, m.destination, m.body.half_extents) && [&] {
             Body parked = m.body;
             parked.position = m.destination;
-            const auto contact = collide(parked, other);
-            return contact && contact->penetration > 0;
-        })) {
+            auto touches = [&](const Body &other) {
+                const auto contact = collide(parked, other);
+                return contact && contact->penetration > 0;
+            };
+            // SAFETY STOP stops short of the gap, so the snap closes it; it only checks that
+            // the place touches no neighbor where that one stands now.
+            if (goals.motion.safety_stop)
+                return std::none_of(around.neighbor_ids.begin(), around.neighbor_ids.end(),
+                                    [&](std::size_t id) { return touches(goals.fleet.movers[id].body); });
+            return std::none_of(around.neighbors.begin(), around.neighbors.end(), touches);
+        }()) {
         m.body.position = m.destination;
         m.body.velocity = {};
         m.body.acceleration = {};
@@ -324,6 +427,65 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
             m.goal = GoalKind::automatic;
         m.route.clear();
     }
+}
+
+Vec2 MotionStep::safe_move(const Goals &goals, std::size_t i, Vec2 move, const Surroundings &around,
+                           std::optional<std::size_t> &blocker) const {
+    const auto &movers = goals.fleet.movers;
+    // Movers are unrotated boxes, so a box is its position and half extents.
+    const Vec2 center = movers[i].body.position, half = movers[i].body.half_extents;
+    const auto borders = goals.floor.borders();
+    // An obstacle farther than the move and the gap on either axis cannot be reached in this
+    // tick; most are, so the test skips them first.
+    const float reach = std::max(std::abs(move.x), std::abs(move.y)) + safety_gap_mm;
+    // Each obstacle cuts the move or a component of it. A cut can turn the move toward an
+    // obstacle tested before, so the tests repeat until nothing changes, and a move still
+    // changing after a few rounds becomes no move, which is always safe.
+    auto clip = [&](Vec2 wanted, std::optional<std::size_t> &by) {
+        for (int round = 0; round < 4; ++round) {
+            bool changed = false;
+            auto keep_clear = [&](Vec2 position, Vec2 extents, std::size_t id, float gap) {
+                const Vec2 offset = center - position, extent = half + extents;
+                if (std::abs(offset.x) - extent.x > reach || std::abs(offset.y) - extent.y > reach)
+                    return;
+                const auto next = clear_move(offset, wanted, extent, gap);
+                if (next != wanted) {
+                    wanted = next;
+                    by = id;
+                    changed = true;
+                }
+            };
+            // Every neighbor where it stands now: those that moved this tick at their new place.
+            for (const auto id : around.neighbor_ids)
+                keep_clear(movers[id].body.position, movers[id].body.half_extents, id, safety_gap_mm);
+            for (const auto id : around.border_ids) {
+                const auto &edge = borders[id];
+                keep_clear((edge.start + edge.end) / 2,
+                           {std::abs(edge.end.x - edge.start.x) / 2, std::abs(edge.end.y - edge.start.y) / 2},
+                           movers.size() + id, border_gap_mm);
+            }
+            if (!changed)
+                return wanted;
+        }
+        return Vec2{};
+    };
+    const auto whole = clip(move, blocker);
+    if (whole == move)
+        return move;
+    // Where a corner meets the move on both axes at once, which axis to cut is a guess that
+    // can stop a mover that one axis alone would take past: of the cut move and the move along
+    // each axis, the one that goes farthest in the wanted direction wins.
+    auto best = whole;
+    for (const Vec2 along : {Vec2{move.x, 0}, Vec2{0, move.y}}) {
+        std::optional<std::size_t> by;
+        const auto candidate = clip(along, by);
+        if (dot(candidate, move) > dot(best, move)) {
+            best = candidate;
+            if (by)
+                blocker = by;
+        }
+    }
+    return best;
 }
 
 Aabb MotionStep::box_of(std::size_t mover, const Body &body) {
