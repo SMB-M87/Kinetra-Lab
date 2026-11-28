@@ -1,6 +1,6 @@
 # Stall remedies in the engine
 
-Status: accepted · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3), `feat/right-of-way` (step 4) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
+Status: implemented · Branches: `feat/i4sim-departure-check` (step 1 of 5), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3), `feat/right-of-way` (step 4), `refactor/make-way-engine` (step 5) · Related: [Lab roadmap](../roadmap.md#now), [Kinetra roadmap](../../external/Kinetra/docs/roadmap.md), [stall detection](2026-11-26-i4sim-stall-detection.md), [MAKE WAY](2026-11-27-i4sim-make-way.md), [Kinetra ADR 0017](../../external/Kinetra/docs/decisions/0017-passing-coordinator.md)
 
 This change finishes the first *Later* item of both roadmaps. In Lab that item is *Stall detection and remedies in i4sim*, which has two remedies left: the departure check and a temporary motion fallback. In Kinetra it was *i4sim on the passing coordinator*, which Kinetra#71 replaced with *Stall detection and remedies in the engine*. The detection data choose the fallback. i4sim then moves onto Kinetra's `PassingCoordinator`, and stall detection, the fallback and MAKE WAY move into the engine as mechanisms of their own. It is a stack of five steps. This document is shared by every step, and each step fills in its own part.
 
@@ -81,7 +81,7 @@ Settled with the user on 2026-11-27, in three rounds of forms.
 | 2 | Kinetra and Lab `refactor/i4sim-passing-coordinator` (Kinetra#71, merged; #149) | i4sim's passing runs on `kinetra::PassingCoordinator`; a Kinetra ADR amends 0017 |
 | 3 | Kinetra and Lab `feat/stall-detector` (Kinetra#72, #150) | `kinetra::StallDetector`, the reasons of i4sim's detector plus `pushed_back`; i4sim uses it |
 | 4 | Kinetra and Lab `feat/right-of-way` (Kinetra#74, #154) | `kinetra::RightOfWay`; i4sim's RIGHT OF WAY |
-| 5 | Kinetra and Lab `refactor/make-way-engine` | `kinetra::MakeWay`, the request lifecycle; i4sim keeps refuge candidates, reservations and production |
+| 5 | Kinetra and Lab `refactor/make-way-engine` ([Kinetra #83](https://github.com/SMB-M87/Kinetra/pull/83)) | `kinetra::MakeWay`, the request lifecycle; i4sim keeps refuge candidates, reservations and production |
 
 **Step 1: departure check.** `MotionSettings::departure_check` (DEBUG → TRAFFIC → DEPARTURE CHECK, `scenario.motion.departureCheck`, `--departure-check`) is off by default. When a product with a mover heads its queue, `Production::departure_route` plans the mover's route with `require_departure`:
 
@@ -124,7 +124,7 @@ i4sim's `MotionSettings::right_of_way` (DEBUG → TRAFFIC → RIGHT OF WAY, `sce
 
 **Step 5: making way.** `kinetra::MakeWay` advances open trips before considering stall episodes, in mover order. It tries an alternate route for the stalled mover first, then the nearest reachable refuge that opens a route for that mover. It bounds searches per episode, owns the outbound, waiting and returning phases, and emits one outcome even if a cancelled or obstructed mover still needs a checked route home.
 
-The application supplies a live view of mover state and stall episodes, identifies a blocking neighbor and whether it can yield, offers refuge positions, checks routes against the world, and applies routes and events in the order the engine issues them. i4sim still owns traffic-zone checks, stationary footprint checks, parking reservations, and producer queues. A manually held blocker keeps its product and queue position and returns once released. Skipping a manually held product in its producer's queue would change that queue policy and remains a separate decision.
+The application supplies a live view of mover state and stall episodes, identifies a blocking neighbor and whether it can yield, offers refuge positions, checks routes against the world, and applies routes and events in the order the engine issues them. i4sim still owns traffic-zone checks, stationary footprint checks, parking reservations, and producer queues. The factory traffic coordinator governs the beneficiary's ordinary route through enabled zones. Only the yielding trip must avoid them. When a reservation invalidates a yielding leg, the mover can settle at its brake position inside the reservation while the lifecycle continues checking for a legal return. A manually held blocker keeps its product and queue position and returns once released. Skipping a manually held product in its producer's queue would change that queue policy and remains a separate decision.
 
 ## Affected areas
 
@@ -196,6 +196,7 @@ Step 5, Full level (a public engine header and its i4sim consumer):
 | Alternate route comes first and issues no yielding trip. An unreachable candidate is skipped, and a closer checked refuge wins | Kinetra `kinetra_make_way_tests` and the external consumer |
 | A request ends once, checks the route home, and can retry a blocked return; disabling, a held mover or a changed goal ends the request | Kinetra `kinetra_make_way_tests`; i4sim parked-blocker, obstruction and timeout cases |
 | Retry delay and search limit apply per stall episode, and removing a participant cannot leave a stale trip | Kinetra `kinetra_make_way_tests` |
+| A beneficiary can use an enabled corridor; the yielding leg stays outside it. A yielding mover can stop inside a live reservation and later withdraw | i4sim corridor request and braking-return cases |
 | The factory keeps its route checks, product, queue position and parking reservation | i4sim MAKE WAY, parking and production cases; compare the long benchmark with MAKE WAY on |
 | Default behavior and passing pressure outcomes stay as recorded | i4sim golden and pressure suites |
 
@@ -305,6 +306,13 @@ The long cells vary between versions of the fallback, so only their direction is
 | With the goal-change end and the pusher rule | 345 / 93,913 / 12 | 354 / 554 / 9,496 |
 
 All three rows ran on Kinetra with #69. The version before the review gives the prototype's numbers exactly under Reciprocal; the prototype ran before #69, when Improved gave 356 / 644 / 10,541. The goal-change end leaves the harness identical to the version before it (Reciprocal 114 products, 13,587 waiting ticks; Improved 105 products). The pusher rule changes the harness, as the table above shows.
+
+### Step 5
+
+- Kinetra's warning-as-error headless build and `ctest --preset headless -j 2 --output-on-failure` passed 321 cases, including seven for the new lifecycle. The external consumer built with `CONSUMER_GRAPHICS=ON` and ran successfully.
+- The Lab Release build and `ctest --preset release -R '^kinetra_i4sim(:|_golden:|_pressure:|_controller:|_relocation)' -j 2 --output-on-failure` passed all 188 cases. The recorded golden and pressure lines stayed identical. Both traffic regressions failed before the behavior fix and passed after it.
+- `kinetra_i4sim_motion_benchmark --ticks 50000 --make-way --profile <profile>` matched Lab `8b1115e` and Kinetra `1dd9c83` across all six default runs for each of Reciprocal and Improved. Every output column matched apart from elapsed time and tick rate, which were excluded. The benchmark did not enable corridor or junction traffic. The targeted regressions exercise the changes under an enabled corridor.
+- Clang-format 23.1.5, the documentation link checks and the copy review passed in both repositories.
 
 ## Review
 
@@ -416,6 +424,10 @@ The harness is unchanged by all of it.
   - So are the intro, the ADR link, the merge order, the pull request numbers per step and the performance row.
   - Ending every plan with `cancel` on a switch-off instead of `clear()` is documented, not changed: the waits of a switched-off feature have no plan left to protect.
 
+### Step 5
+
+The engine manages the request and observes application commands synchronously. Its return checks use the live route and reservations on each step. The Lab adapter retains normal admission for the beneficiary and checks reserved areas for every yielding route. The regression cases prove that a blocked yielding mover can settle without a snap into a reserved area, then take a checked route back. Production still retains the product and ordered queue slot while the mover yields.
+
 ## Pull request
 
 Step 1. Title: `feat(i4sim): check the departure from the head of a producer queue`.
@@ -499,15 +511,23 @@ These cells vary by several products and hundreds of contacts between versions o
 
 **Follow-up.** Step 5.
 
+### Step 5
+
+**Title** `refactor(i4sim): run make-way requests on Kinetra`
+
+This is step 5 of 5. Steps 1–4 have merged. i4sim uses Kinetra's shared MAKE WAY lifecycle. It supplies the factory's refuge candidates, traffic reservations and checked routes, and preserves the yielding mover's product, recipe step, queue position and parking reservation.
+
+- Allow the beneficiary to follow its regular traffic admission through enabled zones. A yielding mover whose leg becomes invalid can brake in place and retry its checked return.
+- Kinetra's 321 headless tests and the external consumer passed. Lab's 188 checks passed, including the golden and pressure suites. All twelve 50,000-tick benchmark runs matched the baseline on simulated outcomes.
+- [Kinetra #83](https://github.com/SMB-M87/Kinetra/pull/83) merges first with a merge commit. Lab records the tested engine branch commit. The pointer workflow subsequently records the merge commit.
+
 ## Open points
 
 - **RIGHT OF WAY on the final engine rule.** Measured on Kinetra `fa28e77`, the fallback lowers products under both profiles and nearly triples Improved's contacts over 50,000 ticks (*Verification*). It is off by default, so no default run changes. The user decides whether to keep it as is, tune its window or the pusher rule in Kinetra, or remove it.
 
 - The *refine* variant without the wait cut Improved contacts as well as the gate, but raised Reciprocal waiting with MAKE WAY on (104,020 → 111,295). The gate was chosen; the data stay here.
-- Found by step 1's review in existing MAKE WAY code, for step 5, which moves it:
-  - `checked_route` applies `traffic_clear` to the beneficiary's routes, so a stalled mover whose route crosses an enabled junction or corridor never gets help.
-  - A yielding mover braking inside a zone switched on around it passes `controlled` to `integrate`, never snaps to idle and can hold the zone with no deadline.
-  - A yielding mover that is held keeps its trip and goal, so its queued product freezes the producer's queue for the length of the hold.
+- A manually held yielding mover keeps its product and queue slot. If it is at the head, the producer waits until the hold is lifted and the mover returns. Allowing other products to skip it would change factory queue policy.
+
 - Found by step 2's review in behavior the adapter kept from i4sim's coordinator:
   - Restoring a participant's route resets its control, which on a `traffic_control` end drops the corridor recovery's control for that tick.
   - Restoring the route of a participant that stopped (went idle) sets it moving again toward its destination.

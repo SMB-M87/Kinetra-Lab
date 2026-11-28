@@ -20,10 +20,6 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Stall detection and remedies in i4sim** · i4sim, with Kinetra · added 2026-11-21
-  The departure check, a right-of-way fallback for pushed-back movers, i4sim on Kinetra's `PassingCoordinator`, and stall detection and MAKE WAY in the engine, in a stack of five steps; with Kinetra's *Stall detection and remedies in the engine*.
-  Where: [design](design/2026-11-27-stall-remedies-in-the-engine.md), branches `feat/i4sim-departure-check` (step 1), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3) and `feat/right-of-way` (step 4).
-
 ## Next
 
 - **i4sim toward a million ticks per second** · i4sim, with Kinetra · added 2026-11-27
