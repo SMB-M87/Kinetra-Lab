@@ -28,11 +28,14 @@ MoverStatus mover_status(const Mover &m) {
         return MoverStatus::unreachable;
     return m.product ? MoverStatus::allocated : MoverStatus::available;
 }
-std::vector<Interaction> recipe(ProductKind kind) {
+std::span<const Interaction> recipe(ProductKind kind) {
     using enum Interaction;
+    static constexpr Interaction personalized[]{place_housing, place_trimmer,    place_lever,
+                                                place_card,    personalize_card, remove_assy};
+    static constexpr Interaction trimmer[]{place_housing, place_trimmer, place_lever, remove_assy};
     if (kind == ProductKind::personalized)
-        return {place_housing, place_trimmer, place_lever, place_card, personalize_card, remove_assy};
-    return {place_housing, place_trimmer, place_lever, remove_assy};
+        return personalized;
+    return trimmer;
 }
 Simulation::Simulation(Blueprint blueprint, std::uint32_t seed)
     : core_(std::make_unique<detail::SimulationCore>(std::move(blueprint), seed)) {

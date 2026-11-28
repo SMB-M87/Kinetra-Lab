@@ -118,8 +118,9 @@ enum class ProductState {
     /// Recipe done; the product leaves the open products at the end of the tick.
     completed,
 };
-/// The interactions that make a product of `kind`, in order.
-std::vector<Interaction> recipe(ProductKind kind);
+/// The interactions that make a product of `kind`, in order. The span views static storage,
+/// so asking for a recipe every tick allocates nothing.
+std::span<const Interaction> recipe(ProductKind kind);
 /// Where a mover is in reaching its goal.
 enum class MoverLifecycle {
     /// No active goal: the mover arrived, or never had a goal.
