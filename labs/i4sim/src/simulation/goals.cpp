@@ -22,6 +22,7 @@ void Goals::set(Mover &m, Vec2 target) {
     tracking.best_remaining = route_remaining(m.body.position, m.route);
     m.detour = false;
     tracking.recovery_attempts = 0;
+    tracking.make_way_braking = false;
 }
 Vec2 Goals::holding_position(const Mover &m, Vec2 target) const {
     // Each mover retains its own blueprint parking reservation. Prefer that

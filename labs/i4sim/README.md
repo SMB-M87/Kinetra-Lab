@@ -354,7 +354,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 
 ### Make way
 
-**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. The [make-way showcase scene](blueprints/README.md#showcase-scenes) shows it on a one-cell lane with a side bay. If a new zone or exit reservation encloses the mover, it may withdraw outward while it continues to count as an occupant. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
+**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. The [make-way showcase scene](blueprints/README.md#showcase-scenes) shows it on a one-cell lane with a side bay. The beneficiary still uses ordinary traffic admission. If a new zone or exit reservation encloses the yielding mover, it may brake in place or withdraw outward while it continues to count as an occupant. Kinetra runs the [request lifecycle](../../external/Kinetra/docs/engine/navigation.md#making-way), using the factory's refuge candidates and route checks. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
 
 ### Departure check
 

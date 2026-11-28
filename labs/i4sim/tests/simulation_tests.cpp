@@ -3007,6 +3007,43 @@ TEST_CASE("make way can withdraw from a traffic zone enabled around the mover") 
     CHECK_FALSE(traffic.exit_reservation(floor.junction_count()));
 }
 
+TEST_CASE("make way can help a beneficiary whose route crosses an enabled corridor") {
+    Simulation scenario(corridor_fixture());
+    REQUIRE(scenario.move_to(0, {1900, 700}));
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    fleet.progress.resize(fleet.movers.size());
+    auto &beneficiary = fleet.movers[0];
+    auto &yielding = fleet.movers[1];
+    beneficiary.body.position = {330, 700};
+    beneficiary.route = {beneficiary.destination};
+    yielding.parking = yielding.body.position = {460, 700};
+    fleet.max_half = yielding.body.half_extents;
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::StallDetector stalls(fleet.movers.size());
+    detail::Shuttle shuttle;
+    detail::MakeWay make_way;
+    detail::EventLog log;
+    auto settings = scenario.motion_settings();
+    settings.make_way = true;
+    settings.path_planning = false;
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 120};
+
+    for (unsigned tick = 1; tick <= 120; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        stalls.observe(fleet, settings, tick, log);
+    }
+    REQUIRE(stalls.details(0));
+    REQUIRE_FALSE(detail::MakeWay::traffic_clear(goals, beneficiary, beneficiary.route));
+    make_way.update(goals, {}, shuttle, stalls);
+    REQUIRE(yielding.goal == GoalKind::making_way);
+    CHECK(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+}
+
 TEST_CASE("a braking make way trip retries its checked return when an obstruction clears") {
     auto layout = corridor_fixture();
     layout.movers.push_back({"return obstruction", Model::APM4220, {1843.5f, 943.5f}});
@@ -3065,8 +3102,10 @@ TEST_CASE("a braking make way trip retries its checked return when an obstructio
         CHECK_FALSE(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
         detail::Production production(layout, 42);
         detail::MotionStep motion;
+        const auto stopped_at = yielding.body.position;
         motion.run(goals, production);
-        REQUIRE(yielding.moving());
+        CHECK_FALSE(yielding.moving());
+        CHECK(yielding.body.position == stopped_at);
     }
     SUBCASE("disabling the corridor leaves the outbound claim released") {
         settings.corridor_traffic = false;
