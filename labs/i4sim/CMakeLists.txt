@@ -115,6 +115,11 @@ if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_i4sim_golden_tests PREFIX kinetra_i4sim_golden
         SOURCES tests/golden_tests.cpp LIBRARIES kinetra_i4sim_testing)
     kinetra_i4sim_bundle_blueprints(kinetra_i4sim_golden_tests)
+    # Long runs that check movers never touch, on every bundled factory and profile; soak, as
+    # they take about a minute in a Release build.
+    kinetra_add_doctest(kinetra_i4sim_contact_tests PREFIX kinetra_i4sim_contact
+        SOURCES tests/contact_tests.cpp LIBRARIES kinetra_i4sim_testing LABELS soak TIMEOUT 900)
+    kinetra_i4sim_bundle_blueprints(kinetra_i4sim_contact_tests)
     # Recorded passing outcomes under pressure; reads its fixtures from tests/.
     kinetra_add_doctest(kinetra_i4sim_pressure_tests PREFIX kinetra_i4sim_pressure
         SOURCES tests/pressure_tests.cpp LIBRARIES kinetra_i4sim_testing)
