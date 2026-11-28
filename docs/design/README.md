@@ -12,6 +12,7 @@ One design document per Lab branch, written before the code and kept after mergi
 
 | Date | Document | Status |
 | --- | --- | --- |
+| 2026-11-28 | [i4sim movers that never touch](2026-11-28-i4sim-no-contacts.md): SAFETY STOP cuts every move short of a contact, stop lines only brake, and a stranded MAKE WAY mover goes back to the factory; 100,000-tick contact tests on every bundled factory | implemented |
 | 2026-11-28 | [i4sim at 100,000 ticks per second](2026-11-28-i4sim-100k-ticks.md): hotspot 9, `3840x2400` from 72,000 to 108,000 headless ticks per second with every result unchanged | implemented |
 | 2026-11-28 | [Longer headless runs across the labs](2026-11-28-longer-headless-runs.md) | implemented |
 | 2026-11-27 | [i4sim surroundings](2026-11-27-i4sim-surroundings.md): hotspot 8, the neighbor and border lists of every mover without allocations or a scan of every border | implemented |

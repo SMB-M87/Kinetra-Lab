@@ -58,9 +58,9 @@ Kinetra never imports factory models or Lab headers. Priority steering is a sepa
 | `PredictivePassing` | [predictive_passing.h](../labs/i4sim/include/i4sim/simulation/detail/predictive_passing.h) | Kinetra's `PassingCoordinator`, which holds plans, retry ticks and plan ids | [Predictive passing](#predictive-passing) |
 | `Goals` | [goals.h](../labs/i4sim/include/i4sim/simulation/detail/goals.h) | Nothing (a view built per call) | Setting a goal and cancelling what depended on the old one; holding places; parking interlock |
 | `Production` | [production.h](../labs/i4sim/include/i4sim/simulation/detail/production.h) | Producers, products, workload generator | Scheduling, queues, processing, recipes |
-| `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs and counters | Route following, coordination order, steering, integration, arrival, contacts |
-| `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Kinetra's request lifecycle and the factory route adapter | Checked parking relief after stall observation, including outward withdrawal from newly protected space |
-| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall and make-way events |
+| `MotionStep` | [motion_step.h](../labs/i4sim/include/i4sim/simulation/detail/motion_step.h) | Contact pairs, SAFETY STOP's counters and counters | Route following, coordination order, steering, SAFETY STOP, integration, arrival, contacts |
+| `MakeWay` | [make_way.h](../labs/i4sim/include/i4sim/simulation/detail/make_way.h) | Kinetra's request lifecycle, the factory route adapter, and when each yielding mover's trip ended | Checked parking relief after stall observation, including outward withdrawal from newly protected space; gives a yielding mover that stands stranded after its trip back to the factory |
+| `EventLog` | [event_log.h](../labs/i4sim/include/i4sim/simulation/detail/event_log.h) | Recording flag, events | Opt-in passing, contact, stall, make-way and safety-stop events |
 | `Shuttle` | [shuttle.h](../labs/i4sim/include/i4sim/simulation/detail/shuttle.h) | Shuttling movers, their two ends, the tick they all arrived | When shuttling movers turn together (`Simulation::shuttle`); decides only, `SimulationCore` sends the legs |
 | `StallDetector` | [stall_detector.h](../labs/i4sim/include/i4sim/simulation/detail/stall_detector.h) | Kinetra's [`StallDetector`](../external/Kinetra/docs/engine/navigation.md#stall-detection), which holds the observations and the active episode's onset diagnosis | Tell the detector each mover's state and route progress after motion, production and shuttle updates. Supply the inspector and record episode transitions. |
 
@@ -99,10 +99,10 @@ flowchart TD
 2. Open a random product while the workload is on and fewer products than movers are open.
 3. Refresh the heatmap on the first tick of every ten.
 4. Run the parking interlock (`Goals::coordinate_parking`).
-5. Move (`MotionStep::run`): prepare routes, grant and end rights of way (RIGHT OF WAY), snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer and integrate each mover against the snapshot, and finally count and resolve contacts.
+5. Move (`MotionStep::run`): prepare routes, grant and end rights of way (RIGHT OF WAY), snapshot the bodies, then corridor recovery, predictive passing and zone admission, then steer each mover against the snapshot and integrate it, with its move cut short where it would touch a neighbor where that one stands now, or cross a border (SAFETY STOP), and finally count and resolve contacts.
 6. Advance production and drop completed products.
 7. Turn the shuttle: once every shuttling mover has stood still for `shuttle_pause_ticks` (400), send each one to its other end through the checks of `move_to`.
-8. Observe stall episodes, then advance MAKE WAY trips.
+8. Observe stall episodes, give stranded yielding movers back to the factory, then advance MAKE WAY trips.
 9. Update waiting counters.
 10. At the blueprint's tick cap, change to `RunState::finished`.
 
