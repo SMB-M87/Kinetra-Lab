@@ -3,6 +3,7 @@
 #include "i4sim/simulation/detail/goals.h"
 #include "i4sim/simulation/simulation.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -42,8 +43,14 @@ class Production {
     void update(Goals &goals);
 
   private:
+    /// Every interaction of `Interaction`, which ends with `remove_assy`.
+    static constexpr std::size_t interaction_count = std::size_t(Interaction::remove_assy) + 1;
     std::size_t max_queue_;
     std::vector<Producer> producers_;
+    /// Per interaction, the producers whose model supports it, ascending. A producer's model
+    /// never changes, so schedule() visits only these, in the order the loop over every
+    /// producer would have chosen among them.
+    std::array<std::vector<std::size_t>, interaction_count> supporting_;
     std::vector<Product> products_, completed_products_;
     std::mt19937 random_;
     std::uint64_t completed_{}, next_product_{1};

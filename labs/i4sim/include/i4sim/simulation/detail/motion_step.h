@@ -7,10 +7,11 @@
 #include <kinetra/simulation/physics.h>
 #include <kinetra/simulation/right_of_way.h>
 #include <kinetra/simulation/spatial_grid.h>
+#include <kinetra/simulation/stall_detector.h>
 
 #include <cstddef>
 #include <cstdint>
-#include <set>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -44,8 +45,8 @@ class MotionStep {
         std::vector<kinetra::AvoidanceAgent> agents;
         std::vector<kinetra::Segment> edges;
     };
-    /// Touching pairs of the last tick; a border is `movers + border index`.
-    std::set<std::pair<std::size_t, std::size_t>> contacts_;
+    /// Touching pairs of the last tick, ascending; a border is `movers + border index`.
+    std::vector<std::pair<std::size_t, std::size_t>> contacts_;
     std::uint64_t contact_ticks_{}, collisions_{};
     std::size_t avoidance_limited_{};
     /// RIGHT OF WAY: which pushed-back movers the others do not count on to make room.
@@ -64,10 +65,41 @@ class MotionStep {
     /// allocates no lists per mover.
     Surroundings around_;
     std::vector<std::size_t> ids_;
+    /// Storage that run() and resolve_contacts() refill every tick, so a tick allocates no
+    /// snapshot, bounds, mover index or contact list: the bodies and their bounds before the
+    /// movers move, the index over those bounds (made for the floor's cell size), and the
+    /// bodies, bounds and touching pairs after they moved.
+    std::vector<kinetra::Body> snapshot_, integrated_;
+    std::vector<kinetra::Aabb> boxes_, contact_boxes_;
+    std::optional<kinetra::SpatialGrid> index_;
+    float index_cell_{};
+    std::vector<std::pair<std::size_t, std::size_t>> current_;
+    /// The movers as RIGHT OF WAY sees them, refilled every tick.
+    std::vector<kinetra::StallMover> stall_movers_;
     void choose_acceleration(const Goals &goals, Mover &mover, const kinetra::Body &start,
                              const Surroundings &around, Vec2 target, bool arrival);
     static void integrate(Goals &goals, Production &production, std::size_t mover, const Surroundings &around,
                           bool controlled);
+    /// `kinetra::bounds(body)` for mover `mover`'s body, remembered per mover until a box's
+    /// position, extents or angle change.
+    struct KnownBox {
+        bool valid{};
+        Vec2 position, half_extents;
+        float angle{};
+        kinetra::Aabb box;
+    };
+    std::vector<KnownBox> boxes_of_;
+    kinetra::Aabb box_of(std::size_t mover, const kinetra::Body &body);
+    /// Borders near enough to `body`, mover `mover`'s body before contact resolution, to
+    /// touch it, ascending; remembered per mover until its position or extents change.
+    struct NearBorders {
+        bool valid{};
+        Vec2 position, half_extents;
+        std::vector<std::size_t> borders;
+    };
+    std::vector<NearBorders> near_;
+    const std::vector<std::size_t> &near_borders(const Goals &goals, std::size_t mover,
+                                                 const kinetra::Body &body);
     void resolve_contacts(Goals &goals);
 };
 } // namespace i4sim::detail

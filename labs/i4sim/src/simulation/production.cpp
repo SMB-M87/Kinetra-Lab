@@ -17,6 +17,10 @@ Production::Production(const Blueprint &blueprint, std::uint32_t seed)
         p.definition = definition;
         producers_.push_back(p);
     }
+    for (std::size_t i = 0; i < producers_.size(); ++i)
+        for (std::size_t k = 0; k < interaction_count; ++k)
+            if (supports(producers_[i].definition.model, Interaction(k)))
+                supporting_[k].push_back(i);
 }
 
 std::uint64_t Production::add_product(ProductKind kind, std::size_t movers, std::uint64_t tick) {
@@ -63,13 +67,16 @@ void Production::schedule(Product &product, Goals &goals) {
     auto &fleet = goals.fleet;
     if (product.mover && fleet.movers[*product.mover].goal == GoalKind::making_way)
         return;
-    const auto interaction = recipe(product.kind).at(product.step);
+    const auto steps = recipe(product.kind);
+    if (product.step >= steps.size())
+        throw std::out_of_range("Product recipe step out of range");
+    const auto interaction = steps[product.step];
     if (!product.producer) {
         // The cheapest supporting producer, weighing its queue against the transport distance.
         double best = std::numeric_limits<double>::infinity();
-        for (std::size_t i = 0; i < producers_.size(); ++i) {
+        for (const std::size_t i : supporting_[std::size_t(interaction)]) {
             const auto &p = producers_[i];
-            if (p.blocked || p.queue.size() >= max_queue_ || !supports(p.definition.model, interaction))
+            if (p.blocked || p.queue.size() >= max_queue_)
                 continue;
             const auto goal = floor.processing_goal(p.definition.processing_position);
             if (floor.grid().blocked(floor.grid().cell(goal)))

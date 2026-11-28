@@ -53,8 +53,8 @@ StallObservation stall_observation(const MotionSettings &motion) {
 
 void StallDetector::observe(const Fleet &fleet, const MotionSettings &motion, std::uint64_t tick,
                             EventLog &log) {
-    std::vector<StallMover> movers;
-    movers.reserve(fleet.movers.size());
+    auto &movers = observed_;
+    movers.clear();
     for (std::size_t i = 0; i < fleet.movers.size(); ++i) {
         const auto &m = fleet.movers[i];
         movers.push_back({m.body, m.route.empty() ? m.body.position : m.route.front(), m.destination,
