@@ -53,7 +53,7 @@ Non-goals: the head-on standstills (cause 5), which need RIGHT OF WAY or another
 | How to rule contacts out | A safety stop on the integrated move, after all steering | Steering, border constraints, stop lines and contact resolution correct each other in turn; only a check of the move itself, against where every neighbor stands now, can promise no contact. Industrial movers have the same layer in their safety scanners |
 | Gaps | 0.05 mm to a mover, 0.001 mm to a border | A mover may touch a wall, as at a parking place against it, but a contact between movers counts at any penetration; 0.05 mm is more than the rounding of a position on the largest floor |
 | Flush movers | Per axis no closer than the gap, or than the mover already is; only the component toward the obstacle is cut | A mover that slides along a wall at 0 mm would otherwise stop at every convex corner of the H (the *without path planning* test) |
-| Default | On, under every profile, with a menu row, scenario key and benchmark flag to turn it off | The user wants no contacts; steering alone can be compared with `--no-safety-stop`. Improved loses products on the tight floors under it ([open points](#open-points)) |
+| Default | On, under every profile, with a menu row, scenario key and benchmark flag to turn it off | The user wants no contacts, and on 2026-11-28 chose on for every profile after seeing that Improved loses products on the tight floors under it ([open points](#open-points)), against on only for Reciprocal. Steering alone can be compared with `--no-safety-stop` |
 | What counts as a stop | A cut of more than 0.01 mm | The end of an approach that steering already slows ends within that; counted, those were 1,500 stops per run on `4320x2400`, almost all against walls |
 | Stop lines | The line moves to the mover's front face when the mover already reaches past the zone's side | It then only brakes the mover where it stands. All 192 tests passed unchanged with this alone |
 | Stranded movers | Given back to the factory after 240 ticks of standing still on their own after the trip ended; the count starts again while the mover drives home or is held | Kinetra's lifecycle forgets a trip whose mover no longer yields, so Lab can end it without an engine change; production then resumes the product |
@@ -145,7 +145,7 @@ On 2026-11-28, `release` preset (GCC 13.3), cloud machine with four cores, Kinet
 
 ## Review notes
 
-Scaling the whole move stopped flush movers at convex corners; cutting only the approaching component fixed it. A 0.05 mm border gap counted 1,500 harmless stops per run; a 0.001 mm border gap and a 0.01 mm counting threshold left about 150. Under SAFETY STOP, Improved locks more often on tight floors, because it got past parked neighbors by touching them: a trade the user may want to settle (default on, or only for Reciprocal).
+Scaling the whole move stopped flush movers at convex corners; cutting only the approaching component fixed it. A 0.05 mm border gap counted 1,500 harmless stops per run; a 0.001 mm border gap and a 0.01 mm counting threshold left about 150. Under SAFETY STOP, Improved locks more often on tight floors, because it got past parked neighbors by touching them; the user chose on 2026-11-28 to keep it on for every profile.
 
 ## Dependencies and merge order
 
