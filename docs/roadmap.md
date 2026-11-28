@@ -20,6 +20,10 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
+- **Sharpen all three launcher previews** · launcher, capture · added 2026-11-27
+  Demo, Dotio and i4sim all used 320 × 180 embedded stills, which the launcher draws about 500 pixels wide. The stills grow to 480 × 270, and Dotio gets a preview scene of its own (the user's choices of 2026-11-28).
+  Branch: `ccr-3ae7a52c-qpwl3u`. Design: [sharper launcher previews](design/2026-11-28-sharper-launcher-previews.md).
+
 ## Next
 
 - **i4sim toward a million ticks per second** · i4sim, with Kinetra · added 2026-11-27
@@ -28,9 +32,6 @@ Within each section the first item comes first. The order was proposed on 2026-1
 - **Unlock i4sim head-on standstills** · i4sim, with Kinetra · added 2026-11-28
   Under Reciprocal two movers that stand nose to nose, each heading for the place behind the other, lock for good: avoidance cancels their seek exactly, RIGHT OF WAY needs a mover pushed back, and recovery plans the same route again. A 300,000-tick sweep under the fullest configuration locked `test-environment` in three of ten seeds with SAFETY STOP and two without. Under SAFETY STOP, Improved also locks more often on the tight floors, where it got past parked neighbors by touching them (`1680x960+` 48 → 23 products on average).
   Next step: in Kinetra, grant RIGHT OF WAY for an `opposing_mover` stall to one of the pair, with a Kinetra roadmap item and design; replay the reproductions and rerun the sweep for products and stops. A mover's first route recovery resets its ticks without progress at exactly RIGHT OF WAY's threshold, which belongs to the same work. See [open points](design/2026-11-28-i4sim-no-contacts.md#open-points).
-- **Sharpen all three launcher previews** · launcher, capture · added 2026-11-27
-  Demo, Dotio and i4sim all use 320 × 180 embedded stills. The launcher draws them about 500 pixels wide in the 1920 × 1080 capture. The user wants sharper previews at a higher resolution.
-  Next step: raise the embedded resolution of all three stills and check their sharpness in the launcher at its actual display sizes. See [preview captures](design/2026-11-27-launcher-preview-stills.md) and [embedded sizes](../launcher/EmbedPreviews.cmake).
 - **Diagnose the rejected goal for `APM4330_3`** · i4sim · added 2026-11-27
   On the smallest blueprint the user could not send this mover to a manual goal. The HUD now draws its red message above the statistics at the same text size, but the message still combines a held or loaded mover, a blocked destination and a route that does not fit.
   A headless check on `1680x960-` at seed 42 accepted `(840, 480)` mm on fresh load and rejected the same goal while held. It also rejected goals on the producer at `(120, 120)` mm and near the border at `(20, 480)` mm. Next step: reproduce the reported click through the UI with the mover's state and destination recorded. Fix a wrongly rejected goal or report the specific reason for a valid rejection. See [manual goal handling](../labs/i4sim/src/simulation/simulation_core.cpp) and [HUD errors](design/2026-11-27-hud-error-style.md).
