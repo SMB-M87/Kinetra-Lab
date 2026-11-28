@@ -286,6 +286,16 @@ void MotionStep::integrate(Goals &goals, Production &production, std::size_t i, 
     }
     if (m.product)
         ++m.transport_ticks;
+    // A live reservation can enclose the brake target. Finish braking at the
+    // current position without snapping into the invalidated route.
+    if (controlled && tracking.make_way_braking && length(m.body.velocity) < stop_speed) {
+        m.destination = m.body.position;
+        m.body.velocity = {};
+        m.body.acceleration = {};
+        m.lifecycle = MoverLifecycle::idle;
+        m.route.clear();
+        return;
+    }
     // Snap to the destination once the mover is there, slow, and the snap touches nothing.
     if (!controlled && m.route.size() == 1 &&
         distance(m.body.position, m.destination) < arrival_distance_mm &&

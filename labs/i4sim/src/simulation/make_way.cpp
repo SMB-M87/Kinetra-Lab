@@ -93,7 +93,7 @@ std::optional<std::size_t> parked_blocker(const Goals &goals, std::size_t index)
 
 /// A proposed path clears the static floor and all current footprints. A hypothetical
 /// move substitutes the blocker's footprint at its proposed refuge.
-std::vector<Vec2> checked_route(const Goals &goals, std::size_t index, Vec2 target,
+std::vector<Vec2> checked_route(const Goals &goals, std::size_t index, Vec2 target, MakeWayRoute purpose,
                                 std::optional<MakeWayRelocation> relocated) {
     const auto &movers = goals.fleet.movers;
     std::vector<const Body *> obstacles;
@@ -111,7 +111,10 @@ std::vector<Vec2> checked_route(const Goals &goals, std::size_t index, Vec2 targ
         }
     }
     auto route = clearance_route(goals.floor, movers[index], target, obstacles, goals.motion.path_planning);
-    if (!i4sim::detail::MakeWay::traffic_clear(goals, movers[index], route))
+    // The beneficiary still uses ordinary traffic admission. The yielding mover
+    // bypasses it, so only the yielding leg must steer clear of its reservations.
+    if (purpose == MakeWayRoute::yielding &&
+        !i4sim::detail::MakeWay::traffic_clear(goals, movers[index], route))
         return {};
     return route;
 }
@@ -224,9 +227,9 @@ class FactoryMakeWayWorld : public MakeWayWorld {
 
     std::vector<Vec2> refuges(std::size_t index) const override { return refuge_candidates(goals_, index); }
 
-    std::vector<Vec2> route(std::size_t index, Vec2 target, MakeWayRoute,
+    std::vector<Vec2> route(std::size_t index, Vec2 target, MakeWayRoute purpose,
                             std::optional<MakeWayRelocation> relocated) const override {
-        return checked_route(goals_, index, target, relocated);
+        return checked_route(goals_, index, target, purpose, relocated);
     }
 
     bool needs_home(std::size_t beneficiary, std::size_t blocker) const override {
@@ -256,6 +259,7 @@ class FactoryMakeWayWorld : public MakeWayWorld {
 
     void brake(std::size_t blocker) override {
         install_route(goals_, blocker, {goals_.fleet.movers[blocker].body.position}, GoalKind::making_way);
+        goals_.fleet.progress[blocker].make_way_braking = true;
     }
 
     void returned(std::size_t blocker) override { goals_.fleet.movers[blocker].goal = GoalKind::automatic; }
