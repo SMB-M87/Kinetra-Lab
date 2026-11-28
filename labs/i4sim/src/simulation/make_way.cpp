@@ -14,6 +14,9 @@ using namespace kinetra;
 
 /// Search a bounded neighborhood around the blocker for a refuge.
 constexpr int refuge_cell_radius = 2;
+/// Ticks a yielding mover may stand still on its own after its trip ended before it is given
+/// back to the factory.
+constexpr std::uint64_t stranded_ticks = 2 * stall_ticks;
 constexpr MakeWaySettings settings{
     .timeout_steps = 10 * stall_ticks,
     .retry_steps = 30,
@@ -198,8 +201,8 @@ MakeWayEnd local_outcome(kinetra::MakeWayEnd outcome) {
 class FactoryMakeWayWorld : public MakeWayWorld {
   public:
     FactoryMakeWayWorld(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
-                        const StallDetector &stalls)
-        : goals_(goals), products_(products), shuttle_(shuttle), stalls_(stalls) {}
+                        const StallDetector &stalls, std::vector<std::optional<std::uint64_t>> &ended)
+        : goals_(goals), products_(products), shuttle_(shuttle), stalls_(stalls), ended_(ended) {}
 
     MakeWayMover mover(std::size_t index) const override {
         const auto &m = goals_.fleet.movers[index];
@@ -265,6 +268,8 @@ class FactoryMakeWayWorld : public MakeWayWorld {
     void returned(std::size_t blocker) override { goals_.fleet.movers[blocker].goal = GoalKind::automatic; }
 
     void event(MakeWayEvent event) override {
+        if (event.kind == MakeWayEvent::Kind::ended && event.blocker < ended_.size())
+            ended_[event.blocker] = goals_.tick;
         if (!goals_.log.recording())
             return;
         constexpr std::array kinds{EventKind::make_way_started, EventKind::make_way_unavailable,
@@ -281,6 +286,7 @@ class FactoryMakeWayWorld : public MakeWayWorld {
     std::span<const Product> products_;
     const Shuttle &shuttle_;
     const StallDetector &stalls_;
+    std::vector<std::optional<std::uint64_t>> &ended_;
 };
 } // namespace
 
@@ -312,9 +318,37 @@ bool MakeWay::shortcut_clear(const Goals &goals, const Mover &mover, std::span<c
            });
 }
 
+void MakeWay::release_stranded(Goals &goals) {
+    auto &movers = goals.fleet.movers;
+    ended_.resize(movers.size());
+    for (std::size_t i = 0; i < movers.size(); ++i) {
+        auto &m = movers[i];
+        if (m.goal != GoalKind::making_way) {
+            ended_[i].reset();
+            continue;
+        }
+        if (!ended_[i])
+            continue;
+        // Only standing still on its own counts: a mover on its way home or held by the
+        // operator starts the count again.
+        if (m.moving() || m.held) {
+            ended_[i] = goals.tick;
+            continue;
+        }
+        if (goals.tick - *ended_[i] < stranded_ticks)
+            continue;
+        // The lifecycle sees a mover that no longer yields and forgets its trip.
+        ended_[i].reset();
+        m.goal = GoalKind::automatic;
+        if (!m.product)
+            goals.set(m, m.parking);
+    }
+}
+
 void MakeWay::update(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
                      const StallDetector &stalls) {
-    FactoryMakeWayWorld world(goals, products, shuttle, stalls);
+    release_stranded(goals);
+    FactoryMakeWayWorld world(goals, products, shuttle, stalls, ended_);
     lifecycle_.step(world, goals.fleet.movers.size(), goals.tick, goals.motion.make_way, settings);
 }
 } // namespace i4sim::detail

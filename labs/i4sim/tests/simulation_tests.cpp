@@ -7,6 +7,7 @@
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/detail/floor_plan.h"
+#include "i4sim/simulation/detail/geometry.h"
 #include "i4sim/simulation/detail/make_way.h"
 #include "i4sim/simulation/detail/motion_step.h"
 #include "i4sim/simulation/detail/predictive_passing.h"
@@ -2010,17 +2011,168 @@ TEST_CASE("turning departure check off releases a waiting mover") {
 TEST_CASE("departure check routes a queued Improved departure around its parked neighbors") {
     // Recorded on 1680x960+, seed 42: at tick 4847 mover 5's product heads its queue, and the
     // plain grid route squeezes it between parked movers 2 and 6 (contacts from tick 4890).
-    for (const bool check : {false, true}) {
-        CAPTURE(check);
-        Simulation simulation(load_blueprint(default_blueprint_directory() / "1680x960+.json"), 42);
+    // The recording measures steering alone, so SAFETY STOP is off; with it on, neither run
+    // touches.
+    for (const bool safety_stop : {false, true})
+        for (const bool check : {false, true}) {
+            CAPTURE(safety_stop);
+            CAPTURE(check);
+            Simulation simulation(load_blueprint(default_blueprint_directory() / "1680x960+.json"), 42);
+            auto settings = simulation.motion_settings();
+            settings.departure_check = check;
+            settings.safety_stop = safety_stop;
+            simulation.configure_motion(settings);
+            simulation.run();
+            for (int tick = 0; tick < 5200; ++tick)
+                simulation.tick();
+            CHECK((simulation.collisions() == 0) == (check || safety_stop));
+        }
+}
+
+TEST_CASE("SAFETY STOP keeps default motion on test-environment from touching") {
+    // The golden run of default motion touched 16 times in 20,000 ticks: Improved steering
+    // leaves the last millimeters to borders and contact resolution.
+    std::uint64_t unguarded = 0;
+    for (const bool safety_stop : {false, true}) {
+        CAPTURE(safety_stop);
+        Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("test-environment")), 42);
         auto settings = simulation.motion_settings();
-        settings.departure_check = check;
+        CHECK_MESSAGE(settings.safety_stop, "SAFETY STOP is on by default");
+        settings.safety_stop = safety_stop;
         simulation.configure_motion(settings);
+        simulation.record_events(true);
         simulation.run();
-        for (int tick = 0; tick < 5200; ++tick)
+        for (int tick = 0; tick < 20000; ++tick)
             simulation.tick();
-        CHECK((simulation.collisions() == 0) == check);
+        const auto events = simulation.events();
+        const auto stops = std::count_if(events.begin(), events.end(), [](const SimulationEvent &event) {
+            return event.kind == EventKind::safety_stop;
+        });
+        CHECK(std::uint64_t(stops) == simulation.safety_stops());
+        CHECK(simulation.safety_stop_ticks() >= simulation.safety_stops());
+        if (!safety_stop) {
+            unguarded = simulation.collisions();
+            CHECK(unguarded > 0);
+            CHECK(stops == 0);
+            continue;
+        }
+        CHECK(simulation.collisions() == 0);
+        CHECK(simulation.contact_ticks() == 0);
+        CHECK_MESSAGE(simulation.safety_stops() > 0,
+                      "SAFETY STOP stopped nothing where steering touched " << unguarded << " times");
+        for (const auto &event : events)
+            if (event.kind == EventKind::safety_stop) {
+                CHECK(event.movers[0] < simulation.movers().size());
+                CHECK(event.movers[1] <
+                      (event.border ? simulation.borders().size() : simulation.movers().size()));
+            }
     }
+}
+
+TEST_CASE("SAFETY STOP stops movers that steering would let touch") {
+    // Two movers swap places head-on under Original with a fast, strong and short-sighted
+    // setting: steering alone lets them touch 44 times.
+    auto b = fixture();
+    b.producers.clear();
+    b.movers = {{"west", Model::APM4220, {600, 700}}, {"east", Model::APM4220, {1600, 700}}};
+    for (const bool safety_stop : {false, true}) {
+        CAPTURE(safety_stop);
+        Simulation s(b);
+        s.set_workload(false);
+        auto motion = s.motion_settings();
+        motion.profile = SteeringProfile::original;
+        motion.speed = motion.force = 6;
+        motion.horizon = 4;
+        motion.safety_stop = safety_stop;
+        s.configure_motion(motion);
+        s.record_events(true);
+        REQUIRE(s.move_to(0, {1800, 700}));
+        REQUIRE(s.move_to(1, {400, 700}));
+        s.run();
+        float closest = std::numeric_limits<float>::infinity();
+        for (int tick = 0; tick < 3000 && (s.movers()[0].moving() || s.movers()[1].moving()); ++tick) {
+            s.tick();
+            const auto &a = s.movers()[0].body, &other = s.movers()[1].body;
+            const kinetra::Vec2 gap{
+                std::abs(a.position.x - other.position.x) - a.half_extents.x - other.half_extents.x,
+                std::abs(a.position.y - other.position.y) - a.half_extents.y - other.half_extents.y};
+            closest = std::min(closest, std::max(gap.x, gap.y));
+        }
+        if (!safety_stop) {
+            CHECK_MESSAGE(s.collisions() > 0, "The scene no longer touches without SAFETY STOP");
+            continue;
+        }
+        CHECK(s.collisions() == 0);
+        // Where their boxes come closest, they still stand the safety gap apart.
+        CHECK(closest >= 0.049f);
+        REQUIRE(s.safety_stops() > 0);
+        const auto events = s.events();
+        const auto stop = std::find_if(events.begin(), events.end(), [](const SimulationEvent &event) {
+            return event.kind == EventKind::safety_stop;
+        });
+        REQUIRE(stop != events.end());
+        CHECK_FALSE(stop->border);
+        CHECK(stop->movers[0] + stop->movers[1] == 1);
+    }
+}
+
+TEST_CASE("a stop line never crosses the mover it stops") {
+    kinetra::Body body;
+    body.shape = kinetra::Shape::box;
+    body.half_extents = {50, 50};
+    const kinetra::Aabb area{{0, 0}, {200, 100}};
+    // Clear of the area: the line is the area's side that faces the body.
+    body.position = {260, 50};
+    auto line = detail::stop_before(body, area);
+    CHECK(line.start == kinetra::Vec2{200, 0});
+    CHECK(line.end == kinetra::Vec2{200, 100});
+    // Already 20 mm past that side: the line moves to the body's face, so it only brakes.
+    body.position = {230, 50};
+    line = detail::stop_before(body, area);
+    CHECK(line.start.x == 180);
+    CHECK(line.end.x == 180);
+    body.position = {100, -30};
+    line = detail::stop_before(body, area);
+    CHECK(line.start.y == 20);
+    CHECK(line.end.y == 20);
+}
+
+TEST_CASE("a mover stranded after MAKE WAY returns to the factory") {
+    // Recorded on test-environment, seed 42, under Reciprocal on plain A* with every policy and
+    // without SAFETY STOP: mover 4 made way for mover 0 at tick 13092 and braked when its trip
+    // was obstructed. Its way home stayed blocked by mover 0, which waited for the place mover 4
+    // stood on: until 2026-11-28 the factory then stopped for good after six products. With
+    // SAFETY STOP the run goes otherwise; the contact suite's 4320x2400 run strands a mover too.
+    Simulation simulation(load_blueprint(i4sim::test::fixture_blueprint("test-environment")), 42);
+    auto settings = simulation.motion_settings();
+    settings.safety_stop = false;
+    settings.profile = SteeringProfile::reciprocal;
+    settings.heatmap = false;
+    settings.recovery = settings.parking_traffic = settings.junction_traffic = settings.corridor_traffic =
+        true;
+    settings.predictive_passing = settings.make_way = settings.departure_check = settings.right_of_way = true;
+    simulation.configure_motion(settings);
+    simulation.record_events(true);
+    simulation.run();
+    std::optional<std::uint64_t> ended;
+    std::uint64_t longest = 0;
+    std::size_t seen = 0;
+    for (int tick = 0; tick < 40000; ++tick) {
+        simulation.tick();
+        const auto events = simulation.events();
+        for (; seen < events.size(); ++seen)
+            if (events[seen].kind == EventKind::make_way_ended && events[seen].movers[1] == 4)
+                ended = events[seen].tick;
+        const auto &m = simulation.movers()[4];
+        if (m.goal != GoalKind::making_way)
+            ended.reset();
+        else if (ended && (m.moving() || m.held))
+            ended = simulation.ticks();
+        else if (ended)
+            longest = std::max(longest, simulation.ticks() - *ended);
+    }
+    CHECK_MESSAGE(longest <= 2 * detail::stall_ticks + 1, "mover 4 stood under MAKE WAY for " << longest);
+    CHECK(simulation.completed() > 6);
 }
 
 TEST_CASE("a persistent contact pair counts once and accumulates its duration") {
@@ -2514,6 +2666,7 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
     CHECK_FALSE(loaded->motion.make_way);
     CHECK_FALSE(loaded->motion.departure_check);
     CHECK_FALSE(loaded->motion.right_of_way);
+    CHECK(loaded->motion.safety_stop);
     CHECK(loaded->motion.speed == MotionSettings{}.speed);
     CHECK(load_error(with_scenario(R"({"motion": {"pathPlanning": "no"}})"))
               .find("pathplanning must be true or false") != std::string::npos);
@@ -2525,8 +2678,9 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
               .find("horizon must be a positive number of at most 64") != std::string::npos);
     const auto tuned = load_scenario(with_scenario(
         R"({"motion": {"PathPlanning": false, "Speed": 2.5, "Force": 0.25, "Horizon": 64, "MakeWay": true,
-                       "DepartureCheck": true, "RightOfWay": true}})"));
+                       "DepartureCheck": true, "RightOfWay": true, "SafetyStop": false}})"));
     REQUIRE(tuned);
+    CHECK_FALSE(tuned->motion.safety_stop);
     CHECK_FALSE(tuned->motion.path_planning);
     CHECK(tuned->motion.make_way);
     CHECK(tuned->motion.departure_check);
@@ -2540,6 +2694,8 @@ TEST_CASE("an invalid scenario is rejected with its cause") {
           std::string::npos);
     CHECK(load_error(with_scenario(R"({"motion": {"departureCheck": "yes"}})"))
               .find("departurecheck must be true or false") != std::string::npos);
+    CHECK(load_error(with_scenario(R"({"motion": {"safetyStop": 0}})"))
+              .find("safetystop must be true or false") != std::string::npos);
     CHECK(tuned->motion.speed == 2.5f);
     CHECK(tuned->motion.force == 0.25f);
     CHECK(tuned->motion.horizon == 64);
@@ -3352,11 +3508,13 @@ TEST_CASE("a force so small that braking never ends still lets stalls be observe
 
 TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagnosed as pushed back") {
     // Seed 7 under Reciprocal with MAKE WAY: from tick 10615 mover 8, bound north, pushes
-    // mover 7 away from its processing goal 30 mm south of it for over a thousand ticks.
+    // mover 7 away from its processing goal 30 mm south of it for over a thousand ticks. The
+    // recording is of steering alone, without SAFETY STOP.
     Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), 7);
     auto settings = simulation.motion_settings();
     settings.profile = SteeringProfile::reciprocal;
     settings.make_way = true;
+    settings.safety_stop = false;
     simulation.configure_motion(settings);
     simulation.run();
     while (simulation.ticks() < 10615)
@@ -3370,12 +3528,14 @@ TEST_CASE("the recorded 4320x2400 stall of a mover pushed from its goal is diagn
 
 namespace {
 /// Runs `4320x2400`, seed 7, under Reciprocal with MAKE WAY for 12,000 ticks, with or without
-/// RIGHT OF WAY, and returns the longest stall episode of mover 7 and the simulation.
+/// RIGHT OF WAY, and returns the longest stall episode of mover 7 and the simulation. Without
+/// SAFETY STOP, as the stall was recorded.
 std::pair<std::uint64_t, Simulation> pushed_mover_run(bool right_of_way) {
     Simulation simulation(load_blueprint(default_blueprint_directory() / "4320x2400.json"), 7);
     auto settings = simulation.motion_settings();
     settings.profile = SteeringProfile::reciprocal;
     settings.make_way = true;
+    settings.safety_stop = false;
     settings.right_of_way = right_of_way;
     simulation.configure_motion(settings);
     simulation.record_events(true);

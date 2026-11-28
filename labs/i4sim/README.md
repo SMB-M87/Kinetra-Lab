@@ -13,6 +13,7 @@ A local C++20 factory simulation, ported from the C# Industry 4.0 reference. Mov
   - [A frame of the session](#a-frame-of-the-session)
   - [A tick of the simulation](#a-tick-of-the-simulation)
   - [Steering profiles](#steering-profiles)
+  - [Safety stop](#safety-stop)
   - [Junction traffic](#junction-traffic)
   - [Corridor traffic and recovery](#corridor-traffic-and-recovery)
   - [Predictive passing](#predictive-passing)
@@ -98,7 +99,7 @@ The debug menu has four sections. A click on a heading opens its rows below it a
 | --- | --- |
 | SIMULATION | RUNNING, SINGLE TICK, UPS (ticks per second, 1 to 1,000,000; type a number over it or halve and double it), FPS (VSYNC, a limit or UNCAPPED), WORKLOAD |
 | LAYERS | GRID, HEATMAP, PATHS, FORCES, BORDERS, DETECTION, CONTACT SHAPES. While PATHS, FORCES or BORDERS is on, its parts are listed below it: ROUTES, RETREAT TARGETS and PASSING TARGETS; SEEK, COLLISION, BORDER, PREDICTIVE, VELOCITY and ACCELERATION; WALLS and TRAFFIC ZONES. A part is drawn only while it and its layer are on. ROUTES, DETECTION, the target arrows and every FORCES part go under the movers, with the start of each route, arrow and line over its own mover. A color swatch beside a row is the color it is drawn in |
-| MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SPEED, FORCE, HORIZON, RESET PARAMETERS |
+| MOTION | PROFILE, PLANNER (HEAT A*, plain A*, or OFF: no route, straight at the goal), RECOVERY, SAFETY STOP, SPEED, FORCE, HORIZON, RESET PARAMETERS |
 | TRAFFIC | CORRIDOR TRAFFIC, JUNCTION TRAFFIC, PARKING TRAFFIC, PREDICTIVE PASS (`LEGACY` when the profile has no predictive passing), MAKE WAY, DEPARTURE CHECK, RIGHT OF WAY (`LEGACY` likewise) |
 
 Motion settings can change while the factory runs: assignments, positions and routes stay, and a new SPEED, FORCE, HORIZON or PROFILE applies from the next tick. RESET PARAMETERS restores the default speed, force and 32-tick horizon. A PLANNER change replans ordinary routes. MAKE WAY retains its checked routes until return or cancellation. Turning passing off ends plans as `disabled`. Turning MAKE WAY off cancels relief requests and returns the yielding movers when their parking routes are clear. A setting the simulation rejects, and a goal it rejects (the mover is held or carries a product, or the goal is blocked or unreachable), shows a message for four seconds, including time spent on the blueprint screen, and changes nothing.
@@ -133,7 +134,7 @@ The current wait counts consecutive ticks in which the mover has a goal, is free
 | Contact | A mover pair, or a mover and a wall segment, that starts touching. It counts once however long it lasts; the duration is counted separately in ticks |
 | Scenario, showcase scene | A `scenario` section in a blueprint with motion settings, the workload switch, mover goals and a repeat mode; a showcase scene is a small blueprint with one |
 | Shuttle | Movers that drive back and forth between their start and a goal and turn together after `shuttle_pause_ticks` (`Simulation::shuttle`); how most showcase scenes repeat |
-| Event log, flow metrics | Opt-in passing, contact, stall and make-way events ([events.h](include/i4sim/simulation/events.h)). Waiting and stuck movers are measured through [FlowMetrics](include/i4sim/simulation/flow_metrics.h). |
+| Event log, flow metrics | Opt-in passing, contact, stall, make-way and safety-stop events ([events.h](include/i4sim/simulation/events.h)). Waiting and stuck movers are measured through [FlowMetrics](include/i4sim/simulation/flow_metrics.h). |
 
 ## Structure
 
@@ -255,12 +256,12 @@ sequenceDiagram
 
 ### A tick of the simulation
 
-`Simulation` forwards every call to a private `SimulationCore`. Each tick opens a product when the workload allows it, refreshes the heatmap every ten ticks, runs the parking interlock, moves, advances production and turns shuttling movers whose pause has ended. It then observes stalls, advances any MAKE WAY trips and updates waiting counters. During movement, the simulation prepares routes, takes one snapshot of all bodies, runs corridor recovery, predictive passing and zone admission against that snapshot, steers and integrates every mover, and counts and resolves contacts. See the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) for the component diagram, tick order and mover state.
+`Simulation` forwards every call to a private `SimulationCore`. Each tick opens a product when the workload allows it, refreshes the heatmap every ten ticks, runs the parking interlock, moves, advances production and turns shuttling movers whose pause has ended. It then observes stalls, advances any MAKE WAY trips and updates waiting counters. During movement, the simulation prepares routes, takes one snapshot of all bodies, runs corridor recovery, predictive passing and zone admission against that snapshot, steers every mover, cuts its move short where SAFETY STOP requires it and integrates it, and counts and resolves contacts. See the [simulation structure](../../docs/factory-simulation-architecture.md#simulation-structure) for the component diagram, tick order and mover state.
 
 Two design choices explain most of the code:
 
 - **One snapshot per tick.** Every decision of a tick reads the same positions, and movers are handled in a stable order. That makes a run reproducible: the same blueprint, seed, settings and commands give the same run, tick for tick.
-- **Policy targets.** A traffic policy can put up a stop line or select a temporary target that the existing steering follows. MAKE WAY assigns a temporary goal and retains the parking reservation and any product. The mover returns to its reserved parking place on a checked route.
+- **Policy targets.** A traffic policy can put up a stop line or select a temporary target that the existing steering follows. A stop line only brakes: a mover that already reaches past it gets the line at its own front face, so the border constraint never pushes it out sideways into a neighbor. MAKE WAY assigns a temporary goal and retains the parking reservation and any product. The mover returns to its reserved parking place on a checked route.
 
 ### Steering profiles
 
@@ -273,7 +274,13 @@ A route comes from A* on the weighted grid. With the heatmap, cells where movers
 | RVO experiment | Tangent steering around predicted conflicts |
 | Reciprocal | Kinetra's reciprocal avoidance on the tick's snapshot, with rectangular envelopes and 2 mm clearance; parked and held movers do not cooperate |
 
-Profiles never switch on their own. None of them guarantees a run without contacts; the [benchmark](tests/README.md#motion-benchmark) shows what each achieves on the large layouts.
+Profiles never switch on their own. No profile alone guarantees a run without contacts; SAFETY STOP, below, does. The [benchmark](tests/README.md#motion-benchmark) shows what each achieves on the large layouts, and with `--no-safety-stop` what steering achieves alone.
+
+### Safety stop
+
+**DEBUG → MOTION → SAFETY STOP** is on by default. Just before a mover moves, its move is cut where it would come within 0.05 mm of another mover, at that mover's current place (movers earlier in the tick have already moved), or cross a border (a 0.001 mm gap: a mover may touch a wall, as at a parking place against it). Steering's choice does not matter: under every profile and every traffic policy movers then never touch, unless they start touching. On each axis a mover may come no closer than the gap, or than it already is, so a mover flush with a wall slides along it and past its convex corners. Where a move meets an obstacle, only its component toward the obstacle is cut and the rest is kept; at a corner the safer of the move and its two axis parts wins. The mover brakes at once, harder than FORCE allows, as a safety stop does. The last snap onto a destination closes the gap, so parking places beside walls and neighbors stay reachable.
+
+A stop means steering would have let the mover touch. `Simulation::safety_stops()` counts the stops that started (a mover stopped in consecutive ticks counts once), `safety_stop_ticks()` the mover-ticks; a cut of at most 0.01 mm, the end of an approach steering already slows, is applied but not counted. The event log records `safety_stop` with the mover and what it stopped short of, and `summary.json` carries `safetyStops` and `safetyStopTicks`. Measured on 2026-11-28 over 300,000 ticks per run: under Reciprocal on plain A* with every policy, `4320x2400` touched in nine of ten seeds before (up to 16 times per run) and `test-environment` in three. With the stop none of 44 runs touched, `8640x4800` included, at about 5 stops per 10,000 ticks on `4320x2400` and 30 on `8640x4800`, with about as many products (`4320x2400` 366 on average against 372 without the stop). Under Improved's defaults the floors touched 3 to 1,578 times per run; with the stop never, but on the tight floors Improved then locks more often, for it got past parked neighbors by touching them: over seven seeds `1680x960+` completes 23 products on average instead of 48 and `test-environment` 29 instead of 38, while `3840x2400` and `4320x2400` complete as many. It costs about 2% of the ticks per second. The contacts that the sections on the traffic policies below report were measured before, of steering alone. [Design and measurements](../../docs/design/2026-11-28-i4sim-no-contacts.md)
 
 ### Junction traffic
 
@@ -354,7 +361,7 @@ Before movement, an automatic parking return whose parking footprint lies on ano
 
 ### Make way
 
-**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. The [make-way showcase scene](blueprints/README.md#showcase-scenes) shows it on a one-cell lane with a side bay. The beneficiary still uses ordinary traffic admission. If a new zone or exit reservation encloses the yielding mover, it may brake in place or withdraw outward while it continues to count as an occupant. Kinetra runs the [request lifecycle](../../external/Kinetra/docs/engine/navigation.md#making-way), using the factory's refuge candidates and route checks. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md)
+**DEBUG → TRAFFIC → MAKE WAY** is off by default. The policy tries a checked alternate route when a parked mover blocks an active stall. If it needs a refuge, one idle mover can leave its own parking place temporarily. It keeps its product, recipe step, parking reservation and producer queue slot. The inspector shows `MAKE WAY` as the yielding mover's goal type. The [make-way showcase scene](blueprints/README.md#showcase-scenes) shows it on a one-cell lane with a side bay. The beneficiary still uses ordinary traffic admission. If a new zone or exit reservation encloses the yielding mover, it may brake in place or withdraw outward while it continues to count as an occupant. Kinetra runs the [request lifecycle](../../external/Kinetra/docs/engine/navigation.md#making-way), using the factory's refuge candidates and route checks. A yielding mover whose trip ended but whose way home stays blocked, often by the mover it made way for, which in turn waits for the place it stands on, goes back to the factory after standing still on its own for 240 ticks (`stranded_ticks`): its goal becomes automatic again, so production resumes its product, and without one it heads for its parking place. [Design and replay results](../../docs/design/2026-11-27-i4sim-make-way.md), [stranded movers](../../docs/design/2026-11-28-i4sim-no-contacts.md)
 
 ### Departure check
 
@@ -373,6 +380,7 @@ Over the 50,000-tick benchmark with MAKE WAY, on Kinetra's final rule, it lowers
 ## Invariants and contracts
 
 - **Determinism.** The same blueprint, seed, motion settings and commands give the same run tick for tick. Randomness comes only from the seeded workload generator. The [golden and pressure suites](tests/README.md#golden-and-pressure-lines) pin this with fingerprints of every position after every tick, so they need exact floating-point results (no fast-math, no FMA contraction).
+- **No contacts.** With SAFETY STOP on, no move brings two movers into touch or a mover across a border; a contact can only start from a state that already touches, such as a blueprint that places movers on top of each other. The [contact suite](tests/README.md#suites) runs every bundled factory for 100,000 ticks to check it.
 - **Units.** Millimeters, ticks, millimeters per tick. The frame time only selects how many ticks run; it never scales a physical value.
 - **Observation.** Kinetra's [stall detector](../../external/Kinetra/docs/engine/navigation.md#stall-detection) observes the movers after each tick; i4sim tells it which movers follow their own route and how long each went without route progress. Its onset diagnosis (`stationary_blocker`, `opposing_mover`, `pushed_back`, `oscillating` or `unknown`) is exposed through `stall_details`. MAKE WAY uses the active episode and checks present geometry before intervening. The event log records `stall_started`, `stall_ended` and make-way events when enabled. Log recording, `FlowMetrics` and rendering are independent of simulation decisions.
 - **Copies are deep.** Copying a `Simulation` copies its whole state, including the event log. Components store no references to each other, so a copy cannot point into the original.
@@ -410,6 +418,7 @@ Pitfalls:
 | --- | --- | --- |
 | `kinetra_i4sim` | Blueprints, recipes, production, motion and every traffic policy, the event log, flow metrics, scenarios | Nothing |
 | `kinetra_i4sim_golden`, `kinetra_i4sim_pressure` | Ten seeded runs and ten passing cases under pressure (five scenarios, two profiles), each pinned to one recorded line; the pressure cases also require no contact and every mover arrived | Exact floating point |
+| `kinetra_i4sim_contact` (label `soak`) | 100,000-tick runs without a contact on every bundled factory under the fullest motion configuration and under every profile's defaults; products complete, SAFETY STOP stays rare and no mover stays stranded after MAKE WAY | Nothing; about 30 seconds in Release |
 | `kinetra_i4sim_controller` | Loading, keys, pointer, camera, modal pause and the debug-menu entries | Nothing |
 | `kinetra_i4sim_graphics` | The session as a whole: blueprint screen, panels, rendered overlays, catalog recovery, showcase scenes | An OpenGL context |
 | `kinetra_smoke:i4sim`, `kinetra_smoke:i4sim-run` | `kinetra_i4sim --frames 120` on the blueprint screen, and with `3840x2400.json` running, starts, draws and exits with 0; the running one also fails when its blueprint does not load | An OpenGL context |
@@ -417,7 +426,7 @@ Pitfalls:
 
 ```sh
 cmake --preset release
-cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim
+cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_contact_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark
 ctest --preset release -R '^kinetra_i4sim'
 cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics
 ```
@@ -446,4 +455,7 @@ These differences rule out bit-for-bit parity with the reference. Both recipes a
 - The main graphics case clicks debug-menu rows by number. The numbers in `menu_row` follow the menu's layout by hand.
 - A parked mover can seal an exit when MAKE WAY is off or one eligible blocker cannot open a checked route. DEPARTURE CHECK keeps a queued mover from leaving into such a seal, for at most 1,200 ticks. [MAKE WAY and the departure replay](../../docs/design/2026-11-27-i4sim-make-way.md), [departure check](../../docs/design/2026-11-27-stall-remedies-in-the-engine.md)
 - Predictive passing stays off by default. Under Improved its benchmark results stay mixed because of Improved's own contact episodes; under Reciprocal it raises throughput without contact ([phase 7](../../docs/design/2026-11-21-i4sim-passing-under-pressure.md#step-3-measured-result)). Demo, Dotio and i4sim run passing on [Kinetra's `PassingCoordinator`](../../external/Kinetra/docs/engine/navigation.md#predictive-passing); i4sim maps its factory states onto it and keeps its traffic controls and event log ([ADR 0018](../../external/Kinetra/docs/decisions/0018-stall-remedies-in-the-engine.md)).
+- Two movers that stand head-on, each wanting the place behind the other, can lock under Reciprocal: its avoidance cancels their seek exactly and neither moves. RIGHT OF WAY grants nothing, since neither is pushed back, and recovery plans the same way again. A 300,000-tick sweep on 2026-11-28 found it on `test-environment` in four of ten seeds; it stops production there for good. [Design, open points](../../docs/design/2026-11-28-i4sim-no-contacts.md#open-points)
+- Under SAFETY STOP, Improved locks more often on the tight floors, because it got past parked neighbors by touching them; Reciprocal with every policy does not lose products. [Design, open points](../../docs/design/2026-11-28-i4sim-no-contacts.md#open-points)
+- The HUD does not show SAFETY STOP's count; the event log, `summary.json` and the benchmark do.
 - Desktop playtests and performance checks stay manual.

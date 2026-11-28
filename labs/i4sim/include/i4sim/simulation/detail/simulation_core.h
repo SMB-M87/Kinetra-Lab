@@ -65,6 +65,8 @@ class SimulationCore {
     /// (horizon at most 64 ticks); the settings are then unchanged.
     void configure_motion(MotionSettings settings);
     std::uint64_t contact_ticks() const { return motion_step_.contact_ticks(); }
+    std::uint64_t safety_stops() const { return motion_step_.safety_stops(); }
+    std::uint64_t safety_stop_ticks() const { return motion_step_.safety_stop_ticks(); }
     /// Seed of the workload generator. With the blueprint, the motion settings and the
     /// commands given, it reproduces a run tick for tick.
     std::uint32_t seed() const { return seed_; }

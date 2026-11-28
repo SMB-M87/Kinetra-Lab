@@ -73,7 +73,7 @@ Then search each key word that the change moves, renames or makes stale on its o
 
 | Changed area | Targets | CTest regex |
 | --- | --- | --- |
-| `labs/i4sim/` logic (`simulation/`, `blueprint/`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim` | `^kinetra_i4sim` |
+| `labs/i4sim/` logic (`simulation/`, `blueprint/`, `controller`) | `kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_contact_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark` | `^kinetra_i4sim` |
 | `labs/demo/` logic (`application`, `debug_panel`, `world/`, `input/`) | `kinetra_demo_tests kinetra_demo_terrain_tests kinetra_demo_crowd_tests kinetra_demo_crowd_characterization_tests kinetra_demo_passing_tests` | `^kinetra_demo(:\|_terrain\|_crowd\|_passing)` |
 | `labs/dotio/` logic (everything outside `presentation/`) | `kinetra_dotio_tests` | `^kinetra_dotio:` |
 | `labs/shared/` | `kinetra_lab_tests` | `^kinetra_lab:` |
@@ -84,7 +84,7 @@ Then search each key word that the change moves, renames or makes stale on its o
 | `tools/release/`, `.github/workflows/release.yml` | Docs level, plus the local cross build and `package_windows.sh` from the [release tool](tools/release/README.md#build-the-zip-locally); the workflow itself runs only after a merge on `main` or a tag | |
 | Windows build (`cmake/toolchains/`, `cmake/WindowsDependencies.cmake`, Windows presets, `#ifdef _WIN32` code) | Full level; CI's `windows` job builds natively. Only a change to the WSL cross build itself (`cmake/toolchains/`, the `windows` preset) also needs `cmake --workflow --preset windows` from WSL, which CI does not run ([Windows](docs/windows.md)) | |
 
-The Demo, Dotio, i4sim and settings doctest suites register each case as `<suite>:<case>`. Use `-R '^<suite>:'` to select a suite, or `-LE soak` to skip the Demo crowd and long Dotio behavior runs.
+The Demo, Dotio, i4sim and settings doctest suites register each case as `<suite>:<case>`. Use `-R '^<suite>:'` to select a suite, or `-LE soak` to skip the Demo crowd, long Dotio behavior and i4sim contact runs.
 
 **Docs-only pull requests.** A pull request that changes only Markdown, `docs/` or `.agents/`, or such files and a pointer whose Kinetra range holds only Markdown, `docs/`, `.agents/`, `.claude/`, `.codex/config.toml`, `.github/` or `tools/`, which Lab's build does not read, is docs-only: the author records its checks and final review in the pull request description ([workflow](external/Kinetra/docs/workflow.md#6-review)). It merges under [Kinetra's merge rule](external/Kinetra/AGENTS.md#git). CI's `changes` job skips its build and tests and runs only the docs check, except when it touches one of three Lab paths that a test reads or the build copies: `README.md` and `docs/media/` (`kinetra_capture_tests`), and `labs/i4sim/blueprints/`; or when its pointer's Kinetra range changes Kinetra's `README.md` or `docs/media/`, which `kinetra_capture_tests` reads too. Those build in full. The decision is `tools/release/needs_build.sh`, the one the release workflow uses.
 

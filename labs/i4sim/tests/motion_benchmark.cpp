@@ -76,7 +76,11 @@ int main(int argc, char **argv) {
         using namespace i4sim;
         bool recovery = false, parking_traffic = false, junction_traffic = false, corridor_traffic = false;
         bool predictive_passing = false, make_way = false, departure_check = false, right_of_way = false;
+        bool safety_stop = true;
         auto profile = SteeringProfile::improved;
+        // Heat A*, the simulation's default; `--planner astar` plans without the heatmap and
+        // `--planner off` steers straight at every goal.
+        bool path_planning = true, heatmap = true;
         std::uint64_t ticks = default_ticks;
         std::optional<std::filesystem::path> event_directory;
         std::vector<std::uint32_t> seeds;
@@ -115,6 +119,10 @@ int main(int argc, char **argv) {
                 right_of_way = true;
                 continue;
             }
+            if (option == "--no-safety-stop") {
+                safety_stop = false;
+                continue;
+            }
             if (option == "--recovery") {
                 recovery = true;
                 continue;
@@ -133,6 +141,15 @@ int main(int argc, char **argv) {
                     profile = SteeringProfile::reciprocal;
                 else
                     throw std::invalid_argument("Unknown steering profile: " + value);
+            } else if (option == "--planner") {
+                if (value == "heat")
+                    path_planning = heatmap = true;
+                else if (value == "astar")
+                    path_planning = true, heatmap = false;
+                else if (value == "off")
+                    path_planning = false, heatmap = true;
+                else
+                    throw std::invalid_argument("Unknown planner: " + value);
             } else if (option == "--events") {
                 event_directory = value;
             } else if (option == "--blueprint") {
@@ -153,8 +170,9 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Usage: kinetra_i4sim_motion_benchmark [--recovery] "
                                             "[--parking-traffic] [--junction-traffic] [--corridor-traffic] "
                                             "[--predictive-passing|--no-predictive-passing] [--make-way] "
-                                            "[--departure-check] [--right-of-way] "
-                                            "[--profile improved|original|rvo|reciprocal] [--ticks N] "
+                                            "[--departure-check] [--right-of-way] [--no-safety-stop] "
+                                            "[--profile improved|original|rvo|reciprocal] "
+                                            "[--planner heat|astar|off] [--ticks N] "
                                             "[--events DIRECTORY] [--blueprint FILE ...] [--seed N ...]");
             }
         }
@@ -175,7 +193,7 @@ int main(int argc, char **argv) {
         std::cout
             << "blueprint,seed,completed,contacts,contact_ticks,acceleration_change,waiting_ticks,"
                "stuck_movers,stuck_at_end,passing_plans,passing_cancelled,passing_contacts,contact_episodes,"
-               "elapsed_ms,ticks_per_second\n";
+               "safety_stops,safety_stop_ticks,ticks,elapsed_ms,ticks_per_second\n";
         for (std::size_t index = 0; index < blueprints.size(); ++index) {
             const auto &file = blueprints[index];
             const auto name = file.stem().string();
@@ -194,6 +212,9 @@ int main(int argc, char **argv) {
                 settings.junction_traffic = junction_traffic;
                 settings.corridor_traffic = corridor_traffic;
                 settings.profile = profile;
+                settings.safety_stop = safety_stop;
+                settings.path_planning = path_planning;
+                settings.heatmap = heatmap;
                 simulation.configure_motion(settings);
                 simulation.record_events(true);
                 simulation.run();
@@ -224,7 +245,9 @@ int main(int argc, char **argv) {
                           << flow.waiting_ticks() << ',' << flow.stuck_movers() << ',' << flow.stuck_now()
                           << ',' << test::count(events, EventKind::passing_formed) << ','
                           << test::cancelled_plans(events) << ',' << test::passing_contacts(events) << ','
-                          << test::contact_episodes(events) << ',' << elapsed << ',' << rate << std::endl;
+                          << test::contact_episodes(events) << ',' << simulation.safety_stops() << ','
+                          << simulation.safety_stop_ticks() << ',' << ran << ',' << elapsed << ',' << rate
+                          << std::endl;
             }
         }
     } catch (const std::exception &error) {

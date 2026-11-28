@@ -23,9 +23,10 @@ The C++ programs are doctest suites: each `TEST_CASE` is one behavior, named aft
 
 ```mermaid
 flowchart TD
-    Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (74)<br/>simulation_tests.cpp"]
+    Logic["kinetra_i4sim_logic<br/>simulation, loaders, controller"] --> Sim["kinetra_i4sim (119)<br/>simulation_tests.cpp"]
     Logic --> Golden["kinetra_i4sim_golden (10)<br/>kinetra_i4sim_pressure (10)"]
-    Logic --> Controller["kinetra_i4sim_controller (49)<br/>controller_tests.cpp"]
+    Logic --> Contact["kinetra_i4sim_contact (6)<br/>long runs without a contact"]
+    Logic --> Controller["kinetra_i4sim_controller (51)<br/>controller_tests.cpp"]
     Logic --> Relocation["kinetra_i4sim_relocation<br/>relocated executable"]
     Presentation["kinetra_i4sim_presentation<br/>session and drawing"] --> Graphics["kinetra_i4sim_graphics (12)<br/>session input and rendering"]
     Logic --> Presentation
@@ -35,10 +36,11 @@ flowchart TD
 
 | Source | CTest suite (cases) | Purpose |
 | --- | --- | --- |
-| `simulation_tests.cpp` | `kinetra_i4sim` (74) | Required behavior of the loaders and the simulation |
+| `simulation_tests.cpp` | `kinetra_i4sim` (119) | Required behavior of the loaders and the simulation |
 | `golden_tests.cpp` | `kinetra_i4sim_golden` (10, one per scenario) | Pins whole seeded runs for refactoring |
+| `contact_tests.cpp` | `kinetra_i4sim_contact` (6, label `soak`) | 100,000-tick runs without a single contact: every bundled factory under Reciprocal on plain A* with recovery and every traffic policy, and every steering profile with its defaults; each also checks that products complete, that SAFETY STOP stays rare and that no mover stays stranded after MAKE WAY |
 | `pressure_tests.cpp` | `kinetra_i4sim_pressure` (10: five scenarios under Reciprocal and Improved) | Records predictive passing under pressure, as the baseline for roadmap phase 7 |
-| `controller_tests.cpp` | `kinetra_i4sim_controller` (49) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
+| `controller_tests.cpp` | `kinetra_i4sim_controller` (51) | The session's rules: loading, keys, pointer, camera, debug-menu entries |
 | `presentation_tests.cpp` | `kinetra_i4sim_graphics` (12, label `graphics`) | Session input, blueprint-screen messages and rendering with OpenGL; routes, detection ranges and seek arrows under the movers they cross, and a route that starts over its own mover |
 | `relocation_tests.cmake` | `kinetra_i4sim_relocation` (one CTest script) | The catalog beside a relocated executable |
 
@@ -50,12 +52,12 @@ From the repository root:
 
 ```sh
 cmake --preset release
-cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_controller_tests kinetra_i4sim
+cmake --build --preset release --target kinetra_i4sim_tests kinetra_i4sim_golden_tests kinetra_i4sim_pressure_tests kinetra_i4sim_contact_tests kinetra_i4sim_controller_tests kinetra_i4sim kinetra_i4sim_motion_benchmark
 ctest --preset release -R '^kinetra_i4sim' --output-on-failure
 cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics; needs an OpenGL context
 ```
 
-One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or the executable (`./build-release/kinetra_i4sim_tests --test-case='a T-junction*'`). The `8640x4800` recovery case takes most of the simulation suite's time; in a Debug build the large-factory cases take minutes.
+One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or the executable (`./build-release/kinetra_i4sim_tests --test-case='a T-junction*'`). The `8640x4800` recovery case takes most of the simulation suite's time; in a Debug build the large-factory cases take minutes. The contact suite takes about 30 seconds in a Release build on four cores, most of it the `8640x4800` run; `-LE soak` leaves it out. The three `kinetra_i4sim_benchmark_*` cases run `kinetra_i4sim_motion_benchmark`, so build it too.
 
 For a sustained workload run by hand, use `kinetra_i4sim --blueprint labs/i4sim/tests/test-environment.json --ticks 1000000 --seed 42 --output /tmp/i4sim-check`. The direct batch loop reports its measured headless UPS.
 
@@ -213,9 +215,10 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 
 The `test-environment` fixture and the catalog's `3840x2400` and `8640x4800` run for 1,000,000 ticks each with seeds 42 and 915839214, about five minutes in all on the cloud machine of the [performance](../../../docs/performance.md) page. The baselines below were measured with `--ticks 50000`, the default until 2026-11-27; pass it to compare with them.
 `--profile` accepts `improved` (default), `original`, `rvo` or `reciprocal`;
-`--ticks` accepts 1 through 100,000,000. Repeat `--blueprint <file>` or `--seed <unsigned 32-bit integer>` to select floors and seeds. Each selected floor runs with every selected seed. Omit either option to keep its default set. Recovery, parking traffic, junction traffic, corridor traffic, MAKE WAY, DEPARTURE CHECK and RIGHT OF WAY are opt-in. Use `--make-way` for the parking relief policy, `--departure-check` for checked departures from the head of a producer queue and `--right-of-way` for the right of way of a pushed-back mover.
+`--planner` accepts `heat` (default: A* with the heatmap), `astar` (plain A*, as PLANNER → A*) or `off`;
+`--ticks` accepts 1 through 100,000,000. Repeat `--blueprint <file>` or `--seed <unsigned 32-bit integer>` to select floors and seeds. Each selected floor runs with every selected seed. Omit either option to keep its default set. Recovery, parking traffic, junction traffic, corridor traffic, MAKE WAY, DEPARTURE CHECK and RIGHT OF WAY are opt-in. Use `--make-way` for the parking relief policy, `--departure-check` for checked departures from the head of a producer queue and `--right-of-way` for the right of way of a pushed-back mover. SAFETY STOP is on, as in the simulation; `--no-safety-stop` turns it off. Every baseline below was measured before SAFETY STOP existed: pass `--no-safety-stop` to compare with them.
 
-`--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv` for the default selection or a single explicit blueprint. With multiple `--blueprint` arguments, the logs use `<number>-<blueprint>-<seed>.csv`, where the number is the one-based order of the input file. This keeps equal stems and Unicode filename aliases distinct on case-insensitive volumes. An invocation with event logging requires distinct seeds. For a stall event, `first` is the affected mover's index and `stall_reason`, `stall_blocker` and `stall_detected_at` carry the onset diagnosis. For a MAKE WAY event, `first` is the stalled mover and `second` is the yielding mover. For `right_of_way_granted`, `first` is the mover that got the right of way and `second` the neighbor that pushed it back; `right_of_way_ended` leaves `second` at 0. The `make_way_end` column records why a request ended. Use separate output directories for each policy mode to keep both logs. The benchmark's `stuck_movers` and `stuck_at_end` count sustained lack of progress toward the goal by straight-line distance. The shorter route-progress stall episodes support inspection and replay.
+`--events <directory>` writes each run's event log to `<blueprint>-<seed>.csv` for the default selection or a single explicit blueprint. With multiple `--blueprint` arguments, the logs use `<number>-<blueprint>-<seed>.csv`, where the number is the one-based order of the input file. This keeps equal stems and Unicode filename aliases distinct on case-insensitive volumes. An invocation with event logging requires distinct seeds. For a stall event, `first` is the affected mover's index and `stall_reason`, `stall_blocker` and `stall_detected_at` carry the onset diagnosis. For a MAKE WAY event, `first` is the stalled mover and `second` is the yielding mover. For `right_of_way_granted`, `first` is the mover that got the right of way and `second` the neighbor that pushed it back; `right_of_way_ended` leaves `second` at 0. For `safety_stop`, `first` is the stopped mover and `second` the mover, or with `border` 1 the border, it stopped short of. The `make_way_end` column records why a request ended. Use separate output directories for each policy mode to keep both logs. The benchmark's `stuck_movers` and `stuck_at_end` count sustained lack of progress toward the goal by straight-line distance. The shorter route-progress stall episodes support inspection and replay.
 The CSV has one line per blueprint and seed:
 
 | Column | Meaning |
@@ -227,6 +230,8 @@ The CSV has one line per blueprint and seed:
 | `stuck_movers`, `stuck_at_end` | Movers that went 2000 ticks without getting 10 mm closer to their destination at least once, and at the last tick |
 | `passing_plans`, `passing_cancelled`, `passing_contacts` | Predictive passing plans formed, plans that ended without completing, and contacts that started while a participant was in a plan (from the event log) |
 | `contact_episodes` | Contacts grouped per mover pair (or mover and border) while less than 500 ticks lie between two of them: a pair that keeps touching counts once |
+| `safety_stops`, `safety_stop_ticks` | SAFETY STOP: stops that started, and mover-ticks it cut short by more than 0.01 mm; zero with `--no-safety-stop` |
+| `ticks` | Ticks run, fewer than `--ticks` when the blueprint's tick cap ends the run first (`1680x960-` stops at 10,000) |
 | `elapsed_ms` | Wall-clock time, including the event log and metrics; it depends on the machine and load |
 | `ticks_per_second` | Ticks run divided by that time, rounded: the throughput of the run, metrics included. A headless `kinetra_i4sim --ticks N` reports the rate without them |
 
