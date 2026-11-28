@@ -60,3 +60,5 @@ cmake --workflow --preset headless
 ```
 
 It configures, builds and tests in `build-headless/` with `KINETRA_LAB_BUILD_RUNTIME=OFF`. See [tests and resources](../README.md#tests-and-resources) for graphics checks. Application-specific behavior and verification are documented in the guides above.
+
+Use at least 100,000 ticks per run for sustained headless comparisons. The i4sim motion benchmark defaults to 1,000,000 ticks. A fixed simulation tick keeps its duration at every requested UPS. The headless workloads execute without waiting on wall-clock time. Measured UPS depends on the workload and machine. [Performance measurement commands](../docs/performance.md#how-to-measure)

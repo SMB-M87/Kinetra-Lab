@@ -57,7 +57,7 @@ cmake --workflow --preset graphics   # adds kinetra_i4sim_graphics; needs an Ope
 
 One case runs on its own through CTest (`-R 'kinetra_i4sim:a T-junction'`) or the executable (`./build-release/kinetra_i4sim_tests --test-case='a T-junction*'`). The `8640x4800` recovery case takes most of the simulation suite's time; in a Debug build the large-factory cases take minutes.
 
-For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/test-environment.json --ticks 50000 --output /tmp/i4sim-check`.
+For a sustained workload run by hand, use `kinetra_i4sim --blueprint labs/i4sim/tests/test-environment.json --ticks 1000000 --seed 42 --output /tmp/i4sim-check`. The direct batch loop reports its measured headless UPS.
 
 `relocation_tests.cmake` copies `kinetra_i4sim_tests` and the blueprints into a separate bundle and runs its `the bundled catalog holds five blueprints that all load` case from an unrelated working directory. It checks that discovery works there and that it fails with a usable message without the adjacent catalog. Renaming that case requires the same change in the script.
 
@@ -66,15 +66,15 @@ For a bounded workload run by hand: `kinetra_i4sim --blueprint labs/i4sim/tests/
 | Area | The cases require |
 | --- | --- |
 | Blueprints | All five originals in the catalog load and have no scenario, groups expand as in the reference, and invalid input is rejected with the path and the cause |
-| Production | Both recipes complete; a 50000-tick test-environment workload reproduces its totals; queues stay bounded; a blocked producer pauses and resumes; an interaction takes exactly its duration |
+| Production | Both recipes complete. The test environment continues to complete products between its 50,000-tick checkpoint and the end at 100,000 ticks. Queues stay bounded, a blocked producer pauses and resumes, and an interaction takes exactly its duration |
 | Run state | The run states and the tick cap; a single step while paused; a motion change while running equals pausing around it |
 | Goals | A manual goal reserves its mover against allocation until arrival; the goal kinds; a goal whose footprint does not fit is rejected; the HUD status order |
 | Steering | Every profile runs; invalid horizons are rejected; head-on and crossing encounters end without contact under Improved and Reciprocal; a mover does not stall on its own heatmap footprint; a valid detour never reports a stall; a contact cannot displace a parked mover |
 | Stall diagnostics | Head-on stalls report both participants. The detector identifies a stationary blocker, reversals after a change of axis and oscillation across an anchor, and the recorded `4320x2400` mover pushed away from its goal as `pushed_back`. Minor jitter does not supply evidence of oscillation. Goal changes, renewed progress and controlled waits reset observation. Kinetra's own suite tests the detector's contract. |
 | Stall remedies | DEPARTURE CHECK keeps a sealed queued mover at its holding place until a checked route opens, lets one sealed in for good leave after 1,200 ticks, starts its wait again after a hold, and removes the recorded `1680x960+` contacts. MAKE WAY clears a parked blocker through a checked refuge and returns it, including when the beneficiary crosses an enabled corridor or the blocker has to brake inside a new reservation. RIGHT OF WAY ends the recorded `4320x2400` stall of a mover pushed off its goal, marks the holder in the inspector, and ends when turned off or when the holder gets a new goal |
-| Reciprocal | Results do not depend on the ticks per second; acceleration stays bounded; a mover leaves through a rectangular gap whose enclosing circles overlap; parked neighbors do not move |
+| Reciprocal | A normal single step and a timed step at 1,000,000 UPS give the same motion. Acceleration stays bounded, a mover leaves through a rectangular gap whose enclosing circles overlap, and parked neighbors keep their positions |
 | Parking | Leaving and returning beside a wall, in a corner and between parked neighbors, under Improved, Original and Reciprocal: no contact, bounded acceleration, the exact parking place and no drift afterwards. Allocation skips a mover trapped behind held neighbors |
-| Parking traffic | The test environment with seed 42 completes at least 15 products in 50000 ticks without contact; waiting and release, blocked departures, a manual goal replacing a deferral, and switching the policy off without moving a body |
+| Parking traffic | The test environment with seed 42 completes at least 15 products by tick 50,000 and continues to finish products through tick 100,000 without contact. The same replay covers waiting and release, blocked departures, a manual goal replacing a deferral, and switching the policy off without moving a body |
 | Junction traffic | At a one-cell crossing one uncoordinated mover is still moving after 5000 ticks; with admission both arrive within 1000 ticks without contact, one at a time, with unchanged goals. Also replay, a held occupant, resuming, switching off, all four approach directions, a turning T-junction and cancelled approaches |
 | Exit pockets | With one arm blocked, in all four directions, a mover waits outside while another exit clears; after the blocker leaves all three arrive without contact. Reserved space stays free of an opposing approach, and coasting traffic prevents an unsafe reservation |
 | Corridor traffic | All four directions: one mover in the corridor at a time, bounded acceleration, unchanged manual goals, deterministic replay, both arrive within 5000 ticks without contact. Also a held occupant, a parked occupant without an exit route, junction traffic switched independently, switching off, dead ends excluded and the 256-cell limit |
@@ -204,7 +204,7 @@ Build `kinetra_i4sim_motion_benchmark` with `BUILD_TESTING=ON` and run it explic
 ```sh
 ./build/kinetra_i4sim_motion_benchmark > /tmp/i4sim-motion.csv
 ./build/kinetra_i4sim_motion_benchmark --recovery > /tmp/i4sim-recovery.csv
-./build/kinetra_i4sim_motion_benchmark --profile reciprocal --ticks 50000 > /tmp/i4sim-reciprocal.csv
+./build/kinetra_i4sim_motion_benchmark --profile reciprocal > /tmp/i4sim-reciprocal.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic > /tmp/i4sim-parking-traffic.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic > /tmp/i4sim-junction-traffic.csv
 ./build/kinetra_i4sim_motion_benchmark --profile reciprocal --parking-traffic --junction-traffic --corridor-traffic > /tmp/i4sim-corridor-traffic.csv
