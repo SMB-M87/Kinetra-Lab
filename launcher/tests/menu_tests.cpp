@@ -43,8 +43,8 @@ TEST_CASE("every bundled application has its own still and description") {
         CAPTURE(choice.name);
         CHECK_FALSE(choice.description.empty());
         REQUIRE(choice.preview);
-        CHECK(choice.preview->width() == 320);
-        CHECK(choice.preview->height() == 180);
+        CHECK(choice.preview->width() == 480);
+        CHECK(choice.preview->height() == 270);
     }
     CHECK(registrations[0].choice.preview != registrations[1].choice.preview);
     CHECK(registrations[1].choice.preview != registrations[2].choice.preview);
