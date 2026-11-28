@@ -5,19 +5,21 @@
 
 #include <algorithm>
 #include <array>
-#include <limits>
+#include <exception>
+#include <utility>
 
 namespace i4sim::detail {
 namespace {
 using namespace kinetra;
 
-/// Allow several stall windows for the beneficiary to clear the refuge.
-constexpr std::uint64_t make_way_timeout = 10 * stall_ticks;
 /// Search a bounded neighborhood around the blocker for a refuge.
 constexpr int refuge_cell_radius = 2;
-/// One retry lets a nearby mover finish parking before declaring the route unavailable.
-constexpr unsigned max_make_way_searches = 2;
-constexpr std::uint64_t make_way_retry_ticks = 30;
+constexpr MakeWaySettings settings{
+    .timeout_steps = 10 * stall_ticks,
+    .retry_steps = 30,
+    .max_searches = 2,
+    .home_tolerance = same_point_mm,
+};
 
 bool coordinated(const Mover &m) {
     const auto &c = m.coordination;
@@ -27,13 +29,6 @@ bool coordinated(const Mover &m) {
 bool at_parking(const Mover &m) {
     return m.goal == GoalKind::automatic && m.lifecycle == MoverLifecycle::idle &&
            distance(m.body.position, m.parking) < same_point_mm;
-}
-
-void record(Goals &goals, EventKind kind, std::size_t beneficiary, std::size_t blocker,
-            std::optional<MakeWayEnd> outcome = {}) {
-    if (goals.log.recording())
-        goals.log.add(
-            {.tick = goals.tick, .kind = kind, .movers = {beneficiary, blocker}, .make_way_end = outcome});
 }
 
 bool crosses_region(Vec2 from, std::span<const Vec2> route, Vec2 extent, const Body &body) {
@@ -99,7 +94,7 @@ std::optional<std::size_t> parked_blocker(const Goals &goals, std::size_t index)
 /// A proposed path clears the static floor and all current footprints. A hypothetical
 /// move substitutes the blocker's footprint at its proposed refuge.
 std::vector<Vec2> checked_route(const Goals &goals, std::size_t index, Vec2 target,
-                                std::optional<std::pair<std::size_t, Vec2>> relocated = {}) {
+                                std::optional<MakeWayRelocation> relocated) {
     const auto &movers = goals.fleet.movers;
     std::vector<const Body *> obstacles;
     obstacles.reserve(movers.size());
@@ -107,16 +102,16 @@ std::vector<Vec2> checked_route(const Goals &goals, std::size_t index, Vec2 targ
     for (std::size_t other = 0; other < movers.size(); ++other) {
         if (other == index)
             continue;
-        if (relocated && other == relocated->first) {
+        if (relocated && other == relocated->mover) {
             hypothetical = movers[other].body;
-            hypothetical.position = relocated->second;
+            hypothetical.position = relocated->position;
             obstacles.push_back(&hypothetical);
         } else {
             obstacles.push_back(&movers[other].body);
         }
     }
     auto route = clearance_route(goals.floor, movers[index], target, obstacles, goals.motion.path_planning);
-    if (!MakeWay::traffic_clear(goals, movers[index], route))
+    if (!i4sim::detail::MakeWay::traffic_clear(goals, movers[index], route))
         return {};
     return route;
 }
@@ -144,34 +139,22 @@ bool refuge_free(const Goals &goals, std::size_t index, int cell) {
     return true;
 }
 
-std::vector<Vec2> refuge_route(const Goals &goals, std::size_t index, std::size_t beneficiary) {
+std::vector<Vec2> refuge_candidates(const Goals &goals, std::size_t index) {
     const auto &grid = goals.floor.grid();
-    const auto &m = goals.fleet.movers[index];
-    const int origin = grid.cell(m.parking);
+    const int origin = grid.cell(goals.fleet.movers[index].parking);
+    if (origin < 0)
+        return {};
     const int column = origin % grid.width(), row = origin / grid.width();
-    float nearest = std::numeric_limits<float>::infinity();
-    std::vector<Vec2> best;
+    std::vector<Vec2> candidates;
     for (int y = std::max(0, row - refuge_cell_radius);
          y <= std::min(grid.height() - 1, row + refuge_cell_radius); ++y)
         for (int x = std::max(0, column - refuge_cell_radius);
              x <= std::min(grid.width() - 1, column + refuge_cell_radius); ++x) {
             const int cell = y * grid.width() + x;
-            if (!refuge_free(goals, index, cell))
-                continue;
-            const auto target = grid.center(cell);
-            const auto distance_to_refuge = distance(m.body.position, target);
-            if (distance_to_refuge >= nearest)
-                continue;
-            auto route = checked_route(goals, index, target);
-            if (!route.empty() &&
-                !checked_route(goals, beneficiary, goals.fleet.movers[beneficiary].destination,
-                               std::pair{index, target})
-                     .empty()) {
-                best = std::move(route);
-                nearest = distance_to_refuge;
-            }
+            if (refuge_free(goals, index, cell))
+                candidates.push_back(grid.center(cell));
         }
-    return best;
+    return candidates;
 }
 
 void install_route(Goals &goals, std::size_t index, std::vector<Vec2> route, GoalKind kind) {
@@ -183,6 +166,118 @@ void install_route(Goals &goals, std::size_t index, std::vector<Vec2> route, Goa
     auto &progress = goals.fleet.progress[index];
     progress.best_remaining = route_remaining(m.body.position, m.route);
 }
+MakeWayMotion motion(const Mover &mover) {
+    if (mover.held)
+        return MakeWayMotion::held;
+    if (mover.moving())
+        return MakeWayMotion::moving;
+    if (mover.lifecycle == MoverLifecycle::idle)
+        return MakeWayMotion::idle;
+    return MakeWayMotion::unreachable;
+}
+
+MakeWayEnd local_outcome(kinetra::MakeWayEnd outcome) {
+    switch (outcome) {
+    case kinetra::MakeWayEnd::cleared:
+        return MakeWayEnd::cleared;
+    case kinetra::MakeWayEnd::cancelled:
+        return MakeWayEnd::cancelled;
+    case kinetra::MakeWayEnd::timed_out:
+        return MakeWayEnd::timed_out;
+    case kinetra::MakeWayEnd::obstructed:
+        return MakeWayEnd::obstructed;
+    }
+    std::terminate();
+}
+
+// The engine decides when to request and return. Lab guards routes and retains the
+// mover's parking reservation, product and queue entry throughout a trip.
+class FactoryMakeWayWorld : public MakeWayWorld {
+  public:
+    FactoryMakeWayWorld(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
+                        const StallDetector &stalls)
+        : goals_(goals), products_(products), shuttle_(shuttle), stalls_(stalls) {}
+
+    MakeWayMover mover(std::size_t index) const override {
+        const auto &m = goals_.fleet.movers[index];
+        return {m.body.position, m.destination, m.parking, motion(m), m.goal == GoalKind::making_way};
+    }
+
+    std::optional<std::uint64_t> stall(std::size_t beneficiary) const override {
+        if (const auto episode = stalls_.details(beneficiary))
+            return episode->detected_at;
+        return std::nullopt;
+    }
+
+    std::optional<MakeWayBlocker> blocker(std::size_t beneficiary) const override {
+        const auto index = parked_blocker(goals_, beneficiary);
+        if (!index)
+            return std::nullopt;
+        const auto &m = goals_.fleet.movers[*index];
+        const auto product = std::find_if(products_.begin(), products_.end(), [&](const Product &candidate) {
+            return candidate.id == m.product;
+        });
+        return MakeWayBlocker{*index, !coordinated(m) && !shuttle_.contains(*index) &&
+                                          (!m.product || (product != products_.end() &&
+                                                          product->state != ProductState::processing))};
+    }
+
+    std::vector<Vec2> refuges(std::size_t index) const override { return refuge_candidates(goals_, index); }
+
+    std::vector<Vec2> route(std::size_t index, Vec2 target, MakeWayRoute,
+                            std::optional<MakeWayRelocation> relocated) const override {
+        return checked_route(goals_, index, target, relocated);
+    }
+
+    bool needs_home(std::size_t beneficiary, std::size_t blocker) const override {
+        auto parking = goals_.fleet.movers[blocker].body;
+        parking.position = goals_.fleet.movers[blocker].parking;
+        const auto &m = goals_.fleet.movers[beneficiary];
+        return crosses_route(m, m.route, parking);
+    }
+
+    bool route_forbidden(std::size_t blocker) const override {
+        const auto &m = goals_.fleet.movers[blocker];
+        return !i4sim::detail::MakeWay::traffic_clear(goals_, m, m.route);
+    }
+
+    bool route_obstructed(std::size_t blocker) const override {
+        const auto &m = goals_.fleet.movers[blocker];
+        return std::any_of(goals_.fleet.movers.begin(), goals_.fleet.movers.end(), [&](const Mover &other) {
+            return &other != &m && (!other.moving() || other.held) && crosses_route(m, m.route, other.body);
+        });
+    }
+
+    void assign(std::size_t index, std::vector<Vec2> route, MakeWayRoute purpose) override {
+        const auto kind =
+            purpose == MakeWayRoute::yielding ? GoalKind::making_way : goals_.fleet.movers[index].goal;
+        install_route(goals_, index, std::move(route), kind);
+    }
+
+    void brake(std::size_t blocker) override {
+        install_route(goals_, blocker, {goals_.fleet.movers[blocker].body.position}, GoalKind::making_way);
+    }
+
+    void returned(std::size_t blocker) override { goals_.fleet.movers[blocker].goal = GoalKind::automatic; }
+
+    void event(MakeWayEvent event) override {
+        if (!goals_.log.recording())
+            return;
+        constexpr std::array kinds{EventKind::make_way_started, EventKind::make_way_unavailable,
+                                   EventKind::make_way_ended};
+        goals_.log.add(
+            {.tick = goals_.tick,
+             .kind = kinds[static_cast<std::size_t>(event.kind)],
+             .movers = {event.beneficiary, event.blocker},
+             .make_way_end = event.outcome ? std::optional{local_outcome(*event.outcome)} : std::nullopt});
+    }
+
+  private:
+    Goals &goals_;
+    std::span<const Product> products_;
+    const Shuttle &shuttle_;
+    const StallDetector &stalls_;
+};
 } // namespace
 
 bool MakeWay::traffic_clear(const Goals &goals, const Mover &mover, std::span<const Vec2> route) {
@@ -213,151 +308,9 @@ bool MakeWay::shortcut_clear(const Goals &goals, const Mover &mover, std::span<c
            });
 }
 
-void MakeWay::advance_trip(Goals &goals, std::size_t index) {
-    auto &entry = trips_[index];
-    auto &m = goals.fleet.movers[index];
-    auto &trip = *entry;
-    auto &beneficiary = goals.fleet.movers[trip.beneficiary];
-    const auto finish = [&](MakeWayEnd outcome) {
-        if (!trip.outcome) {
-            record(goals, EventKind::make_way_ended, trip.beneficiary, index, outcome);
-            trip.outcome = outcome;
-        }
-    };
-    if (m.goal != GoalKind::making_way) {
-        finish(MakeWayEnd::cancelled);
-        entry.reset();
-        return;
-    }
-    if (m.held) {
-        finish(MakeWayEnd::cancelled);
-        return;
-    }
-    if (trip.phase == Phase::returning && m.lifecycle == MoverLifecycle::idle) {
-        if (distance(m.body.position, m.parking) < same_point_mm) {
-            m.goal = GoalKind::automatic;
-            entry.reset();
-        } else {
-            trip.phase = Phase::waiting;
-        }
-        return;
-    }
-
-    const bool cancelled =
-        !goals.motion.make_way || beneficiary.held || distance(beneficiary.destination, trip.goal) > 0;
-    auto parking = m.body;
-    parking.position = m.parking;
-    const bool protects_beneficiary =
-        beneficiary.moving() && crosses_route(beneficiary, beneficiary.route, parking);
-    if (cancelled)
-        finish(MakeWayEnd::cancelled);
-    else if (beneficiary.lifecycle == MoverLifecycle::idle ||
-             (trip.phase != Phase::outbound && !protects_beneficiary))
-        finish(MakeWayEnd::cleared);
-    else if (goals.tick >= trip.deadline)
-        finish(MakeWayEnd::timed_out);
-    const bool route_hits_traffic = m.moving() && !traffic_clear(goals, m, m.route);
-    if (route_hits_traffic) {
-        finish(MakeWayEnd::obstructed);
-        trip.traffic_invalidated = true;
-    }
-    // A failed or cancelled request cannot reserve the parking space forever.
-    // The return planner still checks the beneficiary's current footprint.
-    const bool can_return = !protects_beneficiary || cancelled || trip.traffic_invalidated ||
-                            goals.tick >= trip.deadline || trip.outcome == MakeWayEnd::cancelled;
-    const auto return_home = [&] {
-        if (auto home = checked_route(goals, index, m.parking); !home.empty()) {
-            install_route(goals, index, std::move(home), GoalKind::making_way);
-            trip.phase = Phase::returning;
-            return true;
-        }
-        return false;
-    };
-    // A brake target can overlap the region that invalidated the route. Retry
-    // while braking so that temporary obstructions cannot strand the mover.
-    if ((trip.phase == Phase::waiting || (m.moving() && trip.phase == Phase::outbound)) && trip.outcome &&
-        can_return && return_home())
-        return;
-    if (m.moving()) {
-        // A newly stationary body may occupy the checked trip. Brake via the
-        // current position, then wait until a checked return is available.
-        const bool obstructed =
-            std::any_of(goals.fleet.movers.begin(), goals.fleet.movers.end(), [&](const Mover &other) {
-                return &other != &m && (!other.moving() || other.held) &&
-                       crosses_route(m, m.route, other.body);
-            });
-        if (trip.phase != Phase::waiting && (obstructed || route_hits_traffic)) {
-            finish(MakeWayEnd::obstructed);
-            install_route(goals, index, {m.body.position}, GoalKind::making_way);
-            trip.phase = Phase::waiting;
-        }
-        return;
-    }
-
-    if (trip.phase == Phase::outbound) {
-        if (!trip.outcome)
-            if (auto route = checked_route(goals, trip.beneficiary, trip.goal); !route.empty())
-                install_route(goals, trip.beneficiary, std::move(route), beneficiary.goal);
-        trip.phase = Phase::waiting;
-    }
-}
-
-void MakeWay::try_make_way(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
-                           const StallDetector &stalls, std::size_t beneficiary) {
-    const auto episode = stalls.details(beneficiary);
-    if (!episode)
-        return;
-    auto &attempt = attempts_[beneficiary];
-    if (attempt.episode != episode->detected_at)
-        attempt = {.episode = episode->detected_at};
-    if (attempt.searches >= max_make_way_searches || goals.tick < attempt.retry_at)
-        return;
-
-    auto &fleet = goals.fleet;
-    const auto blocker = parked_blocker(goals, beneficiary);
-    if (!blocker)
-        return;
-    const auto index = *blocker;
-    const auto &m = fleet.movers[index];
-    if (trips_[index] || std::any_of(trips_.begin(), trips_.end(), [&](const auto &trip) {
-            return trip && trip->beneficiary == beneficiary;
-        }))
-        return;
-
-    ++attempt.searches;
-    attempt.retry_at = goals.tick + make_way_retry_ticks;
-    const auto destination = fleet.movers[beneficiary].destination;
-    if (auto alternate = checked_route(goals, beneficiary, destination); !alternate.empty()) {
-        install_route(goals, beneficiary, std::move(alternate), fleet.movers[beneficiary].goal);
-        attempt.searches = max_make_way_searches;
-        return;
-    }
-    const auto product = std::find_if(products.begin(), products.end(),
-                                      [&](const Product &candidate) { return candidate.id == m.product; });
-    if (at_parking(m) && !m.held && !coordinated(m) && !shuttle.contains(index) &&
-        (!m.product || (product != products.end() && product->state != ProductState::processing))) {
-        if (auto route = refuge_route(goals, index, beneficiary); !route.empty()) {
-            install_route(goals, index, std::move(route), GoalKind::making_way);
-            trips_[index] = Trip{beneficiary, destination, goals.tick + make_way_timeout};
-            attempt.searches = max_make_way_searches;
-            record(goals, EventKind::make_way_started, beneficiary, index);
-            return;
-        }
-    }
-    record(goals, EventKind::make_way_unavailable, beneficiary, index);
-}
-
 void MakeWay::update(Goals &goals, std::span<const Product> products, const Shuttle &shuttle,
                      const StallDetector &stalls) {
-    if (trips_.empty() && !goals.motion.make_way)
-        return;
-    trips_.resize(goals.fleet.movers.size());
-    attempts_.resize(trips_.size());
-    for (std::size_t i = 0; i < trips_.size(); ++i)
-        if (trips_[i])
-            advance_trip(goals, i);
-    if (goals.motion.make_way)
-        for (std::size_t i = 0; i < trips_.size(); ++i)
-            try_make_way(goals, products, shuttle, stalls, i);
+    FactoryMakeWayWorld world(goals, products, shuttle, stalls);
+    lifecycle_.step(world, goals.fleet.movers.size(), goals.tick, goals.motion.make_way, settings);
 }
 } // namespace i4sim::detail
