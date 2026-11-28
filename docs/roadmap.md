@@ -20,10 +20,6 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Sharpen all three launcher previews** · launcher, capture · added 2026-11-27
-  Demo, Dotio and i4sim all used 320 × 180 embedded stills, which the launcher draws about 500 pixels wide. The stills grow to 480 × 270, and Dotio gets a preview scene of its own (the user's choices of 2026-11-28).
-  Branch: `ccr-3ae7a52c-qpwl3u`. Design: [sharper launcher previews](design/2026-11-28-sharper-launcher-previews.md).
-
 ## Next
 
 - **i4sim toward a million ticks per second** · i4sim, with Kinetra · added 2026-11-27
