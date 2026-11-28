@@ -396,11 +396,13 @@ One case runs on its own through CTest (`-R 'kinetra_dotio:a failed escape'`) or
 
 ### Behavior benchmark
 
-`kinetra_dotio_behavior_benchmark` ([behavior_benchmark.cpp](tests/behavior_benchmark.cpp)) plays seeded games headless at Easy, Medium and Hard: a scripted player walks the maze and shoots at the nearest enemy in sight, and the benchmark counts what the enemies do (time per AI state, pursuits and how many find the player, recoveries, kamikaze, damage to the player, routes missing, stuck enemies, wall overlaps). It prints one Markdown table and a fingerprint per difficulty. Options: `--seeds N` (12), `--first-seed S` (1), `--seconds T` (180), `--wander steering|path`, `--per-seed`. CTest runs only a 10-second smoke (`kinetra_dotio_behavior_smoke`); a full comparison runs from a Release build:
+`kinetra_dotio_behavior_benchmark` plays seeded games headless at Easy, Medium and Hard and measures enemy behavior while a scripted player walks the maze and shoots at visible enemies. The report includes a Markdown table, a fingerprint per difficulty and measured headless UPS. Each seed and difficulty runs 100,000 ticks by default. Set the duration with `--ticks N` or `--seconds T` at 60 ticks per simulated second. The benchmark drives the clock at 1,000,000 requested UPS with one scripted input per update. Other options are `--seeds N` (default 12), `--first-seed S` (default 1), `--wander steering|path`, and `--per-seed`. [Benchmark source](tests/behavior_benchmark.cpp)
+
+CTest runs both `kinetra_dotio_behavior_smoke` (600 ticks per difficulty) and `kinetra_dotio_behavior_soak` (100,000 ticks per difficulty). Both use seed 1. Select the sustained run with `-R kinetra_dotio_behavior_soak` or run a multi-seed comparison from a Release build.
 
 ```sh
 cmake --build --preset release --target kinetra_dotio_behavior_benchmark
-./build-release/kinetra_dotio_behavior_benchmark --seeds 24 --seconds 300
+./build-release/kinetra_dotio_behavior_benchmark --seeds 24 --ticks 100000
 ```
 
 The baseline of phase 6 and the measurements after each step are in [Dotio restructuring](../../docs/design/2026-11-21-dotio-restructuring.md#baseline).

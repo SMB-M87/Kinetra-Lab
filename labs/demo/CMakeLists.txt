@@ -7,10 +7,10 @@ target_include_directories(kinetra_demo_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(kinetra_demo_logic PUBLIC Kinetra::Simulation kinetra_lab)
 target_compile_features(kinetra_demo_logic PUBLIC cxx_std_20)
 if(BUILD_TESTING)
-    # 60 simulated seconds per seed; labelled soak so quick runs can exclude them.
+    # Sustained crowd tests, labelled soak so quick runs can exclude them.
     kinetra_add_doctest(kinetra_demo_crowd_tests PREFIX kinetra_demo_crowd
-        SOURCES tests/crowd_stability_tests.cpp LIBRARIES kinetra_demo_logic
-        LABELS soak TIMEOUT 180)
+        SOURCES tests/crowd_stability_tests.cpp LIBRARIES kinetra_demo_logic kinetra_lab_testing
+        LABELS soak TIMEOUT 900)
     kinetra_add_doctest(kinetra_demo_crowd_characterization_tests PREFIX kinetra_demo_crowd_characterization
         SOURCES tests/crowd_characterization_tests.cpp
         LIBRARIES kinetra_demo_logic kinetra_lab_testing)

@@ -5,11 +5,12 @@
 #include <bit>
 #include <cstdint>
 
-/// Helpers shared by Lab doctest suites. Application-neutral: no application header is
-/// included here, so every application's tests can link the `kinetra_lab_testing`
-/// target. Assertions come from doctest (`CHECK`, `REQUIRE`); this header only adds what
-/// doctest lacks.
+/// Helpers shared by Lab tests and benchmarks through the `kinetra_lab_testing` target.
+/// Applications can use this header independently of one another.
 namespace kinetra_lab::testing {
+
+/// Default number of fixed simulation updates in a sustained headless workload.
+inline constexpr int long_run_ticks = 100'000;
 
 /// 64-bit FNV-1a hash over the exact bits of the values added, in order.
 ///
