@@ -210,6 +210,7 @@ TEST_CASE("the scenes are the expected list, each once") {
                                          "demo-fleet-clip",
                                          "demo-swarm-clip",
                                          "dotio",
+                                         "dotio-preview",
                                          "dotio-debug",
                                          "dotio-settings",
                                          "dotio-clip",
@@ -233,7 +234,7 @@ TEST_CASE("the scenes are the expected list, each once") {
 }
 
 TEST_CASE("a launcher preview is a screenshot at a whole multiple of the launcher's still") {
-    // capture_media.sh scales each preview down to the 320 x 180 still that EmbedPreviews.cmake
+    // capture_media.sh scales each preview down to the 480 x 270 still that EmbedPreviews.cmake
     // embeds; a whole factor keeps every still pixel an average of the same number of pixels.
     int previews = 0;
     for (const auto &scene : capture::scenes()) {
@@ -243,10 +244,10 @@ TEST_CASE("a launcher preview is a screenshot at a whole multiple of the launche
         ++previews;
         CHECK(scene.kind == capture::SceneKind::screenshot);
         CHECK(scene.gallery == capture::Gallery::lab);
-        CHECK(scene.width % 320 == 0);
-        CHECK(scene.width / 320 * 180 == scene.height);
+        CHECK(scene.width % 480 == 0);
+        CHECK(scene.width / 480 * 270 == scene.height);
     }
-    CHECK(previews == 2);
+    CHECK(previews == 3);
 }
 
 TEST_CASE("select_scenes picks named scenes in order, all without names, and rejects unknown names") {
