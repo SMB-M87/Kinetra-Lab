@@ -25,7 +25,7 @@ The times in this page's tables are the baseline's. The shares, in *Where the ti
 | --- | --- | --- | --- | --- |
 | i4sim | Motion benchmark: three layouts, two seeds, 50,000 ticks each | 28.0–28.6 s; 40.1–40.3 s with predictive passing | 0.25 ms on `8640x4800` (106 movers); 0.36 ms with passing | `priority_steer` (26%, 16% with passing); with passing, the spatial queries that form plans (25%). Contact resolution over every pair of movers was 46% until hotspot 2, the queries 32% with passing until hotspot 3, `priority_steer` 48% until hotspot 4 |
 | Demo | Crowd soak: 60 simulated seconds, 7,200 ticks | 20.8–23.2 s at 240 agents; 9.4–10.0 s at 48 | 3.1 ms at 240 agents; 1.3–1.4 ms at 48, the default | Steering (69% at 240 agents) and `World::step` (54% at 48); `SpatialGrid::query` 40% and 32% of the run across both. `World::step` rebuilding its grid 14 times per tick from every body was 35% and 64% until hotspot 1 |
-| Dotio | Behavior benchmark defaults: 12 seeds, three difficulties, 180 simulated seconds | 20.7–21.5 s | 0.055 ms, scripted player included | Prop contacts (41%); a shelter search over the whole window that finds nothing costs 7.5 ms |
+| Dotio | Behavior benchmark: 12 seeds, three difficulties, `--seconds 180` | 20.7–21.5 s | 0.055 ms, scripted player included | Prop contacts (41%); a shelter search over the whole window that finds nothing costs 7.5 ms |
 
 What this means for a running application:
 
@@ -45,17 +45,17 @@ cmake --build --preset release --target kinetra_i4sim_motion_benchmark kinetra_d
 
 | Application | Command | Time it reports |
 | --- | --- | --- |
-| i4sim | `./build-release/kinetra_i4sim_motion_benchmark --ticks 50000`, and again with `--predictive-passing`; the baseline and the measured changes ran 50,000 ticks, the default until 2026-11-27, and the default is now 1,000,000 | `elapsed_ms` and `ticks_per_second` per layout and seed ([motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark)) |
-| Demo | `./build-release/kinetra_demo_crowd_tests --duration=true` | doctest's time per case; a case runs 7,200 ticks |
+| i4sim | `./build-release/kinetra_i4sim_motion_benchmark` runs 1,000,000 ticks per layout and seed by default. Add `--ticks 50000` to reproduce the earlier baseline | `elapsed_ms` and `ticks_per_second` per layout and seed ([motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark)) |
+| Demo | `./build-release/kinetra_demo_crowd_tests --test-case='agents stay around a standing player*' --duration=true` | Doctest's elapsed time for each 100,000-tick case. Divide ticks by seconds for measured UPS |
 | Demo | `./build-release/kinetra_demo_crowd_characterization_tests --duration=true` | the same for the golden scenarios, 1.6–2.2 s each; 90% of it is the simulation, with the same profile as the soak cases |
-| Dotio | `time ./build-release/kinetra_dotio_behavior_benchmark` | none of its own; the scripted player's planning is under 1% of the total ([behavior benchmark](../labs/dotio/README.md#behavior-benchmark)) |
+| Dotio | `./build-release/kinetra_dotio_behavior_benchmark --seeds 1` runs 100,000 ticks per difficulty. Omit `--seeds 1` for all 12 seeds | Total ticks, elapsed seconds and measured UPS ([behavior benchmark](../labs/dotio/README.md#behavior-benchmark)) |
 
 For a profile, build a second tree with frame pointers and symbols. It gave the same benchmark results as the release build, within 3% of its time:
 
 ```sh
 cmake --preset release -B build-profile -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer"
 cmake --build build-profile --target kinetra_i4sim_motion_benchmark
-perf record -F 499 --call-graph fp -o i4sim.perf -- ./build-profile/kinetra_i4sim_motion_benchmark --ticks 50000 > /dev/null
+perf record -F 499 --call-graph fp -o i4sim.perf -- ./build-profile/kinetra_i4sim_motion_benchmark --blueprint labs/i4sim/blueprints/8640x4800.json --seed 42 > /dev/null
 perf report -i i4sim.perf --no-children --sort symbol   # time in each function itself
 perf report -i i4sim.perf --children --sort symbol      # including what it calls
 ```

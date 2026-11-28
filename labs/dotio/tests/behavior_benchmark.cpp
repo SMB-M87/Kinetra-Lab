@@ -7,14 +7,17 @@
 // player's own walks with kinetra::WeightedGrid, so it does not depend on the enemy route
 // planning it measures. Usage:
 //
-//   kinetra_dotio_behavior_benchmark [--seeds N] [--first-seed S] [--seconds T]
+//   kinetra_dotio_behavior_benchmark [--seeds N] [--first-seed S] [--ticks N | --seconds T]
 //                                    [--wander steering|path] [--per-seed]
 #include "dotio/application.h"
+#include "kinetra_lab/debug.h"
+#include "kinetra_lab/testing/test_support.h"
 
 #include <kinetra/simulation/weighted_grid.h>
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -49,7 +52,7 @@ bool route_empty(const dotio::Enemy &enemy) {
 // --- Scripted player. -----------------------------------------------------------------
 
 /// Ticks per simulated second; Dotio's fixed update rate.
-constexpr int ticks_per_second = 60;
+constexpr int ticks_per_second = static_cast<int>(dotio::Application::real_time_ups);
 /// Distance at which the player counts a waypoint as reached, in legacy pixels.
 constexpr float waypoint_reach = 35;
 /// Ticks without getting closer to the next waypoint before the player picks a new walk.
@@ -245,9 +248,11 @@ void mix(std::uint64_t &hash, float value) {
     hash = (hash ^ std::uint64_t(std::int64_t(std::lround(double(value) * 16)))) * 1099511628211ull;
 }
 
-/// Plays `seconds` simulated seconds of a world at `difficulty` and returns its totals.
-Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, dotio::WanderMode wander_mode) {
+/// Plays `ticks` fixed updates of a world at `difficulty` and returns its totals.
+Totals play(std::uint32_t seed, dotio::Difficulty difficulty, int ticks, dotio::WanderMode wander_mode) {
     auto application = std::make_unique<dotio::Application>(seed, difficulty);
+    application->ups = kinetra_lab::fastest_ups;
+    const double elapsed_per_tick = 1.0 / static_cast<double>(application->ups);
     auto &world = application->world();
     world.enemy_tuning().wander = wander_mode;
     kinetra::Camera2D camera;
@@ -257,7 +262,6 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
     Totals totals;
     std::vector<Slot> slots(world.get_enemies().get_capacity());
     std::vector<bool> arrows(world.get_arrows().get_capacity());
-    const int ticks = int(seconds * ticks_per_second);
     for (int tick = 0; tick < ticks; ++tick) {
         const auto commands = player.commands(*application);
         const float health = world.get_player().health;
@@ -265,7 +269,9 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
         const auto resets = world.reset_count();
         const auto offset_before = world.world_offset();
         const auto player_before = world.get_player().position;
-        application->advance(1.0 / ticks_per_second, commands, camera);
+        application->advance(elapsed_per_tick, commands, camera);
+        if (application->ticks_run() != 1)
+            throw std::runtime_error("Expected exactly one simulation update for each scripted input");
         const bool reset = world.reset_count() != resets;
         const auto shift = world.world_offset() - offset_before;
         auto &self = world.get_player();
@@ -373,7 +379,7 @@ Totals play(std::uint32_t seed, dotio::Difficulty difficulty, double seconds, do
 struct Options {
     int seeds{12};
     std::uint32_t first_seed{1};
-    double seconds{180};
+    int ticks{kinetra_lab::testing::long_run_ticks};
     bool per_seed{};
     dotio::WanderMode wander{dotio::WanderMode::steering};
 };
@@ -387,9 +393,17 @@ Options parse(int argc, char **argv) {
             options.seeds = std::stoi(argv[++i]);
         else if (option == "--first-seed" && has_value)
             options.first_seed = std::uint32_t(std::stoul(argv[++i]));
-        else if (option == "--seconds" && has_value)
-            options.seconds = std::stod(argv[++i]);
-        else if (option == "--wander" && has_value) {
+        else if ((option == "--ticks" || option == "--seconds") && has_value) {
+            const std::string value = argv[++i];
+            std::size_t used{};
+            const double ticks = option == "--ticks" ? double(std::stoll(value, &used))
+                                                     : std::stod(value, &used) * ticks_per_second;
+            constexpr int most_ticks = std::numeric_limits<int>::max();
+            if (used != value.size() || !(ticks >= 1 && ticks <= most_ticks))
+                throw std::invalid_argument(option + " must represent 1.." + std::to_string(most_ticks) +
+                                            " ticks");
+            options.ticks = int(ticks);
+        } else if (option == "--wander" && has_value) {
             const std::string mode = argv[++i];
             if (mode != "steering" && mode != "path")
                 throw std::invalid_argument("--wander must be steering or path");
@@ -399,10 +413,10 @@ Options parse(int argc, char **argv) {
         else
             throw std::invalid_argument(
                 "Usage: kinetra_dotio_behavior_benchmark [--seeds N] [--first-seed S] "
-                "[--seconds T] [--wander steering|path] [--per-seed]");
+                "[--ticks N | --seconds T] [--wander steering|path] [--per-seed]");
     }
-    if (options.seeds <= 0 || !(options.seconds > 0))
-        throw std::invalid_argument("Seeds and seconds must be positive");
+    if (options.seeds <= 0)
+        throw std::invalid_argument("Seeds must be positive");
     return options;
 }
 
@@ -479,16 +493,18 @@ void report(const std::array<Totals, 3> &totals) {
 int main(int argc, char **argv) {
     try {
         const auto options = parse(argc, argv);
-        std::printf("Dotio behavior: %d seeds from %u, %.0f simulated seconds each, %s wander\n\n",
-                    options.seeds, options.first_seed, options.seconds,
+        std::printf("Dotio behavior: %d seeds from %u, %d ticks (%.2f simulated seconds) each, %s wander\n\n",
+                    options.seeds, options.first_seed, options.ticks,
+                    double(options.ticks) / ticks_per_second,
                     options.wander == dotio::WanderMode::path ? "path" : "steering");
         std::array<Totals, 3> totals;
         const std::array difficulties{dotio::Difficulty::easy, dotio::Difficulty::medium,
                                       dotio::Difficulty::hard};
+        const auto started = std::chrono::steady_clock::now();
         for (std::size_t d = 0; d < difficulties.size(); ++d)
             for (int i = 0; i < options.seeds; ++i) {
                 const auto seed = options.first_seed + std::uint32_t(i);
-                const auto run = play(seed, difficulties[d], options.seconds, options.wander);
+                const auto run = play(seed, difficulties[d], options.ticks, options.wander);
                 if (options.per_seed)
                     std::printf("difficulty %zu seed %u: kills %.0f damage %.0f deaths %.0f pursuits %.0f "
                                 "stuck %.0f fingerprint %016llx\n",
@@ -496,9 +512,13 @@ int main(int argc, char **argv) {
                                 static_cast<unsigned long long>(run.fingerprint));
                 totals[d] += run;
             }
+        const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - started;
+        const double total_ticks = totals[0].ticks + totals[1].ticks + totals[2].ticks;
         if (options.per_seed)
             std::printf("\n");
         report(totals);
+        std::printf("Headless throughput: %.0f UPS (%.0f ticks in %.3f s)\n",
+                    ratio(total_ticks, elapsed.count()), total_ticks, elapsed.count());
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
         return 1;

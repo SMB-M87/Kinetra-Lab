@@ -1,23 +1,25 @@
-// Soak tests for dense Demo crowds: 60 simulated seconds per seed. These seeds stalled
+// Soak tests for Demo crowds. The dense runs cover 60 simulated seconds per seed. These seeds stalled
 // only after sustained crowd motion, beyond the old five-frame smoke checks, so the
 // tests step simulated time rather than rendering speed. CTest labels them `soak`.
 //
 // Both seeds run with the default steering wander. One of them also runs with route
 // wander, so the mode that the debug menu offers for comparison stays covered.
 //
-// The last two cases watch a minute of a small crowd around a standing player: the
+// The last two cases follow a small crowd around a standing player for 100,000 ticks: the
 // reproduction of agents that walked away and never came back.
 #include "demo/application.h"
+#include "kinetra_lab/debug.h"
+#include "kinetra_lab/testing/test_support.h"
 
 #include <doctest/doctest.h>
 
 #include <algorithm>
 
 namespace {
-/// Fixed steps per simulated run: 60 seconds at the Demo's 120 Hz clock.
-constexpr int soak_ticks = 7200;
+constexpr int ticks_per_second = static_cast<int>(demo::real_time_ups);
+constexpr int dense_crowd_ticks = 60 * ticks_per_second;
 
-/// Runs a 240-agent crowd that wanders by `wander` for `soak_ticks` frames and checks
+/// Runs a 240-agent crowd that wanders by `wander` for `dense_crowd_ticks` ticks and checks
 /// every tick that contact never exhausts the swept-event budget and that all motion
 /// stays finite.
 void soak(unsigned seed, demo::WanderMode wander) {
@@ -26,9 +28,9 @@ void soak(unsigned seed, demo::WanderMode wander) {
     kinetra::Camera2D camera;
     camera.viewport = {1280, 800};
     camera.pixels_per_unit = 17;
-    for (int tick = 0; tick < soak_ticks; ++tick) {
+    for (int tick = 0; tick < dense_crowd_ticks; ++tick) {
         INFO("tick " << tick);
-        application.advance(1.0 / 120, {}, camera);
+        application.advance(demo::tick_seconds, {}, camera);
         const auto &world = application.scene().world();
         REQUIRE_MESSAGE(!world.sweep_budget_exhausted(),
                         "Ordinary crowd contact exhausted the swept-event budget");
@@ -41,12 +43,10 @@ void soak(unsigned seed, demo::WanderMode wander) {
     }
 }
 
-/// Checks that the agents around a player who stands still are still there a minute
-/// later. Before agents had a home range they walked out of the active area, fell asleep
-/// there and left the surroundings of the player empty: 1 of 48 was still awake.
+/// Checks that agents remain around a standing player after a minute and at the end of
+/// the sustained run. Before agents had a home range they walked out of the active area
+/// and fell asleep there. Only 1 of 48 was still awake.
 void check_agents_stay_around_a_standing_player(demo::WanderMode wander) {
-    // One simulated second lets the first streaming pass populate and wake the area.
-    constexpr int warm_up_ticks = 120;
     demo::Application application(48, 42);
     application.tuning().wander.mode = wander;
     kinetra::Camera2D camera;
@@ -56,17 +56,27 @@ void check_agents_stay_around_a_standing_player(demo::WanderMode wander) {
         const auto agents = application.scene().agents();
         return std::count_if(agents.begin(), agents.end(), [](const auto &agent) { return agent.active(); });
     };
-    for (int tick = 0; tick < warm_up_ticks; ++tick)
-        application.advance(1.0 / 120, {}, camera);
+    demo::FrameCommands commands;
+    commands.ups = kinetra_lab::fastest_ups;
+    const double elapsed_per_tick = 1.0 / static_cast<double>(commands.ups);
+    int tick = 0;
+    const auto advance_to = [&](int checkpoint) {
+        for (; tick < checkpoint; ++tick) {
+            application.advance(elapsed_per_tick, commands, camera);
+            REQUIRE(application.ticks_run() == 1);
+        }
+    };
+    // One simulated second lets the first streaming pass populate and wake the area.
+    advance_to(ticks_per_second);
     const auto early = active();
-    // A wanderer at 4 units per second leaves the active area well within the minute.
-    for (int tick = warm_up_ticks; tick < soak_ticks; ++tick)
-        application.advance(1.0 / 120, {}, camera);
-    const auto late = active();
-    INFO("active agents after 1 s: " << early << ", after 60 s: " << late);
     REQUIRE(early > 0);
-    // Agents may drift in and out at the edge, but the area must not empty.
-    CHECK(late * 5 >= early * 4);
+    for (const int checkpoint : {dense_crowd_ticks, kinetra_lab::testing::long_run_ticks}) {
+        advance_to(checkpoint);
+        const auto retained = active();
+        INFO("tick " << tick << ", initial active agents: " << early << ", now: " << retained);
+        // Allow movement across the active area's edge while requiring the crowd to stay nearby.
+        CHECK(retained * 5 >= early * 4);
+    }
 }
 } // namespace
 

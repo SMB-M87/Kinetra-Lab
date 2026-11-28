@@ -20,6 +20,7 @@
 #include "i4sim/testing/recorder.h"
 #include "i4sim/testing/showcase.h"
 #include "kinetra_lab/inspector_trace.h"
+#include "kinetra_lab/testing/test_support.h"
 
 #include <doctest/doctest.h>
 
@@ -52,6 +53,10 @@ std::string inspection_value(const kinetra::InspectorSnapshot &snapshot, std::st
 } // namespace
 
 namespace {
+using kinetra_lab::testing::long_run_ticks;
+
+constexpr int production_checkpoint_ticks = 50'000;
+
 /// A 2400 by 1600 factory with one APM4220 mover at (1000, 700) and four producers in
 /// the corners; the Manuel producer is rectangular.
 Blueprint fixture() {
@@ -185,7 +190,7 @@ void check_encounters(bool crossing) {
     }
 }
 
-/// Runs a large bundled factory with seed 915839214 and route recovery for 50000 ticks.
+/// Runs a large bundled factory with seed 915839214 and route recovery for the sustained workload.
 /// Recovery must be exercised, poses must stay finite and products must complete.
 void check_large_factory_recovery(const char *name) {
     const auto large = load_blueprint(default_blueprint_directory() / name);
@@ -195,13 +200,16 @@ void check_large_factory_recovery(const char *name) {
     recovery.configure_motion(recovery_settings);
     recovery.run();
     bool recovered = false;
-    for (int i = 0; i < 50000; ++i) {
+    for (int tick = 0; tick < long_run_ticks; ++tick) {
         recovery.tick();
-        for (const auto &mover : recovery.movers()) {
-            recovered = recovered || mover.detour;
-            CHECK_MESSAGE(kinetra::finite(mover.body.position), "Route recovery produced an invalid pose");
-        }
+        const auto movers = recovery.movers();
+        recovered = recovered ||
+                    std::any_of(movers.begin(), movers.end(), [](const auto &mover) { return mover.detour; });
+        REQUIRE_MESSAGE(std::all_of(movers.begin(), movers.end(),
+                                    [](const auto &mover) { return kinetra::finite(mover.body.position); }),
+                        "Route recovery produced an invalid pose at tick " << recovery.ticks());
     }
+    CHECK(recovery.ticks() == long_run_ticks);
     CHECK_MESSAGE(recovered, "Large factory regression never exercised route recovery");
     CHECK_MESSAGE(recovery.completed() > 0, "Large factory workload did not complete any products");
 }
@@ -250,9 +258,11 @@ TEST_CASE("reciprocal control keeps physical tick units at any update rate") {
         simulation->configure_motion(config);
         REQUIRE_MESSAGE(simulation->move_to(0, {1300, 800}), "Reciprocal tick goal rejected");
     }
-    accelerated.updates_per_second(1000);
+    accelerated.updates_per_second(most_updates_per_second);
     normal.single_step();
-    accelerated.single_step();
+    accelerated.run();
+    accelerated.advance(1.0 / most_updates_per_second);
+    REQUIRE(accelerated.ticks() == normal.ticks());
     CHECK_MESSAGE(
         (kinetra::distance(normal.movers()[0].body.position, accelerated.movers()[0].body.position) == 0 &&
          std::abs(kinetra::length(normal.movers()[0].body.velocity) - normal.motion_settings().force) <
@@ -1429,7 +1439,7 @@ TEST_CASE("turning recovery off replans a mover on a recovery detour") {
                 return i;
         return std::nullopt;
     };
-    while (!detouring() && simulation.ticks() < 50000)
+    while (!detouring() && simulation.running() && simulation.ticks() < long_run_ticks)
         simulation.tick();
     const auto mover = detouring();
     REQUIRE_MESSAGE(mover.has_value(), "No mover took a recovery detour");
@@ -1636,9 +1646,14 @@ TEST_CASE("parking traffic keeps the test environment's workload contact-free an
     bool saw_wait = false, checked_release = false, checked_manual = false;
     bool saw_return = false;
     std::vector<bool> waiting(blueprint.movers.size());
-    for (int tick = 0; tick < 50000; ++tick) {
+    std::uint64_t completed_at_checkpoint = 0;
+    for (int tick = 1; tick <= long_run_ticks; ++tick) {
         simulation.tick();
         replay.tick();
+        if (tick == production_checkpoint_ticks) {
+            completed_at_checkpoint = simulation.completed();
+            CHECK(completed_at_checkpoint >= 15);
+        }
         for (std::size_t i = 0; i < simulation.movers().size(); ++i) {
             const auto &m = simulation.movers()[i];
             const auto &copy = replay.movers()[i];
@@ -1691,11 +1706,13 @@ TEST_CASE("parking traffic keeps the test environment's workload contact-free an
         CHECK_MESSAGE(simulation.parking_waiting() == std::count(waiting.begin(), waiting.end(), true),
                       "Parking wait statistics did not match simulation state");
     }
+    CHECK(simulation.ticks() == long_run_ticks);
+    CHECK(replay.ticks() == long_run_ticks);
     CHECK_MESSAGE((saw_wait && saw_return && checked_release && checked_manual),
                   "Parking traffic lifecycle was not exercised");
-    CHECK_MESSAGE(
-        (simulation.completed() >= 15 && simulation.collisions() == 0 && simulation.contact_ticks() == 0),
-        "Parking traffic failed the test-environment throughput/contact regression");
+    CHECK_MESSAGE((simulation.completed() > completed_at_checkpoint && simulation.collisions() == 0 &&
+                   simulation.contact_ticks() == 0),
+                  "Parking traffic failed the test-environment throughput/contact regression");
 }
 
 TEST_CASE("without path planning a mover steers straight at its goal and still needs a route") {
@@ -2584,11 +2601,16 @@ TEST_CASE("the test environment's workload completes recipes within producer que
     const auto environment = load_blueprint(i4sim::test::fixture_blueprint("test-environment"));
     Simulation factory(environment, 42);
     factory.run();
-    for (int i = 0; i < 50000; ++i)
+    for (int tick = 0; tick < production_checkpoint_ticks; ++tick)
+        factory.tick();
+    const auto completed_at_checkpoint = factory.completed();
+    CHECK(completed_at_checkpoint >= 5);
+    for (int tick = production_checkpoint_ticks; tick < long_run_ticks; ++tick)
         factory.tick();
     INFO(workload_diagnostics(factory));
-    CHECK_MESSAGE(factory.completed() >= 5,
-                  "The test environment's workload deadlocked instead of completing recipes");
+    CHECK(factory.ticks() == long_run_ticks);
+    CHECK_MESSAGE(factory.completed() > completed_at_checkpoint,
+                  "The test environment stopped completing recipes after the production checkpoint");
     for (const auto &producer : factory.producers())
         CHECK_MESSAGE(producer.queue.size() <= environment.producer_max_queue,
                       "Producer queue capacity exceeded");
@@ -3007,6 +3029,43 @@ TEST_CASE("make way can withdraw from a traffic zone enabled around the mover") 
     CHECK_FALSE(traffic.exit_reservation(floor.junction_count()));
 }
 
+TEST_CASE("make way can help a beneficiary whose route crosses an enabled corridor") {
+    Simulation scenario(corridor_fixture());
+    REQUIRE(scenario.move_to(0, {1900, 700}));
+    const detail::FloorPlan floor(scenario.blueprint());
+    detail::Fleet fleet;
+    fleet.movers = scenario.movers();
+    fleet.progress.resize(fleet.movers.size());
+    auto &beneficiary = fleet.movers[0];
+    auto &yielding = fleet.movers[1];
+    beneficiary.body.position = {330, 700};
+    beneficiary.route = {beneficiary.destination};
+    yielding.parking = yielding.body.position = {460, 700};
+    fleet.max_half = yielding.body.half_extents;
+    detail::Traffic traffic(floor);
+    detail::PredictivePassing passing;
+    detail::StallDetector stalls(fleet.movers.size());
+    detail::Shuttle shuttle;
+    detail::MakeWay make_way;
+    detail::EventLog log;
+    auto settings = scenario.motion_settings();
+    settings.make_way = true;
+    settings.path_planning = false;
+    settings.corridor_traffic = true;
+    traffic.configure(floor, settings);
+    detail::Goals goals{floor, fleet, traffic, passing, log, settings, 120};
+
+    for (unsigned tick = 1; tick <= 120; ++tick) {
+        fleet.progress[0].no_progress = tick;
+        stalls.observe(fleet, settings, tick, log);
+    }
+    REQUIRE(stalls.details(0));
+    REQUIRE_FALSE(detail::MakeWay::traffic_clear(goals, beneficiary, beneficiary.route));
+    make_way.update(goals, {}, shuttle, stalls);
+    REQUIRE(yielding.goal == GoalKind::making_way);
+    CHECK(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
+}
+
 TEST_CASE("a braking make way trip retries its checked return when an obstruction clears") {
     auto layout = corridor_fixture();
     layout.movers.push_back({"return obstruction", Model::APM4220, {1843.5f, 943.5f}});
@@ -3065,8 +3124,10 @@ TEST_CASE("a braking make way trip retries its checked return when an obstructio
         CHECK_FALSE(detail::MakeWay::traffic_clear(goals, yielding, yielding.route));
         detail::Production production(layout, 42);
         detail::MotionStep motion;
+        const auto stopped_at = yielding.body.position;
         motion.run(goals, production);
-        REQUIRE(yielding.moving());
+        CHECK_FALSE(yielding.moving());
+        CHECK(yielding.body.position == stopped_at);
     }
     SUBCASE("disabling the corridor leaves the outbound claim released") {
         settings.corridor_traffic = false;
@@ -3382,7 +3443,7 @@ TEST_CASE("a mover with the right of way loses it when it gets a new goal") {
     // Run on until a mover without a product holds the right of way, so an operator can send
     // it elsewhere.
     std::optional<std::size_t> holder;
-    for (int tick = 0; tick < 50000 && !holder; ++tick) {
+    for (int tick = 0; tick < long_run_ticks && simulation.running() && !holder; ++tick) {
         simulation.tick();
         for (std::size_t i = 0; i < simulation.movers().size(); ++i)
             if (simulation.movers()[i].coordination.right_of_way && !simulation.movers()[i].product)
@@ -3586,7 +3647,7 @@ TEST_CASE("make way preserves a parked product and lets the recorded test-enviro
     CHECK(blocker.transport_ticks - mover_transport_ticks == carrying_movement_ticks);
     CHECK(after->distance - product_distance == doctest::Approx(blocker.distance - mover_distance));
     bool processed_after_return = false;
-    while (simulation.running() && simulation.ticks() < 50000) {
+    while (simulation.running() && simulation.ticks() < production_checkpoint_ticks) {
         simulation.tick();
         if (!processed_after_return) {
             const auto carried =
@@ -3599,6 +3660,11 @@ TEST_CASE("make way preserves a parked product and lets the recorded test-enviro
     CHECK(std::any_of(simulation.events().begin(), simulation.events().end(), [](const auto &event) {
         return event.movers[0] == 0 && event.make_way_end == MakeWayEnd::cleared;
     }));
-    CHECK(simulation.completed() >= 15);
+    const auto completed_at_checkpoint = simulation.completed();
+    CHECK(completed_at_checkpoint >= 15);
+    while (simulation.running() && simulation.ticks() < long_run_ticks)
+        simulation.tick();
+    CHECK(simulation.ticks() == long_run_ticks);
+    CHECK(simulation.completed() > completed_at_checkpoint);
     CHECK(simulation.collisions() == 0);
 }

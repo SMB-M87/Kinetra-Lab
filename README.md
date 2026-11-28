@@ -209,7 +209,7 @@ Offscreen support depends on SDL/Mesa; alternatively use a desktop or Xvfb. Soft
 
 The `headless` preset builds with `KINETRA_LAB_BUILD_RUNTIME=OFF`, which omits the launcher and graphical executables. The `dev` and `release` test presets skip the `graphics` label.
 
-Every Lab test program is a [doctest](external/Kinetra/docs/testing.md#writing-a-doctest-suite) suite. CTest names every case `<suite>:<case>`, for example `kinetra_dotio:a failed escape triggers kamikaze only at exactly one health`. Select a suite or a single case with `-R`, and skip the two 60-second Demo crowd cases with `-LE soak`:
+CTest names [doctest](external/Kinetra/docs/testing.md#writing-a-doctest-suite) cases `<suite>:<case>`. Use `-R` to select a suite or a single case and `-LE soak` to skip the Demo crowd and long Dotio behavior runs.
 
 ```sh
 ctest --preset release -R '^kinetra_dotio:'

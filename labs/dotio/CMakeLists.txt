@@ -23,11 +23,13 @@ target_link_libraries(kinetra_dotio_logic PUBLIC Kinetra::Simulation kinetra_lab
 if(BUILD_TESTING)
     kinetra_add_doctest(kinetra_dotio_tests PREFIX kinetra_dotio
         SOURCES tests/dotio_tests.cpp tests/passing_tests.cpp LIBRARIES kinetra_dotio_logic nlohmann_json::nlohmann_json)
-    # Seeded statistics of enemy behavior; minutes per full run, so CTest runs only a smoke.
+    # Seeded statistics of enemy behavior. CTest uses one seed for each duration.
     add_executable(kinetra_dotio_behavior_benchmark tests/behavior_benchmark.cpp)
-    target_link_libraries(kinetra_dotio_behavior_benchmark PRIVATE kinetra_dotio_logic)
+    target_link_libraries(kinetra_dotio_behavior_benchmark PRIVATE kinetra_dotio_logic kinetra_lab_testing)
     add_test(NAME kinetra_dotio_behavior_smoke
         COMMAND kinetra_dotio_behavior_benchmark --seeds 1 --seconds 10)
+    add_test(NAME kinetra_dotio_behavior_soak COMMAND kinetra_dotio_behavior_benchmark --seeds 1)
+    set_tests_properties(kinetra_dotio_behavior_soak PROPERTIES LABELS soak TIMEOUT 600)
 endif()
 if(KINETRA_BUILD_RUNTIME)
     add_library(kinetra_dotio_presentation src/presentation/presentation.cpp src/presentation/session.cpp)

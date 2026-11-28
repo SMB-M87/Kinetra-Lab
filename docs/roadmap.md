@@ -20,10 +20,6 @@ Within each section the first item comes first. The order was proposed on 2026-1
 
 ## Now
 
-- **Stall detection and remedies in i4sim** · i4sim, with Kinetra · added 2026-11-21
-  The departure check, a right-of-way fallback for pushed-back movers, i4sim on Kinetra's `PassingCoordinator`, and stall detection and MAKE WAY in the engine, in a stack of five steps; with Kinetra's *Stall detection and remedies in the engine*.
-  Where: [design](design/2026-11-27-stall-remedies-in-the-engine.md), branches `feat/i4sim-departure-check` (step 1), `refactor/i4sim-passing-coordinator` (step 2), `feat/stall-detector` (step 3) and `feat/right-of-way` (step 4).
-
 ## Next
 
 - **i4sim toward a million ticks per second** · i4sim, with Kinetra · added 2026-11-27
@@ -90,7 +86,7 @@ Within each section the first item comes first. The order was proposed on 2026-1
   Where: [Demo showcases, open points](design/2026-11-27-demo-showcases.md#open-points), [Demo open points](../labs/demo/README.md#open-points).
 - **Run fast, repeatable headless comparisons in all three labs** · Demo, Dotio, i4sim, tools · added 2026-11-27
   Run a selectable scenario, seed and tick budget as fast as the machine allows. Report actual ticks, elapsed time, measured ticks/s and the outcome counters, with enough configuration to replay an outlier. Use the same inputs for baseline and candidate, then tune behavior between runs. Add small reproductions that visibly demonstrate a new behavior to the relevant showcase where one exists.
-  Next step: use i4sim's million-tick motion benchmark for paired parking and routing runs and decide how to run `1680x960-` past its separate 10,000-tick blueprint cap. Extend Dotio's seeded behavior benchmark with measured tick throughput. Give Demo a selectable showcase and crowd benchmark with timing and outcome counters. See [performance measurement](performance.md#how-to-measure), [i4sim motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark), [Dotio behavior benchmark](../labs/dotio/README.md#behavior-benchmark) and [the smallest blueprint](../labs/i4sim/blueprints/1680x960-.json).
+  Next step: use i4sim's million-tick motion benchmark for paired parking and routing runs and decide how to run `1680x960-` past its separate 10,000-tick blueprint cap. Give Demo a selectable showcase and crowd benchmark with timing and outcome counters. Dotio's benchmark reports measured UPS and accepts an exact tick budget. See [performance measurement](performance.md#how-to-measure), [i4sim motion benchmark](../labs/i4sim/tests/README.md#motion-benchmark), [Dotio behavior benchmark](../labs/dotio/README.md#behavior-benchmark) and [the smallest blueprint](../labs/i4sim/blueprints/1680x960-.json).
 - **Park i4sim movers near recipe demand** · i4sim · added 2026-11-27
   Derive likely pickup demand from the active recipes and station queues. Include free movers and movers waiting with a product for a producer. Preserve their product, recipe step and queue position. Reserve reachable waiting spots with clearance for through traffic, processing areas and exits.
   Next step: benchmark fixed parking against a demand-based policy with a fallback when nearby spots are full. Prioritize minimizing contacts and blockages, even if production falls. Record waiting time, empty travel and completed products to show the trade-offs. See [current parking and MAKE WAY](../labs/i4sim/README.md#parking-traffic).

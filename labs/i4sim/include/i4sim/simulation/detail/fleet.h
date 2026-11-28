@@ -31,6 +31,8 @@ struct RouteProgress {
     float best_remaining{};
     /// Route recoveries since the last goal; lengthens the wait before the next one.
     unsigned recovery_attempts{};
+    /// An invalidated make-way leg is braking in place until a checked return opens.
+    bool make_way_braking{};
 };
 
 /// The movers and the per-mover data the components share. Every vector is indexed by
