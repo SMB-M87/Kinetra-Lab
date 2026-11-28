@@ -7,6 +7,7 @@
 // resource probe of relocation_tests.cmake, which runs it from a relocated copy.
 #include "i4sim/blueprint/scenario.h"
 #include "i4sim/simulation/detail/floor_plan.h"
+#include "i4sim/simulation/detail/geometry.h"
 #include "i4sim/simulation/detail/make_way.h"
 #include "i4sim/simulation/detail/motion_step.h"
 #include "i4sim/simulation/detail/predictive_passing.h"
@@ -2021,6 +2022,27 @@ TEST_CASE("departure check routes a queued Improved departure around its parked 
             simulation.tick();
         CHECK((simulation.collisions() == 0) == check);
     }
+}
+
+TEST_CASE("a stop line never crosses the mover it stops") {
+    kinetra::Body body;
+    body.shape = kinetra::Shape::box;
+    body.half_extents = {50, 50};
+    const kinetra::Aabb area{{0, 0}, {200, 100}};
+    // Clear of the area: the line is the area's side that faces the body.
+    body.position = {260, 50};
+    auto line = detail::stop_before(body, area);
+    CHECK(line.start == kinetra::Vec2{200, 0});
+    CHECK(line.end == kinetra::Vec2{200, 100});
+    // Already 20 mm past that side: the line moves to the body's face, so it only brakes.
+    body.position = {230, 50};
+    line = detail::stop_before(body, area);
+    CHECK(line.start.x == 180);
+    CHECK(line.end.x == 180);
+    body.position = {100, -30};
+    line = detail::stop_before(body, area);
+    CHECK(line.start.y == 20);
+    CHECK(line.end.y == 20);
 }
 
 TEST_CASE("a persistent contact pair counts once and accumulates its duration") {
